@@ -13,7 +13,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = False
         self.resample_MP = False  # whether to resample the model paraeters
         obs_dim = 11
-        self.param_manager = hopperContactManager(self)
+        self.param_manager = hopperContactMassManager(self)
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
 
@@ -26,7 +26,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.OSI_obs_dim = (obs_dim+len(self.control_bounds[0]))*self.history_length+obs_dim
             obs_dim = self.OSI_obs_dim
 
-        dart_env.DartEnv.__init__(self, 'hopper.skel', 4, obs_dim, self.control_bounds)
+        dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+
+        #self.dart_world.set_collision_detector(3) # 3 is ode collision detector
 
         utils.EzPickle.__init__(self)
         
@@ -71,33 +73,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        alive_bonus = 1.5
+        alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
+        #reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .7) and (height < 1.8) and (abs(ang) < .4))
+                    (height > .7) and (height < 1.8) and (abs(ang) < .2))
         ob = self._get_obs()
-        if len(self.dart_world.skeletons[0].bodynodes) >= 7: # move obstacles with the hopper
-            cq = self.dart_world.skeletons[0].q
-            '''cq[9] += posafter - posbefore
-            cq[15] += posafter - posbefore
-            cq[21] += posafter - posbefore
-            cq[27] += posafter - posbefore
-            cq[33] += posafter - posbefore
-            cq[39] += posafter - posbefore'''
-            for i in range(9, 40, 6):
-                if cq[i] < posafter - 0.75:
-                    cq[i] += 1
-            self.dart_world.skeletons[0].q = cq
 
-
-
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
+        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -105,7 +93,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             np.clip(self.robot_skeleton.dq,-10,10)
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
-
         if self.use_UPOSI:
             out_ob = np.zeros(self.OSI_obs_dim)
             ind = 0
@@ -121,13 +108,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.state_action_buffer.pop(0)
 
             return np.array([out_ob], dtype=np.float32)
-
         if self.train_UP:
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
-
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
-
         return state
 
     def reset_model(self):
@@ -135,13 +119,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
-
         if self.resample_MP:
             self.param_manager.resample_parameters()
-
         self.state_action_buffer = [] # for UPOSI
 
-        return self._get_obs()
+        state = self._get_obs()
+
+        return state
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5

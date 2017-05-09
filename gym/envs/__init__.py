@@ -141,6 +141,10 @@ register(
     entry_point='gym.envs.toy_text:KellyCoinflipEnv',
     reward_threshold=246.61,
 )
+register(
+    id='KellyCoinflipGeneralized-v0',
+    entry_point='gym.envs.toy_text:KellyCoinflipGeneralizedEnv',
+)
 
 register(
     id='FrozenLake-v0',
@@ -227,15 +231,34 @@ register(
 )
 
 register(
+    id='DartDoubleInvertedPendulumEnv-v1',
+    entry_point='gym.envs.dart:DartDoubleInvertedPendulumEnv',
+    max_episode_steps=1000,
+)
+
+register(
     id='DartReacher-v1',
+    entry_point='gym.envs.dart:DartReacher2dEnv',
+    reward_threshold=-3.75,
+    max_episode_steps=50,
+)
+
+register(
+    id='DartReacher3d-v1',
     entry_point='gym.envs.dart:DartReacherEnv',
-    reward_threshold=950.0,
+    reward_threshold=-200,
     max_episode_steps=500,
 )
 
 register(
     id='DartRobotWalk-v1',
     entry_point='gym.envs.dart:DartRobotWalk',
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartDog-v1',
+    entry_point='gym.envs.dart:DartDogEnv',
     max_episode_steps=1000,
 )
 
@@ -251,6 +274,24 @@ register(
     entry_point='gym.envs.dart:DartCartPoleImgEnv',
     reward_threshold=950.0,
     max_episode_steps=2000,
+)
+
+register(
+    id='DartWalker2d-v1',
+    entry_point='gym.envs.dart:DartWalker2dEnv',
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartWalker3d-v1',
+    entry_point='gym.envs.dart:DartWalker3dEnv',
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartWalker3dSPD-v1',
+    entry_point='gym.envs.dart:DartWalker3dSPDEnv',
+    max_episode_steps=1000,
 )
 
 '''register(
@@ -277,6 +318,7 @@ register(
 )
 
 
+
 # Mujoco
 # ----------------------------------------
 
@@ -287,6 +329,27 @@ register(
     entry_point='gym.envs.mujoco:ReacherEnv',
     max_episode_steps=50,
     reward_threshold=-3.75,
+)
+
+register(
+    id='Pusher-v0',
+    entry_point='gym.envs.mujoco:PusherEnv',
+    max_episode_steps=100,
+    reward_threshold=0.0,
+)
+
+register(
+    id='Thrower-v0',
+    entry_point='gym.envs.mujoco:ThrowerEnv',
+    max_episode_steps=100,
+    reward_threshold=0.0,
+)
+
+register(
+    id='Striker-v0',
+    entry_point='gym.envs.mujoco:StrikerEnv',
+    max_episode_steps=100,
+    reward_threshold=0.0,
 )
 
 register(
