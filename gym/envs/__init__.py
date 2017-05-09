@@ -198,6 +198,13 @@ register(
     max_episode_steps=1000,
 )
 
+register(
+    id='DartFullbody-v1',
+    entry_point='gym.envs.dart:DartFullbodyEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',
@@ -252,6 +259,22 @@ register(
     reward_threshold=950.0,
     max_episode_steps=2000,
 )'''
+
+# Dart Cloth
+# ----------------------------------------
+register(
+    id='DartClothSphereTube-v1',
+    entry_point='gym.envs.dart:DartClothSphereTubeEnv',
+    reward_threshold=950.0,
+    max_episode_steps=500,
+)
+
+register(
+    id='DartClothReacher-v1',
+    entry_point='gym.envs.dart:DartClothReacherEnv',
+    reward_threshold=950.0,
+    max_episode_steps=500,
+)
 
 
 # Mujoco

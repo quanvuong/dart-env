@@ -19,7 +19,6 @@ try:
 except ImportError as e:
     raise error.DependencyNotInstalled("{}. (HINT: you need to install pydart2.)".format(e))
 
-
 class DartEnv(gym.Env):
     """Superclass for all Dart environments.
     """

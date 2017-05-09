@@ -29,6 +29,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'hopper.skel', 4, obs_dim, self.control_bounds)
 
         utils.EzPickle.__init__(self)
+        
+        #self.reset_model()
+        #color = np.array([0.,0,0])
+        #print("color: " + str(color))
+        #print(self.robot_skeleton.q)
+        #exit()
 
     def setUseUPOSI(self, useUPOSI = True):
         self.use_UPOSI = useUPOSI

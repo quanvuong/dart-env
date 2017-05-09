@@ -21,6 +21,26 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
 
+        #ALEX TEST NEW:
+        fingertip = np.array([0.0, -0.25, 0.0])
+        wFingertip1 = self.robot_skeleton.bodynodes[2].to_world(fingertip)
+        vec1 = self.target-wFingertip1
+        
+        #apply action and simulate
+        self.do_simulation(tau, self.frame_skip)
+        
+        wFingertip2 = self.robot_skeleton.bodynodes[2].to_world(fingertip)
+        vec2 = self.target-wFingertip2
+        
+        reward_dist = - np.linalg.norm(vec2)
+        reward_ctrl = - np.square(tau).sum() * 0.001
+        reward_progress = np.dot((wFingertip2 - wFingertip1), vec1/np.linalg.norm(vec1)) * 100
+        alive_bonus = -0.001
+        reward = reward_progress + reward_ctrl + alive_bonus
+        #END ALEX TEST NEW
+        
+        #old reward/simulation step
+        '''
         fingertip = np.array([0.0, -0.25, 0.0])
         vec = self.robot_skeleton.bodynodes[2].to_world(fingertip) - self.target
         reward_dist = - np.linalg.norm(vec)
@@ -29,6 +49,8 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         reward = reward_dist + reward_ctrl + alive_bonus
         
         self.do_simulation(tau, self.frame_skip)
+        '''
+        
         ob = self._get_obs()
 
         s = self.state_vector()

@@ -5,8 +5,11 @@ from gym.envs.dart.parameter_managers import *
 
 from gym.envs.dart.cart_pole import DartCartPoleEnv
 from gym.envs.dart.hopper import DartHopperEnv
+from gym.envs.dart.full_body import DartFullbodyEnv
 #from gym.envs.dart.hopperRBF import DartHopperRBFEnv
 #from gym.envs.dart.hopper_cont import DartHopperEnvCont
 from gym.envs.dart.reacher import DartReacherEnv
 from gym.envs.dart.robot_walk import DartRobotWalk
 from gym.envs.dart.cart_pole_img import DartCartPoleImgEnv
+from gym.envs.dart.sphere_tube import DartClothSphereTubeEnv
+from gym.envs.dart.reacher_cloth import DartClothReacherEnv

@@ -10,13 +10,21 @@ from pydart2.gui.glut.window import *
 
 
 class StaticGLUTWindow(GLUTWindow):
+    def __init__(self, sim, title):
+        super(StaticGLUTWindow,self).__init__(sim, title)
+
     def close(self):
         GLUT.glutDestroyWindow(self.window)
         GLUT.glutMainLoopEvent()
 
     def drawGL(self, ):
         self.scene.render(self.sim)
+        self.extraRender()
         GLUT.glutSwapBuffers()
+        
+    def extraRender(self):
+        'Place any extra rendering functionality here. This can be used to extend the window class'
+        a=0
 
     def runSingleStep(self):
         GLUT.glutPostRedisplay()
@@ -47,12 +55,16 @@ class StaticGLUTWindow(GLUTWindow):
 
     def mykeyboard(self, key, x, y):
         keycode = ord(key)
-        key = key.decode('utf-8')
+        #print(keycode)
+        #key = key.decode('utf-8')
         # print("key = [%s] = [%d]" % (key, ord(key)))
 
         # n = sim.num_frames()
         if keycode == 27:
             self.close()
+            return
+        if keycode == 114: #'r'
+            self.sim.reset_model()
             return
         self.keyPressed(key, x, y)
 
