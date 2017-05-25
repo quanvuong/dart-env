@@ -1,0 +1,269 @@
+<?xml version="1.0" ?>
+<skel version="1.0">
+    <world name="world 1">
+        <physics>
+            <time_step>0.001</time_step>
+            <gravity>0 0 0</gravity>
+            <collision_detector>dart</collision_detector>
+        </physics>
+        
+        <skeleton name="target">
+           <mobile>false</mobile>
+           <body name="link 1">
+                <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                <inertia>
+                    <mass>1</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <geometry>
+                        <box>
+                            <size>0.1 0.1 0.1</size>
+                        </box>
+                    </geometry>
+                </visualization_shape>
+            </body>
+             <joint type="free" name="joint 1">
+                <parent>world</parent>
+                <child>link 1</child>
+                <transformation>0 0 0 0 0 0</transformation>
+            </joint>
+        </skeleton>	
+        
+        <skeleton name="skeleton1">
+            <body name="h_pelvis1">
+                <transformation>0 0 0 0 0 0</transformation>
+                <inertia>
+                    <mass>1</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+                                                
+            </body>
+
+            <body name="upperarm">
+                <gravity>1</gravity>
+                <transformation>0 0.0 0 0 0 0</transformation>
+                <inertia>
+                    <mass>1.5</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.065</radius>
+								<position>0 0 0</position>
+							</sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0.0 -0.28 0.0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                    <color>0.7 0.4 0.2</color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.065</radius>
+								<position>0 0 0</position>
+							</sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0.0 -0.028 0.0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                </collision_shape>                                
+            </body>
+
+            <body name="forearm">
+                <gravity>1</gravity>
+                <transformation>0.0 -0.28 0 0 0 0</transformation>
+                <inertia>
+                    <mass>1</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0 0 0</position>
+							</sphere>
+							<sphere>
+								<radius>0.0365</radius>
+								<position>0.0 -0.345 0.0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                    <color>0.7 0.4 0.2</color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0 0 0</position>
+							</sphere>
+							<sphere>
+								<radius>0.0365</radius>
+								<position>0.0 -0.345 0.0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                </collision_shape>                                
+            </body>
+
+            <body name="hand">
+                <gravity>0.25</gravity>
+                <transformation>0.0 -0.625 0.0 0 0 0</transformation>
+                <inertia>
+                    <mass>1</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.0365</radius>
+								<position>0.0 0.0 0.0</position>
+							</sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0 -0.04 0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                    <color>0.7 0.4 0.2</color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.0365</radius>
+								<position>0.0 0.0 0.0</position>
+							</sphere>
+							<sphere>
+								<radius>0.05</radius>
+								<position>0 -0.04 0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                </collision_shape>                                
+            </body>
+
+            <body name="fingers">
+                <gravity>1</gravity>
+                <transformation>0.0 -0.665 0.0 0 0 0</transformation>
+                <inertia>
+                    <mass>0.25</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.05 0.05 0.05</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>0.7 0.4 0.2</color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.05 0.05 0.05</size>
+                        </ellipsoid>
+                    </geometry>
+                </collision_shape>                                
+            </body>
+
+            <joint type="weld" name="wj1">
+                <parent>world</parent>
+                <child>h_pelvis1</child>
+            </joint>
+            <joint type="universal" name="shoulder">
+                <parent>h_pelvis1</parent>
+                <child>upperarm</child>
+                <axis>
+                    <xyz>0.0 0.0 1.0</xyz>
+                    <limit>
+						<lower>-3.1415</lower>
+						<upper>3.1415</upper>
+					</limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis>
+                <axis2>
+                    <xyz>1.0 0.0 0.0</xyz>
+                    <limit>
+						<lower>-3.1415</lower>
+						<upper>3.1415</upper>
+					</limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis2>
+            </joint>
+            <joint type="revolute" name="elbowj">
+                <parent>upperarm</parent>
+                <child>forearm</child>
+                <axis>
+                    <xyz>0.0 0.0 1.0</xyz>
+					<limit>
+						<lower>0</lower>
+						<upper>2.9</upper>
+					</limit>
+					<dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis>
+            </joint>
+            <joint type="universal" name="wrist">
+                <parent>forearm</parent>
+                <child>hand</child>
+                <axis_order>zyx</axis_order>
+                <axis>
+                    <xyz>0.0 0.0 1.0</xyz>
+					<limit>
+						<lower>-0.1</lower>
+						<upper>0.1</upper>
+					</limit>
+					<dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+				</axis>
+				<axis2>
+				    <xyz>1.0 0.0 0.0</xyz>
+					<limit>
+						<lower>-0.85</lower>
+						<upper>0.85</upper>
+					</limit>
+					<dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+				</axis2>
+            </joint>
+            <joint type="weld" name="handj">
+                <parent>hand</parent>
+                <child>fingers</child>
+            </joint>
+            
+        </skeleton>	
+        
+    </world>
+</skel>

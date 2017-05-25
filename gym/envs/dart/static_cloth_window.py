@@ -12,10 +12,11 @@ from gym.envs.dart.static_window import *
 
 
 class StaticClothGLUTWindow(StaticGLUTWindow):
-    def __init__(self, sim, title, clothScene=None, extraRenderFunc=None):
+    def __init__(self, sim, title, clothScene=None, extraRenderFunc=None, inputFunc=None):
         super(StaticClothGLUTWindow,self).__init__(sim, title)
         self.clothScene = clothScene
         self.extraRenderFunc = extraRenderFunc
+        self.inputFunc = inputFunc
         
     def extraRender(self):
         'Place any extra rendering functionality here. This can be used to extend the window class'
@@ -45,4 +46,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             self.clothScene.reset()
             self.sim.reset_model()
             return
+        if keycode == 13: #ENTER
+            if self.inputFunc is not None:
+                self.inputFunc()
         self.keyPressed(key, x, y)

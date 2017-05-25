@@ -10,6 +10,8 @@ import tensorflow as tf
 if __name__ == '__main__':
     #load policy
     
+    filename = None
+    
     #standard reacher: moved cloth 
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_sphere_movedcloth_2017_04_28_10_02_27_0001/params.pkl"
     
@@ -47,21 +49,49 @@ if __name__ == '__main__':
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_04_reacher_warmstart_stablesphere2movingcloth/params.pkl"
     
     #warm start moving cloth trial 2 (1500 iter)
-    filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_08_reacher_warmstart_stablesphere2movingcloth3/params.pkl"
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_08_reacher_warmstart_stablesphere2movingcloth3/params.pkl"
     
-
-    with tf.Session() as sess:
-        data = joblib.load(filename)
-        policy = data['policy']
-        #loadenv = data['env']
-    print(policy)
+    #sleeve reacher experiment 1
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_10_sleevereacher1/params.pkl"
+    
+    #new arm reacher experiment 2
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_12_newArmReacher2/params.pkl"
+    
+    #stable reacher (new arm)
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_14_newArmReacher_stable_warmstart2/params.pkl"
+    
+    #new arm sleeve reacher
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_14_newArmSleeveReacher_stablewarmstart/params.pkl"
+    
+    #shirt reacher
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_15_shirtReacher_stablewarmstart/params.pkl"
+    
+    #9 dof arm reacher
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher/params.pkl"
+    
+    #9 dof arm stable reacher
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher_stable/params.pkl"
+    
+    policy = None
+    if filename is not None:
+        with tf.Session() as sess:
+            data = joblib.load(filename)
+            policy = data['policy']
+            #loadenv = data['env']
+        print(policy)
 
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
     env = gym.make('DartClothReacher-v1')
+    #env = gym.make('DartClothSleeveReacher-v1')
+    #env = gym.make('DartClothShirtReacher-v1')
+    #env.render()
+    #time.sleep(4)
+    #print("done init")
     env.reset()
-
+    env.render()
+    #time.sleep(1)
     #Cloth sphere testing
     '''
     ppos = np.array([0.1,0,0])
@@ -92,18 +122,23 @@ if __name__ == '__main__':
         o = env.reset()
         #print("done reset")
         env.render()
+        time.sleep(1)
         #time.sleep(0.5)
         for j in range(500):
-            a, a_info = policy.get_action(o)
+            #a = np.array([0.,0.,0.,0.,0.])
+            a = np.array([0.0,0.0,0.0,0.0,-0.1,0.1,0.1,0.0,0.0]) #9 dofs for new arm
+            if policy is not None:
+                a, a_info = policy.get_action(o)
             #a = np.array([-1,-0,-0,-0,-0.])
             s_info = env.step(a)
             o = s_info[0]
             done = s_info[2]
             #print("o = " + str(o))
             #time.sleep(0.1)
+            #if i > 3400:
             env.render()
             if done is True:
-                time.sleep(0.5)
+                #time.sleep(0.5)
                 break
             #exit()
             
