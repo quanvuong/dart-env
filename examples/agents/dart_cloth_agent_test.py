@@ -132,6 +132,7 @@ if __name__ == '__main__':
             #a = np.array([-1,-0,-0,-0,-0.])
             s_info = env.step(a)
             o = s_info[0]
+            print(o)
             done = s_info[2]
             #print("o = " + str(o))
             #time.sleep(0.1)
