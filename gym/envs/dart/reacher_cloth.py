@@ -321,7 +321,7 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
-        print("reset")
+        #print("reset")
         self.dart_world.reset()
         self.clothScene.reset()
         self.clothScene.translateCloth(0, np.array([-3.5,0,0]))
