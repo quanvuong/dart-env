@@ -121,27 +121,36 @@ if __name__ == '__main__':
         #print("about to reset")
         o = env.reset()
         #print("done reset")
+        #print("v: " + str(o))
         env.render()
         time.sleep(1)
         #time.sleep(0.5)
-        for j in range(500):
+        for j in range(200):
             #a = np.array([0.,0.,0.,0.,0.])
-            a = np.array([0.0,0.0,0.0,0.0,-0.1,0.1,0.1,0.0,0.0]) #9 dofs for new arm
+            a = np.zeros(22) #22 dof upper body
+            #a += np.random.uniform(-1,1,22)
+            '''if(i < 22):
+                a[i] += 1
+            elif(i<44):
+                a[i-22] -= 1'''
+            #a = np.array([0.0,0.0,0.0,0.0,-0.1,0.1,0.1,0.0,0.0]) #9 dofs for new arm
             if policy is not None:
                 a, a_info = policy.get_action(o)
             #a = np.array([-1,-0,-0,-0,-0.])
             s_info = env.step(a)
             o = s_info[0]
-            print(o)
+            #print(o)
             done = s_info[2]
             #print("o = " + str(o))
             #time.sleep(0.1)
             #if i > 3400:
             env.render()
-            if done is True:
+            #if done is True:
                 #time.sleep(0.5)
-                break
+            #    break
             #exit()
             
 
     env.render(close=True)
+    
+
