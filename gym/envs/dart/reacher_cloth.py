@@ -48,7 +48,7 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         self.reset_number = 0 #debugging
         self.numSteps = 0
         
-        self.doROM = True
+        self.doROM = False
         self.ROM_period = 200.0
         
         self.targetHistory = []
@@ -58,7 +58,7 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(72+30), action_bounds=self.control_bounds, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(72+30), action_bounds=self.control_bounds)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
@@ -321,7 +321,7 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         if self.sampleFromHemisphere is True:
             self.target = self.hemisphereSample(radius=reacher_range, norm=v2)
             
-        self.target = np.array([0.,0.,0.])
+        #self.target = np.array([0.,0.,0.])
         
         '''dim = 15
         if(self.reset_number < dim*dim*dim):
