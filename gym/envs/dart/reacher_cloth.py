@@ -25,6 +25,10 @@ def oprint(text):
 class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
+        self.target2 = np.array([0.8, -0.6, 0.6])
+        self.targetActive1 = True
+        self.targetActive2 = True
+        self.randomActiveTarget = True #if true, 1/4 chance of both active, neither, either 1 or 2
         #5 dof reacher
         #self.action_scale = np.array([10, 10, 10, 10, 10])
         #self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
@@ -58,7 +62,8 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(72+30), action_bounds=self.control_bounds)
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+14), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+14), action_bounds=self.control_bounds, visualize=False)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
@@ -161,8 +166,10 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         tau = np.multiply(clamped_control, self.action_scale)
 
         fingertip = np.array([0.0, -0.06, 0.0])
-        wFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
-        vec1 = self.target-wFingertip1
+        wRFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        vecR1 = self.target-wRFingertip1
+        vecL1 = self.target2-wLFingertip1
         
         if self.doROM:
             #start from specific stage
@@ -212,23 +219,46 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         #apply action and simulate
         self.do_simulation(tau, self.frame_skip)
         
-        wFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         #self.targetHistory.append(wFingertip2)
         #self.successHistory.append(True)
-        vec2 = self.target-wFingertip2
+        vecR2 = self.target-wRFingertip2
+        vecL2 = self.target2-wLFingertip2
         
-        reward_dist = - np.linalg.norm(vec2)
+        #distance to target penalty
+        reward_dist1 = 0
+        reward_dist2 = 0
+        if self.targetActive1:
+            reward_dist1 = - np.linalg.norm(vecR2)
+        if self.targetActive2:
+            reward_dist2 = - np.linalg.norm(vecL2)
+        reward_dist = reward_dist1 + reward_dist2
+        
+        #force magnitude penalty    
         reward_ctrl = - np.square(tau).sum() * 0.001
-        reward_progress = np.dot((wFingertip2 - wFingertip1), vec1/np.linalg.norm(vec1)) * 100
+        
+        #displacement toward target reward
+        reward_progress = 0
+        if self.targetActive1:
+            reward_progress += np.dot((wRFingertip2 - wRFingertip1), vecR1/np.linalg.norm(vecR1)) * 100
+        if self.targetActive2:
+            reward_progress += np.dot((wLFingertip2 - wLFingertip1), vecL1/np.linalg.norm(vecL1)) * 100
+        
+        #horizon length penalty
         alive_bonus = -0.001
+        
+        #proximity to target bonus
         reward_prox = 0
-        if -reward_dist < 0.1:
-            reward_prox += (0.1+reward_dist)*40
+        if self.targetActive1 and -reward_dist1 < 0.1:
+            reward_prox += (0.1+reward_dist1)*40
+        if self.targetActive2 and -reward_dist2 < 0.1:
+            reward_prox += (0.1+reward_dist2)*40
+        
+        #total reward        
         reward = reward_ctrl + alive_bonus + reward_progress + reward_prox
-        #reward = reward_dist + reward_ctrl
         
         ob = self._get_obs()
-        #print("obs: " + str(ob))
 
         s = self.state_vector()
         
@@ -241,44 +271,57 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
             clothDeformation = self.clothScene.getMaxDeformationRatio(0)
         
         #check termination conditions
-        #print("state: " + str(s))
         done = False
         if not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             done = True
             reward -= 500
-        elif -reward_dist < 0.1:
-            done = True
-            reward += 50
-            if self.trackSuccess is True:
-                self.successHistory[-1] = True
-        
         elif (clothDeformation > 5):
             done = True
             reward -= 500
-            
+        elif self.targetActive1 and self.targetActive2:
+            if -reward_dist1 < 0.1 and -reward_dist2 < 0.1:
+                done = True
+                reward += 150
+        elif self.targetActive1 and -reward_dist1 < 0.1:
+            done = True
+            reward += 150
+        elif self.targetActive2 and -reward_dist2 < 0.1:
+            done = True
+            reward += 150
         #increment the step counter
         self.numSteps += 1
         
         return ob, reward, done, {}
 
     def _get_obs(self):
+        f_size = 66
+        '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
         theta = self.robot_skeleton.q
         fingertip = np.array([0.0, -0.06, 0.0])
         vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
+        vec2 = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target2
         
         if self.simulateCloth is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation 
         else:
-            f = np.zeros(30)
+            f = np.zeros(f_size)
         
         #print("ID getobs:" + str(self.clothScene.id))
         #print("f: " + str(f))
         #print("len f = " + str(len(f)))
-        return np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec,f]).ravel()
+        #return np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec,f]).ravel()
+        target1bit = np.array([0.])
+        if self.targetActive1:
+            target1bit[0] = 1.
+        target2bit = np.array([0.])
+        if self.targetActive2:
+            target2bit[0] = 1.
+        return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, target1bit, vec, self.target, target2bit, vec2, self.target2, f]).ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
+        print("reset")
         self.dart_world.reset()
         self.clothScene.reset()
         self.clothScene.translateCloth(0, np.array([-3.5,0,0]))
@@ -307,19 +350,44 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
             #move cloth out of arm range
             self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         
+        #randomize the active target state
+        if self.randomActiveTarget:
+            r = random.random()
+            #print(r)
+            if r < 0.25:
+                self.targetActive1 = True
+                self.targetActive2 = True
+            elif r < 0.5:
+                self.targetActive1 = False
+                self.targetActive2 = False
+            elif r < 0.75:
+                self.targetActive1 = True
+                self.targetActive2 = False
+            else:
+                self.targetActive1 = False
+                self.targetActive2 = True
+        
         #old sampling in box
         #'''
-        reacher_range = 0.75
+        reacher_range = 0.85
         if not self.sampleFromHemisphere:
-            while True:
-                self.target = self.np_random.uniform(low=-reacher_range, high=reacher_range, size=3)
-                #print('target = ' + str(self.target))
-                if np.linalg.norm(self.target) < reacher_range: break
+            if self.targetActive1:
+                while True:
+                    self.target = self.np_random.uniform(low=-reacher_range, high=reacher_range, size=3)
+                    #print('target = ' + str(self.target))
+                    if np.linalg.norm(self.target) < reacher_range: break
+            if self.targetActive2:
+                while True:
+                    self.target2= self.np_random.uniform(low=-reacher_range, high=reacher_range, size=3)
+                    #print('target = ' + str(self.target))
+                    if np.linalg.norm(self.target2) < reacher_range: break
+            
         #'''
         
         #sample target from hemisphere
         if self.sampleFromHemisphere is True:
             self.target = self.hemisphereSample(radius=reacher_range, norm=v2)
+            self.target2 = self.hemisphereSample(radius=reacher_range, norm=v2)
             
         #self.target = np.array([0.,0.,0.])
         
@@ -410,11 +478,11 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
             collisionCapsuleInfo[12,13] = 1
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo)
             
-        '''if hapticSensors is True:
+        if hapticSensors is True:
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
-            hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, cs3, cs4])
-            self.clothScene.setHapticSensorLocations(hapticSensorLocations)'''
+            hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
+            self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
@@ -436,6 +504,31 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+        
+        #render target 2
+        GL.glColor3d(0.8,0.,0)
+        GL.glPushMatrix()
+        GL.glTranslated(self.target2[0], self.target2[1], self.target2[2])
+        GLUT.glutSolidCube(0.1, 10,10)
+        GL.glPopMatrix()
+        
+        #if targets are active, render guidelines
+        fingertip = np.array([0.0, -0.06, 0.0])
+        if self.targetActive1:
+            wef1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+            GL.glColor3d(0.0,0.0,0.8)
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3d(self.target[0], self.target[1], self.target[2])
+            GL.glVertex3d(wef1[0],wef1[1],wef1[2])
+            GL.glEnd()
+            
+        if self.targetActive2:
+            wef2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+            GL.glColor3d(0.8,0.0,0.0)
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3d(self.target2[0], self.target2[1], self.target2[2])
+            GL.glVertex3d(wef2[0],wef2[1],wef2[2])
+            GL.glEnd()
         
         if self.renderSuccess is True or self.renderFailure is True:
             for i in range(len(self.targetHistory)):
