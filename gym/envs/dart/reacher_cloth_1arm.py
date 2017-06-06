@@ -22,13 +22,13 @@ def oprint(text):
     'output genie print color'
     pyutils.cprint(text, MAGENTA)
 
-class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
+class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.target2 = np.array([0.8, -0.6, 0.6])
         self.targetActive1 = True
-        self.targetActive2 = True
-        self.randomActiveTarget = True #if true, 1/4 chance of both active, neither, either 1 or 2
+        self.targetActive2 = False
+        self.randomActiveTarget = False #if true, 1/4 chance of both active, neither, either 1 or 2
         
         #storage of rewards from previous step for rendering
         self.renderRewards = True
@@ -55,12 +55,12 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         #self.control_bounds = np.array([[ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],[ -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         
         #22 dof upper body
-        self.action_scale = np.ones(22)*10
-        self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
+        self.action_scale = np.ones(11)*10
+        self.control_bounds = np.array([np.ones(11), np.ones(11)*-1])
         
         #autoT(au) is applied force at every step
-        self.autoT = np.zeros(22)
-        self.useAutoTau = True
+        self.autoT = np.zeros(11)
+        self.useAutoTau = False
         
         self.reset_number = 0 #debugging
         self.numSteps = 0
@@ -75,8 +75,8 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+14), action_bounds=self.control_bounds)
-        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+14), action_bounds=self.control_bounds, visualize=False)
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
@@ -168,9 +168,7 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         #print("step")
         clamped_control = np.array(a)
         if self.useAutoTau is True:
-            clamped_control =  clamped_control + self.autoT
-        #if self.useAutoTau is True:
-        #    clamped_control = clamped_control + self.autoT
+            clamped_control = clamped_control + self.autoT
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -229,7 +227,9 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
                 self.ROM2(19,20,self.numSteps/self.ROM_period)
             elif self.reset_number == 10:
                 self.ROM1(21,self.numSteps/self.ROM_period)  
+        
         #apply action and simulate
+        tau = np.concatenate([tau, np.zeros(11)])
         self.do_simulation(tau, self.frame_skip)
         
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
@@ -345,7 +345,8 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         target2bit = np.array([0.])
         if self.targetActive2:
             target2bit[0] = 1.
-        return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, target1bit, vec, self.target, target2bit, vec2, self.target2, f]).ravel()
+        #return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, target1bit, vec, self.target, target2bit, vec2, self.target2, f]).ravel()
+        return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):

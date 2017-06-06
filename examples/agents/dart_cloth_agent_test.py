@@ -4,6 +4,7 @@ import gym
 import numpy as np
 import time
 
+import pickle
 import joblib
 import tensorflow as tf
 
@@ -72,18 +73,25 @@ if __name__ == '__main__':
     #9 dof arm stable reacher
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher_stable/params.pkl"
     
+    #Upper Body reacher
+    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_01_upperBodyReacher2/policy.pkl"
+    
     policy = None
-    if filename is not None:
+    '''if filename is not None:
         with tf.Session() as sess:
             data = joblib.load(filename)
             policy = data['policy']
             #loadenv = data['env']
-        print(policy)
+        print(policy)'''
+    #pfile = open(filename, 'r+')
+    
+    #load from AWS trial policy.pkl
+    #policy = pickle.load( open(filename, "rb") )
 
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
-    env = gym.make('DartClothReacher-v1')
+    env = gym.make('DartClothReacher-v2')
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env.render()
@@ -127,8 +135,8 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         for j in range(200):
             #a = np.array([0.,0.,0.,0.,0.])
-            a = np.zeros(22) #22 dof upper body
-            #a += np.random.uniform(-1,1,22)
+            a = np.zeros(11) #22 dof upper body
+            #a += np.random.uniform(-1,1,11)
             '''if(i < 22):
                 a[i] += 1
             elif(i<44):

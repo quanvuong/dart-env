@@ -318,6 +318,13 @@ register(
 )
 
 register(
+    id='DartClothReacher-v2',
+    entry_point='gym.envs.dart:DartClothReacherEnv2',
+    reward_threshold=950.0,
+    max_episode_steps=500,
+)
+
+register(
     id='DartClothSleeveReacher-v1',
     entry_point='gym.envs.dart:DartClothSleeveReacherEnv',
     reward_threshold=950.0,
