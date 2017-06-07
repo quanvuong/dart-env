@@ -74,7 +74,7 @@ if __name__ == '__main__':
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher_stable/params.pkl"
     
     #Upper Body reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_01_upperBodyReacher2/policy.pkl"
+    filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_06_upperBodyReacher_arm2/policy.pkl"
     
     policy = None
     '''if filename is not None:
@@ -86,14 +86,14 @@ if __name__ == '__main__':
     #pfile = open(filename, 'r+')
     
     #load from AWS trial policy.pkl
-    #policy = pickle.load( open(filename, "rb") )
+    policy = pickle.load( open(filename, "rb") )
 
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
-    env = gym.make('DartClothReacher-v2')
+    #env = gym.make('DartClothReacher-v2')
     #env = gym.make('DartClothSleeveReacher-v1')
-    #env = gym.make('DartClothShirtReacher-v1')
+    env = gym.make('DartClothShirtReacher-v1')
     #env.render()
     #time.sleep(4)
     #print("done init")
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         #time.sleep(0.5)
     '''
     
-    for i in range(100000):
+    for i in range(10000):
         #print("about to reset")
         o = env.reset()
         #print("done reset")
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         env.render()
         time.sleep(1)
         #time.sleep(0.5)
-        for j in range(200):
+        for j in range(500):
             #a = np.array([0.,0.,0.,0.,0.])
             a = np.zeros(11) #22 dof upper body
             #a += np.random.uniform(-1,1,11)
@@ -145,6 +145,7 @@ if __name__ == '__main__':
             if policy is not None:
                 a, a_info = policy.get_action(o)
             #a = np.array([-1,-0,-0,-0,-0.])
+            #if j < 9999: #add this for voxel testing
             s_info = env.step(a)
             o = s_info[0]
             #print(o)
@@ -152,10 +153,13 @@ if __name__ == '__main__':
             #print("o = " + str(o))
             #time.sleep(0.1)
             #if i > 3400:
+            #if j > 9999 or j < 100: #add this for voxel testing
             env.render()
-            #if done is True:
-                #time.sleep(0.5)
-            #    break
+            #if (j % 100) == 0:
+            #    print(j)
+            if done is True:
+                time.sleep(0.5)
+                break
             #exit()
             
 

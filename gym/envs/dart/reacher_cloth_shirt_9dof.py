@@ -6,26 +6,24 @@ from gym.envs.dart.dart_cloth_env import *
 import random
 import time
 
-from pyPhysX.colors import *
-import pyPhysX.pyutils as pyutils
-
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
-
-''' This env is setup for upper body single arm reduced action space learning with draped shirt'''
 
 class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         
-        #22 dof upper body
-        self.action_scale = np.ones(11)*10
-        self.control_bounds = np.array([np.ones(11), np.ones(11)*-1])
+        #self.action_scale = np.array([10, 10, 10, 10, 10])
+        #self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
+        
+        #9 dof reacher
+        self.action_scale = np.array([ 10, 10, 10, 10 ,10, 10, 10, 10, 10])
+        self.control_bounds = np.array([[ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],[ -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         
         #create cloth scene
-        clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale = 1.6)
-        clothScene.togglePinned(0,0) #turn off auto-bottom pin
+        clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale = 1.45)
+        clothScene.togglePinned(0,0) #bottom
         #clothScene.togglePinned(0,9)
         #clothScene.togglePinned(0,10)
         #clothScene.togglePinned(0,37)
@@ -37,7 +35,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #clothScene.togglePinned(0,58)
         #clothScene.togglePinned(0,64)
         
-        '''clothScene.togglePinned(0,111) #collar
+        clothScene.togglePinned(0,111) #collar
         clothScene.togglePinned(0,113) #collar
         clothScene.togglePinned(0,117) #collar
         clothScene.togglePinned(0,193) #collar
@@ -46,8 +44,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene.togglePinned(0,115) #collar
         clothScene.togglePinned(0,116) #collar
         clothScene.togglePinned(0,192) #collar
-        clothScene.togglePinned(0,191) #collar'''
-        
+        clothScene.togglePinned(0,191) #collar
         '''clothScene.togglePinned(0,190) #collar
         clothScene.togglePinned(0,189) #collar
         clothScene.togglePinned(0,188) #collar
@@ -81,9 +78,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene.togglePinned(0,264) #left sleeve'''
         
         
-        #intialize the parent env
-        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
+        #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/square1024.obj")
+        #clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
+        #default:
+        #DartClothEnv.__init__(self, 'reacher.skel', 4, 21, self.control_bounds)
+        #w/o force obs:
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='reacher_capsule.skel', frame_skip=4, observation_size=21, action_bounds=self.control_bounds)
+        #w/ force obs:
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='ArmCapsules2.skel', frame_skip=4, observation_size=(33+30), action_bounds=self.control_bounds)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
@@ -103,16 +105,10 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         self.targetHistory = []
         self.successHistory = []
         
-        self.renderDofs = True #if true, show dofs text 
-        self.renderForceText = False
-        
         self.random_dir = np.array([0,0,1.])
         
         self.reset_number = 0 #debugging
         print("done init")
-
-    def limits(self, dof_ix):
-        return np.array([self.robot_skeleton.dof(dof_ix).position_lower_limit(), self.robot_skeleton.dof(dof_ix).position_upper_limit()])
 
     def _step(self, a):
         clamped_control = np.array(a)
@@ -125,14 +121,13 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
         #fingertip = np.array([0.0, -0.25, 0.0])
         fingertip = np.array([0.0, -0.06, 0.0])
-        wFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wFingertip1 = self.robot_skeleton.bodynodes[5].to_world(fingertip)
         vec1 = self.target-wFingertip1
         
         #apply action and simulate
-        tau = np.concatenate([tau, np.zeros(11)])
         self.do_simulation(tau, self.frame_skip)
         
-        wFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wFingertip2 = self.robot_skeleton.bodynodes[5].to_world(fingertip)
         vec2 = self.target-wFingertip2
         
         reward_dist = - np.linalg.norm(vec2)
@@ -173,21 +168,20 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
     def _get_obs(self):
         '''get_obs'''
-        f_size = 66
         theta = self.robot_skeleton.q
         #fingertip = np.array([0.0, -0.25, 0.0])
         fingertip = np.array([0.0, -0.06, 0.0])
-        vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
+        vec = self.robot_skeleton.bodynodes[5].to_world(fingertip) - self.target
         
         if self.simulateCloth is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation 
         else:
-            f = np.zeros(f_size)
+            f = np.zeros(30)
         
         #print("ID getobs:" + str(self.clothScene.id))
         #print("f: " + str(f))
         #print("len f = " + str(len(f)))
-        return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
+        return np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec,f]).ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
@@ -200,18 +194,11 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         qpos[1] -= 0.
         qpos[2] += 0
         qpos[3] += 0.
-        qpos[4] -= 0.
-        qpos[5] += 0.
-        qpos[6] += 0
-        qpos[7] += 0.25
-        qpos[8] += 2.0
-        qpos[9] += 0.0
-        qpos[10] += -0.6
-        
-        '''qpos[7] += 0.0
-        qpos[8] += 2.9
-        qpos[9] += 0.6
-        qpos[10] += 0.0'''
+        qpos[4] -= 0.4
+        qpos[5] += 0.1
+        qpos[6] += 2.9
+        qpos[7] += 0.6
+        qpos[8] -= 0.6
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
@@ -219,7 +206,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #reset cloth tube orientation and rotate sphere position
         v1 = np.array([0,1.,0])
         v2 = np.array([0.,0,-1.])
-        self.random_dir = np.array([-1.,0,0])
+        self.random_dir = np.array([1.,0,0])
         if self.simulateCloth is True:   
             if self.rotateCloth is True:
                 while True:
@@ -229,8 +216,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             M = self.clothScene.rotateTo(v1,v2)
             self.clothScene.rotateCloth(0, M)
             self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=0.25, axis=np.array([0,1.,0.])))
-            #self.clothScene.translateCloth(0, np.array([-0.042,-0.6,-0.025]))
-            self.clothScene.translateCloth(0, np.array([-0.042,-0.6,-0.035]))
+            self.clothScene.translateCloth(0, np.array([-0.1,-0.6,0.]))
         #self.clothScene.translateCloth(0, np.array([-0.75,0,0]))
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
@@ -242,7 +228,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         
         #old sampling in box
         #'''
-        reacher_range = 0.95
+        reacher_range = 0.74
         if not self.sampleFromHemisphere:
             while True:
                 self.target = self.np_random.uniform(low=-reacher_range, high=reacher_range, size=3)
@@ -252,7 +238,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         
         #sample target from hemisphere
         if self.sampleFromHemisphere is True:
-            self.target = self.hemisphereSample(maxradius=reacher_range, minradius=0.7, norm=self.random_dir)
+            self.target = self.hemisphereSample(maxradius=reacher_range, minradius=0.6, norm=self.random_dir)
 
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
@@ -273,63 +259,37 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
-        a=0
         #collision spheres creation
         fingertip = np.array([0.0, -0.06, 0.0])
         z = np.array([0.,0,0])
         cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
-        cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
-        cs2 = self.robot_skeleton.bodynodes[16].to_world(z)
-        cs3 = self.robot_skeleton.bodynodes[16].to_world(np.array([0,0.175,0]))
-        cs4 = self.robot_skeleton.bodynodes[4].to_world(z)
-        cs5 = self.robot_skeleton.bodynodes[6].to_world(z)
-        cs6 = self.robot_skeleton.bodynodes[7].to_world(z)
-        cs7 = self.robot_skeleton.bodynodes[8].to_world(z)
-        cs8 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
-        cs9 = self.robot_skeleton.bodynodes[10].to_world(z)
-        cs10 = self.robot_skeleton.bodynodes[12].to_world(z)
-        cs11 = self.robot_skeleton.bodynodes[13].to_world(z)
-        cs12 = self.robot_skeleton.bodynodes[14].to_world(z)
-        cs13 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
-        csVars0 = np.array([0.15, -1, -1, 0,0,0])
-        csVars1 = np.array([0.07, -1, -1, 0,0,0])
-        csVars2 = np.array([0.1, -1, -1, 0,0,0])
-        csVars3 = np.array([0.1, -1, -1, 0,0,0])
-        csVars4 = np.array([0.065, -1, -1, 0,0,0])
-        csVars5 = np.array([0.05, -1, -1, 0,0,0])
-        csVars6 = np.array([0.0365, -1, -1, 0,0,0])
-        csVars7 = np.array([0.04, -1, -1, 0,0,0])
-        csVars8 = np.array([0.036, -1, -1, 0,0,0])
-        csVars9 = np.array([0.065, -1, -1, 0,0,0])
-        csVars10 = np.array([0.05, -1, -1, 0,0,0])
-        csVars11 = np.array([0.0365, -1, -1, 0,0,0])
-        csVars12 = np.array([0.04, -1, -1, 0,0,0])
-        csVars13 = np.array([0.036, -1, -1, 0,0,0])
-        collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
+        cs1 = self.robot_skeleton.bodynodes[3].to_world(z)
+        cs2 = self.robot_skeleton.bodynodes[4].to_world(z)
+        cs3 = self.robot_skeleton.bodynodes[5].to_world(z)
+        cs4 = self.robot_skeleton.bodynodes[5].to_world(fingertip)
+        csVars0 = np.array([0.065, -1, -1, 0,0,0])
+        csVars1 = np.array([0.05, -1, -1, 0,0,0])
+        csVars2 = np.array([0.0365, -1, -1, 0,0,0])
+        csVars3 = np.array([0.04, -1, -1, 0,0,0])
+        csVars4 = np.array([0.036, -1, -1, 0,0,0])
+        collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4]).ravel()
         #collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
         
         self.clothScene.setCollisionSpheresInfo(collisionSpheresInfo)
         
         if capsules is True:
             #collision capsules creation
-            collisionCapsuleInfo = np.zeros((14,14))
+            collisionCapsuleInfo = np.zeros((5,5))
             collisionCapsuleInfo[0,1] = 1
             collisionCapsuleInfo[1,2] = 1
-            collisionCapsuleInfo[1,4] = 1
-            collisionCapsuleInfo[1,9] = 1
             collisionCapsuleInfo[2,3] = 1
-            collisionCapsuleInfo[4,5] = 1
-            collisionCapsuleInfo[5,6] = 1
-            collisionCapsuleInfo[6,7] = 1
-            collisionCapsuleInfo[7,8] = 1
-            collisionCapsuleInfo[9,10] = 1
-            collisionCapsuleInfo[10,11] = 1
-            collisionCapsuleInfo[11,12] = 1
-            collisionCapsuleInfo[12,13] = 1
+            collisionCapsuleInfo[3,4] = 1
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo)
             
         if hapticSensors is True:
-            hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
+            #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
+            #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
+            hapticSensorLocations = np.concatenate([LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, cs3, cs4])
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
@@ -370,7 +330,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         GL.glColor3d(0,1,0)
         for i in range(1000):
             normVec = self.random_dir
-            p = self.hemisphereSample(maxradius=0.95, minradius=0.7, norm=normVec)
+            p = self.hemisphereSample(maxradius=0.7, minradius=0.6, norm=normVec)
 
             #p=np.array([0,0,0.])
             #while True:
@@ -383,97 +343,20 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         '''
         
         #print("ID:" + str(self.clothScene.id))
-            
-        m_viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
         
-        textX = 15.
-        if self.renderForceText:
-            HSF = self.clothScene.getHapticSensorObs()
-            #print("HSF: " + str(HSF))
-            for i in range(self.clothScene.getNumHapticSensors()):
-                #print("i = " + str(i))
-                #print("HSL[i] = " + str(HSL[i*3:i*3+3]))
-                #print("HSF[i] = " + str(HSF[i*3:i*3+3]))
-                self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
-            textX += 160
         
-        #draw 2d HUD setup
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glOrtho(0, m_viewport[2], 0, m_viewport[3], -1, 1)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glDisable(GL.GL_CULL_FACE);
-        GL.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        
-        #draw the load bars
-        if self.renderDofs:
-            #draw the load bar outlines
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
-            GL.glColor3d(0,0,0)
-            GL.glBegin(GL.GL_QUADS)
-            for i in range(len(self.robot_skeleton.q)):
-                y = 58+18.*i
-                x0 = 120+70
-                x1 = 210+70
-                GL.glVertex2d(x0, y)
-                GL.glVertex2d(x0, y+15)
-                GL.glVertex2d(x1, y+15)
-                GL.glVertex2d(x1, y)
-            GL.glEnd()
-            #draw the load bar fills
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-            for i in range(len(self.robot_skeleton.q)):
-                qlim = self.limits(i)
-                qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
-                y = 58+18.*i
-                x0 = 121+70
-                x1 = 209+70
-                x = LERP(x0,x1,qfill)
-                xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
-                GL.glColor3d(0,2,3)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x0, y+1)
-                GL.glVertex2d(x0, y+14)
-                GL.glVertex2d(x, y+14)
-                GL.glVertex2d(x, y+1)
-                GL.glEnd()
-                GL.glColor3d(2,0,0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(xz-1, y+1)
-                GL.glVertex2d(xz-1, y+14)
-                GL.glVertex2d(xz+1, y+14)
-                GL.glVertex2d(xz+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,2)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x-1, y+1)
-                GL.glVertex2d(x-1, y+14)
-                GL.glVertex2d(x+1, y+14)
-                GL.glVertex2d(x+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,0)
-                
-                textPrefix = "||q[" + str(i) + "]|| = "
-                if i < 10:
-                    textPrefix = "||q[0" + str(i) + "]|| = "
-                    
-                self.clothScene.drawText(x=30, y=60.+18*i, text=textPrefix + '%.2f' % qlim[0], color=(0.,0,0))
-                self.clothScene.drawText(x=x0, y=60.+18*i, text='%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
-        
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPopMatrix()
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPopMatrix()
+        HSF = self.clothScene.getHapticSensorObs()
+        #print("HSF: " + str(HSF))
+        for i in range(self.clothScene.getNumHapticSensors()):
+            #print("i = " + str(i))
+            #print("HSL[i] = " + str(HSL[i*3:i*3+3]))
+            #print("HSF[i] = " + str(HSF[i*3:i*3+3]))
+            self.clothScene.drawText(x=15., y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
         a=0
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
+        self._get_viewer().scene.tb._set_theta(0)
         self.track_skeleton_id = 0
         
 def LERP(p0, p1, t):

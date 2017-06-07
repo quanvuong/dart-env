@@ -66,7 +66,26 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         self.numSteps = 0
         
         self.doROM = False
-        self.ROM_period = 200.0
+        self.ROM_period = 10000.0
+        
+        self.doReacherAnalysis = True
+        self.voxelGrid = np.array([])
+        self.voxelGridDim = 20
+        self.voxelRadius = 1.
+        if self.doReacherAnalysis:
+            self.voxelGrid = np.zeros(self.voxelGridDim*self.voxelGridDim*self.voxelGridDim)
+        self.slices = np.ones(22)*10
+        self.slices[0] = 4
+        self.slices[1] = 4
+        self.slices[2] = 4
+        self.slices[3] = 4
+        self.slices[4] = 4
+        self.slices[5] = 8
+        self.slices[6] = 8
+        self.slices[7] = 8
+        self.slices[8] = 8
+        self.slices[9] = 1
+        self.slices[10] = 1
         
         self.targetHistory = []
         self.successHistory = []
@@ -111,6 +130,13 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
             
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
+            
+        #test voxel grid
+        #for i in range(len(self.voxelGrid)):
+        #    p = pyutils.voxelCenter(self.voxelGridDim, self.voxelRadius, i)
+        #    ix = pyutils.getVoxelIX(self.voxelGridDim, self.voxelRadius, p)
+            #print(str(i) + " -> " + str(p) + " -> " + str(ix))
+        #exit()
         
         #self.skelVoxelAnalysis(dim=100, radius=0.8, samplerate=0.2, depth=0, efn=5, efo=np.array([0.,-0.06,0]), displayReachable = True, displayUnreachable=True)
         
@@ -166,11 +192,11 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
         
     def _step(self, a):
         #print("step")
+        print("a: " + str(a))
         clamped_control = np.array(a)
         if self.useAutoTau is True:
             clamped_control =  clamped_control + self.autoT
-        #if self.useAutoTau is True:
-        #    clamped_control = clamped_control + self.autoT
+
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -229,13 +255,34 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
                 self.ROM2(19,20,self.numSteps/self.ROM_period)
             elif self.reset_number == 10:
                 self.ROM1(21,self.numSteps/self.ROM_period)  
+        elif self.doReacherAnalysis:
+            tau = np.zeros(len(tau))
+            t = self.numSteps/self.ROM_period #using ROM_period here again (0 <= t <= 1)
+            tAll = np.zeros(len(tau))
+            start_dof = 5
+            tAll[start_dof] = t
+            for i in range(start_dof+1, 11):
+                tAll[i] = (tAll[i-1]*self.slices[i])%1.0
+            for i in range(start_dof, 11):
+                self.ROM1(i,tAll[i])
+            #print(str(t) + ": " + str(tAll))
         #apply action and simulate
         self.do_simulation(tau, self.frame_skip)
         
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
-        #self.targetHistory.append(wFingertip2)
+        #self.targetHistory.append(wRFingertip2)
         #self.successHistory.append(True)
+        #toggle voxel grid
+        vix = int(pyutils.getVoxelIX(self.voxelGridDim, self.voxelRadius, wRFingertip2))
+        #print(vix)
+        #print(self.voxelGrid[vix])
+        #print(len(self.targetHistory))
+        if self.voxelGrid[vix] < 0.99:
+            self.voxelGrid[vix] = 1.
+            self.targetHistory.append(pyutils.voxelCenter(self.voxelGridDim, self.voxelRadius, vix))
+            self.successHistory.append(True)
+        
         vecR2 = self.target-wRFingertip2
         vecL2 = self.target2-wLFingertip2
         
@@ -572,6 +619,15 @@ class DartClothReacherEnv(DartClothEnv, utils.EzPickle):
                     GL.glTranslated(p[0], p[1], p[2])
                     GLUT.glutSolidSphere(self.successSampleRenderSize, 10,10)
                     GL.glPopMatrix()
+                    
+        #render voxel grid
+        if False:
+            for i in range(len(self.voxelGrid)):
+                p = pyutils.voxelCenter(self.voxelGridDim, self.voxelRadius, i)
+                GL.glPushMatrix()
+                GL.glTranslated(p[0], p[1], p[2])
+                GLUT.glutSolidSphere(0.025, 10,10)
+                GL.glPopMatrix()
         
         #draw hemisphere samples for target sampling
         '''
