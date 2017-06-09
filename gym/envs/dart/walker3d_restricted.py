@@ -90,7 +90,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84))
+                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
 
         if done:
             reward = 0
