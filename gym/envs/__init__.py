@@ -202,12 +202,6 @@ register(
     max_episode_steps=1300,
 )
 
-register(
-         id='DartWalker3dRestricted-v1',
-         entry_point='gym.envs.dart:DartWalker3dRestrictedEnv',
-         max_episode_steps=1000,
-         )
-
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',
