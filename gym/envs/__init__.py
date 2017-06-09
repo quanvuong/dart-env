@@ -202,7 +202,6 @@ register(
     max_episode_steps=1300,
 )
 
-
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',
