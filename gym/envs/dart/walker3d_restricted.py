@@ -15,7 +15,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t = 0
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 12, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=False)
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -77,9 +77,9 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
-        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]), [0]*15], axis=0)) - [1]*15)
-        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]-a), [0]*15], axis=0)) - [1]*15)
-        reward -= 0.01*action_vio
+        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*15], axis=0)) - [1]*15)
+        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*15], axis=0)) - [1]*15)
+        reward -= 0.1*action_vio
 
         #reward -= 1e-7 * total_force_mag
 
