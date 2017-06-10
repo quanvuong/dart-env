@@ -19,6 +19,10 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.robot_skeleton.set_self_collision_check(True)
 
+        self.origin_q = self.robot_skeleton.q
+        self.fatigue_percentage = 0.3 # start counting fatigue from 30%
+        self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
+
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
 
@@ -76,10 +80,25 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         joint_pen = 0 * joint_limit_penalty
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+        #print(vel_rew/2)
 
         action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*15], axis=0)) - [1]*15)
         action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*15], axis=0)) - [1]*15)
         reward -= 0.1*action_vio
+
+        reward -= 0.05*(abs(ang_cos_uwd)+abs(ang_cos_fwd))
+
+        q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
+        fatigue_reward = 0
+        for dofid in range(len(q_diff)):
+            dof_range = self.robot_skeleton.q_upper[dofid] - self.robot_skeleton.q_lower[dofid]
+            if q_diff[dofid]/dof_range < self.fatigue_percentage:
+                self.fatigue_count[dofid] = 0
+            else:
+                self.fatigue_count[dofid] += 1
+                if self.fatigue_count[dofid] > 100:
+                    fatigue_reward += np.exp(0.01*self.fatigue_count[dofid])-1
+        reward -= fatigue_reward
 
         #reward -= 1e-7 * total_force_mag
 
@@ -123,6 +142,8 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         #qpos[15] = -sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
+
+        self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
 
         return self._get_obs()
 
