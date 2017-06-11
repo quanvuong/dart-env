@@ -20,8 +20,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = True  # whether to resample the model paraeters
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
-        modelpath = os.path.join(os.path.dirname(__file__), "models")
-        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+
+        #modelpath = os.path.join(os.path.dirname(__file__), "models")
+        #upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
         
@@ -80,7 +82,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
         #print(abs(ang))
-
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height > .7) and (height < 1.8) and (abs(ang) < .4))
