@@ -10,12 +10,12 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
         self.action_scale = np.array([100.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 20
-        self.action_scale[[0, 1, 2]] = 150
+        self.action_scale[[0, 1, 2]] = 40
         obs_dim = 41
 
         self.t = 0
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 12, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=False)
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -77,9 +77,10 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
-        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]), [0]*15], axis=0)) - [1]*15)
-        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]-a), [0]*15], axis=0)) - [1]*15)
-        reward -= 0.01*action_vio
+        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*15], axis=0)) - [1]*15)
+        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*15], axis=0)) - [1]*15)
+        reward -= 0.2*action_vio
+        reward -= 0.1*(abs(ang_cos_uwd)+abs(ang_cos_fwd))
 
         #reward -= 1e-7 * total_force_mag
 
@@ -90,7 +91,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84))
+                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
 
         if done:
             reward = 0
@@ -129,24 +130,3 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
-
-    def get_div(self):
-        div = 0
-        cur_state = self.state_vector()
-        d_state0 = self.get_d_state(cur_state)
-        dv = 0.0001
-        for j in [6,7,8,12, 18, 27, 28, 29, 33, 39]:
-            pert_state = np.array(cur_state)
-            pert_state[j] += dv
-            d_state1 = self.get_d_state(pert_state)
-
-            div += (d_state1[j] - d_state0[j]) / dv
-        self.set_state_vector(cur_state)
-        return div
-
-    def get_d_state(self, state):
-        self.set_state_vector(state)
-        self.advance(np.array([0]*15))
-        next_state = self.state_vector()
-        d_state = next_state - state
-        return d_state

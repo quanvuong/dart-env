@@ -33,6 +33,8 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
+        self.state_index = 0
+
         '''curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [0, 1, 2, 3, 4]
         self.param_manager.set_simulator_parameters([0.5, 0.5, 0.5, 0.5, 0.5])
@@ -80,8 +82,6 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         # reward -= 1e-7 * total_force_mag
         # print(abs(ang))
-        div = self.get_div()
-        reward -= 1e-1 * np.min([(div ** 2), 10])
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height > .7) and (height < 1.8) and (abs(ang) < .4))
@@ -104,8 +104,8 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
             state = state + np.random.normal(0, .01, len(state))
 
         return_state = np.zeros(len(state)*self.sampling_selector.n_class)
-        state_index = self.sampling_selector.classify([self.param_manager.get_simulator_parameters()])[0]
-        return_state[state_index * len(state):(state_index+1)*len(state)] = state
+
+        return_state[self.state_index * len(state):(self.state_index+1)*len(state)] = state
 
         return return_state
 
@@ -120,28 +120,10 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
 
         state = self._get_obs()
 
+        self.state_index = self.sampling_selector.classify([self.param_manager.get_simulator_parameters()])
+
         return state
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
 
-    def get_div(self):
-        div = 0
-        cur_state = self.state_vector()
-        d_state0 = self.get_d_state(cur_state)
-        dv = 0.001
-        for j in [3, 4, 5, 9, 10, 11]:
-            pert_state = np.array(cur_state)
-            pert_state[j] += dv
-            d_state1 = self.get_d_state(pert_state)
-
-            div += (d_state1[j] - d_state0[j]) / dv
-        self.set_state_vector(cur_state)
-        return div
-
-    def get_d_state(self, state):
-        self.set_state_vector(state)
-        self.advance(np.array([0, 0, 0]))
-        next_state = self.state_vector()
-        d_state = next_state - state
-        return d_state
