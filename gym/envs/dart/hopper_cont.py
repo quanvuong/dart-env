@@ -21,7 +21,7 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torsostrength_sd5_3class.pkl'))
         self.sampling_selector = upselector
 
         if self.train_UP:
@@ -106,6 +106,9 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         return_state = np.zeros(len(state)*self.sampling_selector.n_class)
 
         return_state[self.state_index * len(state):(self.state_index+1)*len(state)] = state
+        '''sim_params = np.zeros(self.param_manager.param_dim * self.sampling_selector.n_class)
+        sim_params[self.state_index * self.param_manager.param_dim:(self.state_index+1)*self.param_manager.param_dim] = self.param_manager.get_simulator_parameters()
+        return_state = np.concatenate([state, sim_params])'''
 
         return return_state
 
@@ -116,6 +119,9 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
+            target_class = np.random.randint(0, self.sampling_selector.n_class)
+            while self.sampling_selector.classify([self.param_manager.get_simulator_parameters()]) != target_class:
+                self.param_manager.resample_parameters()
         self.state_action_buffer = []  # for UPOSI
 
         state = self._get_obs()
