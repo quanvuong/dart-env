@@ -143,6 +143,8 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t += self.dt
 
+
+        ob = self._get_obs()
         # tracking reference error
         reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
 
@@ -153,7 +155,6 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         if done:
             reward = 0
 
-        ob = self._get_obs()
 
         foot1_com = self.robot_skeleton.bodynode('h_foot').com()
         foot2_com = self.robot_skeleton.bodynode('h_foot_left').com()
