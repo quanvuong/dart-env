@@ -3,28 +3,50 @@ __author__ = 'yuwenhao'
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
+import os
 from gym.envs.dart.walker3d_restricted import DartWalker3dRestrictedEnv
-import joblib, os
+import joblib
+
 
 class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
         self.action_scale = np.array([100.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 20
-        self.action_scale[[0, 1, 2]] = 150
+        self.action_scale[[0, 1, 2]] = 40
         obs_dim = 41
+
+        self.t = 0
+        self.step = 0
+
+        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=True)
+
+        self.robot_skeleton.set_self_collision_check(True)
+
+        self.origin_q = self.robot_skeleton.q
+        self.fatigue_percentage = 0.3 # start counting fatigue from 30%
+        self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
+
+        for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
+        self.chaser_x = 0
+        self.leg_energies = [0, 0]
 
         self.projected_env = DartWalker3dRestrictedEnv()
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.projected_policy = joblib.load(os.path.join(modelpath, 'walker3d_proj.pkl'))
-        self.proj_dofs = [0, 2, 4, 5, 6, 7, 10, 11, 16, 17]
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
-
-        self.robot_skeleton.set_self_collision_check(True)
-
-        for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
+        self.reference_motions = []
+        self.target_reference_motion = 0
+        for i in range(10):
+            o = self.projected_env.reset()
+            rollout = [o]
+            done = False
+            while not done:
+                act, actinfo = self.projected_policy.get_action(o)
+                o, r, done, _ = self.projected_env.step(actinfo['mean'])
+                rollout.append(o)
+            self.reference_motions.append(rollout)
 
         utils.EzPickle.__init__(self)
 
@@ -35,21 +57,18 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+        action_torque = clamped_control * self.action_scale
+        self.leg_energies[0] += np.sum(action_torque[[3,4,5,6,7,8]]**2)
+        self.leg_energies[1] += np.sum(action_torque[[9, 10, 11, 12, 13, 14]]**2)
+
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[6:] = clamped_control * self.action_scale
+        tau[6:] = action_torque
 
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        self.step += 1
         pre_state = [self.state_vector()]
-
-        # for 2d env
-        proj_q, proj_dq = self._get_proj_state(np.array(self.robot_skeleton.q), np.array(self.robot_skeleton.dq))
-        self.projected_env.set_state(proj_q, proj_dq)
-        proj_env_obs = self.projected_env._get_obs()
-        act, actinfo = self.projected_policy.get_action(proj_env_obs)
-        self.projected_env.step(actinfo['mean'])
-        proj_targetq, proj_targetdq = self._get_proj_state(np.array(self.projected_env.robot_skeleton.q), np.array(self.projected_env.robot_skeleton.dq))
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
         self.advance(a)
@@ -59,13 +78,13 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynodes[0].com()[2]
 
         upward = np.array([0, 1, 0])
-        upward_world = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, 0]))
+        upward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
         upward_world /= np.linalg.norm(upward_world)
         ang_cos_uwd = np.dot(upward, upward_world)
         ang_cos_uwd = np.arccos(ang_cos_uwd)
 
         forward = np.array([1, 0, 0])
-        forward_world = self.robot_skeleton.bodynodes[0].to_world(np.array([1, 0, 0])) - self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, 0]))
+        forward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([1, 0, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
         forward_world /= np.linalg.norm(forward_world)
         ang_cos_fwd = np.dot(forward, forward_world)
         ang_cos_fwd = np.arccos(ang_cos_fwd)
@@ -82,27 +101,48 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        alive_bonus = 1.0
-        vel_rew = 1.0 * (posafter - posbefore) / self.dt
-        action_pen = 1e-3 * np.square(a).sum()
-        joint_pen = 2e-1 * joint_limit_penalty
+        alive_bonus = 2.0
+        vel_rew = 2.0 * (posafter - posbefore) / self.dt
+        action_pen = 1e-2 * np.square(a).sum()
+        joint_pen = 0 * joint_limit_penalty
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
-        #reward -= 1e-7 * total_force_mag
+        #print(vel_rew/2)
 
-        proj_q, proj_dq = self._get_proj_state(np.array(self.robot_skeleton.q), np.array(self.robot_skeleton.dq))
-        reward -= 0.1*np.linalg.norm(proj_q-proj_targetq)
-        reward -= 0.1*np.linalg.norm(proj_dq-proj_targetdq)
+        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*15], axis=0)) - [1]*15)
+        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*15], axis=0)) - [1]*15)
+        reward -= 0.1*action_vio
+
+        reward -= 0.05*(abs(ang_cos_uwd)+abs(ang_cos_fwd))
+
+        '''q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
+        fatigue_reward = 0
+        for dofid in range(len(q_diff)):
+            dof_range = self.robot_skeleton.q_upper[dofid] - self.robot_skeleton.q_lower[dofid]
+            if q_diff[dofid]/dof_range < self.fatigue_percentage:
+                self.fatigue_count[dofid] = 0
+            else:
+                self.fatigue_count[dofid] += 1
+                if self.fatigue_count[dofid] > 100:
+                    fatigue_reward += np.exp(0.01*self.fatigue_count[dofid])-1
+        reward -= fatigue_reward'''
+        reward -= 2*(np.max(self.leg_energies) / np.min(self.leg_energies) - 1)
+
+        #reward -= 1e-7 * total_force_mag
 
         #div = self.get_div()
         #reward -= 1e-1 * np.min([(div**2), 10])
+        
+        self.chaser_x += self.dt * 0.1
+        if self.chaser_x > posafter: # if the chaser catches up
+            reward -= (self.chaser_x - posafter)
 
         self.t += self.dt
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84))
+                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
 
         if done:
             reward = 0
@@ -115,6 +155,9 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         com_foot_offset1 = robot_com - foot1_com
         com_foot_offset2 = robot_com - foot2_com
 
+        # tracking reference error
+        reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.step] - ob)
+
         return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done}
 
     def _get_obs(self):
@@ -126,46 +169,24 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         return state
 
-    def _get_proj_state(self, cq, cdq):
-        cq[self.proj_dofs] = 0
-        cdq[self.proj_dofs] = 0
-        return cq, cdq
-
     def reset_model(self):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         sign = np.sign(np.random.uniform(-1, 1))
-        #qpos[9] = sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
-        #qpos[15] = -sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
+        qpos[9] = sign * self.np_random.uniform(low=0.0, high=0.1, size=1)
+        qpos[15] = -sign * self.np_random.uniform(low=0.0, high=0.1, size=1)
         self.set_state(qpos, qvel)
-
-
         self.t = 0
+        self.chaser_x = -0.2
+        self.leg_energies = [0, 0]
+
+        self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
+
+        self.target_reference_motion = np.random.randint(len(self.reference_motions))
 
         return self._get_obs()
 
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
-
-    def get_div(self):
-        div = 0
-        cur_state = self.state_vector()
-        d_state0 = self.get_d_state(cur_state)
-        dv = 0.0001
-        for j in [6,7,8,12, 18, 27, 28, 29, 33, 39]:
-            pert_state = np.array(cur_state)
-            pert_state[j] += dv
-            d_state1 = self.get_d_state(pert_state)
-
-            div += (d_state1[j] - d_state0[j]) / dv
-        self.set_state_vector(cur_state)
-        return div
-
-    def get_d_state(self, state):
-        self.set_state_vector(state)
-        self.advance(np.array([0]*15))
-        next_state = self.state_vector()
-        d_state = next_state - state
-        return d_state
