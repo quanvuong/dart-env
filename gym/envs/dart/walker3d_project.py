@@ -17,7 +17,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.step = 0
+        self.c_step = 0
 
         dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -38,14 +38,17 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.reference_motions = []
         self.target_reference_motion = 0
-        for i in range(10):
+        for i in range(5):
             o = self.projected_env.reset()
             rollout = [o]
             done = False
-            while not done:
+            samp_step = 0
+            while not done and samp_step < 1000:
                 act, actinfo = self.projected_policy.get_action(o)
                 o, r, done, _ = self.projected_env.step(actinfo['mean'])
                 rollout.append(o)
+                samp_step += 1
+            print('one samp done ', len(rollout))
             self.reference_motions.append(rollout)
 
         utils.EzPickle.__init__(self)
@@ -67,7 +70,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
-        self.step += 1
+        self.c_step += 1
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
@@ -140,6 +143,9 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t += self.dt
 
+        # tracking reference error
+        reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
+
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
@@ -155,8 +161,6 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         com_foot_offset1 = robot_com - foot1_com
         com_foot_offset2 = robot_com - foot2_com
 
-        # tracking reference error
-        reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.step] - ob)
 
         return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done}
 
@@ -180,7 +184,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.chaser_x = -0.2
         self.leg_energies = [0, 0]
-
+        self.c_step = 0
         self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
 
         self.target_reference_motion = np.random.randint(len(self.reference_motions))
