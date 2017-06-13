@@ -15,13 +15,14 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc_blurry.pkl'))
+
         self.sampling_selector = upselector
 
         if self.train_UP:
@@ -106,6 +107,8 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         return_state = np.zeros(len(state)*self.sampling_selector.n_class)
 
         return_state[self.state_index * len(state):(self.state_index+1)*len(state)] = state
+
+
         '''sim_params = np.zeros(self.param_manager.param_dim * self.sampling_selector.n_class)
         sim_params[self.state_index * self.param_manager.param_dim:(self.state_index+1)*self.param_manager.param_dim] = self.param_manager.get_simulator_parameters()
         return_state = np.concatenate([state, sim_params])'''
