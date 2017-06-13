@@ -23,6 +23,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         self.action_scale = np.ones(11)*10
         self.control_bounds = np.array([np.ones(11), np.ones(11)*-1])
         
+        self.doSettle = False
+        self.settlePeriod = 50
+        self.doInterpolation = False 
+        self.interpolationPeriod = 200
+        self.interpolationGoal = np.zeros(22)
+        self.interpolationStart = np.zeros(22)
+        self.numSteps = 0 #increments every step, 0 on reset
+        
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale = 1.6)
         clothScene.togglePinned(0,0) #turn off auto-bottom pin
@@ -82,8 +90,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         
         
         #intialize the parent env
-        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
@@ -113,7 +121,19 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
     def limits(self, dof_ix):
         return np.array([self.robot_skeleton.dof(dof_ix).position_lower_limit(), self.robot_skeleton.dof(dof_ix).position_upper_limit()])
-
+        
+    def poseInterpolate(self, q0, q1, t):
+        'interpolate the pose q0->q1 over t=[0,1]'
+        qpos = LERP(q0,q1,t)
+        self.robot_skeleton.set_positions(qpos)
+        
+    def saveObjState(self):
+        print("Trying to save the object state")
+        self.clothScene.saveObjState("objState", 0)
+        
+    def loadObjState(self):
+        self.clothScene.loadObjState("objState", 0)
+        
     def _step(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -127,6 +147,19 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         fingertip = np.array([0.0, -0.06, 0.0])
         wFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         vec1 = self.target-wFingertip1
+        
+        #execute special actions
+        if self.doSettle and self.numSteps<self.settlePeriod:
+            tau = np.zeros(len(tau))
+        elif self.doInterpolation:
+            t = self.numSteps/self.interpolationPeriod
+            if self.doSettle:
+                t = (self.numSteps-self.settlePeriod)/self.interpolationPeriod
+            if t < 1:
+                tau = np.zeros(len(tau))
+                self.poseInterpolate(self.interpolationStart, self.interpolationGoal, t)
+            elif t<1.1:
+                print(t)
         
         #apply action and simulate
         tau = np.concatenate([tau, np.zeros(11)])
@@ -165,9 +198,12 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         elif -reward_dist < 0.1:
             done = True
             reward += 100
-        elif (clothDeformation > 9):
-            done = True
-            reward -= 500
+        elif (clothDeformation > 15):
+            if not self.doSettle or self.numSteps>self.settlePeriod:
+                done = True
+                reward -= 500
+        
+        self.numSteps += 1
 
         return ob, reward, done, {}
 
@@ -192,28 +228,40 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         '''reset_model'''
+        self.numSteps = 0
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         self.dart_world.reset()
         self.clothScene.reset()
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
         qpos[0] -= 0
         qpos[1] -= 0.
         qpos[2] += 0
         qpos[3] += 0.
         qpos[4] -= 0.
-        qpos[5] += 0.
-        qpos[6] += 0
-        qpos[7] += 0.25
-        qpos[8] += 2.0
-        qpos[9] += 0.0
-        qpos[10] += -0.6
-        
-        '''qpos[7] += 0.0
+        #qpos[5] += 1
+        qpos[5] += 0.75
+        qpos[6] += 0.25
+        #qpos[7] += 0.0
+        qpos[7] += 2.0
         qpos[8] += 2.9
         qpos[9] += 0.6
-        qpos[10] += 0.0'''
+        qpos[10] += 0.0
+        
+        self.interpolationStart = np.array(qpos)
+        self.interpolationGoal = np.array(qpos)
+        self.interpolationGoal[5] = 0.75
+        self.interpolationGoal[6] = 0.25
+        self.interpolationGoal[7] = 2.0
+        self.interpolationGoal[8] = 2.9
+        self.interpolationGoal[9] = 0.6
+        
+        #uper body 1 arm fail #1 settings
+        '''qpos[7] += 0.25
+        qpos[8] += 2.0
+        qpos[9] += 0.0
+        qpos[10] += -0.6'''
 
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         
         #reset cloth tube orientation and rotate sphere position
@@ -230,12 +278,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.rotateCloth(0, M)
             self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=0.25, axis=np.array([0,1.,0.])))
             #self.clothScene.translateCloth(0, np.array([-0.042,-0.6,-0.025]))
-            self.clothScene.translateCloth(0, np.array([-0.042,-0.6,-0.035]))
+            self.clothScene.translateCloth(0, np.array([-0.042,-0.7,-0.035]))
         #self.clothScene.translateCloth(0, np.array([-0.75,0,0]))
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         #self.clothScene.rotateCloth(0, M)
         
+        #load cloth state from ~/Documents/dev/objFile.obj
+        self.clothScene.loadObjState()
         
         #move cloth out of arm range
         #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
@@ -299,7 +349,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         csVars5 = np.array([0.05, -1, -1, 0,0,0])
         csVars6 = np.array([0.0365, -1, -1, 0,0,0])
         csVars7 = np.array([0.04, -1, -1, 0,0,0])
-        csVars8 = np.array([0.036, -1, -1, 0,0,0])
+        csVars8 = np.array([0.046, -1, -1, 0,0,0])
         csVars9 = np.array([0.065, -1, -1, 0,0,0])
         csVars10 = np.array([0.05, -1, -1, 0,0,0])
         csVars11 = np.array([0.0365, -1, -1, 0,0,0])
@@ -333,7 +383,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
-        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, inputFunc)
+        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
         
     def hemisphereSample(self, maxradius=1, minradius = 0, norm=np.array([0,0,1.]), frustrum = 0.7):
         p = norm
@@ -469,6 +519,9 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glPopMatrix()
         a=0
+
+    def inputFunc(self, repeat=False):
+        pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -3.5

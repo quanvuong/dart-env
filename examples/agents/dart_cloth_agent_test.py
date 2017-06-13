@@ -74,15 +74,15 @@ if __name__ == '__main__':
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher_stable/params.pkl"
     
     #Upper Body reacher
-    filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_07_upperBodyReacherShirt_arm2/policy.pkl"
+    filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_06_upperBodyReacher_arm2/policy.pkl"
     
     policy = None
-    if filename is not None:
+    '''if filename is not None:
         with tf.Session() as sess:
             data = joblib.load(filename)
             policy = data['policy']
             #loadenv = data['env']
-        print(policy)
+        print(policy)'''
     #pfile = open(filename, 'r+')
     
     #save the policy
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         exit()
     
     #load from AWS trial policy.pkl
-    #policy = pickle.load( open(filename, "rb") )
+    policy = pickle.load( open(filename, "rb") )
 
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
@@ -167,6 +167,8 @@ if __name__ == '__main__':
                 time.sleep(0.5)
                 break
             #exit()
+        #print("complete")
+        #time.sleep(5)
             
 
     env.render(close=True)
