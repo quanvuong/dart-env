@@ -10,12 +10,12 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
         self.action_scale = np.array([100.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 20
-        self.action_scale[[0, 1, 2]] = 150
+        self.action_scale[[0, 1, 2]] = 40
         obs_dim = 41
 
         self.t = 0
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=True)
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -25,7 +25,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
-
+        self.chaser_x = 0
         utils.EzPickle.__init__(self)
 
     def advance(self, a):
@@ -80,6 +80,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         joint_pen = 0 * joint_limit_penalty
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+
         #print(vel_rew/2)
 
         action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*15], axis=0)) - [1]*15)
@@ -88,7 +89,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward -= 0.05*(abs(ang_cos_uwd)+abs(ang_cos_fwd))
 
-        q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
+        '''q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
         fatigue_reward = 0
         for dofid in range(len(q_diff)):
             dof_range = self.robot_skeleton.q_upper[dofid] - self.robot_skeleton.q_lower[dofid]
@@ -98,12 +99,16 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
                 self.fatigue_count[dofid] += 1
                 if self.fatigue_count[dofid] > 100:
                     fatigue_reward += np.exp(0.01*self.fatigue_count[dofid])-1
-        reward -= fatigue_reward
+        reward -= fatigue_reward'''
 
         #reward -= 1e-7 * total_force_mag
 
         #div = self.get_div()
         #reward -= 1e-1 * np.min([(div**2), 10])
+        
+        self.chaser_x += self.dt * 0.1
+        if self.chaser_x > posafter: # if the chaser catches up
+            reward -= (self.chaser_x - posafter)
 
         self.t += self.dt
 
@@ -138,10 +143,11 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         sign = np.sign(np.random.uniform(-1, 1))
-        #qpos[9] = sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
-        #qpos[15] = -sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
+        qpos[9] = sign * self.np_random.uniform(low=0.0, high=0.1, size=1)
+        qpos[15] = -sign * self.np_random.uniform(low=0.0, high=0.1, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
+        self.chaser_x = -0.2
 
         self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
 
@@ -150,24 +156,3 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
-
-    def get_div(self):
-        div = 0
-        cur_state = self.state_vector()
-        d_state0 = self.get_d_state(cur_state)
-        dv = 0.0001
-        for j in [6,7,8,12, 18, 27, 28, 29, 33, 39]:
-            pert_state = np.array(cur_state)
-            pert_state[j] += dv
-            d_state1 = self.get_d_state(pert_state)
-
-            div += (d_state1[j] - d_state0[j]) / dv
-        self.set_state_vector(cur_state)
-        return div
-
-    def get_d_state(self, state):
-        self.set_state_vector(state)
-        self.advance(np.array([0]*15))
-        next_state = self.state_vector()
-        d_state = next_state - state
-        return d_state
