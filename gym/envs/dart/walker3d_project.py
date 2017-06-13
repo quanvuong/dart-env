@@ -19,7 +19,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.c_step = 0
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist_restricted.skel', 8, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 8, obs_dim, self.control_bounds, disableViewer=True)
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -40,13 +40,24 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_reference_motion = 0
         for i in range(5):
             o = self.projected_env.reset()
-            rollout = [o]
+            feature = np.concatenate([self.projected_env.robot_skeleton.bodynodes[1].C,
+                       self.projected_env.robot_skeleton.bodynodes[3].C,
+                       self.projected_env.robot_skeleton.bodynodes[5].C,
+                       self.projected_env.robot_skeleton.bodynodes[6].C,
+                       self.projected_env.robot_skeleton.bodynodes[8].C])
+            rollout = [feature]
             done = False
             samp_step = 0
             while not done and samp_step < 1000:
                 act, actinfo = self.projected_policy.get_action(o)
                 o, r, done, _ = self.projected_env.step(actinfo['mean'])
-                rollout.append(o)
+
+                feature = np.concatenate([self.projected_env.robot_skeleton.bodynodes[1].C,
+                       self.projected_env.robot_skeleton.bodynodes[3].C,
+                       self.projected_env.robot_skeleton.bodynodes[5].C,
+                       self.projected_env.robot_skeleton.bodynodes[6].C,
+                       self.projected_env.robot_skeleton.bodynodes[8].C])
+                rollout.append(feature)
                 samp_step += 1
             print('one samp done ', len(rollout))
             self.reference_motions.append(rollout)
@@ -147,7 +158,13 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         ob = self._get_obs()
         # tracking reference error
         if self.c_step < len(self.reference_motions[self.target_reference_motion]):
-            reward -= 0.1*np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
+            feature = np.concatenate([self.robot_skeleton.bodynodes[1].C,
+                       self.robot_skeleton.bodynodes[3].C,
+                       self.robot_skeleton.bodynodes[5].C,
+                       self.robot_skeleton.bodynodes[6].C,
+                       self.robot_skeleton.bodynodes[8].C])
+            #reward -= 0.1*np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
+            reward -= 0.1 * np.sum((self.reference_motions[self.target_reference_motion][self.c_step] - feature)**2)
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
