@@ -146,7 +146,8 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         ob = self._get_obs()
         # tracking reference error
-        reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
+        if self.c_step < len(self.reference_motions[self.target_reference_motion]):
+            reward -= 0.1*np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
