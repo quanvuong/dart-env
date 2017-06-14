@@ -13,7 +13,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
         self.action_scale = np.array([100.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 20
-        self.action_scale[[0, 1, 2]] = 40
+        self.action_scale[[0, 1, 2]] = 100
         obs_dim = 41
 
         self.t = 0
@@ -38,7 +38,7 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.reference_motions = []
         self.target_reference_motion = 0
-        for i in range(5):
+        for i in range(1):
             o = self.projected_env.reset()
             feature = np.concatenate([self.projected_env.robot_skeleton.bodynodes[1].C,
                        self.projected_env.robot_skeleton.bodynodes[3].C,
@@ -163,8 +163,9 @@ class DartWalker3dProjectionEnv(dart_env.DartEnv, utils.EzPickle):
                        self.robot_skeleton.bodynodes[5].C,
                        self.robot_skeleton.bodynodes[6].C,
                        self.robot_skeleton.bodynodes[8].C])
-            #reward -= 0.1*np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - ob)
-            reward -= 0.1 * np.sum((self.reference_motions[self.target_reference_motion][self.c_step] - feature)**2)
+            reward -= np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - feature)
+            #reward -= 0.1 * np.sum((self.reference_motions[self.target_reference_motion][self.c_step] - feature)**2)
+            print(np.linalg.norm(self.reference_motions[self.target_reference_motion][self.c_step] - feature))
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
