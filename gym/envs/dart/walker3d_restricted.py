@@ -25,7 +25,10 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
+  
         self.chaser_x = 0
+        self.leg_energies = [0.0001, 0.0001]
+
         utils.EzPickle.__init__(self)
 
     def advance(self, a):
@@ -35,9 +38,14 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+        action_torque = clamped_control * self.action_scale
+        
+        if self.t > 1:
+            self.leg_energies[0] += np.sum(action_torque[[3,4,5,6,7,8]]**2)
+            self.leg_energies[1] += np.sum(action_torque[[9, 10, 11, 12, 13, 14]]**2)
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[6:] = clamped_control * self.action_scale
-
+        tau[6:] = action_torque
+ 
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
@@ -100,6 +108,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
                 if self.fatigue_count[dofid] > 100:
                     fatigue_reward += np.exp(0.01*self.fatigue_count[dofid])-1
         reward -= fatigue_reward'''
+        reward -= 2*(np.max(self.leg_energies) / np.min(self.leg_energies) - 1)
 
         #reward -= 1e-7 * total_force_mag
 
@@ -148,6 +157,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         self.t = 0
         self.chaser_x = -0.2
+        self.leg_energies = [0.0001, 0.0001]
 
         self.fatigue_count = np.zeros(len(self.robot_skeleton.q))
 

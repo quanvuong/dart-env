@@ -19,8 +19,8 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         modelpath = os.path.join(os.path.dirname(__file__), "models")
+        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc_blurry.pkl'))
 
-        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_reststrength_cont_cont.pkl'))
         self.sampling_selector = upselector
 
         if self.train_UP:
