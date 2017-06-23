@@ -21,11 +21,11 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_footstrength.pkl'))
         self.sampling_selector = upselector
 
         if self.train_UP:
-            obs_dim += self.param_manager.param_dim
+            obs_dim += self.param_manager.param_dim# * self.sampling_selector.n_class
 
         obs_dim *= self.sampling_selector.n_class
 
@@ -35,10 +35,11 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
 
         self.state_index = 0
 
-        '''curcontparam = copy.copy(self.param_manager.controllable_param)
-        self.param_manager.controllable_param = [0, 1, 2, 3, 4]
-        self.param_manager.set_simulator_parameters([0.5, 0.5, 0.5, 0.5, 0.5])
-        self.param_manager.controllable_param = curcontparam'''
+        self.current_param = self.param_manager.get_simulator_parameters()
+        curcontparam = copy.copy(self.param_manager.controllable_param)
+        self.param_manager.controllable_param = [1]
+        self.param_manager.set_simulator_parameters([1.0])
+        self.param_manager.controllable_param = curcontparam
 
         utils.EzPickle.__init__(self)
 
@@ -104,8 +105,11 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
             state = state + np.random.normal(0, .01, len(state))
 
         return_state = np.zeros(len(state)*self.sampling_selector.n_class)
-
         return_state[self.state_index * len(state):(self.state_index+1)*len(state)] = state
+
+        #sim_params = np.zeros(self.param_manager.param_dim * self.sampling_selector.n_class)
+        #sim_params[self.state_index * self.param_manager.param_dim:(self.state_index+1)*self.param_manager.param_dim] = self.param_manager.get_simulator_parameters()
+        #return_state = np.concatenate([state, sim_params])
 
         return return_state
 
@@ -116,11 +120,52 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
+            # have uniform sampling across different classes
+            target_class = np.random.randint(0, self.sampling_selector.n_class)
+            while self.sampling_selector.classify([self.param_manager.get_simulator_parameters()]) != target_class:
+                self.param_manager.resample_parameters()
+
         self.state_action_buffer = []  # for UPOSI
 
-        state = self._get_obs()
 
         self.state_index = self.sampling_selector.classify([self.param_manager.get_simulator_parameters()])
+        if self.resample_MP:
+            mp = self.param_manager.get_simulator_parameters()
+            seen_param = [self.state_index]
+            for i in range(20):
+                randmp = mp + np.random.uniform(-0.05, 0.05, 2)
+                randind = self.sampling_selector.classify([randmp], stoch=False)
+                if randind not in seen_param:
+                    seen_param.append(randind)
+            self.state_index = seen_param[np.random.randint(len(seen_param))]
+        # temporary
+        '''if self.resample_MP:
+            mp = np.random.uniform(low=-0.05, high = 0.55, size=2)
+            self.state_index = np.random.randint(0, self.sampling_selector.n_class)
+            if self.state_index == 1:
+                mp[1] += 0.5
+            elif self.state_index == 2:
+                mp[0] += 0.5
+            elif self.state_index == 3:
+                mp[0] += 0.5
+                mp[1] += 0.5
+            self.param_manager.set_simulator_parameters(mp)
+        else:
+            if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[
+                1] < 0.5:
+                self.state_index = 0
+            elif self.param_manager.get_simulator_parameters()[0] < 0.5 and \
+                            self.param_manager.get_simulator_parameters()[1] > 0.5:
+                self.state_index = 1
+            elif self.param_manager.get_simulator_parameters()[0] > 0.5 and \
+                            self.param_manager.get_simulator_parameters()[1] < 0.5:
+                self.state_index = 2
+            elif self.param_manager.get_simulator_parameters()[0] > 0.5 and \
+                            self.param_manager.get_simulator_parameters()[1] > 0.5:
+                self.state_index = 3'''
+        #print(self.state_index)
+
+        state = self._get_obs()
 
         return state
 

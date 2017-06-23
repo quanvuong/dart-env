@@ -65,7 +65,7 @@ class hopperContactMassManager:
             cur_id += 1
 
     def resample_parameters(self):
-        x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
         if self.sampling_selector is not None:
             while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
                 x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))

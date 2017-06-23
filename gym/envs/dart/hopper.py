@@ -15,9 +15,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
+        self.perturb_MP = False
+
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
@@ -32,11 +34,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
+        self.current_param = self.param_manager.get_simulator_parameters()
+
         self.dart_world.set_collision_detector(3)
         
-        '''curcontparam = copy.copy(self.param_manager.controllable_param)
-        self.param_manager.controllable_param = [0, 1, 2, 3, 4]
-        self.param_manager.set_simulator_parameters([0.5, 0.5, 0.5, 0.5, 0.5])
+        '''self.current_param = self.param_manager.get_simulator_parameters()
+        curcontparam = copy.copy(self.param_manager.controllable_param)
+        self.param_manager.controllable_param = [1]
+        self.param_manager.set_simulator_parameters([1.0])
         self.param_manager.controllable_param = curcontparam'''
 
         utils.EzPickle.__init__(self)
@@ -87,6 +92,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                     (height > .7) and (height < 1.8) and (abs(ang) < .4))
         ob = self._get_obs()
 
+        if self.perturb_MP:
+            # random walk of mp
+            #self.param_manager.set_simulator_parameters(self.param_manager.get_simulator_parameters() + np.random.uniform(-0.01, 0.01, len(self.param_manager.get_simulator_parameters())))
+            # simply add noise
+            self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
 
     def _get_obs(self):
@@ -109,6 +119,18 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
+            # experimental
+            self.current_param = self.param_manager.get_simulator_parameters()
+            '''if rd < 0.5:
+                mp = np.array([0.1, 0.1])
+            #elif rd >=0.25 and rd < 0.5:
+            #    mp = np.array([0.9, 0.1])
+            #elif rd >= 0.5 and rd < 0.75:
+            #    mp = np.array([0.9, 0.9])
+            else:
+                mp = np.array([0.1, 0.9])
+            mp += self.np_random.uniform(low = -0.01, high = 0.01, size=2)
+            self.param_manager.set_simulator_parameters(mp)'''
         self.state_action_buffer = [] # for UPOSI
 
         state = self._get_obs()

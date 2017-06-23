@@ -89,7 +89,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward -= 0.05*(abs(ang_cos_uwd)+abs(ang_cos_fwd))
 
-        q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
+        '''q_diff = np.abs(self.robot_skeleton.q - self.origin_q)
         fatigue_reward = 0
         for dofid in range(len(q_diff)):
             dof_range = self.robot_skeleton.q_upper[dofid] - self.robot_skeleton.q_lower[dofid]
@@ -99,7 +99,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
                 self.fatigue_count[dofid] += 1
                 if self.fatigue_count[dofid] > 100:
                     fatigue_reward += np.exp(0.01*self.fatigue_count[dofid])-1
-        reward -= fatigue_reward
+        reward -= fatigue_reward'''
 
         #reward -= 1e-7 * total_force_mag
 
@@ -110,7 +110,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
+                    (height > 1.15) and (height < 2.0) and (abs(ang_cos_uwd) < 10.84) and (abs(ang_cos_fwd) < 10.84))
 
         if done:
             reward = 0
