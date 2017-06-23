@@ -8,20 +8,18 @@ import copy
 
 import joblib, os
 
-import joblib, os
-
 
 class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_footstrength.pkl'))
+        upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc_blurry.pkl'))
         self.sampling_selector = upselector
 
         if self.train_UP:
@@ -35,11 +33,11 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
 
         self.state_index = 0
 
-        self.current_param = self.param_manager.get_simulator_parameters()
-        curcontparam = copy.copy(self.param_manager.controllable_param)
-        self.param_manager.controllable_param = [1]
-        self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam
+        '''curcontparam = copy.copy(self.param_manager.controllable_param)
+        self.param_manager.controllable_param = [0, 1, 2, 3, 4]
+        self.param_manager.set_simulator_parameters([0.5, 0.5, 0.5, 0.5, 0.5])
+        self.param_manager.controllable_param = curcontparam'''
+        self.iter = None
 
         utils.EzPickle.__init__(self)
 
@@ -127,7 +125,6 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
 
         self.state_action_buffer = []  # for UPOSI
 
-
         self.state_index = self.sampling_selector.classify([self.param_manager.get_simulator_parameters()])
         if self.resample_MP:
             mp = self.param_manager.get_simulator_parameters()
@@ -164,6 +161,7 @@ class DartHopperEnvCont(dart_env.DartEnv, utils.EzPickle):
                             self.param_manager.get_simulator_parameters()[1] > 0.5:
                 self.state_index = 3'''
         #print(self.state_index)
+
 
         state = self._get_obs()
 

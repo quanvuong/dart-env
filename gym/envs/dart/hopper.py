@@ -17,9 +17,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = 200
         self.train_UP = False
         self.noisy_input = False
-        self.resample_MP = False  # whether to resample the model paraeters
-        self.perturb_MP = False
 
+        self.resample_MP = False  # whether to resample the model paraeters
+        self.train_mp_sel = False
+        self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
@@ -31,6 +32,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
+        if self.train_mp_sel:
+            obs_dim += 1
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -97,6 +100,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(self.param_manager.get_simulator_parameters() + np.random.uniform(-0.01, 0.01, len(self.param_manager.get_simulator_parameters())))
             # simply add noise
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
+
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
 
     def _get_obs(self):
@@ -110,6 +114,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
+        if self.train_mp_sel:
+            state = np.concatenate([state, [np.random.random()]])
         return state
 
     def reset_model(self):
@@ -119,18 +125,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
-            # experimental
             self.current_param = self.param_manager.get_simulator_parameters()
-            '''if rd < 0.5:
-                mp = np.array([0.1, 0.1])
-            #elif rd >=0.25 and rd < 0.5:
-            #    mp = np.array([0.9, 0.1])
-            #elif rd >= 0.5 and rd < 0.75:
-            #    mp = np.array([0.9, 0.9])
-            else:
-                mp = np.array([0.1, 0.9])
-            mp += self.np_random.uniform(low = -0.01, high = 0.01, size=2)
-            self.param_manager.set_simulator_parameters(mp)'''
+            self.current_param = self.param_manager.get_simulator_parameters()
+            #self.param_manager.set_simulator_parameters(mp)
+
         self.state_action_buffer = [] # for UPOSI
 
         state = self._get_obs()

@@ -30,45 +30,11 @@
                 </collision_shape>
             </body>
 
-            <!--<body name="board1">
-                <transformation>0 1.425 0.15 0 0 0</transformation>
-
-                <collision_shape>
-                    <transformation>0 0 0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>500.0 0.6 0.078</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
-            </body>
-
-            <body name="board2">
-                <transformation>0 1.425 -0.15 0 0 0</transformation>
-                <collision_shape>
-                    <transformation>0 0 0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>500.0 0.6 0.078</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
-            </body>-->
-
             <joint type="free" name="joint 1">
                 <parent>world</parent>
                 <child>ground</child>
             </joint>
 
-            <!--<joint type="free" name="joint 1">
-                <parent>world</parent>
-                <child>board1</child>
-            </joint>
-
-            <joint type="free" name="joint 1">
-                <parent>world</parent>
-                <child>board2</child>
-            </joint>-->
         </skeleton>
 
         <skeleton name="walker">
@@ -344,7 +310,7 @@
                 <axis>
 		            <limit>
                     	<lower>0.0</lower>
-                    	<upper>2.61799</upper>
+                    	<upper>1.8</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -364,7 +330,7 @@
                 <axis3>
  		            <limit>
                     	<lower>-0.25</lower>
-                    	<upper>0.25</upper>
+                    	<upper>0.0</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -429,7 +395,7 @@
                 <axis>
 		            <limit>
                     	<lower>0.0</lower>
-                    	<upper>2.61799</upper>
+                    	<upper>1.8</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -448,7 +414,7 @@
                 </axis2>
                 <axis3>
  		            <limit>
-                    	<lower>-0.25</lower>
+                    	<lower>0.0</lower>
                     	<upper>0.25</upper>
                     </limit>
                     <dynamics>
