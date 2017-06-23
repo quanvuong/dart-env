@@ -16,8 +16,8 @@ class hopperContactMassManager:
         self.torso_mass_range = [2.0, 10.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
-        self.activated_param = [1, 4]
-        self.controllable_param = [1, 4]
+        self.activated_param = [4]
+        self.controllable_param = [4]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
@@ -61,6 +61,10 @@ class hopperContactMassManager:
             cur_id += 1
         if 4 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
+            if x[cur_id] >= 0.2 and x[cur_id] < 0.7:
+                power = (x[cur_id]+0.3) * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
+            if x[cur_id] >= 0.7:
+                power = (x[cur_id] - 0.5) * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
             self.simulator.action_scale = power
             cur_id += 1
 
@@ -278,5 +282,42 @@ class hopperContactMassAllLimitManager:
 
 
 ##############################################################################################################
-################################  Hopper #####################################################################
+################################  CartPole SwingUp #####################################################################
 ##############################################################################################################
+class CartPoleManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.range = [0.5, 1.0] # mass range
+
+        self.activated_param = [0]
+        self.controllable_param = [0]
+        self.param_dim = len(self.activated_param)
+        self.sampling_selector = None
+        self.selector_target = -1
+
+    def get_simulator_parameters(self):
+        cur_mass = self.simulator.dart_world.skeletons[-1].bodynodes[-1].mass()
+        mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
+
+        #if cur_mass > 0.75:
+        #    mass_param = (cur_mass + 2.25 - self.range[0]) / (self.range[1] - self.range[0]) / 10.0
+
+        return np.array([mass_param])[self.activated_param]
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+        if 0 in self.controllable_param:
+            mass = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
+            #if x[cur_id] > 0.5:
+            #    mass = x[cur_id] * (self.range[1] - self.range[0]) * 10 + self.range[0] - 2.25
+            self.simulator.dart_world.skeletons[-1].bodynodes[-1].set_mass(mass)
+            cur_id += 1
+
+
+    def resample_parameters(self):
+        x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        if self.sampling_selector is not None:
+            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
+                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
+

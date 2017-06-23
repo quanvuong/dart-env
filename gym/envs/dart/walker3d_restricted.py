@@ -108,7 +108,7 @@ class DartWalker3dRestrictedEnv(dart_env.DartEnv, utils.EzPickle):
         
         self.chaser_x += self.dt * 0.1
         if self.chaser_x > posafter: # if the chaser catches up
-            reward -= (self.chaser_x - posafter)
+            reward -= 0.1*(self.chaser_x - posafter)
 
         self.t += self.dt
 
