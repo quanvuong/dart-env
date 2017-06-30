@@ -697,7 +697,7 @@
 								<position>0.0 0.0 0.0</position>
 							</sphere>
 							<sphere>
-								<radius>0.0360</radius>
+								<radius>0.0460</radius>
 								<position>0 -0.06 0</position>
 							</sphere>
 						</multi_sphere>

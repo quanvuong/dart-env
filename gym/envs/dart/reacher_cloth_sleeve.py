@@ -29,7 +29,7 @@ class DartClothSleeveReacherEnv(DartClothEnv, utils.EzPickle):
         #w/o force obs:
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='reacher_capsule.skel', frame_skip=4, observation_size=21, action_bounds=self.control_bounds)
         #w/ force obs:
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='ArmCapsules.skel', frame_skip=4, observation_size=(21+39), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='ArmCapsules.skel', frame_skip=4, observation_size=(21+30), action_bounds=self.control_bounds)
         
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)

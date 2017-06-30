@@ -26,9 +26,10 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.target2 = np.array([0.8, -0.6, 0.6])
-        self.targetActive1 = True
-        self.targetActive2 = False
+        self.targetActive1 = False
+        self.targetActive2 = True
         self.randomActiveTarget = False #if true, 1/4 chance of both active, neither, either 1 or 2
+        self.arm = 2 #if 1, left arm (character's perspective), if 2, right
         
         #storage of rewards from previous step for rendering
         self.renderRewards = True
@@ -229,7 +230,10 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
                 self.ROM1(21,self.numSteps/self.ROM_period)  
         
         #apply action and simulate
-        tau = np.concatenate([tau, np.zeros(11)])
+        if self.arm == 1:
+            tau = np.concatenate([tau, np.zeros(11)])
+        else:
+            tau = np.concatenate([tau[:3], np.zeros(8), tau[3:], np.zeros(3)])
         self.do_simulation(tau, self.frame_skip)
         
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
@@ -346,7 +350,10 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         if self.targetActive2:
             target2bit[0] = 1.
         #return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, target1bit, vec, self.target, target2bit, vec2, self.target2, f]).ravel()
-        return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
+        if self.arm == 1:
+            return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
+        else:
+            return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec2, self.target2, f]).ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
@@ -356,6 +363,15 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.clothScene.reset()
         self.clothScene.translateCloth(0, np.array([-3.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+
+        qpos[0] -= 0
+        qpos[1] -= 0.
+        qpos[2] += 0
+        qpos[3] += 0.
+        qpos[4] -= 0.
+        # qpos[5] += 1
+        qpos[5] -= 0.5
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         

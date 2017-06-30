@@ -17,6 +17,8 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.clothScene = clothScene
         self.extraRenderFunc = extraRenderFunc
         self.inputFunc = inputFunc
+        self.mouseLButton = False
+        self.mouseRButton = False
         
     def extraRender(self):
         'Place any extra rendering functionality here. This can be used to extend the window class'
@@ -30,6 +32,43 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             self.clothScene.render()
         if self.extraRenderFunc is not None:
             self.extraRenderFunc()
+
+    def mouseFunc(self, button, state, x, y):
+        tb = self.scene.tb
+        #print(button)
+        if state == 0:  # Mouse pressed
+            if button == 0:
+                self.mouseLButton = True
+            if button == 2:
+                self.mouseRButton = True
+            self.mouseLastPos = np.array([x, y])
+            if button == 3:
+                tb.trans[2] += 0.1
+            elif button == 4:
+                tb.trans[2] -= 0.1
+        elif state == 1:
+            self.mouseLastPos = None
+            if button == 0:
+                self.mouseLButton = False
+            if button == 2:
+                self.mouseRButton = False
+
+
+    def motionFunc(self, x, y):
+        dx = x - self.mouseLastPos[0]
+        dy = y - self.mouseLastPos[1]
+        modifiers = GLUT.glutGetModifiers()
+        tb = self.scene.tb
+        #print(tb.trans)
+        # print("mouse motion: " + str(dx))
+        #print("SHIFT?" + str(modifiers))
+        if self.mouseLButton is True and self.mouseRButton is True:
+            tb.zoom_to(dx, -dy)
+        elif self.mouseRButton is True:
+            tb.trans_to(dx, -dy)
+        elif self.mouseLButton is True:
+            tb.drag_to(x, y, dx, -dy)
+        self.mouseLastPos = np.array([x, y])
             
             
     def mykeyboard(self, key, x, y):
