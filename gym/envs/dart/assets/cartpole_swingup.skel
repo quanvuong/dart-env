@@ -10,7 +10,7 @@
         <skeleton name="rail">
             <mobile>false</mobile>
             <body name="ground">
-                <transformation>0 0 0 0 1.57 0.0</transformation>
+                <transformation>0 -0.35 0 0 1.57 0.0</transformation>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -110,10 +110,6 @@
                 <child>cart</child>
 		 <axis>
 			<xyz>1.0 0.0 0.0</xyz>
-			<limit>
-                          <lower>-2</lower>
-                          <upper>2</upper>
-                      </limit>
 		 </axis>
                 <init_pos>0</init_pos>
                 <init_vel>0</init_vel>

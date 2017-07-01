@@ -8,19 +8,16 @@ import copy
 
 import joblib, os
 
-import joblib, os
-
-
 class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
-        self.perturb_MP = False
+        self.perturb_MP = True
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
@@ -41,11 +38,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
         
-        '''self.current_param = self.param_manager.get_simulator_parameters()
+        self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam'''
+        self.param_manager.controllable_param = curcontparam
 
         utils.EzPickle.__init__(self)
 
@@ -96,10 +93,23 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ob = self._get_obs()
 
         if self.perturb_MP:
-            # random walk of mp
-            #self.param_manager.set_simulator_parameters(self.param_manager.get_simulator_parameters() + np.random.uniform(-0.01, 0.01, len(self.param_manager.get_simulator_parameters())))
+            # bounded random walk of mp
+            rdwk_step = 0.005
+            bound_size = 0.05
+            mp = self.param_manager.get_simulator_parameters() + self.np_random.uniform(-rdwk_step, rdwk_step, len(
+                self.param_manager.get_simulator_parameters()))
+            for dim in range(len(self.current_param)):
+                if mp[dim] > self.current_param[dim] + bound_size:
+                    dist = mp[dim] - self.current_param[dim] - bound_size
+                    samp_range = 2 * rdwk_step - dist
+                    mp[dim] -= dist + self.np_random.uniform(0, samp_range)
+                elif mp[dim] < self.current_param[dim] - bound_size:
+                    dist = self.current_param[dim] - bound_size - mp[dim]
+                    samp_range = 2 * rdwk_step - dist
+                    mp[dim] += dist + self.np_random.uniform(0, samp_range)
+            self.param_manager.set_simulator_parameters(mp)
             # simply add noise
-            self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
+            #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
 
