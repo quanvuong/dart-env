@@ -14,10 +14,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = 200
         self.train_UP = True
         self.noisy_input = False
+        self.avg_div = 4
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
-        self.perturb_MP = True
+        self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
@@ -31,6 +32,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
             obs_dim += 1
+
+        if self.avg_div > 1:
+            obs_dim += self.avg_div
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -126,6 +130,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             state = state + np.random.normal(0, .01, len(state))
         if self.train_mp_sel:
             state = np.concatenate([state, [np.random.random()]])
+
+        if self.avg_div > 1:
+            return_state = np.zeros(len(state) + self.avg_div)
+            return_state[0:len(state)] = state
+            return_state[len(state) + self.state_index] = 1
+            return return_state
+
         return state
 
     def reset_model(self):
@@ -138,6 +149,16 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.current_param = self.param_manager.get_simulator_parameters()
             self.current_param = self.param_manager.get_simulator_parameters()
             #self.param_manager.set_simulator_parameters(mp)
+
+        # Split the mp space by left and right for now
+        self.state_index = 0
+        if len(self.param_manager.get_simulator_parameters()) > 1:
+            if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                self.state_index = 1
+            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
+                self.state_index = 2
+            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                self.state_index = 3
 
         self.state_action_buffer = [] # for UPOSI
 
