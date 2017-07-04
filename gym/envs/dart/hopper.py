@@ -35,8 +35,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        if self.avg_div > 1:
-            obs_dim += self.avg_div
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 

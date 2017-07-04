@@ -20,8 +20,8 @@ class hopperContactMassManager:
         self.torso_mass_range = [2.0, 10.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
-        self.activated_param = [3, 4]
-        self.controllable_param = [3, 4]
+        self.activated_param = [1, 3]
+        self.controllable_param = [1, 3]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
