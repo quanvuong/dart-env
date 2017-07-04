@@ -20,8 +20,8 @@ class hopperContactMassManager:
         self.torso_mass_range = [2.0, 10.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
-        self.activated_param = [1, 3]
-        self.controllable_param = [1, 3]
+        self.activated_param = [3, 4]
+        self.controllable_param = [3, 4]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -301,9 +301,9 @@ class CartPoleManager:
         cur_mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
         mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
 
-        if cur_mass > 1:
+        if cur_mass > 0.75:
             cur_mass -= 2.0
-            mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
+        mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
 
         return np.array([mass_param])[self.activated_param]
 

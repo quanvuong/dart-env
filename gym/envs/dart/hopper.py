@@ -8,9 +8,6 @@ import copy
 
 import joblib, os
 
-import joblib, os
-
-
 class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
@@ -35,6 +32,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
             obs_dim += 1
+        if self.avg_div > 1:
+            obs_dim += self.avg_div
+
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
@@ -107,15 +107,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             for dim in range(len(self.current_param)):
                 if mp[dim] > self.current_param[dim] + bound_size:
                     dist = mp[dim] - self.current_param[dim] - bound_size
-                    samp_range = 2*rdwk_step - dist
+                    samp_range = 2 * rdwk_step - dist
                     mp[dim] -= dist + self.np_random.uniform(0, samp_range)
                 elif mp[dim] < self.current_param[dim] - bound_size:
                     dist = self.current_param[dim] - bound_size - mp[dim]
-                    samp_range = 2*rdwk_step - dist
+                    samp_range = 2 * rdwk_step - dist
                     mp[dim] += dist + self.np_random.uniform(0, samp_range)
             self.param_manager.set_simulator_parameters(mp)
-            # random walk of mp
-            #self.param_manager.set_simulator_parameters(self.param_manager.get_simulator_parameters() + np.random.uniform(-0.01, 0.01, len(self.param_manager.get_simulator_parameters())))
             # simply add noise
             #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
@@ -133,6 +131,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             state = state + np.random.normal(0, .01, len(state))
         if self.train_mp_sel:
             state = np.concatenate([state, [np.random.random()]])
+
         if self.avg_div > 1:
             return_state = np.zeros(len(state) + self.avg_div)
             return_state[0:len(state)] = state
@@ -162,6 +161,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.state_index = 2
             elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                 self.state_index = 3
+
         self.state_action_buffer = [] # for UPOSI
 
         state = self._get_obs()

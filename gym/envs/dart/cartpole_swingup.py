@@ -20,7 +20,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
-            obs_dim += 1
+            obs_dim += 5
 
         if self.avg_div > 1:
             #obs_dim *= self.avg_div
@@ -45,6 +45,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ang_proc = (np.abs(ang)%(2*np.pi))
         ang_proc = np.min([ang_proc, (2*np.pi)-ang_proc])
 
+        ang_proc = (np.abs(ang) % (2 * np.pi))
+        ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
+
         alive_bonus = 6.0
         ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
@@ -53,7 +56,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.state_index == 1:
             reward = alive_bonus - ang_cost - quad_ctrl_cost - com_cost
             if ang_proc < 0.5:
-                reward += np.max([5 - (ang_proc)*4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
+                reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
         else:
             reward = alive_bonus - 1.0*np.max([6.0-self.robot_skeleton.dq[1], 0]) - quad_ctrl_cost - com_cost
 
@@ -62,7 +65,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.perturb_MP:
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
-        return ob, reward, done, {}
+        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters()}
 
 
     def _get_obs(self):
@@ -95,7 +98,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        if self.np_random.uniform(low=0, high=1, size=1) > 0.5:
+        if self.np_random.uniform(low=0, high=1, size=1)[0] > 0.5:
             qpos[1] += np.pi
         else:
             qpos[1] += -np.pi
@@ -108,7 +111,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = 0
         if self.current_param[0] > 0.5:
             self.state_index = 1
-                #qpos[1] = self.np_random.uniform(low=-.1, high=.1)
 
         if self.train_mp_sel:
             self.rand = np.random.random()
