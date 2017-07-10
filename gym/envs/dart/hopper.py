@@ -17,7 +17,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
-        self.perturb_MP = True
+        self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 

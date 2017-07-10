@@ -21,3 +21,5 @@ from gym.envs.dart.dog import DartDogEnv
 from gym.envs.dart.reacher2d import DartReacher2dEnv
 
 from gym.envs.dart.cartpole_swingup import DartCartPoleSwingUpEnv
+
+from gym.envs.dart.walker2d_pendulum import DartWalker2dPendulumEnv
