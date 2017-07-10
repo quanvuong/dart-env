@@ -12,12 +12,16 @@ class hopperContactMassManager:
     def __init__(self, simulator):
         self.simulator = simulator
         self.range = [0.4, 1.0] # friction range
+        '''self.restitution_range = [0.0, 0.05]
+        self.torso_mass_range = [2.5, 4.5]
+        self.foot_mass_range = [4.0, 6.0]
+        self.power_range = [170, 230]'''
         self.restitution_range = [0.0, 0.3]
         self.torso_mass_range = [2.0, 10.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
-        self.activated_param = [3, 4]
-        self.controllable_param = [3, 4]
+        self.activated_param = [1, 3]
+        self.controllable_param = [1, 3]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -70,6 +74,7 @@ class hopperContactMassManager:
         if self.sampling_selector is not None:
             while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
                 x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+
         self.set_simulator_parameters(x)
 
 class hopperContactMassRoughnessManager:
@@ -299,7 +304,6 @@ class CartPoleManager:
         if cur_mass > 0.75:
             cur_mass -= 2.0
         mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
-        #    mass_param = (cur_mass + 2.25 - self.range[0]) / (self.range[1] - self.range[0]) / 10.0
 
         return np.array([mass_param])[self.activated_param]
 
@@ -309,7 +313,6 @@ class CartPoleManager:
             mass = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
             if x[cur_id] > 0.5:
                 mass += 2.0
-            #    mass = x[cur_id] * (self.range[1] - self.range[0]) * 10 + self.range[0] - 2.25
             self.simulator.dart_world.skeletons[-1].bodynodes[2].set_mass(mass)
             cur_id += 1
 

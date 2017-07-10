@@ -25,7 +25,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             #obs_dim *= self.avg_div
             obs_dim += self.avg_div
-
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         utils.EzPickle.__init__(self)
@@ -43,12 +42,14 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ob = self._get_obs()
 
         ang = self.robot_skeleton.q[1]
+        ang_proc = (np.abs(ang)%(2*np.pi))
+        ang_proc = np.min([ang_proc, (2*np.pi)-ang_proc])
 
         ang_proc = (np.abs(ang) % (2 * np.pi))
         ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
 
         alive_bonus = 6.0
-        ang_cost = 1.0*ang_proc**2
+        ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
 
@@ -71,7 +72,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         state = np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]).ravel()
 
         ang = self.robot_skeleton.q[1]
-
         ang_proc = (ang % (2 * np.pi))
         if ang_proc > np.pi:
             ang_proc -= 2 * np.pi
@@ -85,11 +85,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, [self.rand]])
 
         if self.avg_div > 1:
-            return_state = np.zeros(len(state) + self.avg_div)
+            #return_state = np.zeros(len(state) * self.avg_div)
             #return_state[self.state_index * len(state):(self.state_index + 1) * len(state)] = state
-            #return_state = np.concatenate([state, np.zeros(self.avg_div)])
+            return_state = np.zeros(len(state) + self.avg_div)
             return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1
+            return_state[len(state) + self.state_index] = 1.0
             return return_state
 
         return state
@@ -104,16 +104,18 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             qpos[1] += -np.pi
         #qpos[1]+=self.np_random.uniform(low=-np.pi, high=np.pi, size=1)
 
-        self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
+
         self.current_param = self.param_manager.get_simulator_parameters()
         self.state_index = 0
-        if self.param_manager.get_simulator_parameters()[0] > 0.5:
+        if self.current_param[0] > 0.5:
             self.state_index = 1
 
         if self.train_mp_sel:
             self.rand = np.random.random()
+
+        self.set_state(qpos, qvel)
 
         return self._get_obs()
 

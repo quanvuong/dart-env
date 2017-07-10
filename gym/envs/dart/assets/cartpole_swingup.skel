@@ -15,7 +15,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <capsule>
-                            <height>2.0</height>
+                            <height>4.0</height>
                             <radius>0.02</radius>
                         </capsule>
                     </geometry>
