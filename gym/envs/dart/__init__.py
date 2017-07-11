@@ -8,6 +8,7 @@ from gym.envs.dart.hopper import DartHopperEnv
 #from gym.envs.dart.hopperRBF import DartHopperRBFEnv
 from gym.envs.dart.hopper_cont import DartHopperEnvCont
 from gym.envs.dart.reacher import DartReacherEnv
+from gym.envs.dart.manipulator2d import DartManipulator2dEnv
 from gym.envs.dart.robot_walk import DartRobotWalk
 from gym.envs.dart.cart_pole_img import DartCartPoleImgEnv
 from gym.envs.dart.walker2d import DartWalker2dEnv

@@ -237,6 +237,12 @@ register(
 )
 
 register(
+    id='DartManipulator2d-v1',
+    entry_point='gym.envs.dart:DartManipulator2dEnv',
+    max_episode_steps=200,
+)
+
+register(
     id='DartReacher3d-v1',
     entry_point='gym.envs.dart:DartReacherEnv',
     reward_threshold=-200,

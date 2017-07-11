@@ -11,9 +11,13 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 19
 
+        self.current_task = 0 # 0: balance a pole, 1: walk forward, 2: walk forward with balanced pole
+        obs_dim += 1
+
         dart_env.DartEnv.__init__(self, 'walker2d_pendulum.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 
         self.dart_world.set_collision_detector(3)  # 3 is ode collision detector
+
 
         utils.EzPickle.__init__(self)
 
@@ -40,10 +44,11 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
             total_force_mag += np.square(contact.force).sum()
 
         alive_bonus = 1.0
-        vel = (posafter - posbefore) / self.dt*0
-        reward = vel#-(vel-1.0)**2
+        vel = (posafter - posbefore) / self.dt
+        reward = 0
+
         reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
+        reward -= 1e-2 * np.square(a).sum()
 
         action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*6], axis=0)) - [1]*6)
         action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*6], axis=0)) - [1]*6)
@@ -51,20 +56,25 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         # uncomment to enable knee joint limit penalty
-        '''joint_limit_penalty = 0
+        joint_limit_penalty = 0
         for j in [-2, -5]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
                 joint_limit_penalty += abs(1.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        reward -= 5e-1 * joint_limit_penalty'''
+        reward -= 5e-1 * joint_limit_penalty
 
-        reward -= np.abs(ang+self.robot_skeleton.q[3])
+        if self.current_task == 1 or self.current_task == 2:
+            reward += vel#-(vel-1.0)**2
+        if self.current_task == 0 or self.current_task == 2:
+            reward -= np.abs(ang+self.robot_skeleton.q[3])
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0) and np.abs(ang+self.robot_skeleton.q[3]) < 0.8)
+                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
+        if self.current_task == 0 or self.current_task == 2:
+            done = done or not(np.abs(ang+self.robot_skeleton.q[3]) < 0.8)
         '''qpos = self.robot_skeleton.q
         qvel = self.robot_skeleton.dq
         qpos[0:3] = np.array([0, 0, 0.8])
@@ -82,6 +92,8 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
+        state = np.concatenate([state, [self.current_task]])
+
         return state
 
     def reset_model(self):
@@ -89,6 +101,8 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        self.current_task = np.random.randint(0, 2)
 
         return self._get_obs()
 
