@@ -239,7 +239,7 @@ register(
 register(
     id='DartManipulator2d-v1',
     entry_point='gym.envs.dart:DartManipulator2dEnv',
-    max_episode_steps=200,
+    max_episode_steps=500,
 )
 
 register(
