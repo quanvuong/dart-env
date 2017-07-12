@@ -74,6 +74,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.current_task != 0:
             self.target = self.np_random.uniform(low=-.1, high=.1, size=3)
+            self.target = np.array([0.2, 0.015, 0.05])
             self.dart_world.skeletons[2].set_positions([0,0,0,self.target[0],0.015,self.target[2]])
         if self.current_task == 1:
             self.push_target = np.random.uniform(low=-0.1, high = 0.1, size = 2)
