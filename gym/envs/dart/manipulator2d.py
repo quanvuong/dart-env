@@ -34,7 +34,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.current_task == 1 or self.current_task == 2:
             vec = self.dart_world.skeletons[2].com()[[0, 2]] - self.push_target
 
-        reward_dist = - np.linalg.norm(vec)
+        reward_dist = self.init_dist - np.linalg.norm(vec)
         reward_ctrl = - np.square(a).sum()*0.01
         reward = reward_dist + reward_ctrl
 
@@ -86,10 +86,16 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
             self.push_target *= np.array([flip1, flip2])
             self.dart_world.skeletons[3].q=[0,0,0,self.push_target[0],0.015,self.push_target[1]]
 
+        vec = self.robot_skeleton.bodynodes[-1].com() - self.target
+
+        if self.current_task == 1 or self.current_task == 2:
+            vec = self.dart_world.skeletons[2].com()[[0, 2]] - self.push_target
+        self.init_dist = np.linalg.norm(vec)
+
         return self._get_obs()
 
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -1.0
+        self._get_viewer().scene.tb.trans[2] = -1.5
         self._get_viewer().scene.tb._set_theta(-45)
         self.track_skeleton_id = 0
