@@ -35,7 +35,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
             vec = self.dart_world.skeletons[2].com()[[0, 2]] - self.push_target
 
         reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(a).sum()*0.1
+        reward_ctrl = - np.square(a).sum()*0.01
         reward = reward_dist + reward_ctrl
 
         s = self.state_vector()

@@ -220,9 +220,9 @@
             </body>
 
             <body name="link3">
-                <transformation>0.31 0.0 0 0 0 0</transformation>
+                <transformation>0.3 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.0418879</mass>
+                    <mass>0.0818879</mass>
                     <offset>0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
