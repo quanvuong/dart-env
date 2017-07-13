@@ -94,7 +94,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.current_task == 1 or self.current_task == 2:
             vec = self.dart_world.skeletons[2].com()[[0, 2]] - self.push_target
-        self.init_dist = np.linalg.norm(vec)
+        self.init_dist = np.linalg.norm(vec)*0
 
         return self._get_obs()
 
