@@ -24,7 +24,7 @@
                     <transformation>0 0.035 0 0 0.0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.022 0.02 0.022</size>
+                            <size>0.22 0.2 0.22</size>
                         </box>
                     </geometry>
                     <color>0.9 0.4 0.6 1</color>
@@ -53,7 +53,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <ellipsoid>
-                            <size>0.029 0.029 0.029</size>
+                            <size>0.29 0.29 0.29</size>
                         </ellipsoid>
                     </geometry>
                     <color>0.9 0.2 0.2 1</color>
@@ -75,7 +75,7 @@
                     <transformation>0 0 0 1.57079632679 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.039 0.039 0.039</size>
+                            <size>0.29 0.29 0.29</size>
                             <!--<height>0.019</height>
                             <radius>0.009</radius>-->
                         </box>
@@ -86,7 +86,7 @@
                     <transformation>0 0 0 1.57079632679 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.039 0.039 0.039</size>
+                            <size>0.29 0.29 0.29</size>
                             <!--<height>0.019</height>
                             <radius>0.009</radius>-->
                         </box>
@@ -108,7 +108,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <ellipsoid>
-                            <size>0.029 0.029 0.029</size>
+                            <size>0.29 0.29 0.29</size>
                         </ellipsoid>
                     </geometry>
                     <color>0.2 0.5 0.2 1</color>
@@ -121,18 +121,18 @@
         </skeleton>
 
         <skeleton name="arm">
-            <transformation>0 0.015 0.0 0 0 0</transformation>
+            <transformation>0 0.056 0.0 0 0 0</transformation>
             <body name="link0">
                 <transformation>0.0 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.3455752</mass>
-                    <offset>0.05 0 0.0</offset>
+                    <mass>1</mass>
+                    <offset>0.25 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                         <!--<capsule>
                             <height>0.1</height>
@@ -142,14 +142,14 @@
                     <color>0.0 0.4 0.6 1</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <!--<capsule>
                             <height>0.1</height>
                             <radius>0.01</radius>
                         </capsule>-->
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -157,16 +157,16 @@
 
 
             <body name="link1">
-                <transformation>0.1 0.0 0 0 0 0</transformation>
+                <transformation>0.5 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.3455752</mass>
-                    <offset>0.05 0 0.0</offset>
+                    <mass>1</mass>
+                    <offset>0.25 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                         <!--<capsule>
                             <height>0.1</height>
@@ -176,10 +176,10 @@
                     <color>0.0 0.4 0.6 1</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                         <!--<capsule>
                             <height>0.1</height>
@@ -190,16 +190,16 @@
             </body>
 
             <body name="link2">
-                <transformation>0.2 0.0 0 0 0 0</transformation>
+                <transformation>1.0 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.3455752</mass>
-                    <offset>0.05 0 0.0</offset>
+                    <mass>1</mass>
+                    <offset>0.25 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                         <!--<capsule>
                             <height>0.1</height>
@@ -209,10 +209,10 @@
                     <color>0.0 0.4 0.6 1</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.05 0 0.0 0 1.57079632679 0</transformation>
+                    <transformation>0.25 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.02 0.1</size>
+                            <size>0.1 0.1 0.5</size>
                         </box>
                         <!--<capsule>
                             <height>0.1</height>
@@ -223,26 +223,26 @@
             </body>
 
             <body name="link3">
-                <transformation>0.3 0.0 0 0 0 0</transformation>
+                <transformation>1.5 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.0818879</mass>
+                    <mass>0.3</mass>
                     <offset>0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.00 0 0.0 0 0.0 0</transformation>
                     <geometry>
-                        <ellipsoid>
-                            <size>0.02 0.02 0.02</size>
-                        </ellipsoid>
+                        <box>
+                            <size>0.1 0.1 0.2</size>
+                        </box>
                     </geometry>
                     <color>1.0 0.8 0.6 1</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.00 0 0.0 0 0.0 0</transformation>
                     <geometry>
-                        <ellipsoid>
-                            <size>0.02 0.02 0.02</size>
-                        </ellipsoid>
+                        <box>
+                            <size>0.1 0.1 0.2</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -255,7 +255,7 @@
                     <!--<lower>-3.14</lower>
                     <upper>3.14</upper>-->
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -275,7 +275,7 @@
                     	<upper>3</upper>
                     </limit>-->
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -294,7 +294,7 @@
                     	<upper>3</upper>
                     </limit>-->
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>2.0</damping>
                         <friction>0.00</friction>
                     </dynamics>
                 </axis>

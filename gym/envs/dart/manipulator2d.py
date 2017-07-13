@@ -5,9 +5,9 @@ from gym.envs.dart import dart_env
 class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.1, 0.01, -0.1])
-        self.action_scale = np.array([20, 20, 20])
+        self.action_scale = np.array([10, 10, 10])
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
-        dart_env.DartEnv.__init__(self, 'manipulator2d.skel', 2, 10, self.control_bounds, dt=0.002, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'manipulator2d.skel', 4, 10, self.control_bounds, dt=0.002, disableViewer=False)
         for s in self.dart_world.skeletons:
             s.set_self_collision_check(False)
             '''for n in s.bodynodes:
@@ -59,35 +59,35 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         while True:
-            self.target = self.np_random.uniform(low=-.2, high=.2, size=3)
+            self.target = self.np_random.uniform(low=-1, high=1, size=3)
             self.target[1] = 0.0
-            if np.linalg.norm(self.target) < .2: break
-        self.target[1] = 0.01
+            if np.linalg.norm(self.target) < 1.5: break
+        self.target[1] = 0.15
         #options = [np.array([0.1, 0.01, 0.1]), np.array([-0.2, 0.01, 0.05]), np.array([0.2, 0.01, -0.15])]
         #self.target = options[int(np.random.random()*len(options))]
 
         self.dart_world.skeletons[1].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
-        self.dart_world.skeletons[2].set_positions([0,0,0,0.8,0.015,0])
+        self.dart_world.skeletons[2].set_positions([0,0,0,1.8,0.15,0])
         self.dart_world.skeletons[2].set_velocities([0,0,0,0,0,0])
-        self.dart_world.skeletons[3].q=[0,0,0,0.9,0.015,0]
+        self.dart_world.skeletons[3].q=[0,0,0,2.2,0.15,0]
 
         self.current_task = 0#np.random.randint(3)
-        self.push_target = np.random.uniform(low=-0.5, high = 0.5, size = 2)
+        self.push_target = np.random.uniform(low=-1, high = 1, size = 2)
 
         if self.current_task != 0:
-            self.target = self.np_random.uniform(low=-.1, high=.1, size=3)
-            self.target = np.array([0.2, 0.015, 0.05])
-            self.dart_world.skeletons[2].set_positions([0,0,0,self.target[0],0.015,self.target[2]])
+            self.target = self.np_random.uniform(low=-1, high=1, size=3)
+            self.target = np.array([1.3, 0.15, 0.3])
+            self.dart_world.skeletons[2].set_positions([0,0,0,self.target[0],0.15,self.target[2]])
         if self.current_task == 1:
-            self.push_target = np.random.uniform(low=-0.1, high = 0.1, size = 2)
-            self.dart_world.skeletons[3].q=[0,0,0,self.push_target[0],0.015,self.push_target[1]]
+            self.push_target = np.random.uniform(low=-0.7, high = 0.7, size = 2)
+            self.dart_world.skeletons[3].q=[0,0,0,self.push_target[0],0.15,self.push_target[1]]
         if self.current_task == 2:
             flip1 = np.random.randint(2) * 2 - 1
             flip2 = np.random.randint(2) * 2 - 1
-            self.push_target = np.random.uniform(low= 0.4, high = 0.5, size = 2)
+            self.push_target = np.random.uniform(low= 3.0, high = 3.5, size = 2)
             self.push_target *= np.array([flip1, flip2])
-            self.dart_world.skeletons[3].q=[0,0,0,self.push_target[0],0.015,self.push_target[1]]
+            self.dart_world.skeletons[3].q=[0,0,0,self.push_target[0],0.15,self.push_target[1]]
 
         vec = self.robot_skeleton.bodynodes[-1].com() - self.target
 
@@ -99,6 +99,6 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -1.5
+        self._get_viewer().scene.tb.trans[2] = -4.5
         self._get_viewer().scene.tb._set_theta(-45)
         self.track_skeleton_id = 0
