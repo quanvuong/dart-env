@@ -2,7 +2,7 @@
 <skel version="1.0">
     <world name="world 1">
         <physics>
-            <time_step>0.003</time_step>
+            <time_step>0.002</time_step>
             <gravity>0 -9.81 0</gravity>
             <collision_detector>bullet</collision_detector>
         </physics>
@@ -15,7 +15,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>10.0 0.05 10.0</size>
+                            <size>100.0 0.05 100.0</size>
                         </box>
                     </geometry>
                     <color>0.9 0.9 0.9 1.0</color>
@@ -33,7 +33,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>10.0 0.05 10.0</size>
+                            <size>100.0 0.05 100.0</size>
                         </box>
                     </geometry>
                     <color>0.9 0.9 0.9 1.0</color>
@@ -69,13 +69,13 @@
             <body name="object">
                 <transformation>.0 0.0 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.0455752</mass>
+                    <mass>0.3455752</mass>
                 </inertia>
                 <visualization_shape>
                     <transformation>0 0 0 1.57079632679 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.019 0.019 0.019</size>
+                            <size>0.039 0.039 0.039</size>
                             <!--<height>0.019</height>
                             <radius>0.009</radius>-->
                         </box>
@@ -86,7 +86,7 @@
                     <transformation>0 0 0 1.57079632679 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.019 0.019 0.019</size>
+                            <size>0.039 0.039 0.039</size>
                             <!--<height>0.019</height>
                             <radius>0.009</radius>-->
                         </box>

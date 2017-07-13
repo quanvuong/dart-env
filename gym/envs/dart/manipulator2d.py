@@ -7,7 +7,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.target = np.array([0.1, 0.01, -0.1])
         self.action_scale = np.array([20, 20, 20])
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
-        dart_env.DartEnv.__init__(self, 'manipulator2d.skel', 2, 10, self.control_bounds, dt=0.003, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'manipulator2d.skel', 2, 10, self.control_bounds, dt=0.002, disableViewer=False)
         for s in self.dart_world.skeletons:
             s.set_self_collision_check(False)
             '''for n in s.bodynodes:
@@ -40,7 +40,10 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         #done = not (np.isfinite(s).all() and (-reward_dist > 0.02))
-        done = False
+        done = not (np.isfinite(s).all() and np.isfinite(reward))
+        if done:
+            ob = np.zeros(len(ob))
+            reward = -10
 
         return ob, reward, done, {'done_return':done}
 
@@ -69,7 +72,7 @@ class DartManipulator2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.skeletons[2].set_velocities([0,0,0,0,0,0])
         self.dart_world.skeletons[3].q=[0,0,0,0.9,0.015,0]
 
-        self.current_task = 2#np.random.randint(3)
+        self.current_task = 0#np.random.randint(3)
         self.push_target = np.random.uniform(low=-0.5, high = 0.5, size = 2)
 
         if self.current_task != 0:
