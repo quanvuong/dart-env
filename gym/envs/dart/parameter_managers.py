@@ -289,10 +289,11 @@ class hopperContactMassAllLimitManager:
 class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.1, 0.5] # mass range
+        self.range = [0.1, 0.9] # mass range
+        self.attach_width = [0.05, 0.5]
 
-        self.activated_param = [0]
-        self.controllable_param = [0]
+        self.activated_param = [0, 1]
+        self.controllable_param = [0, 1]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
@@ -301,20 +302,26 @@ class CartPoleManager:
         cur_mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
         mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
 
-        if cur_mass > 0.75:
-            cur_mass -= 2.0
-        mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
+        width = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].size()[0]
+        width_param = (width - self.attach_width[0]) / (self.attach_width[1] - self.attach_width[0])
 
-        return np.array([mass_param])[self.activated_param]
+        return np.array([mass_param, width_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
         if 0 in self.controllable_param:
             mass = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
-            if x[cur_id] > 0.5:
-                mass += 2.0
             self.simulator.dart_world.skeletons[-1].bodynodes[2].set_mass(mass)
             cur_id += 1
+        if 1 in self.controllable_param:
+            width = x[cur_id] * (self.attach_width[1] - self.attach_width[0]) + self.attach_width[0]
+            size = np.copy(self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].size())
+            size[0] = width
+            for i in range(len(self.simulator.robot_skeleton.bodynodes[-1].shapenodes)):
+                self.simulator.robot_skeleton.bodynodes[-1].shapenodes[i].set_size(size)
+            size = np.copy(size ** 2)
+            mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
+            self.simulator.robot_skeleton.bodynodes[-1].set_inertia_entries(1.0/12*mass*(size[1]+size[2]), 1.0/12*mass*(size[0]+size[2]), 1.0/12*mass*(size[1]+size[0]))
 
 
     def resample_parameters(self):

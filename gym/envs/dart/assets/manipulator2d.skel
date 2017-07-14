@@ -252,8 +252,8 @@
                 <child>link0</child>
                 <axis>
                     <xyz>0.0 1.0 0.0</xyz>
-                    <!--<lower>-3.14</lower>
-                    <upper>3.14</upper>-->
+                    <lower>-3.64</lower>
+                    <upper>3.64</upper>
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.0</friction>
@@ -264,21 +264,32 @@
             </joint>
 
 
-            <joint type="revolute" name="j_link1">
+            <joint type="universal" name="j_link1">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>link0</parent>
                 <child>link1</child>
                 <axis>
                     <xyz>0.0 1.0 0.0</xyz>
-		            <!--<limit>
+		            <limit>
                     	<lower>-3</lower>
                     	<upper>3</upper>
-                    </limit>-->
+                    </limit>
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
+                <axis2>
+                    <xyz>1.0 0.0 0.0</xyz>
+		            <limit>
+                    	<lower>-0.003</lower>
+                    	<upper>0.003</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>2.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis2>
                 <init_pos>0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
@@ -289,10 +300,10 @@
                 <child>link2</child>
                 <axis>
                     <xyz>0.0 1.0 0.0</xyz>
-		            <!--<limit>
+		            <limit>
                     	<lower>-3</lower>
                     	<upper>3</upper>
-                    </limit>-->
+                    </limit>
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.00</friction>

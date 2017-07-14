@@ -97,7 +97,7 @@
                     <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size> 0.08 0.04 0.08 </size>
+                            <size>0.08 0.04 0.08</size>
                         </box>
                     </geometry>
                 </collision_shape>
