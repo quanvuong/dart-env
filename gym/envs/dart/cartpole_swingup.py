@@ -10,7 +10,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = 40
         self.train_UP = True
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         self.avg_div = 0
@@ -22,10 +22,14 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_mp_sel:
             obs_dim += 5
 
+        self.juggling = True
+        if self.juggling:
+            obs_dim += 4
+
         if self.avg_div > 1:
             #obs_dim *= self.avg_div
             obs_dim += self.avg_div
-        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=False)
         self.current_param = self.param_manager.get_simulator_parameters()
         utils.EzPickle.__init__(self)
 
@@ -59,6 +63,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
+        if self.juggling:
+            if self.dart_world.skeletons[1].com()[1] < 0.5:
+                reward -= 50
+                done = True
+
         if self.perturb_MP:
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
@@ -89,6 +98,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             return_state[len(state) + self.state_index] = 1.0
             return return_state
 
+        if self.juggling:
+            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_linear_velocity()[[0, 1]]])
+
         return state
 
     def reset_model(self):
@@ -106,6 +118,14 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.current_param = self.param_manager.get_simulator_parameters()
         self.state_index = 1
+
+        if not self.juggling:
+            self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
+        else:
+            jug_pos = self.dart_world.skeletons[1].q + self.np_random.uniform(low=-.1, high=.1, size=6)
+            jug_vel = self.dart_world.skeletons[1].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
+            self.dart_world.skeletons[1].set_positions(jug_pos)
+            self.dart_world.skeletons[1].set_velocities(jug_vel)
 
         if self.train_mp_sel:
             self.rand = np.random.random()
