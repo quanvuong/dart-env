@@ -10,7 +10,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = 40
         self.train_UP = True
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         self.avg_div = 0
@@ -53,14 +53,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
 
-        if self.state_index == 1:
-            reward = alive_bonus - ang_cost - quad_ctrl_cost - com_cost
-            if ang_proc < 0.5:
-                reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
-        else:
-            reward = alive_bonus - 1.0*np.max([6.0-self.robot_skeleton.dq[1], 0]) - quad_ctrl_cost - com_cost
+        reward = alive_bonus - ang_cost - quad_ctrl_cost - com_cost
+        if ang_proc < 0.5:
+            reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
 
-        done = abs(self.robot_skeleton.dq[1]) > 25 or abs(self.robot_skeleton.q[0]) > 2.0
+        done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.perturb_MP:
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
@@ -108,9 +105,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.param_manager.resample_parameters()
 
         self.current_param = self.param_manager.get_simulator_parameters()
-        self.state_index = 0
-        if self.current_param[0] > 0.5:
-            self.state_index = 1
+        self.state_index = 1
 
         if self.train_mp_sel:
             self.rand = np.random.random()

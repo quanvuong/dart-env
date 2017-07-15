@@ -58,28 +58,28 @@
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>0.025</mass>
-                    <offset>0.0 0.15 0.0</offset>
+                    <offset>0.0 1.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.15 0.0 0.0 0.0 0.0</transformation>
+                    <transformation>0.0 1.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.3 0.02</size>
+                            <size>0.02 2.0 0.02</size>
                         </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 0.15 0.0 0.0 0.0 0.0</transformation>
+                    <transformation>0.0 1.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.02 0.3 0.02</size>
+                            <size>0.02 2.0 0.02</size>
                         </box>
                     </geometry>
                 </collision_shape>
             </body>
 
             <body name="weight">
-                <transformation>0.0 0.32 0.0 0.0 0.0 0.0</transformation>
+                <transformation>0.0 2.02 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>0.3</mass>
                     <offset>0.0 0.0 0.0</offset>

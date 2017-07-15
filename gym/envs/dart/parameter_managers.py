@@ -289,8 +289,8 @@ class hopperContactMassAllLimitManager:
 class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.1, 0.9] # mass range
-        self.attach_width = [0.05, 0.5]
+        self.range = [0.1, 2.0] # mass range
+        self.attach_width = [0.05, 2.0]
 
         self.activated_param = [0, 1]
         self.controllable_param = [0, 1]
@@ -323,6 +323,7 @@ class CartPoleManager:
             mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
             self.simulator.robot_skeleton.bodynodes[-1].set_inertia_entries(1.0/12*mass*(size[1]+size[2]), 1.0/12*mass*(size[0]+size[2]), 1.0/12*mass*(size[1]+size[0]))
 
+            cur_id += 1
 
     def resample_parameters(self):
         x = np.random.uniform(0.0, 1.0, len(self.get_simulator_parameters()))
