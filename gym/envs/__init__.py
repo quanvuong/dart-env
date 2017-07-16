@@ -226,7 +226,7 @@ register(
 register(
     id='DartDoubleInvertedPendulumEnv-v1',
     entry_point='gym.envs.dart:DartDoubleInvertedPendulumEnv',
-    max_episode_steps=1000,
+    max_episode_steps=500,
 )
 
 register(
