@@ -6,7 +6,9 @@ from gym.envs.dart import dart_env
 class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
-        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
+        self.control_bounds[1][1] = -0.3
+        self.control_bounds[1][4] = -0.3
+        self.action_scale = np.array([50, 50, 20, 50, 50, 20])
         obs_dim = 17
 
         dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
@@ -16,6 +18,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
+        # dropout of action
+        #a[np.random.randint(6)] = 0
+
         pre_state = [self.state_vector()]
 
         clamped_control = np.array(a)
@@ -40,7 +45,17 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         vel = (posafter - posbefore) / self.dt
         reward = vel#-(vel-1.0)**2
         reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
+        reward -= 1e-4 * np.square(a).sum()
+
+        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*6], axis=0)) - [1]*6)
+        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*6], axis=0)) - [1]*6)
+        reward -= 0.1*action_vio
+
+        # give a little reward if near zero torque is used
+        ctl_tq = clamped_control * self.action_scale
+        for tq in ctl_tq:
+            if np.abs(tq) < 1e-3:
+                reward += 0.3
 
         # uncomment to enable knee joint limit penalty
         '''joint_limit_penalty = 0
