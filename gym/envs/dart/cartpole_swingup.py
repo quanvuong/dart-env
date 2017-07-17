@@ -33,7 +33,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.transition_locator = None
 
         if self.avg_div > 1:
-            #obs_dim *= self.avg_div
             obs_dim += self.avg_div
 
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
@@ -78,8 +77,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                 base_state = base_state_act[0:len(cur_state)]
                 base_act = base_state_act[-len(cur_act):]
                 base_next_state = base_state + self.transition_locator._y[ind]
-
-
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
                                             self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
 
@@ -113,9 +110,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.dyn_model_id != 0:
             reward *= 0.25
-
         self.cur_step += 1
-        if self.base_path is not None and self.dyn_model_id != 0:
+        if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
 
@@ -142,8 +138,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, [self.rand]])
 
         if self.avg_div > 1:
-            #return_state = np.zeros(len(state) * self.avg_div)
-            #return_state[self.state_index * len(state):(self.state_index + 1) * len(state)] = state
             return_state = np.zeros(len(state) + self.avg_div)
             return_state[0:len(state)] = state
             return_state[len(state) + self.state_index] = 1.0

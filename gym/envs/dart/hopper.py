@@ -12,11 +12,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -34,7 +34,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += 1
         if self.avg_div > 1:
             obs_dim += self.avg_div
-
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
