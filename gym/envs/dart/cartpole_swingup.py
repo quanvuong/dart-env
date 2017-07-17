@@ -9,12 +9,13 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = 40
-        self.train_UP = True
+        self.train_UP = False
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 0
+        self.avg_div = 2
         self.param_manager = CartPoleManager(self)
+        self.cur_step = 0
 
         obs_dim = 4
         if self.train_UP:
@@ -22,22 +23,24 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_mp_sel:
             obs_dim += 5
 
-        self.juggling = True
+        self.juggling = False
         if self.juggling:
             obs_dim += 4
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
+        self.base_path = None
+        self.transition_locator = None
 
         if self.avg_div > 1:
             #obs_dim *= self.avg_div
             obs_dim += self.avg_div
 
-        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.001, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.9)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.9)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.8)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -49,13 +52,39 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[0] = a[0] * self.action_scale
 
-        state_act = np.concatenate([self.state_vector(), tau])
+        state_act = np.concatenate([self.state_vector(), tau/40.0])
+        state_pre = np.copy(self.state_vector())
 
         if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
             self.do_simulation(tau, self.frame_skip)
-        elif self.dyn_models[self.dyn_model_id-1] is not None:
+        elif self.dyn_models[self.dyn_model_id-1] is not None and self.base_path is None:
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), tau, self.frame_skip)
             self.set_state_vector(new_state)
+        elif self.dyn_models[self.dyn_model_id-1] is not None:
+            cur_state = self.state_vector()
+            tau /= 40.0
+            cur_act = tau
+            if self.transition_locator is None:
+                base_state_act = self.base_path['env_infos']['state_act'][self.cur_step]
+                base_state = base_state_act[0:len(cur_state)]
+                base_act = base_state_act[-len(cur_act):]
+                base_next_state = base_state+self.base_path['env_infos']['next_state'][self.cur_step]
+            else:
+                query = self.transition_locator.kneighbors([np.concatenate([cur_state, cur_act])])
+                dist = query[0][0][0]
+                print('distance: ', dist)
+                ind = query[1][0][0]
+                base_state_act = self.transition_locator._fit_X[ind]
+                base_state = base_state_act[0:len(cur_state)]
+                base_act = base_state_act[-len(cur_act):]
+                base_next_state = base_state + self.transition_locator._y[ind]
+
+
+            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
+                                            self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
+
+            self.set_state_vector(new_state)
+
         ob = self._get_obs()
 
         ang = self.robot_skeleton.q[1]
@@ -83,9 +112,14 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 1.0
+            reward *= 0.25
 
-        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()}
+        self.cur_step += 1
+        if self.base_path is not None and self.dyn_model_id != 0:
+            if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
+                done = True
+
+        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre}
 
 
     def _get_obs(self):
@@ -97,6 +131,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             ang_proc -= 2 * np.pi
 
         state[1] = ang_proc
+
+        if self.juggling:
+            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]]])
 
         if self.train_UP:
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
@@ -112,19 +149,17 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             return_state[len(state) + self.state_index] = 1.0
             return return_state
 
-        if self.juggling:
-            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]]])
-
         return state
 
     def reset_model(self):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        '''if self.np_random.uniform(low=0, high=1, size=1)[0] > 0.5:
+        if self.np_random.uniform(low=0, high=1, size=1)[0] > 0.5:
             qpos[1] += np.pi
         else:
-            qpos[1] += -np.pi'''
+            qpos[1] += -np.pi
+
         #qpos[1]+=self.np_random.uniform(low=-np.pi, high=np.pi, size=1)
 
         if self.resample_MP:
@@ -147,6 +182,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.rand = np.random.random()
 
         self.set_state(qpos, qvel)
+
+        if self.base_path is not None:
+            base_state = self.base_path['env_infos']['state_act'][0][0:len(self.state_vector())]
+            self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
+
+        self.cur_step = 0
 
         return self._get_obs()
 
