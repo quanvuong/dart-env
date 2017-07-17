@@ -4,7 +4,7 @@
         <physics>
             <time_step>0.001</time_step>
             <gravity>0 0 0</gravity>
-            <collision_detector>dart</collision_detector>
+            <collision_detector>bullet</collision_detector>
         </physics>
         
         <skeleton name="target">
@@ -47,6 +47,7 @@
                     <mass>30</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -280,6 +281,7 @@
                     <mass>1.9</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -363,6 +365,7 @@
                     <mass>1</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -403,6 +406,7 @@
                     <mass>0.3</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -444,6 +448,7 @@
                     <mass>0.2</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -524,6 +529,7 @@
                     <mass>1.9</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -607,6 +613,7 @@
                     <mass>1</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -647,6 +654,7 @@
                     <mass>0.3</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -688,6 +696,7 @@
                     <mass>0.2</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                <self_collide>1</self_collide>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>

@@ -22,7 +22,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #22 dof upper body
         self.action_scale = np.ones(11)*10
         self.control_bounds = np.array([np.ones(11), np.ones(11)*-1])
-        self.arm = 2  # if 1, left arm (character's perspective), if 2, right
+        self.arm = 1  # if 1, left arm (character's perspective), if 2, right
         
         self.doSettle = False
         self.settlePeriod = 100
@@ -55,9 +55,9 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale=1.6)
         clothScene = pyphysx.ClothScene(step=0.01,
                                         mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
+                                        state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         #state_path="/home/alexander/Documents/dev/end1stSleeveSuccess.obj",
-                                        state_path="/home/alexander/Documents/dev/2ndSleeveInitialState.obj",
+                                        #state_path="/home/alexander/Documents/dev/2ndSleeveInitialState.obj",
                                         scale=1.6)
 
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/tshirt_m.obj", scale=1.6)
@@ -117,7 +117,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         
         
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
         #                      observation_size=(66 + 66 + 6), action_bounds=self.control_bounds, visualize=False)
 
@@ -263,6 +263,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
                 self.inflatorDuration = 25
                 self.inflatorT = 0
 
+        #self collision checking
+
         return ob, reward, done, {}
 
     def _get_obs(self):
@@ -327,7 +329,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         #1st sleeve start interpolation:
-        '''
+
         qpos[0] -= 0
         qpos[1] -= 0.
         qpos[2] += 0
@@ -343,7 +345,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #qpos[9] += 0.6
         qpos[10] += 0.6
         #qpos[10] += 0.0
-        
+        '''
         self.interpolationStart = np.array(qpos)
         self.interpolationGoal = np.array(qpos)
         self.interpolationGoal[5] = 0.75
@@ -398,6 +400,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         '''
 
         # 2nd sleeve start
+        '''
         qpos[5] = -0.5
         qpos[13] = 0.75
         qpos[14] = 0.2
@@ -405,6 +408,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         qpos[16] = 2.9
         qpos[17] = 0.6
         qpos[18] = 0.6
+        '''
 
         #uper body 1 arm fail #1 settings
         '''qpos[7] += 0.25

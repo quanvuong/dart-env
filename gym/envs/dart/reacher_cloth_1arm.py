@@ -26,11 +26,14 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.target2 = np.array([0.8, -0.6, 0.6])
-        self.targetActive1 = False
-        self.targetActive2 = True
+        self.targetActive1 = True
+        self.targetActive2 = False
         self.randomActiveTarget = False #if true, 1/4 chance of both active, neither, either 1 or 2
-        self.arm = 2 #if 1, left arm (character's perspective), if 2, right
-        
+        self.arm = 1 #if 1, left arm (character's perspective), if 2, right
+
+        self.sensorNoise = 0.1
+        self.stableReacher = True #if true, no termination reward for touching the target (must hover instead)
+
         #storage of rewards from previous step for rendering
         self.renderRewards = True
         self.cumulativeReward = 0
@@ -42,7 +45,13 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.dispreward2 = 0
         self.proxreward1 = 0
         self.proxreward2 = 0
-        
+
+        self.restPoseActive = True
+        self.restPoseWeight = 0.05
+        self.restPose = np.array([])
+        self.restPoseReward = 0
+        self.usePoseTarget = False #if true, rest pose is given in policy input
+
         #5 dof reacher
         #self.action_scale = np.array([10, 10, 10, 10, 10])
         #self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
@@ -76,9 +85,50 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
+        observation_size = 66+66 #pose, pose vel, haptics
+        if self.targetActive1 is True:
+            observation_size += 6
+        if self.targetActive2 is True:
+            observation_size += 6
+        if self.usePoseTarget is True:
+            observation_size += 22
+
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
-        
+
+        self.robot_skeleton.set_self_collision_check(True)
+        self.robot_skeleton.set_adjacent_body_check(False)
+        #Collidable:
+        self.robot_skeleton.bodynodes[0].set_collidable(False) #h_pelvis
+        self.robot_skeleton.bodynodes[1].set_collidable(False) #torso
+        self.robot_skeleton.bodynodes[2].set_collidable(False) #spine
+        self.robot_skeleton.bodynodes[3].set_collidable(False) #shoulderR
+        self.robot_skeleton.bodynodes[4].set_collidable(False) #upperarmR
+        self.robot_skeleton.bodynodes[5].set_collidable(False) #spacerR
+        self.robot_skeleton.bodynodes[6].set_collidable(False)  # forearmR
+        self.robot_skeleton.bodynodes[7].set_collidable(False)  # handR
+        self.robot_skeleton.bodynodes[8].set_collidable(False)  # fingersR
+        self.robot_skeleton.bodynodes[9].set_collidable(False)  # shoulderL
+        self.robot_skeleton.bodynodes[10].set_collidable(False)  # upperarmL
+        self.robot_skeleton.bodynodes[11].set_collidable(False)  # spacerL
+        self.robot_skeleton.bodynodes[12].set_collidable(False)  # forearmL
+        self.robot_skeleton.bodynodes[13].set_collidable(False)  # handL
+        self.robot_skeleton.bodynodes[14].set_collidable(False)  # fingersL
+        self.robot_skeleton.bodynodes[15].set_collidable(False)  # neck
+        self.robot_skeleton.bodynodes[16].set_collidable(False)  # head
+        self.robot_skeleton.bodynodes[17].set_collidable(False)  # eyes
+        self.robot_skeleton.bodynodes[18].set_collidable(False)  # pupils
+        self.robot_skeleton.bodynodes[19].set_collidable(False)  # brows
+        self.robot_skeleton.bodynodes[20].set_collidable(False)  # bicepRIn
+        self.robot_skeleton.bodynodes[21].set_collidable(False)  # forearmRIn
+        self.robot_skeleton.bodynodes[22].set_collidable(False)  # bicepLIn
+        self.robot_skeleton.bodynodes[23].set_collidable(False)  # forearmLIn
+
+        self.restPose = np.array(self.robot_skeleton.q) #by default the rest pose is start pose. Change this in reset if desired.
+
+        for body in self.robot_skeleton.bodynodes:
+            print(body.name + ": " + str(body.is_collidable()))
+
         #TODO: additional observation size for force
         utils.EzPickle.__init__(self)
         
@@ -117,6 +167,21 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         
     def limits(self, dof_ix):
         return np.array([self.robot_skeleton.dof(dof_ix).position_lower_limit(), self.robot_skeleton.dof(dof_ix).position_upper_limit()])
+
+    def getRandomPose(self, excluded=None):
+        #get a random skeleton pose by sampling between joint limits
+        qpos = np.array(self.robot_skeleton.q)
+        for i in range(len(self.robot_skeleton.dofs)):
+            if excluded is not None: #check the optional excluded list and skip dofs which are listed
+                isExcluded = False
+                for e in excluded:
+                    if e == i:
+                        isExcluded = True
+                if isExcluded:
+                    continue
+            lim = self.limits(i)
+            qpos[i] = lim[0] + (lim[1]-lim[0])*random.random()
+        return qpos
         
     def ROM1(self, ix, t):
         if(t == 0):
@@ -274,9 +339,17 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         if self.targetActive2 and -reward_dist2 < 0.1:
             reward_prox2 += (0.1+reward_dist2)*40
         reward_prox = reward_prox1 + reward_prox2
+
+        #rest pose reward
+        self.restPoseReward = 0
+        if self.restPoseActive is True and len(self.restPose) == len(self.robot_skeleton.q):
+            print(np.linalg.norm(self.restPose - self.robot_skeleton.q))
+            self.restPoseReward -= np.linalg.norm(self.restPose - self.robot_skeleton.q)*self.restPoseWeight
+
+
         
         #total reward        
-        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox
+        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward
         
         
         #record rewards for debugging
@@ -311,6 +384,9 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         elif (clothDeformation > 5):
             done = True
             reward -= 500
+        elif self.stableReacher is True:
+            a=0
+            #this just prevents the target distance from termination
         elif self.targetActive1 and self.targetActive2:
             if -reward_dist1 < 0.1 and -reward_dist2 < 0.1:
                 done = True
@@ -321,9 +397,15 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         elif self.targetActive2 and -reward_dist2 < 0.1:
             done = True
             reward += 150
+
         #increment the step counter
         self.numSteps += 1
-        
+
+        #self collision check
+        #self.robot_skeleton.set_self_collision_check(True)
+        #print("self collision check" + str(self.robot_skeleton.self_collision_check()))
+        #print(self.robot_skeleton.contacted_bodies())
+
         return ob, reward, done, {}
 
     def _get_obs(self):
@@ -336,6 +418,8 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         
         if self.simulateCloth is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation 
+        elif self.sensorNoise is not 0:
+            f = np.random.uniform(-self.sensorNoise, self.sensorNoise, f_size)
         else:
             f = np.zeros(f_size)
         
@@ -350,10 +434,20 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         if self.targetActive2:
             target2bit[0] = 1.
         #return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, target1bit, vec, self.target, target2bit, vec2, self.target2, f]).ravel()
-        if self.arm == 1:
-            return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
-        else:
-            return np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec2, self.target2, f]).ravel()
+        tar = np.array(self.target)
+        v = np.array(vec)
+        if self.arm == 2:
+            tar = np.array(self.target2)
+            v = np.array(vec2)
+
+        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq])
+        if self.targetActive1 or self.targetActive2:
+            obs = np.concatenate([obs, v, tar])
+        if self.usePoseTarget is True:
+            obs = np.concatenate([obs, self.restPose])
+        obs = np.concatenate([obs, f])
+
+        return obs.ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
@@ -374,6 +468,11 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        #set rest pose
+        if self.restPoseActive is True:
+            self.restPose = qpos
+            #more edits here if necessary
         
         #reset cloth tube orientation and rotate sphere position
         v1 = np.array([0,0,-1])
@@ -404,7 +503,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
                 self.targetActive1 = True
                 self.targetActive2 = True
             elif r < 0.5:
-                self.targetActive1 = False
+                self.targetActive1 = Falsenp.linalg.norm(self.restPose - self.robot_skeleton.q)
                 self.targetActive2 = False
             elif r < 0.75:
                 self.targetActive1 = True
@@ -627,6 +726,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*7, text="Disp Reward 2 = " + str(self.dispreward2), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*8, text="Prox Reward 1 = " + str(self.proxreward1), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*9, text="Prox Reward 2 = " + str(self.proxreward2), color=(0.,0,0))
+            self.clothScene.drawText(x=15, y=m_viewport[3]-15*10, text="Rest-pose Reward = " + str(self.restPoseReward), color=(0., 0, 0))
         
         textX = 15.
         if self.renderForceText:
@@ -696,6 +796,15 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
                 GL.glVertex2d(x+1, y+14)
                 GL.glVertex2d(x+1, y+1)
                 GL.glEnd()
+                if self.restPoseActive and len(self.restPose) == len(self.robot_skeleton.q):
+                    rpx = LERP(x0,x1,(self.restPose[i]-qlim[0])/(qlim[1]-qlim[0]))
+                    GL.glColor3d(0, 2, 0)
+                    GL.glBegin(GL.GL_QUADS)
+                    GL.glVertex2d(rpx - 1, y + 1)
+                    GL.glVertex2d(rpx - 1, y + 14)
+                    GL.glVertex2d(rpx + 2, y + 14)
+                    GL.glVertex2d(rpx + 2, y + 1)
+                    GL.glEnd()
                 GL.glColor3d(0,0,0)
                 
                 textPrefix = "||q[" + str(i) + "]|| = "
