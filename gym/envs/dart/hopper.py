@@ -153,7 +153,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 done = True
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
-                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre}
+                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
 
     def _get_obs(self):
         state =  np.concatenate([
