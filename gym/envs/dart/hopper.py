@@ -14,7 +14,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = 200
         self.train_UP = False
         self.noisy_input = False
-        self.avg_div = 0
+        self.avg_div = 2
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -34,6 +34,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += 1
         if self.avg_div > 1:
             obs_dim += self.avg_div
+
+        self.dyn_models = [None]
+        self.dyn_model_id = 0
+        self.base_path = None
+        self.transition_locator = None
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -60,13 +65,39 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[3:] = clamped_control * self.action_scale
 
-        self.do_simulation(tau, self.frame_skip)
+        if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
+            self.do_simulation(tau, self.frame_skip)
+        elif self.dyn_models[self.dyn_model_id-1] is not None and self.base_path is None:
+            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
+            self.set_state_vector(new_state)
+        elif self.dyn_models[self.dyn_model_id-1] is not None:
+            cur_state = self.state_vector()
+            cur_act = a
+            if self.transition_locator is None:
+                base_state_act = self.base_path['env_infos']['state_act'][self.cur_step]
+                base_state = base_state_act[0:len(cur_state)]
+                base_act = base_state_act[-len(cur_act):]
+                base_next_state = base_state+self.base_path['env_infos']['next_state'][self.cur_step]
+            else:
+                query = self.transition_locator.kneighbors([np.concatenate([cur_state, cur_act])])
+                dist = query[0][0][0]
+                #print('distance: ', dist)
+                ind = query[1][0][0]
+                base_state_act = self.transition_locator._fit_X[ind]
+                base_state = base_state_act[0:len(cur_state)]
+                base_act = base_state_act[-len(cur_act):]
+                base_next_state = base_state + self.transition_locator._y[ind]
+            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
+                                            self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
+            self.set_state_vector(new_state)
 
     def _step(self, a):
         pre_state = [self.state_vector()]
         if self.train_UP:
             pre_state.append(self.param_manager.get_simulator_parameters())
         posbefore = self.robot_skeleton.q[0]
+        state_act = np.concatenate([self.state_vector(), a])
+        state_pre = np.copy(self.state_vector())
         self.advance(a)
         posafter,ang = self.robot_skeleton.q[0,2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
@@ -114,7 +145,15 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             # simply add noise
             #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
-        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
+        if self.dyn_model_id != 0:
+            reward *= 1.0
+        self.cur_step += 1
+        if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
+            if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
+                done = True
+
+        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
+                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -161,7 +200,15 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.state_action_buffer = [] # for UPOSI
 
+        self.state_index = self.dyn_model_id
+
         state = self._get_obs()
+
+        if self.base_path is not None:
+            base_state = self.base_path['env_infos']['state_act'][0][0:len(self.state_vector())]
+            self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
+
+        self.cur_step = 0
 
         return state
 

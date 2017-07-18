@@ -13,7 +13,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 2
+        self.avg_div = 0
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
 

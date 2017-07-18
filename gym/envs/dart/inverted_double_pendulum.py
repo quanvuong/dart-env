@@ -18,11 +18,10 @@ class DartDoubleInvertedPendulumEnv(dart_env.DartEnv, utils.EzPickle):
         self.base_path = None
         self.transition_locator = None
 
-
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        dart_env.DartEnv.__init__(self, 'inverted_double_pendulum.skel', 2, obs_dim, control_bounds, dt=0.01, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'inverted_double_pendulum.skel', 2, obs_dim, control_bounds, dt=0.005, disableViewer=False)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -30,8 +29,6 @@ class DartDoubleInvertedPendulumEnv(dart_env.DartEnv, utils.EzPickle):
 
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[0] = a[0] * self.action_scale
-
-        state_act = np.concatenate([self.state_vector(), tau])
 
         state_act = np.concatenate([self.state_vector(), tau/self.action_scale])
         state_pre = np.copy(self.state_vector())
@@ -64,22 +61,22 @@ class DartDoubleInvertedPendulumEnv(dart_env.DartEnv, utils.EzPickle):
 
         ob = self._get_obs()
 
-        reward -= 0.01*ob[0]**2
+        reward -= 1.0 * np.abs(self.robot_skeleton.q[0])**2
         reward += np.cos(ob[1]) + np.cos(ob[2])
         if (np.cos(ob[1]) + np.cos(ob[2])) > 1.8:
             reward += 5
 
-        notdone = np.isfinite(ob).all() and np.abs(ob[1]) <= np.pi * 3.5 and np.abs(ob[2]) <= np.pi * 3.5# and (np.abs(ob[1]) <= .2) and (np.abs(ob[2]) <= .2)
-        done = not notdone
+        notdone = np.isfinite(ob).all()
+        done = not notdone or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.dyn_model_id != 0:
-            reward *= 0.25
+            reward *= 1.0
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
 
-        return ob, reward, done, {'state_act': state_act, 'next_state':self.state_vector()}
+        return ob, reward, done, {'state_act': state_act, 'next_state':self.state_vector()-state_pre}
 
 
     def _get_obs(self):
@@ -101,7 +98,7 @@ class DartDoubleInvertedPendulumEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             qpos[1] += -np.pi
 
-        self.dyn_model_id = 0
+        self.state_index = self.dyn_model_id
 
         self.set_state(qpos, qvel)
 
