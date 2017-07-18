@@ -9,11 +9,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = 40
-        self.train_UP = False
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.train_UP = True
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 2
+        self.avg_div = 0
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
 
@@ -23,7 +23,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_mp_sel:
             obs_dim += 5
 
-        self.juggling = False
+        self.juggling = True
         if self.juggling:
             obs_dim += 4
 
@@ -38,8 +38,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.99)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.99)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.8)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -120,6 +120,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
+
+        if self.cur_step * self.dt < 1.5:
+            self.dart_world.skeletons[1].set_positions([0, 0, 0, 0, 1.4, 0])
+            self.dart_world.skeletons[1].set_velocities([0, 0, 0, 0, 0, 0])
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre
                                   , 'dyn_model_id':self.dyn_model_id}
