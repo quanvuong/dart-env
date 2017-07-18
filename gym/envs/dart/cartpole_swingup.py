@@ -13,7 +13,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 0
+        self.avg_div = 2
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
 
@@ -38,8 +38,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.8)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.99)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.99)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -48,8 +48,15 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         #if np.abs(a[0]) > 1:
         #    a[0] = np.sign(a[0])
 
+        clamped_control = np.copy(a)
+        for i in range(len(clamped_control)):
+            if clamped_control[i] > self.control_bounds[0][i]:
+                clamped_control[i] = self.control_bounds[0][i]
+            if clamped_control[i] < self.control_bounds[1][i]:
+                clamped_control[i] = self.control_bounds[1][i]
+
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[0] = a[0] * self.action_scale
+        tau[0] = clamped_control[0] * self.action_scale
 
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
@@ -71,7 +78,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             else:
                 query = self.transition_locator.kneighbors([np.concatenate([cur_state, cur_act])])
                 dist = query[0][0][0]
-                print('distance: ', dist)
                 ind = query[1][0][0]
                 base_state_act = self.transition_locator._fit_X[ind]
                 base_state = base_state_act[0:len(cur_state)]
@@ -79,7 +85,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                 base_next_state = base_state + self.transition_locator._y[ind]
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
                                             self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
-
+            new_state = base_next_state + 0.1 * (new_state - base_next_state)/np.linalg.norm(new_state - base_next_state)
             self.set_state_vector(new_state)
 
         ob = self._get_obs()
@@ -109,13 +115,14 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 0.25
+            reward *= 0.2
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
 
-        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre}
+        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre
+                                  , 'dyn_model_id':self.dyn_model_id}
 
 
     def _get_obs(self):
@@ -161,6 +168,16 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.current_param = self.param_manager.get_simulator_parameters()
         self.state_index = self.dyn_model_id
+
+        if self.train_UP:
+            self.state_index = 0
+            if len(self.param_manager.get_simulator_parameters()) > 1:
+                if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 1
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
+                    self.state_index = 2
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 3
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
