@@ -18,6 +18,7 @@ from gym.envs.dart.reacher_cloth import DartClothReacherEnv
 from gym.envs.dart.reacher_cloth_1arm import DartClothReacherEnv2
 from gym.envs.dart.reacher_cloth_sleeve import DartClothSleeveReacherEnv
 from gym.envs.dart.reacher_cloth_shirt import DartClothShirtReacherEnv
+from gym.envs.dart.posereacher_cloth import DartClothPoseReacherEnv
 
 from gym.envs.dart.walker2d import DartWalker2dEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv

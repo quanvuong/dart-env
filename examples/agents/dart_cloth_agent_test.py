@@ -106,7 +106,8 @@ if __name__ == '__main__':
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
-    env = gym.make('DartClothReacher-v2') #one arm reacher
+    #env = gym.make('DartClothReacher-v2') #one arm reacher
+    env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env.render()
@@ -150,7 +151,8 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         for j in range(500):
             #a = np.array([0.,0.,0.,0.,0.])
-            a = np.zeros(11) #22 dof upper body
+            a = np.zeros(22) #22 dof upper body
+            #a = np.ones(22)
             #a[0] = 1
             #a += np.random.uniform(-1,1,11)
             '''if(i < 22):
