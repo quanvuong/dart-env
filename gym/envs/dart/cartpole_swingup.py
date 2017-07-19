@@ -4,6 +4,8 @@ import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
 from gym.envs.dart.parameter_managers import CartPoleManager
+import os
+import joblib
 
 class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
@@ -16,6 +18,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.avg_div = 0
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
+        
+        modelpath = os.path.join(os.path.dirname(__file__), "models")
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd5_2seg.pkl'))
 
         obs_dim = 4
         if self.train_UP:
@@ -26,6 +31,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.juggling = True
         if self.juggling:
             obs_dim += 4
+            self.action_scale *= 2
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -108,7 +114,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.juggling:
             if self.dart_world.skeletons[1].com()[1] < 0.2:
-                reward -= 50
+                #reward -= 50
                 done = True
 
         if self.perturb_MP:
@@ -182,6 +188,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                     self.state_index = 2
                 elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                     self.state_index = 3
+            self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
