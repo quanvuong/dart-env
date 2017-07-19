@@ -40,6 +40,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.base_path = None
         self.transition_locator = None
 
+        self.total_dist = []
+
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
@@ -87,6 +89,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 base_state = base_state_act[0:len(cur_state)]
                 base_act = base_state_act[-len(cur_act):]
                 base_next_state = base_state + self.transition_locator._y[ind]
+                self.total_dist.append(dist)
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
                                             self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
             self.set_state_vector(new_state)
@@ -146,10 +149,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 1.0
+            reward *= 0.2
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
+                done = True
+        if self.dyn_model_id != 0 and self.transition_locator is not None:
+            if self.total_dist[-1] > 0.5:
                 done = True
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
@@ -204,11 +210,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         state = self._get_obs()
 
-        if self.base_path is not None:
-            base_state = self.base_path['env_infos']['state_act'][0][0:len(self.state_vector())]
+        if self.base_path is not None and self.dyn_model_id != 0:
+            base_len = len(self.base_path)
+            base_state = self.base_path['env_infos']['state_act'][np.random.randint(base_len-3)][0:len(self.state_vector())]
             self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
 
         self.cur_step = 0
+
+        self.total_dist = []
 
         return state
 
