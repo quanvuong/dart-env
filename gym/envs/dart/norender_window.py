@@ -7,6 +7,7 @@ class NoRenderWindow(object):
         self.title = title
         self.sim = sim
         self.is_simulating = True
+        self.scene = None
 
     def runSingleStep(self):
         if self.sim is None:
@@ -17,3 +18,6 @@ class NoRenderWindow(object):
     def run(self, _width=None, _height=None, _show_window=False):
         #initialization should happen here
         print("NoRenderWindow initialized")
+
+    def close(self):
+        print("closed?")

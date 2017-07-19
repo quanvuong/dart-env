@@ -933,9 +933,10 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         #print("input func: " + will)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
         
     '''def skelVoxelAnalysis(self, dim, radius, samplerate=0.1, depth=0, efn=5, efo=np.array([0.,0,0]), displayReachable = True, displayUnreachable=True):
