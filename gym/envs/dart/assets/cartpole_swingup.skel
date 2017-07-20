@@ -31,6 +31,10 @@
         <skeleton name="juggle_obj">
             <body name="juggle">
                 <transformation>0 2.35 0 0 0 0.0</transformation>
+                <inertia>
+                    <mass>1.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
