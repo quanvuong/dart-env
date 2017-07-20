@@ -292,8 +292,8 @@ class CartPoleManager:
         self.range = [0.05, 2.0] # mass range
         self.attach_width = [0.05, 0.7]
 
-        self.activated_param = [1, 2]
-        self.controllable_param = [1, 2]
+        self.activated_param = [0, 1]
+        self.controllable_param = [0, 1]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
@@ -305,10 +305,7 @@ class CartPoleManager:
         width = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].shape.size()[0]
         width_param = (width - self.attach_width[0]) / (self.attach_width[1] - self.attach_width[0])
 
-        offset = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].offset()[0]
-        offset_param = (offset - self.attach_offset[0]) / (self.attach_offset[1] - self.attach_offset[0])
-
-        return np.array([mass_param, width_param, offset_param])[self.activated_param]
+        return np.array([mass_param, width_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0

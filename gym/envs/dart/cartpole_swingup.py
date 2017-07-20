@@ -44,8 +44,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.8)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.6)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.6)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -207,7 +207,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.jug_vel = self.dart_world.skeletons[1].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
             self.jug_pos[-1]=0
             self.jug_vel[-1]=0
-            self.jug_pos[0] = self.np_random.uniform(low=-0.25, high=0.25)
+            self.jug_pos[-3] = self.np_random.uniform(low=-0.75, high=0.75)
             self.dart_world.skeletons[1].set_positions(self.jug_pos)
             self.dart_world.skeletons[1].set_velocities(self.jug_vel)
             self.dart_world.skeletons[2].set_positions([0,0,0,200, 0, 0])
