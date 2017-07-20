@@ -73,9 +73,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
             self.set_state_vector(new_state)
         elif self.dyn_models[self.dyn_model_id-1] is not None:
-            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
+            self.total_dist.append(np.linalg.norm(self.base_path['env_infos']['state_act'][self.cur_step] - np.concatenate([self.state_vector(), clamped_control])))
+            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), clamped_control, self.frame_skip)
             self.set_state_vector(new_state)
-            self.total_dist.append(np.linalg.norm(self.base_path['env_infos']['state_act'][self.cur_step] - np.concatenate([self.state_vector(), a])))
+
             '''cur_state = self.state_vector()
             cur_act = a
             if self.transition_locator is None:
@@ -103,7 +104,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_UP:
             pre_state.append(self.param_manager.get_simulator_parameters())
         posbefore = self.robot_skeleton.q[0]
-        state_act = np.concatenate([self.state_vector(), a])
+        state_act = np.concatenate([self.state_vector(), np.clip(a,-1,1)])
         state_pre = np.copy(self.state_vector())
         self.advance(a)
         posafter,ang = self.robot_skeleton.q[0,2]
@@ -153,13 +154,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 0.2
+            reward *= 0.01
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
         if self.dyn_model_id != 0:
-            if self.total_dist[-1] > 0.2:
+            if self.total_dist[-1] > 0.5:
                 done = True
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
@@ -222,14 +223,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = self.dyn_model_id
 
         # Split the mp space by left and right for now
-        self.state_index = 0
+        '''self.state_index = 0
         if len(self.param_manager.get_simulator_parameters()) > 1:
             if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                 self.state_index = 1
             elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
                 self.state_index = 2
             elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                self.state_index = 3
+                self.state_index = 3'''
 
         self.state_action_buffer = [] # for UPOSI
 
@@ -238,8 +239,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
 
         if self.base_path is not None and self.dyn_model_id != 0:
-            base_len = len(self.base_path)
-            self.cur_step = np.random.randint(base_len-3)
+            base_len = len(self.base_path['env_infos']['state_act'])
+            self.cur_step = np.random.randint(base_len-1)
             base_state = self.base_path['env_infos']['state_act'][self.cur_step][0:len(self.state_vector())]
             self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
 

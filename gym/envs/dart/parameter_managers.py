@@ -289,11 +289,11 @@ class hopperContactMassAllLimitManager:
 class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.1, 0.8] # mass range
-        self.attach_width = [0.2, 0.7]
+        self.range = [0.05, 2.0] # mass range
+        self.attach_width = [0.05, 0.7]
 
-        self.activated_param = [0, 1]
-        self.controllable_param = [0, 1]
+        self.activated_param = [1, 2]
+        self.controllable_param = [1, 2]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
@@ -305,7 +305,10 @@ class CartPoleManager:
         width = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].shape.size()[0]
         width_param = (width - self.attach_width[0]) / (self.attach_width[1] - self.attach_width[0])
 
-        return np.array([mass_param, width_param])[self.activated_param]
+        offset = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].offset()[0]
+        offset_param = (offset - self.attach_offset[0]) / (self.attach_offset[1] - self.attach_offset[0])
+
+        return np.array([mass_param, width_param, offset_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -322,7 +325,6 @@ class CartPoleManager:
             size = np.copy(size ** 2)
             mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
             self.simulator.robot_skeleton.bodynodes[-1].set_inertia_entries(1.0/12*mass*(size[1]+size[2]), 1.0/12*mass*(size[0]+size[2]), 1.0/12*mass*(size[1]+size[0]))
-
             cur_id += 1
 
     def resample_parameters(self):
