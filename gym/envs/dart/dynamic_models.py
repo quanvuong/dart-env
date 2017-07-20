@@ -15,7 +15,7 @@ from rllab.misc import ext
 import numpy as np
 
 class DynamicModel:
-    def fit(self, X, Y):
+    def fit(self, X, Y, iter=1):
         raise NotImplementedError
 
     def do_simulation(self, state_vec, tau, frame_skip):
@@ -39,7 +39,7 @@ class LinearDynamicModel(DynamicModel):
     def _features(self, state_act):
         return np.array([np.concatenate([state_act, state_act**2, [1]])])
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, iter=1):
         self.state_dim = len(Y[0])
         featmat = np.concatenate([self._features(state_act) for state_act in X])
         reg_coeff = self._reg_coeff
@@ -79,7 +79,7 @@ class GPDynamicModel(DynamicModel):
     def _features(self, state_act):
         return np.array([np.concatenate([state_act, state_act**2, [1]])])
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, iter=1):
         featmat = np.concatenate([self._features(state_act) for state_act in X])
         '''reg_coeff = self._reg_coeff
         for _ in range(5):
@@ -108,7 +108,7 @@ class KNNDynamicModel(DynamicModel):
     def _features(self, state_act):
         return np.array([np.concatenate([state_act, state_act**2, [1]])])
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, iter=1):
         featmat = np.concatenate([self._features(state_act) for state_act in X])
         '''reg_coeff = self._reg_coeff
         for _ in range(5):
@@ -139,12 +139,12 @@ class MLPDynamicModel(DynamicModel):
     def _features(self, state_act):
         return np.array([np.concatenate([state_act, state_act**2, [1]])])
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, iter=1):
         if self.mlp is None:
             self.mlp = MLP(
                 input_shape=(len(X[0]),),
                 output_dim=len(Y[0]),
-                hidden_sizes=(16,8),
+                hidden_sizes=(32,32),
                 hidden_nonlinearity=NL.tanh,
                 output_nonlinearity=None,)
             out_var = TT.matrix('out_var')
@@ -163,7 +163,7 @@ class MLPDynamicModel(DynamicModel):
                 log_name="f_grad",
             )
 
-        for epoch in range(20):
+        for epoch in range(iter):
             # In each epoch, we do a full pass over the training data:
             train_err = 0
             train_batches = 0
@@ -177,7 +177,7 @@ class MLPDynamicModel(DynamicModel):
 
 
     def do_simulation(self, state_vec, tau, frame_skip):
-        return state_vec + self.out(state_vec)
+        return state_vec + self.out([np.concatenate([state_vec, tau])])[0]
 
     def do_simulation_corrective(self, state_vec, tau, frame_skip, next_state, ds, da):
         dfdsa = self.grad_dsa_fn([np.concatenate([state_vec, tau])])[0]

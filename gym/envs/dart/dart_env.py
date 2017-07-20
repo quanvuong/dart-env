@@ -148,7 +148,7 @@ class DartEnv(gym.Env):
 
     def set_state_vector(self, state):
         self.robot_skeleton.set_positions(state[0:int(len(state)/2)])
-        self.robot_skeleton.set_velocities(state[int(len(state)/2):])
+        self.robot_skeleton.set_velocities(state[int(len(state)/2):]*10.0)
 
     @property
     def dt(self):
@@ -210,5 +210,5 @@ class DartEnv(gym.Env):
     def state_vector(self):
         return np.concatenate([
             self.robot_skeleton.q,
-            self.robot_skeleton.dq
+            self.robot_skeleton.dq/10.0
         ])
