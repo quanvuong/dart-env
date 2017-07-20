@@ -15,12 +15,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 0
+        self.avg_div = 2
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
         
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd5_2seg.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd9_lrange_2seg.pkl'))
 
         obs_dim = 4
         if self.train_UP:
