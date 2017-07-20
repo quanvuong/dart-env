@@ -12,10 +12,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = 40
         self.train_UP = True
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 0
+        self.avg_div = 2
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
         
@@ -41,7 +41,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=False)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
         self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
@@ -67,6 +67,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
 
+
+
         if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
             self.do_simulation(tau, self.frame_skip)
         elif self.dyn_models[self.dyn_model_id-1] is not None and self.base_path is None:
@@ -89,9 +91,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                 base_state = base_state_act[0:len(cur_state)]
                 base_act = base_state_act[-len(cur_act):]
                 base_next_state = base_state + self.transition_locator._y[ind]
+                self.total_dist.append(dist)
+
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
                                             self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
-            new_state = base_next_state + 0.1 * (new_state - base_next_state)/np.linalg.norm(new_state - base_next_state)
+            #new_state = base_next_state + 0.1 * (new_state - base_next_state)/np.linalg.norm(new_state - base_next_state)
             self.set_state_vector(new_state)
 
         ob = self._get_obs()
@@ -121,13 +125,16 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 0.2
+            reward *= 0.5
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
                 done = True
+        if self.dyn_model_id != 0 and self.transition_locator is not None:
+            if dist > 0.5:
+                done = True
 
-        if self.cur_step * self.dt < 1.5:
+        if self.cur_step * self.dt < 1.5 and self.juggling:
             self.dart_world.skeletons[1].set_positions([0, 0, 0, 0, 1.4, 0])
             self.dart_world.skeletons[1].set_velocities([0, 0, 0, 0, 0, 0])
 
@@ -164,10 +171,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         return state
 
     def reset_model(self):
+        self.total_dist = []
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        if self.np_random.uniform(low=0, high=1, size=1)[0] > 0.5:
+        if np.random.random() > 0.5:
             qpos[1] += np.pi
         else:
             qpos[1] += -np.pi
@@ -215,8 +223,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.set_state(qpos, qvel)
 
-        if self.base_path is not None:
-            base_state = self.base_path['env_infos']['state_act'][0][0:len(self.state_vector())]
+        if self.base_path is not None and self.dyn_model_id != 0:
+            base_len = len(self.base_path)
+            base_state = self.base_path['env_infos']['state_act'][np.random.randint(base_len-3)][0:len(self.state_vector())]
             self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
 
         self.cur_step = 0

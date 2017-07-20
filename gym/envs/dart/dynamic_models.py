@@ -40,6 +40,7 @@ class LinearDynamicModel(DynamicModel):
         return np.array([np.concatenate([state_act, state_act**2, [1]])])
 
     def fit(self, X, Y):
+        self.state_dim = len(Y[0])
         featmat = np.concatenate([self._features(state_act) for state_act in X])
         reg_coeff = self._reg_coeff
         for _ in range(5):

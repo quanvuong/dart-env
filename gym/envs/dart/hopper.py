@@ -40,6 +40,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.base_path = None
         self.transition_locator = None
 
+        self.total_dist = []
+
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
@@ -71,13 +73,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
             self.set_state_vector(new_state)
         elif self.dyn_models[self.dyn_model_id-1] is not None:
-            cur_state = self.state_vector()
+            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
+            self.set_state_vector(new_state)
+            self.total_dist.append(np.linalg.norm(self.base_path['env_infos']['state_act'][self.cur_step] - np.concatenate([self.state_vector(), a])))
+            '''cur_state = self.state_vector()
             cur_act = a
             if self.transition_locator is None:
                 base_state_act = self.base_path['env_infos']['state_act'][self.cur_step]
                 base_state = base_state_act[0:len(cur_state)]
                 base_act = base_state_act[-len(cur_act):]
                 base_next_state = base_state+self.base_path['env_infos']['next_state'][self.cur_step]
+                self.total_dist.append(np.linalg.norm(base_state_act-np.concatenate([cur_state,cur_act])))
             else:
                 query = self.transition_locator.kneighbors([np.concatenate([cur_state, cur_act])])
                 dist = query[0][0][0]
@@ -87,9 +93,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 base_state = base_state_act[0:len(cur_state)]
                 base_act = base_state_act[-len(cur_act):]
                 base_next_state = base_state + self.transition_locator._y[ind]
+                self.total_dist.append(dist)
             new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
                                             self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
-            self.set_state_vector(new_state)
+            self.set_state_vector(new_state)'''
 
     def _step(self, a):
         pre_state = [self.state_vector()]
@@ -146,10 +153,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         if self.dyn_model_id != 0:
-            reward *= 1.0
+            reward *= 0.2
         self.cur_step += 1
         if self.base_path is not None and self.dyn_model_id != 0 and self.transition_locator is None:
             if len(self.base_path['env_infos']['state_act']) <= self.cur_step:
+                done = True
+        if self.dyn_model_id != 0:
+            if self.total_dist[-1] > 0.2:
                 done = True
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
@@ -176,6 +186,27 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         return state
 
+    def get_reward(self, statevec_before, act, statevec_after, multiplier):
+        self.set_state_vector(statevec_before)
+        posbefore = self.robot_skeleton.q[0]
+        self.set_state_vector(statevec_after)
+        posafter,ang = self.robot_skeleton.q[0,2]
+
+        joint_limit_penalty = 0
+        for j in [-2]:
+            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
+                joint_limit_penalty += abs(1.5)
+            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
+                joint_limit_penalty += abs(1.5)
+
+        alive_bonus = 1.0
+        reward = 0.6*(posafter - posbefore) / self.dt
+        reward += alive_bonus
+        reward -= 1e-3 * np.square(act).sum()
+        reward -= 5e-1 * joint_limit_penalty
+
+        return reward * multiplier
+
     def reset_model(self):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
@@ -187,6 +218,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(np.array([0.6, 0.5]))
             self.current_param = self.param_manager.get_simulator_parameters()
             #self.param_manager.set_simulator_parameters(mp)
+
+        self.state_index = self.dyn_model_id
 
         # Split the mp space by left and right for now
         self.state_index = 0
@@ -200,15 +233,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.state_action_buffer = [] # for UPOSI
 
-        self.state_index = self.dyn_model_id
-
         state = self._get_obs()
 
-        if self.base_path is not None:
-            base_state = self.base_path['env_infos']['state_act'][0][0:len(self.state_vector())]
+        self.cur_step = 0
+
+        if self.base_path is not None and self.dyn_model_id != 0:
+            base_len = len(self.base_path)
+            self.cur_step = np.random.randint(base_len-3)
+            base_state = self.base_path['env_infos']['state_act'][self.cur_step][0:len(self.state_vector())]
             self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
 
-        self.cur_step = 0
+        self.total_dist = []
 
         return state
 
