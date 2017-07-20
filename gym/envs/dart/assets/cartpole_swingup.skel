@@ -58,6 +58,33 @@
                 <child>juggle</child>
             </joint>
         </skeleton>
+    
+        <skeleton name="juggle_obj2">
+            <body name="juggle2">
+                <transformation>0 2.35 0 0 0 0.0</transformation>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.1 0.1 0.1</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>0.4 0.99 0.4 1</color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.1 0.1 0.1</size>
+                        </ellipsoid>
+                    </geometry>
+                </collision_shape>
+            </body>
+            <joint type="free" name="joint 2">
+                <parent>world</parent>
+                <child>juggle2</child>
+            </joint>
+        </skeleton>
 
         <skeleton name="pendulum">
             <transformation>0 -0.35 0 0 0 0</transformation>

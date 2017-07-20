@@ -30,7 +30,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.juggling = True
         if self.juggling:
-            obs_dim += 4
+            obs_dim += 8
             self.action_scale *= 2
 
         self.dyn_models = [None]
@@ -41,7 +41,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
         self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
@@ -153,7 +153,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         state[1] = ang_proc
 
         if self.juggling:
-            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]]])
+            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]],\
+                                           self.dart_world.skeletons[2].com()[[0, 1]], self.dart_world.skeletons[2].com_velocity()[[0, 1]]])
 
         if self.train_UP:
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
@@ -200,13 +201,22 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
+            self.dart_world.skeletons[2].set_positions([0,0,0,200, 0, 0])
         else:
             jug_pos = self.dart_world.skeletons[1].q + self.np_random.uniform(low=-.1, high=.1, size=6)
             jug_vel = self.dart_world.skeletons[1].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
             jug_pos[-1]=0
             jug_vel[-1]=0
+            jug_pos[0] = self.np_random.uniform(low=-0.22, high=-0.18)
             self.dart_world.skeletons[1].set_positions(jug_pos)
             self.dart_world.skeletons[1].set_velocities(jug_vel)
+            jug_pos = self.dart_world.skeletons[2].q + self.np_random.uniform(low=-.1, high=.1, size=6)
+            jug_vel = self.dart_world.skeletons[2].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
+            jug_pos[-1]=0
+            jug_vel[-1]=0
+            jug_pos[0] = self.np_random.uniform(low=0.18, high=0.22)
+            self.dart_world.skeletons[2].set_positions(jug_pos)
+            self.dart_world.skeletons[2].set_velocities(jug_vel)
 
         if self.train_mp_sel:
             self.rand = np.random.random()
