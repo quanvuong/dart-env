@@ -41,7 +41,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
         self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.8)
@@ -153,7 +153,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         state[1] = ang_proc
 
         if self.juggling:
-            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]]\
+            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]],\
                                            self.dart_world.skeletons[2].com()[[0, 1]], self.dart_world.skeletons[2].com_velocity()[[0, 1]]])
 
         if self.train_UP:
