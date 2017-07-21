@@ -10,7 +10,7 @@ import joblib
 class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*2,[-1.0]*2])
-        self.action_scale = np.array([40,10])
+        self.action_scale = np.array([40,20])
         self.train_UP = True
         self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -44,8 +44,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.85)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.85)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.95)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.95)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -67,8 +67,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
-
-
 
         if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
             self.do_simulation(tau, self.frame_skip)
@@ -106,7 +104,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ang_proc = (np.abs(ang) % (2 * np.pi))
         ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
 
-        alive_bonus = 3.0
+        alive_bonus = 5.0
         ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
@@ -115,15 +113,15 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if ang_proc < 0.5:
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
 
-        if self.juggling:
-            reward += 2-np.linalg.norm(self.dart_world.skeletons[1].bodynodes[0].com()[1] - self.jug_pos[1])
-            reward += 2-np.linalg.norm(self.dart_world.skeletons[2].bodynodes[0].com()[1] - self.jug_pos2[1])
+        #if self.juggling:
+        #    reward += 2-np.linalg.norm(self.dart_world.skeletons[1].bodynodes[0].com()[1] - self.jug_pos[1])
+        #    reward += 2-np.linalg.norm(self.dart_world.skeletons[2].bodynodes[0].com()[1] - self.jug_pos2[1])
 
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.juggling:
-            if self.dart_world.skeletons[1].com()[1] < 0.2 or self.dart_world.skeletons[2].com()[1] < 0.2:
+            if self.dart_world.skeletons[1].com()[1] < 0.1 or self.dart_world.skeletons[2].com()[1] < 0.1:
                 #reward -= 50
                 done = True
             if self.dart_world.skeletons[1].com()[0] < 0.02 or self.dart_world.skeletons[2].com()[0] > 0.02:
@@ -208,7 +206,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                     self.state_index = 2
                 elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                     self.state_index = 3
-            self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
+            if self.upselector is not None:
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
@@ -246,6 +245,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
+        self._get_viewer().scene.tb.trans[2] = -4.5
         self._get_viewer().scene.tb._set_theta(0)
         self.track_skeleton_id = 0

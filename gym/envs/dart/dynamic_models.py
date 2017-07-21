@@ -37,7 +37,7 @@ class LinearDynamicModel(DynamicModel):
         self._reg_coeff = 1e-5
 
     def _features(self, state_act):
-        return np.array([np.concatenate([state_act, state_act**2, [1]])])
+        return np.array([np.concatenate([state_act, state_act**2, np.sin(state_act), np.cos(state_act), [1]])])
 
     def fit(self, X, Y, iter=1):
         self.state_dim = len(Y[0])
