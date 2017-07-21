@@ -44,8 +44,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.6)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.6)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.85)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.85)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -67,8 +67,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
-
-
 
         if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
             self.do_simulation(tau, self.frame_skip)
@@ -137,10 +135,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             if dist > 0.5:
                 done = True
 
-        if self.cur_step * self.dt < 1.4 and self.juggling:
+        if self.cur_step * self.dt < 1.3 and self.juggling:
             self.dart_world.skeletons[1].set_positions(self.jug_pos)
             self.dart_world.skeletons[1].set_velocities(self.jug_vel)
-        if self.cur_step * self.dt < 2.0 and self.juggling:
+        if self.cur_step * self.dt < 2.3 and self.juggling:
             self.dart_world.skeletons[2].set_positions(self.jug_pos2)
             self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
@@ -203,7 +201,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                     self.state_index = 2
                 elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                     self.state_index = 3
-            self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
+            if self.upselector is not None:
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])
@@ -241,6 +240,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
+        self._get_viewer().scene.tb.trans[2] = -4.5
         self._get_viewer().scene.tb._set_theta(0)
         self.track_skeleton_id = 0
