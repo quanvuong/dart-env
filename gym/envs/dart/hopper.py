@@ -22,8 +22,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
+        self.upselector = None
         #modelpath = os.path.join(os.path.dirname(__file__), "models")
-        #upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -247,14 +248,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = self.dyn_model_id
 
         # Split the mp space by left and right for now
-        '''self.state_index = 0
-        if len(self.param_manager.get_simulator_parameters()) > 1:
-            if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                self.state_index = 1
-            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
-                self.state_index = 2
-            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                self.state_index = 3'''
+        if self.train_UP:
+            self.state_index = 0
+            if len(self.param_manager.get_simulator_parameters()) > 1:
+                if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 1
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
+                    self.state_index = 2
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 3
+            if self.upselector is not None:
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
 
         self.state_action_buffer = [] # for UPOSI
 
