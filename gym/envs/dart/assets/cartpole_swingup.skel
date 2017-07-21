@@ -62,6 +62,10 @@
         <skeleton name="juggle_obj2">
             <body name="juggle2">
                 <transformation>0 2.35 0 0 0 0.0</transformation>
+                <inertia>
+                    <mass>1.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -184,8 +188,15 @@
                 <init_vel>0</init_vel>
             </joint>
 
-            <joint type="weld" name="j_con">
+            <joint type="prismatic" name="j_con">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
+                <axis>
+                    <xyz>0.0 1.0 0.0</xyz>
+                    <limit>
+                    	<lower>-0.05</lower>
+                    	<upper>0.05</upper>
+                    </limit>
+                </axis>
                 <parent>pole</parent>
                 <child>weight</child>
             </joint>

@@ -9,8 +9,8 @@ import joblib
 
 class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0],[-1.0]])
-        self.action_scale = 40
+        self.control_bounds = np.array([[1.0]*2,[-1.0]*2])
+        self.action_scale = np.array([40,10])
         self.train_UP = True
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -22,7 +22,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd9_lrange_2seg.pkl'))
 
-        obs_dim = 4
+        obs_dim = 6
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
@@ -30,7 +30,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.juggling = True
         if self.juggling:
-            obs_dim += 4
+            obs_dim += 8
             self.action_scale *= 2
 
         self.dyn_models = [None]
@@ -62,7 +62,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
 
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[0] = clamped_control[0] * self.action_scale
+        tau[0] = clamped_control[0] * self.action_scale[0]
+        tau[2] = clamped_control[1] * self.action_scale[1]
 
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
@@ -117,8 +118,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.juggling:
-            if self.dart_world.skeletons[1].com()[1] < 0.2:
+            if self.dart_world.skeletons[1].com()[1] < 0.2 or self.dart_world.skeletons[2].com()[1] < 0.2:
                 #reward -= 50
+                done = True
+            if self.dart_world.skeletons[1].com()[0] < 0.02 or self.dart_world.skeletons[2].com()[0] > 0.02:
                 done = True
 
         if self.perturb_MP:
@@ -134,9 +137,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             if dist > 0.5:
                 done = True
 
-        if self.cur_step * self.dt < 1.5 and self.juggling:
+        if self.cur_step * self.dt < 1.4 and self.juggling:
             self.dart_world.skeletons[1].set_positions(self.jug_pos)
             self.dart_world.skeletons[1].set_velocities(self.jug_vel)
+        if self.cur_step * self.dt < 2.0 and self.juggling:
+            self.dart_world.skeletons[2].set_positions(self.jug_pos2)
+            self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre
                                   , 'dyn_model_id':self.dyn_model_id}
@@ -153,8 +159,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         state[1] = ang_proc
 
         if self.juggling:
-            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]]])#,\
-                                         #  self.dart_world.skeletons[2].com()[[0, 1]], self.dart_world.skeletons[2].com_velocity()[[0, 1]]])
+            state = np.concatenate([state, self.dart_world.skeletons[1].com()[[0, 1]], self.dart_world.skeletons[1].com_velocity()[[0, 1]],\
+                                           self.dart_world.skeletons[2].com()[[0, 1]], self.dart_world.skeletons[2].com_velocity()[[0, 1]]])
 
         if self.train_UP:
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
@@ -207,10 +213,17 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.jug_vel = self.dart_world.skeletons[1].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
             self.jug_pos[-1]=0
             self.jug_vel[-1]=0
-            self.jug_pos[-3] = self.np_random.uniform(low=-0.75, high=0.75)
+            self.jug_pos[-3] = self.np_random.uniform(low=0.05, high=0.7)
             self.dart_world.skeletons[1].set_positions(self.jug_pos)
             self.dart_world.skeletons[1].set_velocities(self.jug_vel)
-            self.dart_world.skeletons[2].set_positions([0,0,0,200, 0, 0])
+            #self.dart_world.skeletons[2].set_positions([0,0,0,200, 0, 0])
+            self.jug_pos2 = self.dart_world.skeletons[2].q + self.np_random.uniform(low=-.1, high=.1, size=6)
+            self.jug_vel2 = self.dart_world.skeletons[2].dq + self.np_random.uniform(low=-.01, high=.01, size=6)
+            self.jug_pos2[-1]=0
+            self.jug_vel2[-1]=0
+            self.jug_pos2[-3] = self.np_random.uniform(low=-0.5, high=-0.05)
+            self.dart_world.skeletons[2].set_positions(self.jug_pos2)
+            self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
         if self.train_mp_sel:
             self.rand = np.random.random()

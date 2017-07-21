@@ -291,9 +291,10 @@ class CartPoleManager:
         self.simulator = simulator
         self.range = [0.05, 2.0] # mass range
         self.attach_width = [0.05, 0.7]
+        self.jug_mass = [0.2, 3.0]
 
-        self.activated_param = [0, 1]
-        self.controllable_param = [0, 1]
+        self.activated_param = [1, 2]
+        self.controllable_param = [1, 2]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
@@ -305,7 +306,10 @@ class CartPoleManager:
         width = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].shape.size()[0]
         width_param = (width - self.attach_width[0]) / (self.attach_width[1] - self.attach_width[0])
 
-        return np.array([mass_param, width_param])[self.activated_param]
+        jug_mass = self.simulator.dart_world.skeletons[1].bodynodes[0].mass()
+        jug_mass_param = (jug_mass - self.jug_mass[0]) / (self.jug_mass[1] - self.jug_mass[0])
+
+        return np.array([mass_param, width_param, jug_mass_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -322,6 +326,11 @@ class CartPoleManager:
             size = np.copy(size ** 2)
             mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
             self.simulator.robot_skeleton.bodynodes[-1].set_inertia_entries(1.0/12*mass*(size[1]+size[2]), 1.0/12*mass*(size[0]+size[2]), 1.0/12*mass*(size[1]+size[0]))
+            cur_id += 1
+        if 2 in self.controllable_param:
+            jug_mass = x[cur_id] * (self.jug_mass[1] - self.jug_mass[0]) + self.jug_mass[0]
+            self.simulator.dart_world.skeletons[1].bodynodes[0].set_mass(jug_mass)
+            self.simulator.dart_world.skeletons[2].bodynodes[0].set_mass(jug_mass)
             cur_id += 1
 
     def resample_parameters(self):
