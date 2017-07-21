@@ -12,7 +12,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*2,[-1.0]*2])
         self.action_scale = np.array([40,10])
         self.train_UP = True
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         self.avg_div = 0
@@ -44,8 +44,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.6)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.6)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.85)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.85)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -106,7 +106,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ang_proc = (np.abs(ang) % (2 * np.pi))
         ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
 
-        alive_bonus = 6.0
+        alive_bonus = 3.0
         ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
@@ -114,6 +114,11 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         reward = alive_bonus - ang_cost - quad_ctrl_cost - com_cost
         if ang_proc < 0.5:
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3-np.abs(self.robot_skeleton.dq[1]), 0])
+
+        if self.juggling:
+            reward += 2-np.linalg.norm(self.dart_world.skeletons[1].bodynodes[0].com()[1] - self.jug_pos[1])
+            reward += 2-np.linalg.norm(self.dart_world.skeletons[2].bodynodes[0].com()[1] - self.jug_pos2[1])
+
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
@@ -137,10 +142,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             if dist > 0.5:
                 done = True
 
-        if self.cur_step * self.dt < 1.4 and self.juggling:
+        if self.cur_step * self.dt < 1.3 and self.juggling:
             self.dart_world.skeletons[1].set_positions(self.jug_pos)
             self.dart_world.skeletons[1].set_velocities(self.jug_vel)
-        if self.cur_step * self.dt < 2.0 and self.juggling:
+        if self.cur_step * self.dt < 2.3 and self.juggling:
             self.dart_world.skeletons[2].set_positions(self.jug_pos2)
             self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
