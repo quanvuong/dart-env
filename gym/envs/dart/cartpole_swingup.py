@@ -10,7 +10,7 @@ import joblib
 class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*2,[-1.0]*2])
-        self.action_scale = np.array([40,10])
+        self.action_scale = np.array([40,20])
         self.train_UP = True
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -44,8 +44,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, obs_dim, self.control_bounds, dt=0.01, disableViewer=True)
         self.current_param = self.param_manager.get_simulator_parameters()
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
-        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.85)
-        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.85)
+        self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.95)
+        self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.95)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
@@ -116,7 +116,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.juggling:
-            if self.dart_world.skeletons[1].com()[1] < 0.2 or self.dart_world.skeletons[2].com()[1] < 0.2:
+            if self.dart_world.skeletons[1].com()[1] < 0.1 or self.dart_world.skeletons[2].com()[1] < 0.1:
                 #reward -= 50
                 done = True
             if self.dart_world.skeletons[1].com()[0] < 0.02 or self.dart_world.skeletons[2].com()[0] > 0.02:

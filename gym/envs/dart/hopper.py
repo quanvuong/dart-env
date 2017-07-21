@@ -185,7 +185,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             fake_path = {'observations': [fake_obs], 'rewards':[reward]}
             reward = self.baseline.predict(fake_path)[-1]'''
         if self.dyn_model_id != 0:
-            reward *= 0.5
+            reward *= 0.1
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
                                   'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
