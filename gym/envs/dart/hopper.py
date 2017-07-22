@@ -145,7 +145,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         #reward -= 1e-7 * total_force_mag
         #print(abs(ang))
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 60).all() and
                     (height > .7) and (height < 1.8) and (abs(ang) < .4))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
