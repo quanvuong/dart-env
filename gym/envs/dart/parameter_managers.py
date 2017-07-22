@@ -20,8 +20,9 @@ class hopperContactMassManager:
         self.torso_mass_range = [2.0, 25.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
-        self.activated_param = [2, 3, 4]
-        self.controllable_param = [2, 3, 4]
+        self.ankle_range = [40, 300]
+        self.activated_param = [2, 5]
+        self.controllable_param = [2, 5]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -41,9 +42,12 @@ class hopperContactMassManager:
         ft_mass_param = (cur_ft_mass - self.foot_mass_range[0]) / (self.foot_mass_range[1] - self.foot_mass_range[0])
 
         cur_power = self.simulator.action_scale
-        power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
+        power_param = (cur_power[0] - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
 
-        return np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param])[self.activated_param]
+        cur_ank_power = self.simulator.action_scale[2]
+        ank_power_param = (cur_ank_power - self.ankle_range[0]) / (self.ankle_range[1] - self.ankle_range[0])
+
+        return np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param, ank_power_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -66,7 +70,11 @@ class hopperContactMassManager:
             cur_id += 1
         if 4 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
-            self.simulator.action_scale = power
+            self.simulator.action_scale = np.array([power, power, power])
+            cur_id += 1
+        if 5 in self.controllable_param:
+            ankpower = x[cur_id] * (self.ankle_range[1] - self.ankle_range[0]) + self.ankle_range[0]
+            self.simulator.action_scale[2] = ankpower
             cur_id += 1
 
     def resample_parameters(self):

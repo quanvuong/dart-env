@@ -11,12 +11,12 @@ import joblib, os
 class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
-        self.action_scale = 200
+        self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -50,11 +50,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
-        self.current_param = self.param_manager.get_simulator_parameters()
+        '''self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam
+        self.param_manager.controllable_param = curcontparam'''
 
         utils.EzPickle.__init__(self)
 
