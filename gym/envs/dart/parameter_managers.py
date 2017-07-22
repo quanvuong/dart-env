@@ -17,7 +17,7 @@ class hopperContactMassManager:
         self.foot_mass_range = [4.0, 6.0]
         self.power_range = [170, 230]'''
         self.restitution_range = [0.0, 0.3]
-        self.torso_mass_range = [2.0, 10.0]
+        self.torso_mass_range = [2.0, 25.0]
         self.foot_mass_range = [2.0, 10.0]
         self.power_range = [150, 320]
         self.activated_param = [1, 3]
@@ -289,7 +289,7 @@ class hopperContactMassAllLimitManager:
 class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.05, 2.0] # mass range
+        self.range = [0.05, 20.0] # mass range
         self.attach_width = [0.05, 0.7]
         self.jug_mass = [0.2, 3.0]
 
