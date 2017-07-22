@@ -32,7 +32,7 @@
             <body name="juggle">
                 <transformation>0 2.35 0 0 0 0.0</transformation>
                 <inertia>
-                    <mass>0.3</mass>
+                    <mass>1.0</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -63,7 +63,7 @@
             <body name="juggle2">
                 <transformation>0 2.35 0 0 0 0.0</transformation>
                 <inertia>
-                    <mass>0.3</mass>
+                    <mass>1.0</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -130,14 +130,14 @@
                         </box>
                     </geometry>
                 </visualization_shape>
-                <!--<collision_shape>
+                <collision_shape>
                     <transformation>0.0 0.3 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
                             <size>0.02 0.6 0.02</size>
                         </box>
                     </geometry>
-                </collision_shape>-->
+                </collision_shape>
             </body>
 
             <body name="weight">
@@ -193,8 +193,8 @@
                 <axis>
                     <xyz>0.0 1.0 0.0</xyz>
                     <limit>
-                    	<lower>-0.1</lower>
-                    	<upper>0.1</upper>
+                    	<lower>-0.05</lower>
+                    	<upper>0.05</upper>
                     </limit>
                 </axis>
                 <parent>pole</parent>

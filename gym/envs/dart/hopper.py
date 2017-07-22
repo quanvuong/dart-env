@@ -12,18 +12,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 200
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 2
+        self.avg_div = 0
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
+        self.upselector = None
         #modelpath = os.path.join(os.path.dirname(__file__), "models")
-        #upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_restfoot_sd6_loc.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -49,11 +50,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
-        '''self.current_param = self.param_manager.get_simulator_parameters()
+        self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam'''
+        self.param_manager.controllable_param = curcontparam
 
         utils.EzPickle.__init__(self)
 
@@ -247,14 +248,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = self.dyn_model_id
 
         # Split the mp space by left and right for now
-        '''self.state_index = 0
-        if len(self.param_manager.get_simulator_parameters()) > 1:
-            if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                self.state_index = 1
-            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
-                self.state_index = 2
-            elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                self.state_index = 3'''
+        if self.train_UP:
+            self.state_index = 0
+            if len(self.param_manager.get_simulator_parameters()) > 1:
+                if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 1
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
+                    self.state_index = 2
+                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
+                    self.state_index = 3
+            if self.upselector is not None:
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
 
         self.state_action_buffer = [] # for UPOSI
 
