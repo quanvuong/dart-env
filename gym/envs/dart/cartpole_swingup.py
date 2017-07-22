@@ -9,8 +9,8 @@ import joblib
 
 class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0]*2,[-1.0]*2])
-        self.action_scale = np.array([40,20])
+        self.control_bounds = np.array([[1.0],[-1.0]])
+        self.action_scale = np.array([40])
         self.train_UP = True
         self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -22,7 +22,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd9_lrange_2seg.pkl'))
 
-        obs_dim = 6
+        obs_dim = 4
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
@@ -63,7 +63,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[0] = clamped_control[0] * self.action_scale[0]
-        tau[2] = clamped_control[1] * self.action_scale[1]
 
         state_act = np.concatenate([self.state_vector(), tau/40.0])
         state_pre = np.copy(self.state_vector())
@@ -104,7 +103,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ang_proc = (np.abs(ang) % (2 * np.pi))
         ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
 
-        alive_bonus = 3.0
+        alive_bonus = 4.0
         ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
@@ -121,8 +120,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
         if self.juggling:
-            reward += 3.0 - np.abs(self.dart_world.skeletons[1].com()[1] - self.jug_pos[-2])
-            if self.dart_world.skeletons[1].com()[1] < 0.1:# or self.dart_world.skeletons[2].com()[1] < 0.1:
+            if self.dart_world.skeletons[1].com()[1] < -1.0:# or self.dart_world.skeletons[2].com()[1] < 0.1:
                 #reward -= 50
                 done = True
             #if self.dart_world.skeletons[1].com()[0] < -0.02 or self.dart_world.skeletons[2].com()[0] > 0.02:
