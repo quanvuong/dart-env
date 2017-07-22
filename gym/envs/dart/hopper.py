@@ -50,11 +50,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
-        self.current_param = self.param_manager.get_simulator_parameters()
+        '''self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam
+        self.param_manager.controllable_param = curcontparam'''
 
         utils.EzPickle.__init__(self)
 
