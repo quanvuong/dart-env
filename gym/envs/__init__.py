@@ -210,6 +210,13 @@ register(
 )'''
 
 register(
+    id='DartHopperBackpack-v1',
+    entry_point='gym.envs.dart:DartHopperBackPackEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopperCont-v1',
     entry_point='gym.envs.dart:DartHopperEnvCont',
     reward_threshold=3800.0,

@@ -152,7 +152,7 @@ class MLPDynamicModel(DynamicModel):
             loss = lasagne.objectives.squared_error(prediction, out_var)
             loss = loss.mean()
             params = self.mlp.get_params(trainable=True)
-            updates = lasagne.updates.adam(loss, params, learning_rate=0.01)
+            updates = lasagne.updates.adam(loss, params, learning_rate=0.001)
             self.train_fn = T.function([self.mlp.input_layer.input_var, out_var], loss, updates=updates)
             self.loss = T.function([self.mlp.input_layer.input_var, out_var], loss)
             self.out = T.function([self.mlp.input_layer.input_var], prediction)
@@ -167,7 +167,7 @@ class MLPDynamicModel(DynamicModel):
             # In each epoch, we do a full pass over the training data:
             train_err = 0
             train_batches = 0
-            for batch in self.iterate_minibatches(X, Y, 32, shuffle=True):
+            for batch in self.iterate_minibatches(X, Y, 16, shuffle=True):
                 inputs, targets = batch
                 train_err += self.train_fn(inputs, targets)
                 train_batches += 1
