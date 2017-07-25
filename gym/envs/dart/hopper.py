@@ -50,11 +50,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
-        self.current_param = self.param_manager.get_simulator_parameters()
+        '''self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam
+        self.param_manager.controllable_param = curcontparam'''
 
         utils.EzPickle.__init__(self)
 
@@ -258,7 +258,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                     self.state_index = 3
             if self.upselector is not None:
-                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
 
         self.state_action_buffer = [] # for UPOSI
 

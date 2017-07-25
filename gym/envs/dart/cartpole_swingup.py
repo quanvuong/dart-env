@@ -15,13 +15,13 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 0
+        self.avg_div = 2
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
         
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_2d_jug_sd9_lrange_2seg.pkl'))
-
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_jug_sd9_mass_2seg.pkl'))
+       
         obs_dim = 4
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
@@ -103,7 +103,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         ang_proc = (np.abs(ang) % (2 * np.pi))
         ang_proc = np.min([ang_proc, (2 * np.pi) - ang_proc])
 
-        alive_bonus = 4.0
+        alive_bonus = 6.0
         ang_cost = 1.0*(ang_proc**2)
         quad_ctrl_cost = 0.01 * np.square(a).sum()
         com_cost = 2.0 * np.abs(self.robot_skeleton.q[0])**2
@@ -206,7 +206,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
                 elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
                     self.state_index = 3
             if self.upselector is not None:
-                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()])
+                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()],False)
 
         if not self.juggling:
             self.dart_world.skeletons[1].set_positions([0,0,0,100, 0, 0])

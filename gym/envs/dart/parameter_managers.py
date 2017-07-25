@@ -289,12 +289,12 @@ class hopperContactMassAllLimitManager:
 class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.05, 20.0] # mass range
-        self.attach_width = [0.05, 0.7]
+        self.range = [0.05, 10.0] # mass range
+        self.attach_width = [0.2, 0.3]
         self.jug_mass = [0.2, 3.0]
 
-        self.activated_param = [1, 2]
-        self.controllable_param = [1, 2]
+        self.activated_param = [0]
+        self.controllable_param = [0]
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
