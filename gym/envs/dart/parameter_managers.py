@@ -17,11 +17,12 @@ class hopperContactMassManager:
         self.foot_mass_range = [4.0, 6.0]
         self.power_range = [170, 230]'''
         self.restitution_range = [0.0, 0.3]
-        self.torso_mass_range = [2.0, 25.0]
-        self.foot_mass_range = [2.0, 10.0]
+        self.torso_mass_range = [2.0, 35.0]
+        self.foot_mass_range = [2.0, 25.0]
         self.power_range = [150, 320]
-        self.activated_param = [2, 3, 4]
-        self.controllable_param = [2, 3, 4]
+        self.ankle_range = [40, 300]
+        self.activated_param = [2]
+        self.controllable_param = [2]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -41,9 +42,12 @@ class hopperContactMassManager:
         ft_mass_param = (cur_ft_mass - self.foot_mass_range[0]) / (self.foot_mass_range[1] - self.foot_mass_range[0])
 
         cur_power = self.simulator.action_scale
-        power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
+        power_param = (cur_power[0] - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
 
-        return np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param])[self.activated_param]
+        cur_ank_power = self.simulator.action_scale[2]
+        ank_power_param = (cur_ank_power - self.ankle_range[0]) / (self.ankle_range[1] - self.ankle_range[0])
+
+        return np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param, ank_power_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -66,8 +70,59 @@ class hopperContactMassManager:
             cur_id += 1
         if 4 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
-            self.simulator.action_scale = power
+            self.simulator.action_scale = np.array([power, power, power])
             cur_id += 1
+        if 5 in self.controllable_param:
+            ankpower = x[cur_id] * (self.ankle_range[1] - self.ankle_range[0]) + self.ankle_range[0]
+            self.simulator.action_scale[2] = ankpower
+            cur_id += 1
+
+    def resample_parameters(self):
+        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+        if self.sampling_selector is not None:
+            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
+                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
+
+class hopperBackPackManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.range = [0.0, 30.0] # backpack mass range
+        self.slope = [-0.8, 0.8]
+        self.activated_param = [0, 1]
+        self.controllable_param = [0, 1]
+
+        self.param_dim = len(self.activated_param)
+        self.sampling_selector = None
+        self.selector_target = -1
+
+    def get_simulator_parameters(self):
+        cur_bpmass = self.simulator.robot_skeleton.bodynodes[3].m
+        bpmass_param = (cur_bpmass - self.range[0]) / (self.range[1] - self.range[0])
+
+        transform = self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[0].relative_transform()
+        cur_angle = np.arcsin(transform[1, 0])
+        angle_param = (cur_angle - self.slope[0]) / (self.slope[1] - self.slope[0])
+
+        return np.array([bpmass_param, angle_param])[self.activated_param]
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+        if 0 in self.controllable_param:
+            bpmass = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
+            self.simulator.robot_skeleton.bodynodes[3].set_mass(bpmass)
+            cur_id += 1
+        if 1 in self.controllable_param:
+            angle = x[cur_id] * (self.slope[1] - self.slope[0]) + self.slope[0]
+            rot = np.identity(4)
+            rot[0, 0] = np.cos(angle)
+            rot[0, 1] = -np.sin(angle)
+            rot[1, 0] = np.sin(angle)
+            rot[1, 1] = np.cos(angle)
+            self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[0].set_relative_transform(rot)
+            self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[1].set_relative_transform(rot)
+            cur_id += 1
+
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))

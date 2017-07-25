@@ -8,11 +8,11 @@ import copy
 
 import joblib, os
 
-class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         self.avg_div = 0
 
@@ -20,7 +20,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
-        self.param_manager = hopperContactMassManager(self)
+        self.param_manager = hopperBackPackManager(self)
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -44,7 +44,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'hopper_backpack.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
@@ -133,9 +133,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         joint_limit_penalty = 0
         for j in [-2]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
+                joint_limit_penalty += abs(0.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
+                joint_limit_penalty += abs(0.5)
 
         alive_bonus = 1.0
         reward = 0.6*(posafter - posbefore) / self.dt
@@ -146,7 +146,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         #print(abs(ang))
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > .7) and (height < 1.8) and (abs(ang) < .4))
+                    (height > .7) and (height < 1.8) and (abs(ang) < .8))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
 
@@ -221,9 +221,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         joint_limit_penalty = 0
         for j in [-2]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
+                joint_limit_penalty += abs(0.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
+                joint_limit_penalty += abs(0.5)
 
         alive_bonus = 1.0
         reward = 0.6*(posafter - posbefore) / self.dt
@@ -279,3 +279,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
+    def _render(self, mode='human', close=False):
+        if not self.disableViewer:
+            self._get_viewer().scene.tb.trans[0] = -self.dart_world.skeletons[self.track_skeleton_id].com()[0]*1
+            self._get_viewer().scene.tb.trans[1] = 1.25-self.dart_world.skeletons[self.track_skeleton_id].com()[1]
+        if close:
+            if self.viewer is not None:
+                self._get_viewer().close()
+                self.viewer = None
+            return
+
+        if mode == 'rgb_array':
+            data = self._get_viewer().getFrame()
+            return data
+        elif mode == 'human':
+            self._get_viewer().runSingleStep()
