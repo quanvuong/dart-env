@@ -17,7 +17,7 @@ import OpenGL.GLUT as GLUT
 
 ''' This env is setup for upper body single arm reduced action space learning with draped shirt'''
 
-class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
+class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         
@@ -59,66 +59,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/test_sleeve_plane.obj", scale=1.6)
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale=1.6)
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         #state_path="/home/alexander/Documents/dev/end1stSleeveSuccess.obj",
                                         #state_path="/home/alexander/Documents/dev/2ndSleeveInitialState.obj",
-                                        scale=1.6)
+                                        scale=1.0)
 
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/tshirt_m.obj", scale=1.6)
-        clothScene.togglePinned(0,0) #turn off auto-bottom pin
-        #clothScene.togglePinned(0,9)
-        #clothScene.togglePinned(0,10)
-        #clothScene.togglePinned(0,37)
-        #clothScene.togglePinned(0,42)
-        #clothScene.togglePinned(0,44)
-        #clothScene.togglePinned(0,48)
-        #clothScene.togglePinned(0,51)
-        #clothScene.togglePinned(0,54)
-        #clothScene.togglePinned(0,58)
-        #clothScene.togglePinned(0,64)
-        
-        '''clothScene.togglePinned(0,111) #collar
-        clothScene.togglePinned(0,113) #collar
-        clothScene.togglePinned(0,117) #collar
-        clothScene.togglePinned(0,193) #collar
-        clothScene.togglePinned(0,112) #collar
-        clothScene.togglePinned(0,114) #collar
-        clothScene.togglePinned(0,115) #collar
-        clothScene.togglePinned(0,116) #collar
-        clothScene.togglePinned(0,192) #collar
-        clothScene.togglePinned(0,191) #collar'''
-        
-        '''clothScene.togglePinned(0,190) #collar
-        clothScene.togglePinned(0,189) #collar
-        clothScene.togglePinned(0,188) #collar
-        clothScene.togglePinned(0,187) #collar
-        clothScene.togglePinned(0,186) #collar
-        clothScene.togglePinned(0,110) #collar
-        clothScene.togglePinned(0,109) #collar
-        clothScene.togglePinned(0,108) #collar
-        clothScene.togglePinned(0,107) #collar'''
-        
-        #clothScene.togglePinned(0,144) #bottom
-        #clothScene.togglePinned(0,147) #bottom
-        #clothScene.togglePinned(0,149) #bottom
-        #clothScene.togglePinned(0,153) #bottom
-        #clothScene.togglePinned(0,155) #bottom
-        #clothScene.togglePinned(0,161) #bottom
-        #clothScene.togglePinned(0,165) #bottom
-        #clothScene.togglePinned(0,224) #right sleeve
-        #clothScene.togglePinned(0,229) #right sleeve
-        #clothScene.togglePinned(0,233) #right sleeve
-        #clothScene.togglePinned(0,236) #sleeve
-        #clothScene.togglePinned(0,240) #sleeve
-        #clothScene.togglePinned(0,246) #sleeve
-        
-        '''clothScene.togglePinned(0,250) #left sleeve
-        clothScene.togglePinned(0,253) #left sleeve
-        clothScene.togglePinned(0,257) #left sleeve
-        clothScene.togglePinned(0,259) #left sleeve
-        clothScene.togglePinned(0,262) #left sleeve
-        clothScene.togglePinned(0,264) #left sleeve'''
+        #clothScene.togglePinned(0,0) #turn off auto-bottom pin
         
         
         #intialize the parent env
@@ -139,8 +87,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #self.handleNode.addVertex(30)
 
         #self.gripper = pyutils.BoxFrame(c0=np.array([0.06, -0.075, 0.06]), c1=np.array([-0.06, -0.125, -0.06]))
-        self.gripper = pyutils.EllipsoidFrame(c0=np.array([0,-0.1,0]), dim=np.array([0.05,0.025,0.05]))
-        self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
+        #.gripper = pyutils.EllipsoidFrame(c0=np.array([0,-0.1,0]), dim=np.array([0.05,0.025,0.05]))
+        #self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
 
         
         self.clothScene.seedRandom(random.randint(1,1000))
@@ -362,6 +310,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
+        '''
         #1st sleeve start interpolation:
 
         qpos[0] -= 0
@@ -379,6 +328,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #qpos[9] += 0.6
         qpos[10] += 0.6
         #qpos[10] += 0.0
+        '''
         '''
         self.interpolationStart = np.array(qpos)
         self.interpolationGoal = np.array(qpos)
@@ -465,11 +415,12 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
                     v2 = self.clothScene.sampleDirections()[0]
                     if np.dot(v2/np.linalg.norm(v2), np.array([0, -1, 0.])) < 1:
                         break
-            M = self.clothScene.rotateTo(v1,v2)
+            #M = self.clothScene.rotateTo(v1,v2)
             #self.clothScene.rotateCloth(0, M)
             #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=0.25, axis=np.array([0,1.,0.])))
             #self.clothScene.translateCloth(0, np.array([-0.042,-0.7,-0.035]))
-        #self.clothScene.translateCloth(0, np.array([-0.75,0,0]))
+
+        self.clothScene.translateCloth(0, np.array([-0.0,0.,-1.0]))
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         #self.clothScene.rotateCloth(0, M)
