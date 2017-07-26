@@ -89,8 +89,8 @@ class hopperBackPackManager:
         self.simulator = simulator
         self.range = [0.0, 30.0] # backpack mass range
         self.slope = [-0.8, 0.8]
-        self.activated_param = [0, 1]
-        self.controllable_param = [0, 1]
+        self.activated_param = [0]
+        self.controllable_param = [0]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None

@@ -14,7 +14,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 0
+        self.avg_div = 3
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -24,7 +24,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torso_lrange35_sd15_3seg.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torso_lrange35_sd17_3seg.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
