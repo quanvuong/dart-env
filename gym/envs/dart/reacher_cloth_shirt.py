@@ -134,7 +134,9 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #self.handleNode.addTarget(t=2., pos=np.array([0.25, 0.5, 0.5]), orientation=np.normalized(np.quaternion(1, 0, 1, 0)))
         #self.handleNode.targetSpline.insert(t=1., p=np.array([0.,0.,0.5]))
         #self.handleNode.targetSpline.insert(t=2., p=np.array([0.25, 0.5, 0.5]))
-        self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
+        #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
+        self.handleNode.setTranslation(np.array([0.0, 0.2, -0.75]))
+        self.handleNode.addVertices([112,113,114,115,116,117,186,187,188,189,190,191,192,193]) #collar
         #self.handleNode.addVertex(0)
         #self.handleNode.addVertex(30)
 
@@ -225,7 +227,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
                 print(t)
 
         if self.handleNode is not None:
-            self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
+            #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
             self.handleNode.step()
 
         if self.gripper is not None:
@@ -363,7 +365,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         #1st sleeve start interpolation:
-
+        '''
         qpos[0] -= 0
         qpos[1] -= 0.
         qpos[2] += 0
@@ -379,6 +381,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #qpos[9] += 0.6
         qpos[10] += 0.6
         #qpos[10] += 0.0
+        '''
+
         '''
         self.interpolationStart = np.array(qpos)
         self.interpolationGoal = np.array(qpos)
@@ -469,7 +473,9 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             #self.clothScene.rotateCloth(0, M)
             #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=0.25, axis=np.array([0,1.,0.])))
             #self.clothScene.translateCloth(0, np.array([-0.042,-0.7,-0.035]))
-        #self.clothScene.translateCloth(0, np.array([-0.75,0,0]))
+        #self.clothScene.translateCloth(0, np.array([-0.75,0,0])) #shirt next to person
+        #self.clothScene.translateCloth(0, np.array([-0., 1.0, 0]))  # shirt above to person
+        self.clothScene.translateCloth(0, np.array([-0., 0, -0.75]))  # shirt in front of person
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         #self.clothScene.rotateCloth(0, M)
@@ -508,7 +514,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
         #self.handleNode.reset()
         if self.handleNode is not None:
-            self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
+            #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
             self.handleNode.recomputeOffsets()
 
         if self.gripper is not None:
@@ -628,7 +634,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
             self.gripper.draw()
-            if self.clothScene is not None:
+            if self.clothScene is not None and False:
                 vix = self.clothScene.getVerticesInShapeFrame(self.gripper)
                 GL.glColor3d(0,0,1.)
                 for v in vix:

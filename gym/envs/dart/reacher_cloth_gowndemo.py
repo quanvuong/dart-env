@@ -59,14 +59,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/test_sleeve_plane.obj", scale=1.6)
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale=1.6)
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         #state_path="/home/alexander/Documents/dev/end1stSleeveSuccess.obj",
                                         #state_path="/home/alexander/Documents/dev/2ndSleeveInitialState.obj",
-                                        scale=1.0)
+                                        scale=1.6)
 
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/tshirt_m.obj", scale=1.6)
-        #clothScene.togglePinned(0,0) #turn off auto-bottom pin
+        clothScene.togglePinned(0,0) #turn off auto-bottom pin
         
         
         #intialize the parent env
@@ -415,12 +416,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                     v2 = self.clothScene.sampleDirections()[0]
                     if np.dot(v2/np.linalg.norm(v2), np.array([0, -1, 0.])) < 1:
                         break
-            #M = self.clothScene.rotateTo(v1,v2)
+            M = self.clothScene.rotateTo(v1,v2)
             #self.clothScene.rotateCloth(0, M)
             #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=0.25, axis=np.array([0,1.,0.])))
             #self.clothScene.translateCloth(0, np.array([-0.042,-0.7,-0.035]))
 
-        self.clothScene.translateCloth(0, np.array([-0.0,0.,-1.0]))
+        self.clothScene.translateCloth(0, np.array([0.4,0.,-0.6]))
+
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         #self.clothScene.rotateCloth(0, M)

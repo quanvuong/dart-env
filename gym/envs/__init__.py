@@ -306,50 +306,49 @@ register(
 register(
     id='DartClothSphereTube-v1',
     entry_point='gym.envs.dart:DartClothSphereTubeEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothReacher-v1',
     entry_point='gym.envs.dart:DartClothReacherEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothReacher-v2',
     entry_point='gym.envs.dart:DartClothReacherEnv2',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothPoseReacher-v1',
     entry_point='gym.envs.dart:DartClothPoseReacherEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothSleeveReacher-v1',
     entry_point='gym.envs.dart:DartClothSleeveReacherEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothShirtReacher-v1',
     entry_point='gym.envs.dart:DartClothShirtReacherEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
 )
 
 register(
     id='DartClothGownDemo-v1',
     entry_point='gym.envs.dart:DartClothGownDemoEnv',
-    reward_threshold=950.0,
     max_episode_steps=500,
+)
+
+register(
+    id='DartClothTestbed-v1',
+    entry_point='gym.envs.dart:DartClothTestbedEnv',
+    max_episode_steps=10000,
 )
 
 
