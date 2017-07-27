@@ -87,10 +87,10 @@ class hopperContactMassManager:
 class hopperBackPackManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.0, 30.0] # backpack mass range
-        self.slope = [-0.8, 0.8]
-        self.activated_param = [0]
-        self.controllable_param = [0]
+        self.range = [0.0, 60.0] # backpack mass range
+        self.slope = [-0.5, 0.5]
+        self.activated_param = [1]
+        self.controllable_param = [1]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -122,13 +122,17 @@ class hopperBackPackManager:
             self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[0].set_relative_transform(rot)
             self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[1].set_relative_transform(rot)
             cur_id += 1
+            # rotate the ankle so that it doesn't collide with the ground
+            cq = self.simulator.robot_skeleton.q
+            cq[5] += angle
+            self.simulator.robot_skeleton.set_positions(cq)
 
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        if self.sampling_selector is not None:
-            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
-                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        #if self.sampling_selector is not None:
+        #    while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
+        #        x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
 
         self.set_simulator_parameters(x)
 

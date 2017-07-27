@@ -12,9 +12,9 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
-        self.avg_div = 3
+        self.avg_div = 0
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -24,7 +24,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_sd4_3seg.pkl'))
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_sd4_3seg.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -145,8 +145,16 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         #reward -= 1e-7 * total_force_mag
         #print(abs(ang))
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
+
+        if 1 not in self.param_manager.controllable_param:
+            done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
                     (height > .7) and (height < 1.8) and (abs(ang) < .8))
+        else:
+            transform = self.dart_world.skeletons[0].bodynodes[0].shapenodes[0].relative_transform()
+            angle = np.arcsin(transform[1, 0])
+            ground_height = self.robot_skeleton.q[0] * np.tan(angle)
+            done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
+                    (height - ground_height > .7) and (height-ground_height < 1.8) and (abs(ang) < .8))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
 
@@ -187,6 +195,9 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
             reward = self.baseline.predict(fake_path)[-1]'''
         if self.dyn_model_id != 0:
             reward *= 0.5
+
+        if done:
+            reward = 0
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
                                   'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
