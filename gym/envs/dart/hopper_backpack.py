@@ -12,11 +12,11 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -24,7 +24,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_sd4_3seg.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack60_sd6_3seg.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -133,9 +133,9 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         joint_limit_penalty = 0
         for j in [-2]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(0.5)
+                joint_limit_penalty += abs(1.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(0.5)
+                joint_limit_penalty += abs(1.5)
 
         alive_bonus = 1.0
         reward = 0.6*(posafter - posbefore) / self.dt
@@ -283,7 +283,6 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
             self.start_step = self.cur_step
             base_state = self.base_path['env_infos']['state_act'][self.cur_step][0:len(self.state_vector())]
             self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
-
         self.total_dist = []
 
         return state
