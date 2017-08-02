@@ -47,9 +47,10 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.proxreward2 = 0
 
         self.restPoseActive = True
-        self.restPoseWeight = 0.05
+        self.restPoseWeight = 4
         self.restPose = np.array([])
         self.restPoseReward = 0
+        self.restPoseMaxErrorReward = 0
         self.usePoseTarget = True #if true, rest pose is given in policy input
 
         #5 dof reacher
@@ -85,15 +86,17 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
-        observation_size = 66+66 #pose, pose vel, haptics
+        #observation_size = 66+66 #old: pose(sin|cos), pose vel, haptics
+        #observation_size = 44+66 #pose, pose vel, haptics
+        observation_size = 44 #q, dq
         if self.targetActive1 is True:
             observation_size += 6
         if self.targetActive2 is True:
             observation_size += 6
         if self.usePoseTarget is True:
-            observation_size += 22
+            observation_size += 22 #tq
 
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
 
         self.robot_skeleton.set_self_collision_check(True)
@@ -319,6 +322,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         
         #force magnitude penalty    
         reward_ctrl = - np.square(tau).sum() * 0.001
+        reward_ctrl = 0
         
         #displacement toward target reward
         reward_progress1 = 0
@@ -342,14 +346,30 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
 
         #rest pose reward
         self.restPoseReward = 0
+        self.restPoseMaxErrorReward = 0
         if self.restPoseActive is True and len(self.restPose) == len(self.robot_skeleton.q):
-            print(np.linalg.norm(self.restPose - self.robot_skeleton.q))
-            self.restPoseReward -= np.linalg.norm(self.restPose - self.robot_skeleton.q)*self.restPoseWeight
-
+            rom = self.robot_skeleton.position_upper_limits() - self.robot_skeleton.position_lower_limits()
+            error = np.absolute(self.restPose - self.robot_skeleton.q)
+            normError = error / rom
+            #("Norm Error: " + str(normError))
+            #print("Norm Error max: " + str(normError.max()))
+            
+            #use exact error:
+            #self.restPoseReward -= np.linalg.norm(error)*self.restPoseWeight
+            #self.restPoseMaxErrorReward = -error.max() *self.restPoseWeight
+            
+            #use joint norm error:
+            self.restPoseReward -= np.linalg.norm(normError)*self.restPoseWeight
+            self.restPoseMaxErrorReward = -normError.max() *self.restPoseWeight
+            
+            #proximity bonus reward
+            if normError.max() < 0.1: #within 10% accuracy on all joints
+                self.restPoseReward += 5 #bonus should outweigh error here
 
         
+        
         #total reward        
-        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward
+        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.restPoseMaxErrorReward
         
         
         #record rewards for debugging
@@ -440,12 +460,14 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             tar = np.array(self.target2)
             v = np.array(vec2)
 
-        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq])
+        #obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq])
+        obs = np.concatenate([theta, self.robot_skeleton.dq])
         if self.targetActive1 or self.targetActive2:
             obs = np.concatenate([obs, v, tar])
         if self.usePoseTarget is True:
             obs = np.concatenate([obs, self.restPose])
-        obs = np.concatenate([obs, f])
+            
+        #obs = np.concatenate([obs, f]) #haptics on or off
 
         return obs.ravel()
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
@@ -646,7 +668,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         
     def extraRenderFunction(self):
         #print("extra render function")
-        
+
         GL.glBegin(GL.GL_LINES)
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
@@ -729,6 +751,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*8, text="Prox Reward 1 = " + str(self.proxreward1), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*9, text="Prox Reward 2 = " + str(self.proxreward2), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*10, text="Rest-pose Reward = " + str(self.restPoseReward), color=(0., 0, 0))
+            self.clothScene.drawText(x=15, y=m_viewport[3]-15*11, text="Rest-pose Max Error Reward = " + str(self.restPoseMaxErrorReward), color=(0., 0, 0))
         
         textX = 15.
         if self.renderForceText:
@@ -772,12 +795,18 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             for i in range(len(self.robot_skeleton.q)):
                 qlim = self.limits(i)
                 qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
+                qrest = (self.restPose[i]-qlim[0])/(qlim[1]-qlim[0])
+                qrestDistance = abs(qfill - qrest)
                 y = 58+18.*i
                 x0 = 121+70
                 x1 = 209+70
                 x = LERP(x0,x1,qfill)
                 xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
                 GL.glColor3d(0,2,3)
+                if qrestDistance < 0.05:
+                    GL.glColor3d(0,3,2)
+                elif qrestDistance > 0.2:
+                    GL.glColor3d(3,1,1)
                 GL.glBegin(GL.GL_QUADS)
                 GL.glVertex2d(x0, y+1)
                 GL.glVertex2d(x0, y+14)
@@ -822,6 +851,14 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glPopMatrix()
         a=0
+        
+        if self.restPose is not None:
+            qpos = np.array(self.restPose)
+            qvel = self.robot_skeleton.dq
+            oldqpos = np.array(self.robot_skeleton.q)
+            self.set_state(qpos, qvel)
+            self.dart_world.render()      
+            self.set_state(oldqpos, qvel)
         
         '''if self.renderDofs:
             for i in range(len(self.robot_skeleton.q)):

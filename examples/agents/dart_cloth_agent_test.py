@@ -82,7 +82,14 @@ if __name__ == '__main__':
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_30_relaxedwarmstart/params11.pkl"
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params24.pkl"
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
-
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_19_posereacher/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_23_posereacher4/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_24_posereacher5_q/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_25_posereacher6_q_normerror_prox/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_27_posereacher7_q_normerror_prox_notau/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_31_posereacher8_q_normerror_prox_notau_nohaptics/params.pkl"
+    filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1/params.pkl"
+    
     policy = None
 
     if filename is not None:
