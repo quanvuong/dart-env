@@ -8,10 +8,13 @@ import pickle
 import joblib
 import tensorflow as tf
 
+import pyPhysX.pyutils as pyutils
+
 if __name__ == '__main__':
     #load policy
     
     filename = None
+    filename2 = None
     
     #standard reacher: moved cloth 
     #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_sphere_movedcloth_2017_04_28_10_02_27_0001/params.pkl"
@@ -89,16 +92,90 @@ if __name__ == '__main__':
     #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_27_posereacher7_q_normerror_prox_notau/params.pkl"
     #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_31_posereacher8_q_normerror_prox_notau_nohaptics/params.pkl"
     filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1/params.pkl"
-    
-    policy = None
+    #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
+    #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
+    policy = None
+    policy2 = None
+
+    
     if filename is not None:
         with tf.Session() as sess:
             data = joblib.load(filename)
             policy = data['policy']
             #loadenv = data['env']
         print(policy)
+    
+    #policy = pickle.load(open(filename, "rb"))
+
+    if filename2 is not None:
+        with tf.Session() as sess:
+            data = joblib.load(filename2)
+            policy2 = data['policy']
+            #loadenv = data['env']
+        print(policy2)
     #pfile = open(filename, 'r+')
+
+    if policy is not None and False:
+        print("")
+        print("------------------------------------------------")
+        print("Picking apart the policy now")
+        print("policy: " + str(policy))
+        print("policy._mean_network: " + str(policy._mean_network))
+        print("policy._mean_network.layers: " + str(policy._mean_network.layers))
+        numParams = 0
+        for l in policy._mean_network.layers:
+            print(" " + str(l))
+            print(" " + str(l.get_params()))
+            for i in l.get_params():
+                print("     " + str(i))
+                print("     " + str(i.get_value()))
+                '''
+                for p in i.get_value():
+                    print("       p=" + str(p) + ": ")
+                    for j in p:
+                        numParams += 1
+                        print("         j=" + str(j))
+                '''
+                '''for p in range(len(i.get_value())):
+                    print("       p=" + str(p) + ": ")
+                    for j in range(len(i.get_value()[p])):
+                        numParams += 1
+                        print("         j=" + str(j) + ": " + str(i.get_value()[p][j]))
+                '''
+        print("Counted " + str(numParams) + " total params.")
+        print(pyutils.getPolicyParams(policy, layer=1, biases=True, weights=False))
+        #pyutils.barGraph(list=pyutils.getPolicyParams(policy, layer=1, biases=False, weights=True),filename="barGraph1")
+        print("")
+        print("input weights for 1st input: ")
+        #weights = pyutils.getPolicyInputWeights(policy, 72, 137)
+        #weights2 = pyutils.getPolicyInputWeights(policy2, 72, 137)
+        weights = pyutils.getPolicyInputWeights(policy, 0, 66)
+        weights2 = pyutils.getPolicyInputWeights(policy2, 0, 66)
+        #weights = pyutils.getPolicyInputWeights(policy, 0, 0)
+        weightsdiff = pyutils.getDiffMagnitude(weights, weights2)
+        print(weights)
+        print("num weights = " + str(len(weights)))
+        pyutils.barGraph(list=weightsdiff, filename="weights_diff_pose_reachers")
+        pyutils.barGraph(list=weightsdiff, filename="weights_diff_pose_reachers")
+        pyutils.barGraph(list=weightsdiff, filename="weights_diff_pose_reachers")
+        '''
+        layer2weights = policy._mean_network.layers[1].get_params()[0].get_value()
+
+        print("layer2weights (" + str(len(layer2weights)) + ") = " + str(layer2weights))
+
+        flattenedWeights = []
+        for w in layer2weights:
+            print(w)
+            flattenedWeights.append(w)
+
+        print("flattenedWeights (" + str(len(flattenedWeights)) + ") = " + str(flattenedWeights))
+        pyutils.barGraph(list=flattenedWeights, filename="barGraph")
+        '''
+        print("------------------------------------------------")
+        print("")
+        exit()
+        #pyutils.barGraph()
 
     #save the policy
     '''
@@ -110,6 +187,8 @@ if __name__ == '__main__':
     #load from AWS trial policy.pkl
     #policy = pickle.load( open(filename, "rb") )
 
+    print("about to make")
+
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
@@ -117,13 +196,30 @@ if __name__ == '__main__':
     env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
+    #env = gym.make('DartClothGownDemo-v1')
+    #env = gym.make('DartClothTestbed-v1')
     #env.render()
     #time.sleep(4)
     #print("done init")
-    env.reset()
-    env.render()
+    #env.reset()
+    #env.render()
     #time.sleep(1)
     #Cloth sphere testing
+
+    #policy = pickle.load(open(filename, "rb"))
+
+    '''
+    #save the policy in JSON
+    print("Saving policy")
+    pyutils.GaussianMLPPolicy_toJSON(policy=policy, label="test save", description="This is the description text", filename="JSONtest")
+
+    #load the policy from JSON
+    print("Loading Policy")
+    pyutils.GaussianMLPPolicy_fromJSON(filename="JSONtest")
+    #TODO
+    exit()
+    '''
+
     '''
     ppos = np.array([0.1,0,0])
     for i in range(1000):
@@ -147,7 +243,9 @@ if __name__ == '__main__':
             time.sleep(0.1)
         #time.sleep(0.5)
     '''
-    
+    print("about to run")
+    paused = False
+    time.sleep(0.5)
     for i in range(10000):
         #print("about to reset")
         o = env.reset()
@@ -158,10 +256,10 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         for j in range(500):
             #a = np.array([0.,0.,0.,0.,0.])
-            a = np.zeros(22) #22 dof upper body
-            #a = np.ones(22)
+            #a = np.zeros(11) #22 dof upper body
+            a = np.ones(22)
             #a[0] = 1
-            #a += np.random.uniform(-1,1,11)
+            a += np.random.uniform(-1,1,22)
             '''if(i < 22):
                 a[i] += 1
             elif(i<44):
@@ -171,10 +269,12 @@ if __name__ == '__main__':
                 a, a_info = policy.get_action(o)
             #a = np.array([-1,-0,-0,-0,-0.])
             #if j < 9999: #add this for voxel testing
-            s_info = env.step(a)
-            o = s_info[0]
+            done = False
+            if not paused:
+                s_info = env.step(a)
+                o = s_info[0]
             #print(o)
-            done = s_info[2]
+                done = s_info[2]
             #print("o = " + str(o))
             #time.sleep(0.1)
             #if i > 3400:

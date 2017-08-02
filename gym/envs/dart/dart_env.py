@@ -11,6 +11,7 @@ import six
 
 
 from gym.envs.dart.static_window import *
+from gym.envs.dart.norender_window import *
 
 try:
     import pydart2 as pydart
@@ -188,9 +189,11 @@ class DartEnv(gym.Env):
 
     def getViewer(self, sim, title=None):
         # glutInit(sys.argv)
-        win = StaticGLUTWindow(sim, title)
-        win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
-        win.scene.set_camera(win.scene.num_cameras()-1)
+        win = NoRenderWindow(sim, title)
+        if not self.disableViewer:
+            win = StaticGLUTWindow(sim, title)
+            win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
+            win.scene.set_camera(win.scene.num_cameras()-1)
 
         # to add speed,
         if self._obs_type == 'image':
@@ -200,7 +203,7 @@ class DartEnv(gym.Env):
         return win
 
     def _get_viewer(self):
-        if self.viewer is None and not self.disableViewer:
+        if self.viewer is None:
             self.viewer = self.getViewer(self.dart_world)
             self.viewer_setup()
         return self.viewer

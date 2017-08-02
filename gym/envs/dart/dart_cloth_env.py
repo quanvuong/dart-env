@@ -83,9 +83,11 @@ class DartClothEnv(DartEnv, utils.EzPickle):
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         'Overwrite of DartEnv.getViewer to instantiate StaticClothGLUTWindow instead'
         # glutInit(sys.argv)
-        win = StaticClothGLUTWindow(sim, title, self.clothScene, extraRenderFunc, inputFunc)
-        win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
-        win.scene.set_camera(win.scene.num_cameras()-1)
+        win = NoRenderWindow(sim, title)
+        if not self.disableViewer:
+            win = StaticClothGLUTWindow(sim, title, self.clothScene, extraRenderFunc, inputFunc)
+            win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
+            win.scene.set_camera(win.scene.num_cameras()-1)
 
         # to add speed,
         if self._obs_type == 'image':

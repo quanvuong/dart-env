@@ -14,14 +14,6 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-def gprint(text):
-    'genie print color'
-    pyutils.cprint(text, CYAN)
-
-def oprint(text):
-    'output genie print color'
-    pyutils.cprint(text, MAGENTA)
-
 class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
@@ -95,6 +87,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6
         if self.usePoseTarget is True:
             observation_size += 22 #tq
+
 
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
@@ -870,109 +863,13 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             textX += 30'''
 
     def inputFunc(self, repeat=False):
-        will = ""
-        if not repeat:
-            gprint("Your will?")
-            will = input('').split()
-        else:
-            gprint("Anything else?")
-            will = input('').split()
-        if len(will) == 0:
-            gprint(" As you wish.")
-            return
-        elif will[0] == "done":
-            gprint(" As you wish.")
-            return
-        elif will[0] == "exit":
-            gprint(" I await your command.")
-            exit()
-        elif will[0] == "help":
-            gprint("How may I be of service?")
-            oprint("    Commands:")
-            oprint("        toggle [boolean]: toggles a boolean") 
-            oprint("        set [variable] [value]: sets a variable to a value")
-            oprint("        exit: exit the program")
-            oprint("        done: dismiss genie")
-            oprint("        help: *you are here*")
-        elif will[0] == "toggle":
-            if len(will) == 1:
-                oprint(" toggle [boolean]: toggles a boolean")
-                oprint("     choices: renderSuccess(rs), renderFailure(rf), trackSuccess(ts)")
-            else:
-                if hasattr(self, will[1]):
-                    if(type(getattr(self, will[1])) == type(False)):
-                        setattr(self, will[1], not getattr(self, will[1]))
-                        oprint(str(will[1]) + " -> " + str(getattr(self, will[1])))
-                    else:
-                        gprint(str(will[1]) + " is not a boolean, but rather a " + str(type(type(self.getattr(self, will[1])))))
-                else:
-                    gprint("I see no variable: " + str(will[1]))
-        elif will[0] == "set":
-            if len(will) < 2:
-                oprint(" set [variable] [value]: sets a variable to a value")
-                oprint("     choices: successSampleRenderSize(ssrs)")
-            elif len(will) < 3:
-                if hasattr(self, will[1]):
-                    gprint(str(will[1]) + " is of type " + str(type(getattr(self, will[1]))) + " and has value " + str(getattr(self, will[1])))
-                    
-                else:
-                    gprint("I see no variable: " + str(will[1]))
-            else:
-                if hasattr(self, will[1]):
-                    foundType = False
-                    if type(getattr(self, will[1])) == type(0.1):
-                        try:
-                            setattr(self, will[1], float(will[2]))
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need a float.")
-                    elif type(getattr(self, will[1])) == type(2):
-                        try:
-                            setattr(self, will[1], int(will[2]))
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need an int.")
-                    elif type(getattr(self, will[1])) == type(False):
-                        try:
-                            setattr(self, will[1], will[2]=='True')
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need a boolean.")
-                    elif type(getattr(self, will[1])) == type("string"):
-                        setattr(self, will[1], will[2]) 
-                        foundType = True
-                    elif type(getattr(self, will[1])) == type(np.array([0])):
-                        if(len(will)<4):
-                            gprint("Please supply a vector index to set:")
-                            oprint("'set <vector> <index> <value>'")
-                        else:
-                            try:
-                                ix = int(will[2])
-                                val = float(will[3])
-                                getattr(self, will[1])[ix] = val
-                            except ValueError:
-                                gprint("That didn't work, did it?")
-                        foundType = True
-                    else:
-                        gprint("I don't know how to set that type.")
-                        
-                    if foundType is True:
-                        oprint(will[1] + " = " + str(getattr(self, will[1])))
-                else:
-                    gprint(" I have no variable: " + str(will[1]))
-        else: #unkown command
-            gprint("Alas, I know not how to" + will[1] + ".")
-            
-        #continue in command mode until released
-        self.inputFunc(True)
-                
-            #print("toggling " + will[1])
-        #print("input func: " + will)
+        pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
         
     '''def skelVoxelAnalysis(self, dim, radius, samplerate=0.1, depth=0, efn=5, efo=np.array([0.,0,0]), displayReachable = True, displayUnreachable=True):
