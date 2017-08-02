@@ -340,15 +340,15 @@ register(
 )
 
 register(
-    id='DartClothGownDemo-v1',
-    entry_point='gym.envs.dart:DartClothGownDemoEnv',
-    max_episode_steps=500,
-)
-
-register(
     id='DartClothTestbed-v1',
     entry_point='gym.envs.dart:DartClothTestbedEnv',
     max_episode_steps=10000,
+)
+
+register(
+    id='DartClothGownDemo-v1',
+    entry_point='gym.envs.dart:DartClothGownDemoEnv',
+    max_episode_steps=250,
 )
 
 

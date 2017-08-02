@@ -14,14 +14,6 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-def gprint(text):
-    'genie print color'
-    pyutils.cprint(text, CYAN)
-
-def oprint(text):
-    'output genie print color'
-    pyutils.cprint(text, MAGENTA)
-
 class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
@@ -46,11 +38,13 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.proxreward1 = 0
         self.proxreward2 = 0
 
-        self.restPoseActive = True
+        self.restPoseActive = False
         self.restPoseWeight = 0.05
         self.restPose = np.array([])
         self.restPoseReward = 0
         self.usePoseTarget = False #if true, rest pose is given in policy input
+
+        self.interactiveTarget = True
 
         #5 dof reacher
         #self.action_scale = np.array([10, 10, 10, 10, 10])
@@ -413,6 +407,15 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
         theta = self.robot_skeleton.q
         fingertip = np.array([0.0, -0.06, 0.0])
+
+        if self.viewer is not None:
+            if self.interactiveTarget is True:
+                if self.targetActive1:
+                    self.target = self.viewer.interactors[2].frame.org
+                if self.targetActive2:
+                    self.target2 = self.viewer.interactors[2].frame.org
+            self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
+
         vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
         vec2 = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target2
         
@@ -530,9 +533,9 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         #'''
         
         #sample target from hemisphere
-        if self.sampleFromHemisphere is True:
-            self.target = self.hemisphereSample(radius=reacher_range, norm=v2)
-            self.target2 = self.hemisphereSample(radius=reacher_range, norm=v2)
+        #if self.sampleFromHemisphere is True:
+        #    self.target = self.hemisphereSample(radius=reacher_range, norm=v2)
+        #    self.target2 = self.hemisphereSample(radius=reacher_range, norm=v2)
             
         #self.target = np.array([0.,0.,0.])
         
@@ -831,104 +834,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
             textX += 30'''
 
     def inputFunc(self, repeat=False):
-        will = ""
-        if not repeat:
-            gprint("Your will?")
-            will = input('').split()
-        else:
-            gprint("Anything else?")
-            will = input('').split()
-        if len(will) == 0:
-            gprint(" As you wish.")
-            return
-        elif will[0] == "done":
-            gprint(" As you wish.")
-            return
-        elif will[0] == "exit":
-            gprint(" I await your command.")
-            exit()
-        elif will[0] == "help":
-            gprint("How may I be of service?")
-            oprint("    Commands:")
-            oprint("        toggle [boolean]: toggles a boolean") 
-            oprint("        set [variable] [value]: sets a variable to a value")
-            oprint("        exit: exit the program")
-            oprint("        done: dismiss genie")
-            oprint("        help: *you are here*")
-        elif will[0] == "toggle":
-            if len(will) == 1:
-                oprint(" toggle [boolean]: toggles a boolean")
-                oprint("     choices: renderSuccess(rs), renderFailure(rf), trackSuccess(ts)")
-            else:
-                if hasattr(self, will[1]):
-                    if(type(getattr(self, will[1])) == type(False)):
-                        setattr(self, will[1], not getattr(self, will[1]))
-                        oprint(str(will[1]) + " -> " + str(getattr(self, will[1])))
-                    else:
-                        gprint(str(will[1]) + " is not a boolean, but rather a " + str(type(type(self.getattr(self, will[1])))))
-                else:
-                    gprint("I see no variable: " + str(will[1]))
-        elif will[0] == "set":
-            if len(will) < 2:
-                oprint(" set [variable] [value]: sets a variable to a value")
-                oprint("     choices: successSampleRenderSize(ssrs)")
-            elif len(will) < 3:
-                if hasattr(self, will[1]):
-                    gprint(str(will[1]) + " is of type " + str(type(getattr(self, will[1]))) + " and has value " + str(getattr(self, will[1])))
-                    
-                else:
-                    gprint("I see no variable: " + str(will[1]))
-            else:
-                if hasattr(self, will[1]):
-                    foundType = False
-                    if type(getattr(self, will[1])) == type(0.1):
-                        try:
-                            setattr(self, will[1], float(will[2]))
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need a float.")
-                    elif type(getattr(self, will[1])) == type(2):
-                        try:
-                            setattr(self, will[1], int(will[2]))
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need an int.")
-                    elif type(getattr(self, will[1])) == type(False):
-                        try:
-                            setattr(self, will[1], will[2]=='True')
-                            foundType = True
-                        except ValueError:
-                            gprint("It seems I can't do that, I need a boolean.")
-                    elif type(getattr(self, will[1])) == type("string"):
-                        setattr(self, will[1], will[2]) 
-                        foundType = True
-                    elif type(getattr(self, will[1])) == type(np.array([0])):
-                        if(len(will)<4):
-                            gprint("Please supply a vector index to set:")
-                            oprint("'set <vector> <index> <value>'")
-                        else:
-                            try:
-                                ix = int(will[2])
-                                val = float(will[3])
-                                getattr(self, will[1])[ix] = val
-                            except ValueError:
-                                gprint("That didn't work, did it?")
-                        foundType = True
-                    else:
-                        gprint("I don't know how to set that type.")
-                        
-                    if foundType is True:
-                        oprint(will[1] + " = " + str(getattr(self, will[1])))
-                else:
-                    gprint(" I have no variable: " + str(will[1]))
-        else: #unkown command
-            gprint("Alas, I know not how to" + will[1] + ".")
-            
-        #continue in command mode until released
-        self.inputFunc(True)
-                
-            #print("toggling " + will[1])
-        #print("input func: " + will)
+        pyutils.inputGenie(self, repeat)
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
@@ -936,7 +842,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
             self._get_viewer().scene.tb._set_theta(180)
             self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
-        
+
     '''def skelVoxelAnalysis(self, dim, radius, samplerate=0.1, depth=0, efn=5, efo=np.array([0.,0,0]), displayReachable = True, displayUnreachable=True):
         #initialize binary voxel structure (0)
         if depth == 0:

@@ -15,9 +15,9 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-''' This env is setup for upper body single arm reduced action space learning with draped shirt'''
+''' This env is setup for upper body interaction with gown garment gripped and moved on target path'''
 
-class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
+class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
 
         #22 dof upper body
@@ -43,7 +43,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.randomHandleTargetLinear = False
+        self.randomHandleTargetLinear = True
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
                                                                c1=np.array([-0.3, -0.5, -0.15]),
@@ -54,16 +54,15 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
 
         #debugging boxes for visualizing distributions
         self.drawDebuggingBoxes = True
-        #self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange]
-        self.debuggingBoxes = []
+        self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange]
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
-                                        scale=1.4)
+                                        scale=1.3)
 
         clothScene.togglePinned(0,0) #turn off auto-pin
         #clothScene.togglePinned(0, 144)
@@ -205,7 +204,6 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.clearInterpolation()
 
         self.handleNode.clearHandles()
-        #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         self.handleNode.setOrgToCentroid()
         #print("org = " + str(self.handleNode.org))
