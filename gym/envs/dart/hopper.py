@@ -8,19 +8,21 @@ import copy
 
 import joblib, os
 
-class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 3
+        self.avg_div = 0
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
+
+        self.split_task_test = False
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -56,7 +58,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager.set_simulator_parameters([1.0])
         self.param_manager.controllable_param = curcontparam'''
 
-        utils.EzPickle.__init__(self)
+        #utils.EzPickle.__init__(self)
 
 
     def advance(self, a):
@@ -245,6 +247,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.current_param = self.param_manager.get_simulator_parameters()
             #self.param_manager.set_simulator_parameters(mp)
 
+
         self.state_index = self.dyn_model_id
 
         # Split the mp space by left and right for now
@@ -259,6 +262,15 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                     self.state_index = 3
             if self.upselector is not None:
                 self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
+
+        if self.split_task_test:
+            flip = np.random.random()
+            if flip > 0.5:
+                self.param_manager.set_simulator_parameters([0.7])
+                self.state_index = 1
+            else:
+                self.param_manager.set_simulator_parameters([0.3])
+                self.state_index = 0
 
         self.state_action_buffer = [] # for UPOSI
 
