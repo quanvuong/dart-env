@@ -14,7 +14,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 0
+        self.avg_div = 3
 
         self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -24,7 +24,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack60_sd6_3seg.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd7_3seg_vanillagradient_unweighted_1200start.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -48,7 +48,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
-        self.dart_world.set_collision_detector(3)
+        #self.dart_world.set_collision_detector(3)
 
         '''self.current_param = self.param_manager.get_simulator_parameters()
         curcontparam = copy.copy(self.param_manager.controllable_param)
