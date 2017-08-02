@@ -14,9 +14,9 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 0
+        self.avg_div = 3
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -24,7 +24,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack60_sd6_3seg.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd7_3seg_vanillagradient_unweighted_1200start.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -154,7 +154,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
             angle = np.arcsin(transform[1, 0])
             ground_height = self.robot_skeleton.q[0] * np.tan(angle)
             done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height - ground_height > .7) and (height-ground_height < 1.8) and (abs(ang) < .8))
+                    (height - ground_height > .7) and (height-ground_height < 2.3) and (abs(ang) < .8))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
 
