@@ -91,7 +91,7 @@ if __name__ == '__main__':
     #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_25_posereacher6_q_normerror_prox/params.pkl"
     #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_27_posereacher7_q_normerror_prox_notau/params.pkl"
     #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_31_posereacher8_q_normerror_prox_notau_nohaptics/params.pkl"
-    filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1/params.pkl"
+    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
@@ -256,8 +256,8 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         for j in range(500):
             #a = np.array([0.,0.,0.,0.,0.])
-            #a = np.zeros(11) #22 dof upper body
-            a = np.ones(22)
+            a = np.zeros(22) #22 dof upper body
+            #a = np.ones(22)
             #a[0] = 1
             a += np.random.uniform(-1,1,22)
             '''if(i < 22):

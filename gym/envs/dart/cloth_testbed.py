@@ -30,8 +30,17 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.handleNode = None
         self.gripper = None
 
+        #SPD control
+        self.useSPD = True
+        self.q_target = None #set in reset()
+        self.Kd = None
+        self.Kd_scale = 1.0 #default params
+        self.Kp = None
+        self.Kp_scale = 10.0 #default params
+        self.timeStep = 0.05 #default params
+
         #interactive handle mode
-        self.interactiveHandleNode = False
+        self.interactiveHandleNode = True
 
         #randomized spline target mode
         self.randomHandleTargetSpline = False
@@ -62,7 +71,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
+                                        state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         scale=1.4)
 
         clothScene.togglePinned(0,0) #turn off auto-pin
@@ -99,13 +108,13 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         
         self.reset_number = 0 #increments on env.reset()
 
-        '''
+
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
 
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
-        '''
+
 
         print("done init")
 
@@ -144,6 +153,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #currentDistance = self.clothScene.getSelfCollisionDistance()
         #print("current self-collision distance = " + str(currentDistance))
         #self.clothScene.setSelfCollisionDistance(currentDistance + 0.0001)
+
+        #test SPD
+        if self.useSPD is True:
+            tau = self.SPD(qt=self.q_target, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
 
         #apply action and simulate
         self.do_simulation(tau, self.frame_skip)
@@ -185,11 +198,17 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
-        self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
-        self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 1., 0.])))
-        self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
+        self.q_target = np.array(self.robot_skeleton.q)
+        self.q_target[8] = 1.0
+
+        #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
+        #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 1., 0.])))
+        #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=-1., axis=np.array([1., 0., 0.])))
+        #self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
-        
+        self.clothScene.setSelfCollisionDistance(0.025)
+
+
         #load cloth state from ~/Documents/dev/objFile.obj
         #self.clothScene.loadObjState()
 
@@ -205,8 +224,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.clearInterpolation()
 
         self.handleNode.clearHandles()
+        self.handleNode.addVertices(verts=[570, 1041, 993, 1185, 285, 1056, 283, 958, 905, 711, 435, 992, 50, 935, 489, 787, 327, 362, 676, 842, 873, 887, 54, 55])
+        #self.handleNode.addVertices(verts=[468, 1129, 975, 354, 594, 843, 654, 682, 415, 378, 933, 547, 937, 946, 763, 923, 2395, 2280, 2601, 2454])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
-        self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
+        #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         self.handleNode.setOrgToCentroid()
         #print("org = " + str(self.handleNode.org))
         if self.interactiveHandleNode:
@@ -465,6 +486,29 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self._get_viewer().scene.tb._set_theta(180)
         self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
+
+    def SPD(self, qt=None, Kp=None, Kd=None, dt=None):
+        #compute the control torques to track qt using SPD
+
+        #defaults
+        if qt is None:
+            qt = np.array(self.robot_skeleton.q)
+        if Kp is None:
+            Kp = np.identity(len(qt))*self.Kp_scale
+        if Kd is None:
+            Kd = np.identity(len(qt))*self.Kd_scale
+        if dt is None:
+            dt = self.timeStep
+
+        invM = np.linalg.inv(self.robot_skeleton.mass_matrix() + Kd * dt)
+        p = -Kp.dot(self.robot_skeleton.q + self.robot_skeleton.dq * dt - qt)
+        d = -Kd.dot(self.robot_skeleton.dq)
+        qddot = invM.dot(-self.robot_skeleton.coriolis_and_gravity_forces() + p + d)
+        T = p + d - Kd.dot(qddot * dt)
+
+        return T
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t
+
+

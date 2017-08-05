@@ -38,6 +38,15 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.proxreward1 = 0
         self.proxreward2 = 0
 
+        self.useSPD = True
+        self.useSPDasAction = True
+        self.q_target = None #set in reset()
+        self.Kd = None
+        self.Kp = None
+        self.Kp_scale = 800.0 #default params
+        self.timeStep = 0.04 #default params
+        self.Kd_scale = self.Kp_scale*self.timeStep*0.5  # default params
+
         self.restPoseActive = True
         self.restPoseWeight = 4
         self.restPose = np.array([])
@@ -295,6 +304,15 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         #    tau = np.concatenate([tau, np.zeros(22)])
         #else:
         #    tau = np.concatenate([tau[:3], np.zeros(8), tau[3:], np.zeros(3)])
+        if self.useSPD is True:
+            if self.useSPDasAction is True:
+                #clamped_control = [-1,1]
+                #scale that into joint range
+                scaled_a = self.robot_skeleton.position_lower_limits() + (clamped_control+np.ones(len(clamped_control))/2.0)*(self.robot_skeleton.position_upper_limits()-self.robot_skeleton.position_lower_limits())
+                tau = self.SPD(qt=scaled_a, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+            else:
+                tau = self.SPD(qt=self.q_target, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+
         self.do_simulation(tau, self.frame_skip)
         
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
@@ -490,6 +508,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             self.restPose = qpos
             #more edits here if necessary
             self.restPose = self.getRandomPose()
+            self.q_target = np.array(self.restPose)
         
         #reset cloth tube orientation and rotate sphere position
         v1 = np.array([0,0,-1])
@@ -796,7 +815,9 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
                 x = LERP(x0,x1,qfill)
                 xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
                 GL.glColor3d(0,2,3)
-                if qrestDistance < 0.05:
+                if qrestDistance < 0.01:
+                    GL.glColor3d(0,3,0)
+                elif qrestDistance < 0.05:
                     GL.glColor3d(0,3,2)
                 elif qrestDistance > 0.2:
                     GL.glColor3d(3,1,1)
@@ -871,6 +892,27 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             self._get_viewer().scene.tb._set_theta(180)
             self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
+
+    def SPD(self, qt=None, Kp=None, Kd=None, dt=None):
+        #compute the control torques to track qt using SPD
+
+        #defaults
+        if qt is None:
+            qt = np.array(self.robot_skeleton.q)
+        if Kp is None:
+            Kp = np.identity(len(qt))*self.Kp_scale
+        if Kd is None:
+            Kd = np.identity(len(qt))*self.Kd_scale
+        if dt is None:
+            dt = self.timeStep
+
+        invM = np.linalg.inv(self.robot_skeleton.mass_matrix() + Kd * dt)
+        p = -Kp.dot(self.robot_skeleton.q + self.robot_skeleton.dq * dt - qt)
+        d = -Kd.dot(self.robot_skeleton.dq)
+        qddot = invM.dot(-self.robot_skeleton.coriolis_and_gravity_forces() + p + d)
+        T = p + d - Kd.dot(qddot * dt)
+
+        return T
         
     '''def skelVoxelAnalysis(self, dim, radius, samplerate=0.1, depth=0, efn=5, efo=np.array([0.,0,0]), displayReachable = True, displayUnreachable=True):
         #initialize binary voxel structure (0)
