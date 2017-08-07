@@ -38,14 +38,18 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.proxreward1 = 0
         self.proxreward2 = 0
 
-        self.useSPD = True
+        self.useSPD = False #set True in reset
         self.useSPDasAction = True
         self.q_target = None #set in reset()
-        self.Kd = None
-        self.Kp = None
+        self.q_target1 = None
+        self.q_target2 = None
+        self.LERPt = 10.0
         self.Kp_scale = 800.0 #default params
         self.timeStep = 0.04 #default params
         self.Kd_scale = self.Kp_scale*self.timeStep*0.5  # default params
+        self.Kd = None
+        self.Kp = None
+        self.invM = None
 
         self.restPoseActive = True
         self.restPoseWeight = 4
@@ -98,8 +102,8 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             observation_size += 22 #tq
 
 
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
-        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
 
         self.robot_skeleton.set_self_collision_check(True)
         self.robot_skeleton.set_adjacent_body_check(False)
@@ -236,7 +240,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.robot_skeleton.set_positions(qpos)
         
     def _step(self, a):
-        #print("step")
+        #print("step " + str(self.reset_number))
         clamped_control = np.array(a)
         if self.useAutoTau is True:
             clamped_control = clamped_control + self.autoT
@@ -308,10 +312,19 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             if self.useSPDasAction is True:
                 #clamped_control = [-1,1]
                 #scale that into joint range
-                scaled_a = self.robot_skeleton.position_lower_limits() + (clamped_control+np.ones(len(clamped_control))/2.0)*(self.robot_skeleton.position_upper_limits()-self.robot_skeleton.position_lower_limits())
-                tau = self.SPD(qt=scaled_a, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+                scaled_a = self.robot_skeleton.position_lower_limits() + ((clamped_control+np.ones(len(clamped_control)))/2.0)*(self.robot_skeleton.position_upper_limits()-self.robot_skeleton.position_lower_limits())
+                #tau = self.SPD(qt=scaled_a, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+                self.q_target = scaled_a
+                #self.restPose = np.array(self.q_target)
+                tau = self.quickSPD()
             else:
-                tau = self.SPD(qt=self.q_target, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+                #tau = self.SPD(qt=self.q_target, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
+                #self.q_target = self.q_target1*(1.0-(self.numSteps*self.timeStep)/self.LERPt) + self.q_target2*((self.numSteps*self.timeStep)/self.LERPt)
+                #if self.numSteps*self.timeStep > self.LERPt:
+                #    self.q_target = np.array(self.q_target2)
+                self.q_target = np.array(self.q_target2)
+                tau = self.quickSPD()
+
 
         self.do_simulation(tau, self.frame_skip)
         
@@ -410,6 +423,9 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         done = False
         if not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
+            print("action: " + str(a))
+            print("scaled action: " + str(scaled_a))
+
             done = True
             reward -= 500
         elif (clothDeformation > 5):
@@ -484,7 +500,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
 
     def reset_model(self):
-        #print("reset")
+        #print("reset " + str(self.reset_number))
         self.cumulativeReward = 0
         self.dart_world.reset()
         self.clothScene.reset()
@@ -509,6 +525,10 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             #more edits here if necessary
             self.restPose = self.getRandomPose()
             self.q_target = np.array(self.restPose)
+            self.q_target1 = np.array(qpos)
+            self.q_target2 = np.array(self.restPose)
+            self.useSPD = True
+            self.quickSPD(recompute=True)
         
         #reset cloth tube orientation and rotate sphere position
         v1 = np.array([0,0,-1])
@@ -882,6 +902,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
                     self.clothScene.drawText(x=textX, y=60.+18*i, text="||q[" + str(i) + "]|| = " + '%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
                 
             textX += 30'''
+        #print("done render")
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
@@ -912,6 +933,19 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         qddot = invM.dot(-self.robot_skeleton.coriolis_and_gravity_forces() + p + d)
         T = p + d - Kd.dot(qddot * dt)
 
+        return T
+
+    def quickSPD(self, recompute=False):
+        #SPD using stored info for speed
+        if recompute is True:
+            self.Kp = np.identity(len(self.q_target))*self.Kp_scale
+            self.Kd = np.identity(len(self.q_target))*self.Kd_scale
+            self.invM = np.linalg.inv(self.robot_skeleton.mass_matrix() + self.Kd * self.timeStep)
+        self.invM = np.linalg.inv(self.robot_skeleton.mass_matrix() + self.Kd * self.timeStep)
+        p = -self.Kp.dot(self.robot_skeleton.q + self.robot_skeleton.dq * self.timeStep - self.q_target)
+        d = -self.Kd.dot(self.robot_skeleton.dq)
+        qddot = self.invM.dot(-self.robot_skeleton.coriolis_and_gravity_forces() + p + d)
+        T = p + d - self.Kd.dot(qddot * self.timeStep)
         return T
         
     '''def skelVoxelAnalysis(self, dim, radius, samplerate=0.1, depth=0, efn=5, efo=np.array([0.,0,0]), displayReachable = True, displayUnreachable=True):
