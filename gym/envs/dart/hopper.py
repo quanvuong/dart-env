@@ -12,7 +12,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         self.avg_div = 0
 
@@ -22,11 +22,12 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
-        self.split_task_test = False
+        self.split_task_test = True
+        self.split_tasks = [[0, 0, 0], [1, 1, 1]] # torso mass, ankle strength, torso limit
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torso_lrange35_sd17_3seg.pkl'))
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torso_lrange35_sd17_3seg.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -35,8 +36,10 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
             obs_dim += 1
-        if self.avg_div > 1:
-            obs_dim += self.avg_div
+        if self.split_task_test:
+            obs_dim += len(self.split_tasks)
+        #if self.avg_div > 1:
+        #    obs_dim += self.avg_div
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -141,6 +144,8 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = 0.6*(posafter - posbefore) / self.dt
+        if self.state_index == 1:
+            reward *= -1
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
@@ -191,7 +196,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             reward *= 0.5
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
-                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
+                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id, 'state_index':self.state_index}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -205,6 +210,12 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             state = state + np.random.normal(0, .01, len(state))
         if self.train_mp_sel:
             state = np.concatenate([state, [np.random.random()]])
+
+        if self.split_task_test:
+            return_state = np.zeros(len(state) + len(self.split_tasks))
+            return_state[0:len(state)] = state
+            return_state[len(state) + self.state_index] = 1
+            state = return_state
 
         if self.avg_div > 1:
             return_state = np.zeros(len(state) + self.avg_div)
@@ -264,13 +275,14 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
                 self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
 
         if self.split_task_test:
-            flip = np.random.random()
-            if flip > 0.5:
-                self.param_manager.set_simulator_parameters([0.7])
-                self.state_index = 1
+            self.state_index = np.random.randint(len(self.split_tasks))
+            self.param_manager.set_simulator_parameters(np.array(self.split_tasks[self.state_index])[0:2])
+            if self.split_tasks[self.state_index] == 0:
+                self.robot_skeleton.joints[-3].set_position_upper_limit(0, 0.0)
+                self.robot_skeleton.joints[-3].set_position_lower_limit(0, -2.61799)
             else:
-                self.param_manager.set_simulator_parameters([0.3])
-                self.state_index = 0
+                self.robot_skeleton.joints[-3].set_position_upper_limit(0, 2.61799)
+                self.robot_skeleton.joints[-3].set_position_lower_limit(0, 0.0)
 
         self.state_action_buffer = [] # for UPOSI
 
