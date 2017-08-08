@@ -22,7 +22,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
-        self.split_task_test = False
+        self.split_task_test = True
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -191,7 +191,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             reward *= 0.5
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
-                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
+                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id, 'state_index':self.state_index}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -266,10 +266,10 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         if self.split_task_test:
             flip = np.random.random()
             if flip > 0.5:
-                self.param_manager.set_simulator_parameters([0.7])
+                self.param_manager.set_simulator_parameters([0.8])
                 self.state_index = 1
             else:
-                self.param_manager.set_simulator_parameters([0.3])
+                self.param_manager.set_simulator_parameters([0.2])
                 self.state_index = 0
 
         self.state_action_buffer = [] # for UPOSI

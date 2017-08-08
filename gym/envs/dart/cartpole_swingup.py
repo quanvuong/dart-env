@@ -7,20 +7,20 @@ from gym.envs.dart.parameter_managers import CartPoleManager
 import os
 import joblib
 
-class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
+class DartCartPoleSwingUpEnv(dart_env.DartEnv):
     def __init__(self):
         self.control_bounds = np.array([[1.0],[-1.0]])
         self.action_scale = np.array([40])
-        self.train_UP = True
+        self.train_UP = False
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.avg_div = 2
+        self.avg_div = 0
         self.param_manager = CartPoleManager(self)
         self.cur_step = 0
-        
+
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_jug_sd9_mass_2seg.pkl'))
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_jug_sd9_mass_2seg.pkl'))
        
         obs_dim = 4
         if self.train_UP:
@@ -28,7 +28,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_mp_sel:
             obs_dim += 5
 
-        self.juggling = True
+        self.juggling = False
         if self.juggling:
             obs_dim += 4
             self.action_scale *= 2
@@ -46,7 +46,6 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.skeletons[1].bodynodes[0].set_friction_coeff(0.2)
         self.dart_world.skeletons[1].bodynodes[0].set_restitution_coeff(0.7)
         self.dart_world.skeletons[-1].bodynodes[-1].set_restitution_coeff(0.7)
-        utils.EzPickle.__init__(self)
 
     def _step(self, a):
         #if a[0] > self.control_bounds[0][0] or a[0] < self.control_bounds[1][0]:
@@ -154,7 +153,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'state_act': state_act, 'next_state':self.state_vector()-state_pre
-                                  , 'dyn_model_id':self.dyn_model_id}
+                                  , 'dyn_model_id':self.dyn_model_id, 'state_index':np.random.randint(2)}
 
 
     def _get_obs(self):
@@ -178,6 +177,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, [self.rand]])
 
         if self.avg_div > 1:
+            # naive split
+            if np.abs(ang_proc) < np.pi:
+                self.state_index = 1
+            else:
+                self.state_index = 0
+
             return_state = np.zeros(len(state) + self.avg_div)
             return_state[0:len(state)] = state
             return_state[len(state) + self.state_index] = 1.0
@@ -202,6 +207,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.current_param = self.param_manager.get_simulator_parameters()
         self.state_index = self.dyn_model_id
+
 
         if self.train_UP:
             self.state_index = 0

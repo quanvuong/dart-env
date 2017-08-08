@@ -24,7 +24,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd7_3seg_vanillagradient_unweighted_1200start.pkl'))
+        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd11_100start_3seg_unweighted_vanillagrad.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
