@@ -8,13 +8,13 @@ import copy
 
 import joblib, os
 
-class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopperBackPackEnv(dart_env.DartEnv):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = True
         self.noisy_input = False
-        self.avg_div = 3
+        self.avg_div = 0
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -24,7 +24,8 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd11_100start_3seg_unweighted_vanillagrad.pkl'))
+
+        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_backpack_slope_sd7_3seg_vanillagradient_unweighted_1200start.pkl'))
 
         #self.param_manager.sampling_selector = upselector
         #self.param_manager.selector_target = 2
@@ -41,7 +42,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         self.base_path = None
         self.transition_locator = None
         self.baseline = None
-
+        self.split_task_test = True
         self.total_dist = []
 
         dart_env.DartEnv.__init__(self, 'hopper_backpack.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
@@ -56,7 +57,6 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager.set_simulator_parameters([1.0])
         self.param_manager.controllable_param = curcontparam'''
 
-        utils.EzPickle.__init__(self)
 
 
     def advance(self, a):
@@ -200,7 +200,7 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
             reward = 0
 
         return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
-                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id}
+                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id, 'state_index':self.state_index}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -270,6 +270,15 @@ class DartHopperBackPackEnv(dart_env.DartEnv, utils.EzPickle):
                     self.state_index = 3
             if self.upselector is not None:
                 self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
+
+        if self.split_task_test:
+            flip = np.random.random()
+            if flip > 0.5:
+                self.param_manager.set_simulator_parameters([0.99])
+                self.state_index = 1
+            else:
+                self.param_manager.set_simulator_parameters([0.01])
+                self.state_index = 0
 
         self.state_action_buffer = [] # for UPOSI
 

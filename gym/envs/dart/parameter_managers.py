@@ -21,8 +21,8 @@ class hopperContactMassManager:
         self.foot_mass_range = [2.0, 25.0]
         self.power_range = [150, 320]
         self.ankle_range = [40, 300]
-        self.activated_param = [2]
-        self.controllable_param = [2]
+        self.activated_param = [2, 5]
+        self.controllable_param = [2, 5]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -89,8 +89,8 @@ class hopperBackPackManager:
         self.simulator = simulator
         self.range = [0.0, 60.0] # backpack mass range
         self.slope = [-0.5, 0.5]
-        self.activated_param = [1]
-        self.controllable_param = [1]
+        self.activated_param = [0]
+        self.controllable_param = [0]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
