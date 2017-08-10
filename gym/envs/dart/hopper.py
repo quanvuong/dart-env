@@ -24,7 +24,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         self.split_task_test = True
 
-        self.split_tasks = [[0, 0, 0], [1, 1, 1]] # torso mass, ankle strength, torso limit
+        self.split_tasks = [[0.0, 0.6, 1], [0.6, 0.6, 1]] # torso mass, ankle strength, torso limit
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -145,8 +145,8 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = 0.6*(posafter - posbefore) / self.dt
-        if self.state_index == 1:
-            reward *= -1
+        #if self.state_index == 1:
+        #    reward *= -1
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
@@ -154,7 +154,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         #print(abs(ang))
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > .7) and (height < 1.8) and (abs(ang) < .4))
+                    (height > .7) and (abs(ang) < .4))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
 
@@ -277,8 +277,9 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         if self.split_task_test:
             self.state_index = np.random.randint(len(self.split_tasks))
-            self.param_manager.set_simulator_parameters(np.array(self.split_tasks[self.state_index])[0:2])
-            if self.split_tasks[self.state_index][2] == 0:
+            self.state_index = 0
+            self.param_manager.set_simulator_parameters(np.array(self.split_tasks[self.state_index])[0:-1])
+            if self.split_tasks[self.state_index][-1] < 0.5:
                 self.robot_skeleton.joints[-3].set_position_upper_limit(0, 0.0)
                 self.robot_skeleton.joints[-3].set_position_lower_limit(0, -2.61799)
             else:
