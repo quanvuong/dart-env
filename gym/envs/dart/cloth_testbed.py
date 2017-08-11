@@ -37,7 +37,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.gripper = None
 
         #SPD control
-        self.useSPD = True
+        self.useSPD = False
         self.q_target = None #set in reset()
         self.Kp_scale = 800.0  # default params
         self.timeStep = 0.04  # default params
@@ -46,12 +46,54 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.Kp = None
         self.totalTime = 0.
 
-        self.enforceTauLimits = False
+        self.enforceTauLimits = True
         self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
+        self.tau_limits[0][0] = -250
+        self.tau_limits[1][0] = 250
+        self.tau_limits[0][1] = -250
+        self.tau_limits[1][1] = 250
+        self.tau_limits[0][2] = -250
+        self.tau_limits[1][2] = 250
+
+        self.tau_limits[0][3] = -150
+        self.tau_limits[1][3] = 150
+        self.tau_limits[0][4] = -150
+        self.tau_limits[1][4] = 150
+        self.tau_limits[0][5] = -60
+        self.tau_limits[1][5] = 60
+        self.tau_limits[0][6] = -60
+        self.tau_limits[1][6] = 60
+        self.tau_limits[0][7] = -50
+        self.tau_limits[1][7] = 50
+        self.tau_limits[0][8] = -50
+        self.tau_limits[1][8] = 50
+
+        self.tau_limits[0][11] = -150
+        self.tau_limits[1][11] = 150
+        self.tau_limits[0][12] = -150
+        self.tau_limits[1][12] = 150
+        self.tau_limits[0][13] = -60
+        self.tau_limits[1][13] = 60
+        self.tau_limits[0][14] = -60
+        self.tau_limits[1][14] = 60
+        self.tau_limits[0][15] = -50
+        self.tau_limits[1][15] = 50
+        self.tau_limits[0][16] = -50
+        self.tau_limits[1][16] = 50
+
+        self.action_scale = np.array(self.tau_limits[1])
 
         self.graphTau = False
+        self.tauGraphDof = 4 #if not none, graph only one dof
         if self.graphTau:
-            self.linegraph = pyutils.LineGrapher(title="||Tau||")
+            self.tauGraph = pyutils.LineGrapher(title="||Tau||")
+
+        self.graphError = False
+        self.errorGraphDof = 4 # if not none, graph only one dof
+        if self.graphError:
+            self.errorGraph = pyutils.LineGrapher(title="||Error||")
+
+        #self.graphTimerGraph = pyutils.LineGrapher(title="Graph Time")
 
         #interactive handle mode
         self.interactiveHandleNode = False
@@ -106,7 +148,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.reset_number = 0  # increments on env.reset()
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -229,11 +271,22 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         done = False
 
         #graphing force
+        #starttime = time.time()
         if self.graphTau and self.reset_number > 0:
-            self.linegraph.addToLinePlot(data=[[np.linalg.norm(tau)]])
+            if self.tauGraphDof is None:
+                self.tauGraph.addToLinePlot(data=[np.linalg.norm(tau)])
+            else:
+                self.tauGraph.addToLinePlot(data=[tau[self.tauGraphDof]])
 
+        if self.graphError and self.reset_number > 0:
+            dif = self.robot_skeleton.q - self.q_target
+            if self.errorGraphDof is None:
+                self.errorGraph.addToLinePlot(data=[np.linalg.norm(dif)])
+            else:
+                self.errorGraph.addToLinePlot(data=[dif[self.errorGraphDof]])
         self.numSteps += 1
         #endtime = time.time()
+        #self.graphTimerGraph.addToLinePlot(data=[endtime-starttime])
         #self.totalTime += ((endtime - starttime) * 1000)
         #self.timeGraph.addToLinePlot(data=[(endtime - starttime) * 1000])
         #self.IK()
@@ -285,7 +338,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
  -0.8429895,   1.50691939,  1.28366487,  0.54321876, -0.36126751,  0.11050672,
  -0.12107801, -1.6634833,   1.03492742,  1.512525,    0.22033149,  0.48043698,
   0.28899992,  0.15556353, -0.02484711,  0.19311922]
-        #self.ikLines.append(pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.q_target))
+        self.ikLines.append(pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.q_target))
 
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 1., 0.])))
@@ -293,7 +346,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
 
-        #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
+        self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
         self.clothScene.setSelfCollisionDistance(0.025)
 
         #load cloth state from ~/Documents/dev/objFile.obj
@@ -315,7 +368,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.ikRestPose[6] += 1.0
 
         self.handleNode.clearHandles()
-        self.handleNode.addVertices(verts=[570, 1041, 993, 1185, 285, 1056, 283, 958, 905, 711, 435, 992, 50, 935, 489, 787, 327, 362, 676, 842, 873, 887, 54, 55])
+        #self.handleNode.addVertices(verts=[570, 1041, 993, 1185, 285, 1056, 283, 958, 905, 711, 435, 992, 50, 935, 489, 787, 327, 362, 676, 842, 873, 887, 54, 55])
         #self.handleNode.addVertices(verts=[468, 1129, 975, 354, 594, 843, 654, 682, 415, 378, 933, 547, 937, 946, 763, 923, 2395, 2280, 2601, 2454])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
@@ -499,131 +552,14 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
             for i in range(self.clothScene.getNumHapticSensors()):
                 self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
             textX += 160
-        
-        #draw 2d HUD setup
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glOrtho(0, m_viewport[2], 0, m_viewport[3], -1, 1)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glDisable(GL.GL_CULL_FACE);
-        #GL.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        
-        #draw the load bars
-        if self.renderDofs:
-            #draw the load bar outlines
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
-            GL.glColor3d(0,0,0)
-            GL.glBegin(GL.GL_QUADS)
-            for i in range(len(self.robot_skeleton.q)):
-                y = 58+18.*i
-                x0 = 120+70
-                x1 = 210+70
-                GL.glVertex2d(x0, y)
-                GL.glVertex2d(x0, y+15)
-                GL.glVertex2d(x1, y+15)
-                GL.glVertex2d(x1, y)
-            GL.glEnd()
-            #draw the load bar fills
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-            for i in range(len(self.robot_skeleton.q)):
-                qlim = self.limits(i)
-                qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
 
-                '''
-                #testing
-                qrest = (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0])
-                qrestDistance = abs(qfill - qrest)
-                #done
-                '''
+        if self.numSteps > 0:
+            renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.q_target, renderRestPose=True)
 
-                y = 58+18.*i
-                x0 = 121+70
-                x1 = 209+70
-                x = LERP(x0,x1,qfill)
-                xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
-                GL.glColor3d(0,2,3)
+        self.clothScene.drawText(x=15., y=30., text="Time = " + str(self.numSteps * 0.04), color=(0., 0, 0))
+        self.clothScene.drawText(x=15 , y=45., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
 
-                '''
-                #testing
-                if qrestDistance < 0.01:
-                    GL.glColor3d(0,3,0)
-                elif qrestDistance < 0.05:
-                    GL.glColor3d(0,3,2)
-                elif qrestDistance > 0.2:
-                    GL.glColor3d(3,1,1)
-                #done
-                '''
-
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x0, y+1)
-                GL.glVertex2d(x0, y+14)
-                GL.glVertex2d(x, y+14)
-                GL.glVertex2d(x, y+1)
-                GL.glEnd()
-                GL.glColor3d(2,0,0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(xz-1, y+1)
-                GL.glVertex2d(xz-1, y+14)
-                GL.glVertex2d(xz+1, y+14)
-                GL.glVertex2d(xz+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,2)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x-1, y+1)
-                GL.glVertex2d(x-1, y+14)
-                GL.glVertex2d(x+1, y+14)
-                GL.glVertex2d(x+1, y+1)
-                GL.glEnd()
-
-                '''
-                #testing
-                rpx = LERP(x0, x1, (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0]))
-                GL.glColor3d(0, 2, 0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(rpx - 1, y + 1)
-                GL.glVertex2d(rpx - 1, y + 14)
-                GL.glVertex2d(rpx + 2, y + 14)
-                GL.glVertex2d(rpx + 2, y + 1)
-                GL.glEnd()
-                #done
-                '''
-
-                GL.glColor3d(0,0,0)
-                
-                textPrefix = "||q[" + str(i) + "]|| = "
-                if i < 10:
-                    textPrefix = "||q[0" + str(i) + "]|| = "
-                    
-                self.clothScene.drawText(x=30, y=60.+18*i, text=textPrefix + '%.2f' % qlim[0], color=(0.,0,0))
-                self.clothScene.drawText(x=x0, y=60.+18*i, text='%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
-
-        self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
-
-        #f = self.clothScene.getHapticSensorObs()
-        f = np.zeros(66)
-        maxf_mag = 0
-
-        for i in range(int(len(f)/3)):
-            fi = f[i*3:i*3+3]
-            #print(fi)
-            mag = np.linalg.norm(fi)
-            #print(mag)
-            if mag > maxf_mag:
-                maxf_mag = mag
-        #exit()
-        #self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
-        #self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
-        #if self.numSteps > 0:
         #    self.clothScene.drawText(x=15, y=620., text='Average SPD time = %.2f' % float(self.totalTime/self.reset_number), color=(0., 0, 0))
-
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPopMatrix()
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPopMatrix()
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)

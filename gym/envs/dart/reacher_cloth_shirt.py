@@ -158,8 +158,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
         
         self.clothScene.seedRandom(random.randint(1,1000))
-        #self.clothScene.setFriction(0, 0.4)
-        self.clothScene.setFriction(0, 0.0)
+        self.clothScene.setFriction(0, 0.4)
+        #self.clothScene.setFriction(0, 0.0)
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
@@ -663,6 +663,22 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        '''GL.glBegin(GL.GL_POLYGON)
+        GL.glVertex3d(-0.53636903, 0.0341332, -0.0731871)
+        GL.glVertex3d(-0.54120499, 0.038279, -0.0522403)
+        GL.glVertex3d(-0.53161001, 0.0271241, -0.0933676)
+        GL.glVertex3d(-0.50181198, -0.138647,   -0.0973828)
+        GL.glVertex3d(-0.49843001, -0.167151,   -0.0937369)
+        #GL.glVertex3d(-0.47647399, -0.174687, -0.0643502)
+        GL.glVertex3d(-0.50627899, -0.175074, -0.0748381)
+        GL.glVertex3d(-0.51507902, -0.14102399, -0.0483567)
+        GL.glVertex3d(-0.52044398, -0.0982356, -0.0367543)
+        GL.glVertex3d(-0.52189898, -0.0590227, -0.0141631)
+        GL.glVertex3d(-0.527426, -0.0366101, -0.00950058)
+        GL.glVertex3d(-0.53686303, 0.00799755, -0.0190606)
+        GL.glVertex3d(-0.54120499, 0.038279, -0.0522403)
+        GL.glEnd()'''
 
         #render the vertrex handleNode(s)/Handle(s)
         if self.handleNode is not None:

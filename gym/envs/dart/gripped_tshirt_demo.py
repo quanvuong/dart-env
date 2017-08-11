@@ -21,10 +21,17 @@ import OpenGL.GLUT as GLUT
 
 class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
+        self.target = np.array([0.8, -0.6, 0.6])
+        self.targetInObs = True
+        self.arm = 1  # 0 both, 1 right, 2 left
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
+
+        if self.arm > 0:
+            self.action_scale = np.ones(11) * 10
+            self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
         self.numSteps = 0 #increments every step, 0 on reset
 
@@ -33,7 +40,7 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         self.gripper = None
 
         #SPD control
-        self.useSPD = True
+        self.useSPD = False
         self.q_target = None #set in reset()
         self.Kp_scale = 800.0  # default params
         self.timeStep = 0.04  # default params
@@ -43,6 +50,8 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
 
         self.enforceTauLimits = False
         self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
+        if self.arm > 0:
+            self.tau_limits = [np.ones(11) * -10, np.ones(11) * 10]
 
         self.graphTau = False
         if self.graphTau:
@@ -90,7 +99,10 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
+                                        #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
+                                        #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
+                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
+                                        #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
         clothScene.togglePinned(0,0) #turn off auto-pin
@@ -99,8 +111,12 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
 
         self.reset_number = 0  # increments on env.reset()
 
+        observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
+        if self.targetInObs:
+            observation_size += 6 #target reaching
+
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -145,6 +161,15 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         
     def loadObjState(self):
         self.clothScene.loadObjState("objState", 0)
+
+    def hemisphereSample(self, maxradius=1., minradius = 0., norm=np.array([0,0,1.]), frustrum = 0.7):
+        p = norm
+        while True:
+            p = self.np_random.uniform(low=-maxradius, high=maxradius, size=3)
+            p_n = np.linalg.norm(p)
+            if p_n <= maxradius and p_n >= minradius:
+                if(np.dot(p/p_n, norm) > frustrum):
+                    return p
 
     def _step(self, a):
         if self.reset_number < 1:
@@ -203,6 +228,10 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             tau = np.maximum(np.minimum(self.tau_limits[1], tau), self.tau_limits[0])
 
         #apply action and simulate
+        if self.arm == 1:
+            tau = np.concatenate([tau, np.zeros(11)])
+        elif self.arm == 2:
+            tau = np.concatenate([tau[:3], np.zeros(9), tau[3:], np.zeros(3)])
         self.do_simulation(tau, self.frame_skip)
 
         reward = 0
@@ -229,14 +258,23 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         '''get_obs'''
         f_size = 66
         theta = self.robot_skeleton.q
+        fingertip = np.array([0.0, -0.06, 0.0])
 
         if self.simulateCloth is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation
         else:
             f = np.zeros(f_size)
 
-        #obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
-        obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
+        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
+        if self.targetInObs:
+            vec = None
+            if self.arm == 1:
+                vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
+            else:
+                vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
+            obs = np.concatenate([obs, vec, self.target]).ravel()
+        obs = np.concatenate([obs, f]).ravel()
+        #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
         return obs
 
     def reset_model(self):
@@ -247,12 +285,24 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         self.dart_world.reset()
         self.clothScene.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
-        qpos = [  2.18672993e-03,  -4.72069042e-03,  -1.13570380e-02,   1.49440348e-02,
+        #first try: couples with tshirt_regrip1.obj
+        '''qpos = [  2.18672993e-03,  -4.72069042e-03,  -1.13570380e-02,   1.49440348e-02,
    1.29127624e-02,  -1.14191071e-02,   6.39350903e-03,  -2.15463769e-03,
   -8.75123999e-03,   1.12041144e-02,  -3.17658842e-02,  -1.11111111e-02,
    8.33333333e-02,   1.16666667e-01,   1.12604700e+00,   6.30000000e-01,
    1.38555556e+00,   6.00000000e-01,  -7.23481822e-02,  -7.26463958e-03,
-  -8.24054408e-03,  -1.29043413e-03] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+  -8.24054408e-03,  -1.29043413e-03] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+        #2nd pose: couples with tshirt_regrip2.obj
+        '''qpos = [0.0119845464534, -0.0148237339287, 0.00114245295676, 0.116666666667, -0.25, -0.326666666667,
+                0.360326294171, 2.1, 2.9, -0.00347161244598, -0.0439589287717, -0.0236843580476, 0.0709439334176,
+                0.053095524649, 1.15934253669, 0.626036755784, 1.71154787065, 0.600289882587, -0.0740444449891,
+                -0.0163328396778, 0.00592014136357, -0.00843219489643] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+
+        qpos = [0.123146842221, -0.0289355342829, 0.0228754335829, 0.178160667409, -0.232380860117, -0.92466391357,
+         0.799702454732, 2.1, 2.8925789487, -0.00872324714354, -0.0501696842966, 0.00447277300298, 0.0888644449976,
+         0.0648296316731, 1.17563923517, 0.641600883822, 1.69865162075, 0.612304711936, -0.0668473720041,
+         -0.0071334969361, -0.00759981159759, -0.0168213446051] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
@@ -277,9 +327,14 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
         self.clothScene.setSelfCollisionDistance(0.025)
 
-
-        #load cloth state from ~/Documents/dev/objFile.obj
-        #self.clothScene.loadObjState()
+        #reset reacher target from hemisphere
+        reacher_range = 1.1
+        hemisphereDir = np.array([-1.0,0,0])
+        if self.arm == 2:
+            hemisphereDir = np.array([1.0, 0, 0])
+        self.target = self.hemisphereSample(maxradius=reacher_range, minradius=0.9, norm=hemisphereDir)
+        if self.targetInObs:
+            self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -291,13 +346,13 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.refreshMotionConstraints()
         #self.clothScene.refreshCloth()
         #self.clothScene.clearInterpolation()
-        self.dart_world.skeletons[0].q = [0, 0, 0, self.ikTarget[0], self.ikTarget[1], self.ikTarget[2]]
+        #self.dart_world.skeletons[0].q = [0, 0, 0, self.ikTarget[0], self.ikTarget[1], self.ikTarget[2]]
         self.ikRestPose = np.array(self.robot_skeleton.q)
         self.ikRestPose[8] += 2.5 #elbow bend
         self.ikRestPose[6] += 1.0
 
         self.handleNode.clearHandles()
-        self.handleNode.addVertices(verts=[570, 1041, 993, 1185, 285, 1056, 283, 958, 905, 711, 435, 992, 50, 935, 489, 787, 327, 362, 676, 842, 873, 887, 54, 55])
+        self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
         #self.handleNode.addVertices(verts=[468, 1129, 975, 354, 594, 843, 654, 682, 415, 378, 933, 547, 937, 946, 763, 923, 2395, 2280, 2601, 2454])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
@@ -430,6 +485,22 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        '''GL.glBegin(GL.GL_POLYGON)
+        GL.glVertex3d(-0.53636903, 0.0341332, -0.0731871)
+        GL.glVertex3d(-0.54120499, 0.038279, -0.0522403)
+        GL.glVertex3d(-0.53161001, 0.0271241, -0.0933676)
+        GL.glVertex3d(-0.50181198, -0.138647, -0.0973828)
+        GL.glVertex3d(-0.49843001, -0.167151, -0.0937369)
+        # GL.glVertex3d(-0.47647399, -0.174687, -0.0643502)
+        GL.glVertex3d(-0.50627899, -0.175074, -0.0748381)
+        GL.glVertex3d(-0.51507902, -0.14102399, -0.0483567)
+        GL.glVertex3d(-0.52044398, -0.0982356, -0.0367543)
+        GL.glVertex3d(-0.52189898, -0.0590227, -0.0141631)
+        GL.glVertex3d(-0.527426, -0.0366101, -0.00950058)
+        GL.glVertex3d(-0.53686303, 0.00799755, -0.0190606)
+        GL.glVertex3d(-0.54120499, 0.038279, -0.0522403)
+        GL.glEnd()'''
+
         #links = pyutils.getRobotLinks(self.robot_skeleton)
         GL.glBegin(GL.GL_LINES)
         for iter in self.ikLines:
@@ -481,128 +552,8 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
             textX += 160
         
-        #draw 2d HUD setup
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glOrtho(0, m_viewport[2], 0, m_viewport[3], -1, 1)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glDisable(GL.GL_CULL_FACE);
-        #GL.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        
-        #draw the load bars
-        if self.renderDofs:
-            #draw the load bar outlines
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
-            GL.glColor3d(0,0,0)
-            GL.glBegin(GL.GL_QUADS)
-            for i in range(len(self.robot_skeleton.q)):
-                y = 58+18.*i
-                x0 = 120+70
-                x1 = 210+70
-                GL.glVertex2d(x0, y)
-                GL.glVertex2d(x0, y+15)
-                GL.glVertex2d(x1, y+15)
-                GL.glVertex2d(x1, y)
-            GL.glEnd()
-            #draw the load bar fills
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-            for i in range(len(self.robot_skeleton.q)):
-                qlim = self.limits(i)
-                qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
+        renderUtils.renderDofs(self.robot_skeleton, restPose=None, renderRestPose=False)
 
-                '''
-                #testing
-                qrest = (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0])
-                qrestDistance = abs(qfill - qrest)
-                #done
-                '''
-
-                y = 58+18.*i
-                x0 = 121+70
-                x1 = 209+70
-                x = LERP(x0,x1,qfill)
-                xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
-                GL.glColor3d(0,2,3)
-
-                '''
-                #testing
-                if qrestDistance < 0.01:
-                    GL.glColor3d(0,3,0)
-                elif qrestDistance < 0.05:
-                    GL.glColor3d(0,3,2)
-                elif qrestDistance > 0.2:
-                    GL.glColor3d(3,1,1)
-                #done
-                '''
-
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x0, y+1)
-                GL.glVertex2d(x0, y+14)
-                GL.glVertex2d(x, y+14)
-                GL.glVertex2d(x, y+1)
-                GL.glEnd()
-                GL.glColor3d(2,0,0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(xz-1, y+1)
-                GL.glVertex2d(xz-1, y+14)
-                GL.glVertex2d(xz+1, y+14)
-                GL.glVertex2d(xz+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,2)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x-1, y+1)
-                GL.glVertex2d(x-1, y+14)
-                GL.glVertex2d(x+1, y+14)
-                GL.glVertex2d(x+1, y+1)
-                GL.glEnd()
-
-                '''
-                #testing
-                rpx = LERP(x0, x1, (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0]))
-                GL.glColor3d(0, 2, 0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(rpx - 1, y + 1)
-                GL.glVertex2d(rpx - 1, y + 14)
-                GL.glVertex2d(rpx + 2, y + 14)
-                GL.glVertex2d(rpx + 2, y + 1)
-                GL.glEnd()
-                #done
-                '''
-
-                GL.glColor3d(0,0,0)
-                
-                textPrefix = "||q[" + str(i) + "]|| = "
-                if i < 10:
-                    textPrefix = "||q[0" + str(i) + "]|| = "
-                    
-                self.clothScene.drawText(x=30, y=60.+18*i, text=textPrefix + '%.2f' % qlim[0], color=(0.,0,0))
-                self.clothScene.drawText(x=x0, y=60.+18*i, text='%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
-
-        self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
-        #f = self.clothScene.getHapticSensorObs()
-        f = np.zeros(66)
-        maxf_mag = 0
-
-        for i in range(int(len(f)/3)):
-            fi = f[i*3:i*3+3]
-            #print(fi)
-            mag = np.linalg.norm(fi)
-            #print(mag)
-            if mag > maxf_mag:
-                maxf_mag = mag
-        #exit()
-        self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
-        self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
-
-
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPopMatrix()
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPopMatrix()
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)

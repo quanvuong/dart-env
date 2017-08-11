@@ -23,7 +23,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.randomActiveTarget = False #if true, 1/4 chance of both active, neither, either 1 or 2
         self.arm = 1 #if 1, left arm (character's perspective), if 2, right
 
-        self.sensorNoise = 0.1
+        self.sensorNoise = 0.0
         self.stableReacher = True #if true, no termination reward for touching the target (must hover instead)
 
         #storage of rewards from previous step for rendering
@@ -44,7 +44,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.restPoseReward = 0
         self.usePoseTarget = False #if true, rest pose is given in policy input
 
-        self.interactiveTarget = True
+        self.interactiveTarget = False
 
         #5 dof reacher
         #self.action_scale = np.array([10, 10, 10, 10, 10])
@@ -60,6 +60,30 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         
         #22 dof upper body
         self.action_scale = np.ones(11)*10
+
+        self.action_scale[0] = 250 #torso
+        self.action_scale[1] = 250
+        self.action_scale[2] = 250 #spine
+        self.action_scale[3] = 150 #clav
+        self.action_scale[4] = 150
+        self.action_scale[5] = 60 #shoulder
+        self.action_scale[6] = 60
+        self.action_scale[7] = 50
+        self.action_scale[8] = 50 #elbow
+        self.action_scale[9] = 10  #wrist
+        self.action_scale[10] = 10
+        '''self.action_scale[11] = 150 #clav
+        self.action_scale[12] = 150
+        self.action_scale[13] = 60 #shoulder
+        self.action_scale[14] = 60
+        self.action_scale[15] = 50
+        self.action_scale[16] = 50 #elbow
+        self.action_scale[17] = 10 #wrist
+        self.action_scale[18] = 10
+        self.action_scale[19] = 10 #neck/head
+        self.action_scale[20] = 10
+        self.action_scale[21] = 10'''
+
         self.control_bounds = np.array([np.ones(11), np.ones(11)*-1])
         
         #autoT(au) is applied force at every step
@@ -79,7 +103,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
         
         #intialize the parent env
-        observation_size = 66+66 #pose, pose vel, haptics
+        observation_size = 66+66 #pose(sin,cos), pose vel, haptics
         if self.targetActive1 is True:
             observation_size += 6
         if self.targetActive2 is True:
@@ -129,7 +153,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.clothScene.seedRandom(random.randint(1,1000))
         self.clothScene.setFriction(0, 1)
         
-        self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
+        #self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
         self.simulateCloth = False
         self.sampleFromHemisphere = False
@@ -312,7 +336,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         reward_dist = reward_dist1 + reward_dist2
         
         #force magnitude penalty    
-        reward_ctrl = - np.square(tau).sum() * 0.001
+        reward_ctrl = - np.square(tau).sum() * 0.00005
         
         #displacement toward target reward
         reward_progress1 = 0
@@ -362,7 +386,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         s = self.state_vector()
         
         #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
+        #self.updateClothCollisionStructures(hapticSensors=True)
         
         #check cloth deformation for termination
         clothDeformation = 0
@@ -506,7 +530,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
                 self.targetActive1 = True
                 self.targetActive2 = True
             elif r < 0.5:
-                self.targetActive1 = Falsenp.linalg.norm(self.restPose - self.robot_skeleton.q)
+                self.targetActive1 = False
                 self.targetActive2 = False
             elif r < 0.75:
                 self.targetActive1 = True
@@ -517,7 +541,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         
         #old sampling in box
         #'''
-        reacher_range = 0.85
+        reacher_range = 1.0
         if not self.sampleFromHemisphere:
             if self.targetActive1:
                 while True:
@@ -549,8 +573,8 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
         #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
-        self.clothScene.clearInterpolation()
+        #self.updateClothCollisionStructures(hapticSensors=True)
+        #self.clothScene.clearInterpolation()
 
         #debugging
         self.reset_number += 1

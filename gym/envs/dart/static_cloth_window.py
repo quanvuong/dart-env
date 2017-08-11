@@ -8,6 +8,8 @@ import numpy as np
 from pydart2.gui.opengl.scene import OpenGLScene
 from pydart2.gui.glut.window import *
 
+from pyPhysX.clothHandles import *
+
 from gym.envs.dart.static_window import *
 
 import pyPhysX.pyutils as pyutils
@@ -30,7 +32,8 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.camRight = np.array([1.,0.0,0])
         self.mouseLastPos = np.array([0,0])
         self.curInteractorIX = None #set an interactor class to change user interaction with the window
-        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)] #the list of available interactors
+        self.interactors = []
+        [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)] #the list of available interactors
         #self.interactors.append(BaseInteractor(self))
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
@@ -52,6 +55,9 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.window = GLUT.glutCreateWindow(self.title)
         if not _show_window:
             GLUT.glutHideWindow()
+
+        self.viewport = GL.glGetInteger(GL.GL_VIEWPORT)
+        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)]  # the list of available interactors
 
         GLUT.glutDisplayFunc(self.drawGL)
         GLUT.glutReshapeFunc(self.resizeGL)
@@ -311,8 +317,14 @@ class VertexSelectInteractor(BaseInteractor):
         self.viewer = viewer
         self.label = "Vertex Select Interactor"
         self.v_down = False
+        self.t_down = False
+        self.x_down = False
+        self.y_down = False
+        self.z_down = False
+        self.h_toggle = False #handle continuity toggle. When True, the handleNode will not auto destroy on mouse release
         self.selectedVertex = None
         self.selectedVertices = []
+        self.handleNode = None
 
     def keyboard(self, key, x, y):
         keycode = ord(key)
@@ -328,28 +340,80 @@ class VertexSelectInteractor(BaseInteractor):
                 if self.selectedVertex not in self.selectedVertices:
                     self.selectedVertices.append(self.selectedVertex)
             return
+        if keycode == 99:  # 'c'
+            self.selectedVertices = []
+            return
         if keycode == 102: #'f'
             self.viewer.clothScene.renderClothFill = not self.viewer.clothScene.renderClothFill
             print("renderClothFill = " + str(self.viewer.clothScene.renderClothFill))
+        if keycode == 104: #'h'
+            self.h_toggle = not self.h_toggle
+            if self.h_toggle is False:
+                self.destroyHandleNode()
         if keycode == 112:  # 'p'
             #print relevant info
             print("Selected Vertex = " + str(self.selectedVertex))
             print("Selected Vertices = " + str(self.selectedVertices))
+        if keycode == 116: #'t'
+            self.t_down = True
         if keycode == 118: #'v'
             self.v_down = True
         if keycode == 119: #'w'
             self.viewer.clothScene.renderClothWires = not self.viewer.clothScene.renderClothWires
             print("renderClothWires = " + str(self.viewer.clothScene.renderClothWires))
+        if keycode == 120:  # 'x'
+            self.x_down = True
+        if keycode == 121:  # 'y'
+            self.y_down = True
+        if keycode == 122:  # 'z'
+            self.z_down = True
         self.viewer.keyPressed(key, x, y)
 
     def keyboardUp(self, key, x, y):
         keycode = ord(key)
+        if keycode == 116: #'t'
+            self.t_down = False
         if keycode == 118: #'v'
             self.v_down = False
+        if keycode == 120:  # 'x'
+            self.x_down = False
+        if keycode == 121:  # 'y'
+            self.y_down = False
+        if keycode == 122:  # 'z'
+            self.z_down = False
+
+    def createHandleNodeFromSelected(self):
+        #weed out already pinned verts to avoid double pinning
+        newhandleverts = []
+        for v in self.selectedVertices:
+            if not self.viewer.clothScene.getPinned(cid=0, vid=v):
+                newhandleverts.append(v)
+
+        #also look at the currently selected vert
+        if self.selectedVertex is not None:
+            if not self.viewer.clothScene.getPinned(cid=0, vid=self.selectedVertex):
+                newhandleverts.append(self.selectedVertex)
+
+        if len(newhandleverts) > 0:
+            #create a HandleNode from any valid selected verts
+            self.handleNode = HandleNode(clothScene=self.viewer.clothScene)
+
+
+            self.handleNode.addVertices(verts=newhandleverts)
+            self.handleNode.setOrgToCentroid()
+
+    def destroyHandleNode(self):
+        #destroy the selected HandleNode
+        if self.handleNode is not None:
+            self.handleNode.clearHandles()
+        self.handleNode = None
 
     def click(self, button, state, x, y):
         tb = self.viewer.scene.tb
         if state == 0:  # Mouse pressed
+            if self.t_down or self.x_down or self.y_down or self.z_down:
+                if self.handleNode is None:
+                    self.createHandleNodeFromSelected()
             if button == 0:
                 self.viewer.mouseLButton = True
                 if self.v_down is True:
@@ -360,6 +424,8 @@ class VertexSelectInteractor(BaseInteractor):
                 self.viewer.mouseRButton = True
                 if self.v_down is True:
                     self.selectedVertex = self.viewer.clothScene.getCloseVertex(self.viewer.prevWorldMouse)
+                    if self.selectedVertex is not None:
+                        print("selected vertex " + str(self.selectedVertex) + " pos = " + str(self.viewer.clothScene.getVertexPos(cid=0, vid=self.selectedVertex)))
             self.viewer.mouseLastPos = np.array([x, y])
             if button == 3: #wheel up
                 if self.v_down is True:
@@ -371,6 +437,9 @@ class VertexSelectInteractor(BaseInteractor):
                             self.selectedVertex = self.viewer.clothScene.getNumVertices()-1
                     else:
                         self.selectedVertex = 0
+                elif self.t_down is True:
+                    self.handleNode.org = self.handleNode.org + self.viewer.camForward * 0.05
+                    self.handleNode.updateHandles()
                 else:
                     tb.trans[2] += 0.1
             elif button == 4: #wheel down
@@ -381,11 +450,16 @@ class VertexSelectInteractor(BaseInteractor):
                             self.selectedVertex = 0
                         elif self.selectedVertex < 0:
                             self.selectedVertex = self.viewer.clothScene.getNumVertices()-1
+                    elif self.t_down is True:
+                        self.handleNode.org = self.handleNode.org - self.viewer.camForward * 0.05
+                        self.handleNode.updateHandles()
                     else:
                         self.selectedVertex = self.selectedVertex = self.viewer.clothScene.getNumVertices()-1
                 else:
                     tb.trans[2] -= 0.1
         elif state == 1: #mouse released
+            if self.h_toggle is False:
+                self.destroyHandleNode()
             #self.mouseLastPos = None
             if button == 0:
                 self.viewer.mouseLButton = False
@@ -396,7 +470,61 @@ class VertexSelectInteractor(BaseInteractor):
         dx = x - self.viewer.mouseLastPos[0]
         dy = y - self.viewer.mouseLastPos[1]
 
-        if self.v_down is False:
+        if self.v_down is True:
+            a=0
+        elif self.t_down is True:
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                a = 0
+            elif self.viewer.mouseRButton is True:
+                # compute a rotation about camUp and camRight axiis
+                self.handleNode.applyAxisAngle(dx * (6.28 / 360.), self.viewer.camForward)
+                self.handleNode.applyAxisAngle(dy * (6.28 / 360.), self.viewer.camRight)
+                #self.handleNode.updateHandles()
+            elif self.viewer.mouseLButton is True:
+                # translate the frame org with camUp and camRight
+                self.handleNode.org = self.handleNode.org + dx * self.viewer.camRight * 0.001
+                self.handleNode.org = self.handleNode.org + dy * self.viewer.camUp * -0.001
+                #self.handleNode.updateHandles()
+        elif self.x_down is True:
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                a=0
+            elif self.viewer.mouseLButton is True:
+                rightX = np.array([1., 0, 0])
+                if self.viewer.camRight.dot(rightX) < 0:
+                    rightX *= -1
+                self.handleNode.org = self.handleNode.org + dx * rightX * 0.001
+                #self.handleNode.updateHandles()
+            elif self.viewer.mouseRButton is True:
+                #rotation about x
+                self.handleNode.applyLocalAxisAngle(dy*(6.28/360.), np.array([1.,0,0]))
+                #self.handleNode.updateHandles()
+        elif self.y_down is True:
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                a=0
+            elif self.viewer.mouseLButton is True:
+                upY = np.array([0, 1., 0])
+                if self.viewer.camUp.dot(upY) > 0:
+                    upY *= -1
+                self.handleNode.org = self.handleNode.org + dy * upY * 0.001
+                #self.handleNode.updateHandles()
+            elif self.viewer.mouseRButton is True:
+                #rotation about y
+                self.handleNode.applyLocalAxisAngle(dx * (6.28 / 360.), np.array([0., 1., 0]))
+                #self.handleNode.updateHandles()
+        elif self.z_down is True:
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                a=0
+            elif self.viewer.mouseLButton is True:
+                forwardZ = np.array([0, 0., 1.])
+                if self.viewer.camForward.dot(forwardZ) > 0:
+                    forwardZ *= -1
+                self.handleNode.org = self.handleNode.org + dy * forwardZ * 0.001
+                #self.handleNode.updateHandles()
+            elif self.viewer.mouseRButton is True:
+                # rotation about z
+                self.handleNode.applyLocalAxisAngle(dx * (6.28 / 360.), np.array([0., 0., 1.]))
+                #self.handleNode.updateHandles()
+        else:
             tb = self.viewer.scene.tb
             if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
                 tb.zoom_to(dx, -dy)
@@ -412,6 +540,12 @@ class VertexSelectInteractor(BaseInteractor):
         if self.v_down is True:
             GL.glColor3d(1,0,0)
         self.viewer.drawSphere(p=self.viewer.prevWorldMouse, r=0.01, solid=True)
+
+        if self.handleNode is not None:
+            self.handleNode.updateHandles()
+            self.handleNode.draw()
+        if self.h_toggle is True:
+            self.viewer.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 60, text="Handle Node is toggled On", color=(0., 0, 0))
 
         GL.glColor3d(0, 1, 0)
         for v in self.selectedVertices:
@@ -795,17 +929,28 @@ class PoseInteractor(BaseInteractor):
         self.label = "Pose DOF Interactor"
         self.boxRanges = [] #list of np array pairs: [[minx, maxx],[miny, maxy]]
         self.skelix = 1  # change this if the skel file changes
-        self.defineBoxRanges()
         self.selectedBox = None
+        self.boxesDefined = False
 
     def defineBoxRanges(self):
         #manually defined
-        #TODO: generalize this at some point
+        #These values are taken from pyPhysX.renderUtils.renderDofs()
         skel = self.viewer.sim.skeletons[self.skelix]
+        topLeft = np.array([2., self.viewer.viewport[3] - 10])
+        textWidth = 165.  # pixel width of the text
+        numWidth = 50.  # pixel width of the lower/upper bounds text
+        barWidth = 90.
+        barHeight = -15.
+        barSpace = -10.
+        #print("topLeft " + str(topLeft))
         for i in range(len(skel.q)):
-            self.boxRanges.append([[190, 280], [58+18.*i, 58+18.*i + 15]])
+            self.boxRanges.append([[topLeft[0] + textWidth + numWidth, topLeft[0] + textWidth + numWidth + barWidth], [topLeft[1] + (barHeight + barSpace) * i + barHeight, topLeft[1] + (barHeight + barSpace) * i]])
+        #print(self.boxRanges)
 
     def boxClickTest(self, point):
+        if not self.boxesDefined:
+            self.defineBoxRanges()
+            self.boxesDefined = True
         #return None if nothing hit, or the box/dof index of the clicked box
         point[1] = self.viewer.viewport[3] - point[1]
         for ix,b in enumerate(self.boxRanges):
@@ -890,3 +1035,31 @@ class PoseInteractor(BaseInteractor):
             print(dofstr)
             return
         self.viewer.keyPressed(key, x, y)
+
+    def contextRender(self):
+        if self.selectedBox is not None:
+            GL.glMatrixMode(GL.GL_PROJECTION)
+            GL.glPushMatrix()
+            GL.glLoadIdentity()
+            GL.glOrtho(0, self.viewer.viewport[2], 0, self.viewer.viewport[3], -1, 1)
+            GL.glMatrixMode(GL.GL_MODELVIEW)
+            GL.glPushMatrix()
+            GL.glLoadIdentity()
+            GL.glDisable(GL.GL_CULL_FACE)
+
+            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
+            GL.glColor3d(3., 3., 0)
+            GL.glBegin(GL.GL_QUADS)
+            b = self.boxRanges[self.selectedBox]
+            #for b in self.boxRanges:
+            GL.glVertex2d(b[0][0]-1, b[1][0]-1)
+            GL.glVertex2d(b[0][0]-1, b[1][1]+1)
+            GL.glVertex2d(b[0][1]+1, b[1][1]+1)
+            GL.glVertex2d(b[0][1]+1, b[1][0]-1)
+            GL.glEnd()
+            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
+            GL.glMatrixMode(GL.GL_PROJECTION)
+            GL.glPopMatrix()
+            GL.glMatrixMode(GL.GL_MODELVIEW)
+            GL.glPopMatrix()
+

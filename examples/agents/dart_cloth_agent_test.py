@@ -197,132 +197,49 @@ if __name__ == '__main__':
         print("saved the policy")
         exit()
     '''
-    #load from AWS trial policy.pkl
-    #policy = pickle.load( open(filename, "rb") )
 
     print("about to make")
 
     #construct env
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
-    #env = gym.make('DartClothReacher-v2') #one arm reacher
+    env = gym.make('DartClothReacher-v2') #one arm reacher
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env = gym.make('DartClothGownDemo-v1')
-    env = gym.make('DartClothTestbed-v1')
-    #env.render()
-    #time.sleep(4)
-    #print("done init")
-    #env.reset()
-    #env.render()
-    #time.sleep(1)
-    #Cloth sphere testing
-
-    #if filename is not None:
-    #    obj = pickle.load(open(filename, "rb"))
-    #    print(obj)
-    #    exit()
-
-        #with tf.Session() as sess:
-        #    data = joblib.load(filename)
-        #    policy = data['policy']
-        #    #loadenv = data['env']
-        #print(policy)
+    #env = gym.make('DartClothTestbed-v1')
+    #env = gym.make('DartClothGrippedTshirt-v1')
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
 
-    '''
-    #save the policy in JSON
-    print("Saving policy")
-    pyutils.GaussianMLPPolicy_toJSON(policy=policy, label="test save", description="This is the description text", filename="JSONtest")
-
-    #load the policy from JSON
-    print("Loading Policy")
-    pyutils.GaussianMLPPolicy_fromJSON(filename="JSONtest")
-    #TODO
-    exit()
-    '''
-
-    '''
-    ppos = np.array([0.1,0,0])
-    for i in range(1000):
-        #print("ppos = " + str(ppos))
-        a = ppos/(-np.linalg.norm(ppos))
-        #print("a = " + str(a))
-        ppos = env.step(a)[0][:3]
-        #print(env.step([0,0.98,0.1]))
-        env.render()
-    '''
-    '''        
-    for i in range(1000):
-        env.reset()
-        env.render()
-        time.sleep(0.5)
-        ppos = np.array([0.1,0,0])
-        for j in range(100):
-            a = ppos/(-np.linalg.norm(ppos))
-            ppos = env.step(a)[0][:3]
-            env.render()
-            time.sleep(0.1)
-        #time.sleep(0.5)
-    '''
     print("about to run")
     paused = False
     time.sleep(0.5)
-    #totalTime = 0
     for i in range(10000):
-        #print("about to reset")
         o = env.reset()
-        #print("done reset")
-        #print("v: " + str(o))
         env.render()
         #time.sleep(0.5)
-        #time.sleep(0.5)
-        rolloutHorizon = 100
+        rolloutHorizon = 500
+        #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            #a = np.array([0.,0.,0.,0.,0.])
-            a = np.zeros(22) #22 dof upper body
+            a = np.zeros(11) #22 dof upper body
             #a = np.ones(22)
-            #a[0] = 1
-            #a += np.random.uniform(-1,1,22)
-            '''if(i < 22):
-                a[i] += 1
-            elif(i<44):
-                a[i-22] -= 1'''
-            #a = np.array([0.0,0.0,0.0,0.0,-0.1,0.1,0.1,0.0,0.0]) #9 dofs for new arm
+            a += np.random.uniform(-1,1,11)
             if policy is not None:
                 a, a_info = policy.get_action(o)
-            #a = np.array([-1,-0,-0,-0,-0.])
-            #if j < 9999: #add this for voxel testing
             done = False
             if not paused:
                 s_info = env.step(a)
                 o = s_info[0]
-            #print(o)
                 done = s_info[2]
-            #print("o = " + str(o))
-            #time.sleep(0.1)
-            #if i > 3400:
-            #if j > 9999 or j < 100: #add this for voxel testing
-            #starttime = time.time()
             env.render()
-            #endtime = time.time()
-            #totalTime += (endtime - starttime) * 1000
-            #print("avg time = " + str(totalTime/(i*rolloutHorizon + j + 1)))
-            #if (j % 100) == 0:
-            #    print(j)
             if done is True:
                 time.sleep(0.5)
                 break
-            #exit()
-        #print("complete")
-        #time.sleep(5)
-            
-
     env.render(close=True)
     
 
