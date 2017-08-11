@@ -21,6 +21,7 @@ from gym.envs.dart.reacher_cloth_shirt import DartClothShirtReacherEnv
 from gym.envs.dart.posereacher_cloth import DartClothPoseReacherEnv
 from gym.envs.dart.cloth_testbed import DartClothTestbedEnv
 from gym.envs.dart.gown_dressing_demo import DartClothGownDemoEnv
+from gym.envs.dart.gripped_tshirt_demo import DartClothGrippedTshirtEnv
 
 from gym.envs.dart.walker2d import DartWalker2dEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv

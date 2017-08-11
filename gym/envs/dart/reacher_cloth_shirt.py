@@ -55,6 +55,18 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         self.handleNode = None
         self.gripper = None
 
+        #friction test variables
+        self. collectFrictionTestData = False
+        self.hapticsOn = True
+        self.lowestDistFile = "lowestdistances_haptics_reacher.txt"
+        self.maxDeformFile = "maxDeformation_haptics_reacher.txt"
+        self.runtimesFile = "runtimes_haptics_reacher.txt"
+        self.lowestDist = 9999.
+        self.maxDeform = 0
+        self.lowestDists = []
+        self.maxDeforms = []
+        self.runtimes = []
+
         #create cloth scene
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/test_sleeve_plane.obj", scale=1.6)
         #clothScene = pyphysx.ClothScene(step=0.01, mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj", scale=1.6)
@@ -122,7 +134,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         
         
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
         #                      observation_size=(66 + 66 + 6), action_bounds=self.control_bounds, visualize=False)
 
@@ -136,7 +148,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #self.handleNode.targetSpline.insert(t=2., p=np.array([0.25, 0.5, 0.5]))
         #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
         self.handleNode.setTranslation(np.array([0.0, 0.2, -0.75]))
-        self.handleNode.addVertices([112,113,114,115,116,117,186,187,188,189,190,191,192,193]) #collar
+        #self.handleNode.addVertices([112,113,114,115,116,117,186,187,188,189,190,191,192,193]) #collar
         #self.handleNode.addVertex(0)
         #self.handleNode.addVertex(30)
 
@@ -146,7 +158,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
         
         self.clothScene.seedRandom(random.randint(1,1000))
-        self.clothScene.setFriction(0, 0.4)
+        #self.clothScene.setFriction(0, 0.4)
+        self.clothScene.setFriction(0, 0.0)
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
@@ -269,6 +282,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         clothDeformation = 0
         if self.simulateCloth is True:
             clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+
+        if self.collectFrictionTestData:
+            targetDist = np.linalg.norm(vec2)
+            if targetDist < self.lowestDist:
+                self.lowestDist = targetDist
+            if clothDeformation > self.maxDeform:
+                self.maxDeform = clothDeformation
+
         
         #check termination conditions
         done = False
@@ -324,7 +345,8 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         else:
             f = np.zeros(f_size)
 
-        #f = np.zeros(f_size)
+        if self.hapticsOn is False:
+            f = np.zeros(f_size)
         #'''
         #f = np.zeros(f_size)
 
@@ -357,6 +379,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         '''reset_model'''
+        print("reset " + str(self.reset_number))
+        if self.collectFrictionTestData:
+            if self.reset_number > 0:
+                self.maxDeforms.append(self.maxDeform)
+                self.lowestDists.append(self.lowestDist)
+                self.runtimes.append(self.numSteps)
+        self.lowestDist = 9999.
+        self.maxDeform = 0
         self.inflaterT = 0
         self.numSteps = 0
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
@@ -365,7 +395,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         #1st sleeve start interpolation:
-        '''
+
         qpos[0] -= 0
         qpos[1] -= 0.
         qpos[2] += 0
@@ -381,7 +411,14 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         #qpos[9] += 0.6
         qpos[10] += 0.6
         #qpos[10] += 0.0
-        '''
+
+        if self.collectFrictionTestData and self.reset_number > 0:
+            if (self.reset_number)%10 == 0:
+                print("Setting friction to " + str(self.clothScene.getFriction()+0.05))
+                self.clothScene.setFriction(0, self.clothScene.getFriction()+0.05)
+            pyutils.saveList(list=self.maxDeforms, filename=self.maxDeformFile)
+            pyutils.saveList(list=self.lowestDists, filename=self.lowestDistFile)
+            pyutils.saveList(list=self.runtimes, filename=self.runtimesFile)
 
         '''
         self.interpolationStart = np.array(qpos)
@@ -475,7 +512,7 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             #self.clothScene.translateCloth(0, np.array([-0.042,-0.7,-0.035]))
         #self.clothScene.translateCloth(0, np.array([-0.75,0,0])) #shirt next to person
         #self.clothScene.translateCloth(0, np.array([-0., 1.0, 0]))  # shirt above to person
-        self.clothScene.translateCloth(0, np.array([-0., 0, -0.75]))  # shirt in front of person
+        #self.clothScene.translateCloth(0, np.array([-0., 0, -0.75]))  # shirt in front of person
         #self.clothScene.translateCloth(0, np.array([0,3.1,0]))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         #self.clothScene.rotateCloth(0, M)
@@ -778,8 +815,11 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
             if mag > maxf_mag:
                 maxf_mag = mag
         #exit()
-        self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
-        self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
+        #self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
+        #self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
+
+        self.clothScene.drawText(x=15, y=620., text='Best Target Distance: %.2f' % self.lowestDist, color=(0., 0, 0))
+        self.clothScene.drawText(x=15, y=640., text='Max Deformation: %.2f' % self.maxDeform, color=(0., 0, 0))
 
 
         GL.glMatrixMode(GL.GL_PROJECTION)
@@ -792,10 +832,11 @@ class DartClothShirtReacherEnv(DartClothEnv, utils.EzPickle):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
-        self.track_skeleton_id = 0
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+            self.track_skeleton_id = 0
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

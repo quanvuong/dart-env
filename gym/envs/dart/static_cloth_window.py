@@ -30,7 +30,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.camRight = np.array([1.,0.0,0])
         self.mouseLastPos = np.array([0,0])
         self.curInteractorIX = None #set an interactor class to change user interaction with the window
-        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self)] #the list of available interactors
+        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)] #the list of available interactors
         #self.interactors.append(BaseInteractor(self))
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
@@ -578,3 +578,315 @@ class FrameSelectInteractor(BaseInteractor):
         self.frame.draw()
 
         a = 0
+
+class IKInteractor(BaseInteractor):
+    # base interactor defining class standard methods
+    def __init__(self, viewer):
+        self.viewer = viewer
+        self.label = "Inverse Kinematics Select Interactor"
+        self.f_down = False
+        self.x_down = False
+        self.y_down = False
+        self.z_down = False
+        self.s_down = False #s_down for handle select
+        #inverse kinematics info
+        self.ikTargets = []
+        self.ikOffsets = []
+        self.ikNodes = []
+        self.selectedHandle = None
+        self.skelix = 1 #change this if the skel file changes
+
+    def key_down(self):
+        #check for all function key_down booleans
+        if self.f_down is True:
+            return True
+        if self.s_down is True:
+            return True
+        if self.x_down is True:
+            return True
+        if self.y_down is True:
+            return True
+        if self.z_down is True:
+            return True
+        return False
+
+    def keyboard(self, key, x, y):
+        keycode = ord(key)
+        if keycode == 27:
+            self.viewer.close()
+            return
+        if keycode == 13:  # ENTER
+            if self.viewer.inputFunc is not None:
+                self.viewer.inputFunc()
+        if keycode == 102:  # 'f'
+            self.f_down = True
+        if keycode == 112:  # 'p'
+            # print relevant info
+            for i in range(len(self.ikNodes)):
+                print("IK Handle " + str(i) + " | node " + str(self.ikNodes[i]) + " | offset " + str(self.ikOffsets[i]) + " | target " + str(self.ikTargets[i]))
+        if keycode == 115:  # 's'
+            self.s_down = True
+        if keycode == 120:  # 'x'
+            self.x_down = True
+        if keycode == 121:  # 'y'
+            self.y_down = True
+        if keycode == 122:  # 'z'
+            self.z_down = True
+        self.viewer.keyPressed(key, x, y)
+
+    def keyboardUp(self, key, x, y):
+        keycode = ord(key)
+        if keycode == 102:  # 'f'
+            self.f_down = False
+        if keycode == 115:  # 's'
+            self.s_down = False
+        if keycode == 120:  # 'x'
+            self.x_down = False
+        if keycode == 121:  # 'y'
+            self.y_down = False
+        if keycode == 122:  # 'z'
+            self.z_down = False
+
+    def drag(self, x, y):
+        dx = x - self.viewer.mouseLastPos[0]
+        dy = y - self.viewer.mouseLastPos[1]
+        if self.key_down() is False:
+            tb = self.viewer.scene.tb
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                tb.zoom_to(dx, -dy)
+            elif self.viewer.mouseRButton is True:
+                tb.trans_to(dx, -dy)
+            elif self.viewer.mouseLButton is True:
+                tb.drag_to(x, y, dx, -dy)
+        elif (self.f_down):
+            if self.selectedHandle is not None:
+                disp = dx * self.viewer.camRight * 0.001 + dy * self.viewer.camUp * -0.001
+                if self.viewer.mouseLButton is True:
+                    self.ikTargets[self.selectedHandle] += disp
+                elif self.viewer.mouseRButton is True:
+                    skel = self.viewer.sim.skeletons[self.skelix]
+                    node = skel.bodynodes[self.Nodes[self.selectedHandle]]
+                    self.ikOffsets[self.selectedHandle] = node.to_local(node.to_world(self.ikOffsets[self.selectedHandle]) + disp)
+        elif (self.x_down):
+            if self.selectedHandle is not None:
+                self.ikOffsets[self.selectedHandle][0] += dx*0.001
+        elif (self.y_down):
+            if self.selectedHandle is not None:
+                self.ikOffsets[self.selectedHandle][1] += dx*0.001
+        elif (self.z_down):
+            if self.selectedHandle is not None:
+                self.ikOffsets[self.selectedHandle][2] += dx*0.001
+
+        self.viewer.mouseLastPos = np.array([x, y])
+
+    def click(self, button, state, x, y):
+        tb = self.viewer.scene.tb
+        if state == 0:  # Mouse pressed
+            if button == 0:
+                self.viewer.mouseLButton = True
+                if self.s_down:
+                    close = None
+                    close_dist = 999
+                    thresh = 0.5
+                    skel = self.viewer.sim.skeletons[self.skelix]
+                    for ix, n in enumerate(skel.bodynodes):
+                        dist = np.linalg.norm(n.com()-self.viewer.prevWorldMouse)
+                        if dist < close_dist and dist < thresh:
+                            close_dist = dist
+                            close = ix
+                    if close is not None:
+                        create = True
+                        for ix,n in enumerate(self.ikNodes):
+                            if n == close:
+                                create = False
+                                self.selectedHandle = ix
+                                break
+                        if create:
+                            #create new handle
+                            self.ikNodes.append(close)
+                            self.ikOffsets.append(skel.bodynodes[close].to_local(self.viewer.prevWorldMouse))
+                            self.ikTargets.append(self.viewer.prevWorldMouse)
+                            self.selectedHandle = len(self.ikNodes)-1
+            if button == 2:
+                self.viewer.mouseRButton = True
+                if self.s_down:
+                    close = None
+                    close_dist = 999
+                    thresh = 0.5
+                    skel = self.viewer.sim.skeletons[self.skelix]
+                    for ix, n in enumerate(skel.bodynodes):
+                        dist = np.linalg.norm(n.com() - self.viewer.prevWorldMouse)
+                        if dist < close_dist and dist < thresh:
+                            close_dist = dist
+                            close = ix
+                    if close is not None:
+                        for ix,n in enumerate(self.ikNodes):
+                            if n == close:
+                                del self.ikTargets[ix]
+                                del self.ikOffsets[ix]
+                                del self.ikNodes[ix]
+                            break
+                        self.selectedHandle = None
+            self.viewer.mouseLastPos = np.array([x, y])
+            if button == 3:  # wheel up
+                if self.f_down is True:
+                    self.ikTargets[self.selectedHandle] += 0.01*self.viewer.camForward
+                elif self.s_down is True:
+                    if len(self.ikNodes) == 0:
+                        self.selectedHandle = None
+                    elif self.selectedHandle is None:
+                        self.selectedHandle = 0
+                    else:
+                        self.selectedHandle += 1
+                        if self.selectedHandle >= len(self.ikNodes):
+                            self.selectedHandle = None
+                else:
+                    tb.trans[2] += 0.1
+            elif button == 4:  # wheel down
+                if self.f_down is True:
+                    self.ikTargets[self.selectedHandle] -= 0.01 * self.viewer.camForward
+                elif self.s_down is True:
+                    if len(self.ikNodes) == 0:
+                        self.selectedHandle = None
+                    elif self.selectedHandle is None:
+                        self.selectedHandle = len(self.ikNodes)-1
+                    else:
+                        self.selectedHandle -= 1
+                        if self.selectedHandle < 0:
+                            self.selectedHandle = None
+                else:
+                    tb.trans[2] -= 0.1
+        elif state == 1:  # mouse released
+            # self.mouseLastPos = None
+            if button == 0:
+                self.viewer.mouseLButton = False
+            if button == 2:
+                self.viewer.mouseRButton = False
+
+    def contextRender(self):
+        # place any extra rendering for this context here
+        for i in range(len(self.ikNodes)):
+            skel = self.viewer.sim.skeletons[self.skelix]
+            handlepos = skel.bodynodes[self.ikNodes[i]].to_world(self.ikOffsets[i])
+            GL.glColor3d(0, 1, 1)
+            self.viewer.drawSphere(p=handlepos, r=0.025, solid=True)
+            GL.glColor3d(1, 0, 1)
+            self.viewer.drawSphere(p=self.ikTargets[i], r=0.025, solid=True)
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3d(self.ikTargets[i][0], self.ikTargets[i][1], self.ikTargets[i][2])
+            GL.glVertex3d(handlepos[0], handlepos[1], handlepos[2])
+            GL.glEnd()
+
+
+        #draw selected handle info
+        if self.selectedHandle is None:
+            self.viewer.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 45, text="Selected Handle = " + str(self.selectedHandle), color=(0., 0, 0))
+        else:
+            skel = self.viewer.sim.skeletons[self.skelix]
+            node_name = skel.bodynodes[self.ikNodes[self.selectedHandle]].name
+            self.viewer.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 45,
+                                            text="Selected Handle = " + str(self.selectedHandle) + " | " + str(node_name) + " | offset= " + str(self.ikOffsets[self.selectedHandle]) + " | target = " + str(self.ikTargets[self.selectedHandle]), color=(0., 0, 0))
+        a = 0
+
+class PoseInteractor(BaseInteractor):
+    # interactor defining GUI influence over skeleton DOFS by clicking displayed DOF boxes
+    def __init__(self, viewer):
+        self.viewer = viewer
+        self.label = "Pose DOF Interactor"
+        self.boxRanges = [] #list of np array pairs: [[minx, maxx],[miny, maxy]]
+        self.skelix = 1  # change this if the skel file changes
+        self.defineBoxRanges()
+        self.selectedBox = None
+
+    def defineBoxRanges(self):
+        #manually defined
+        #TODO: generalize this at some point
+        skel = self.viewer.sim.skeletons[self.skelix]
+        for i in range(len(skel.q)):
+            self.boxRanges.append([[190, 280], [58+18.*i, 58+18.*i + 15]])
+
+    def boxClickTest(self, point):
+        #return None if nothing hit, or the box/dof index of the clicked box
+        point[1] = self.viewer.viewport[3] - point[1]
+        for ix,b in enumerate(self.boxRanges):
+            if point[0] < b[0][1] and point[0] > b[0][0]:
+                if point[1] < b[1][1] and point[1] > b[1][0]:
+                    #print("clicked box " + str(ix))
+                    return ix
+        return None
+
+    def incrementSelectedDOF(self, inc):
+        #increment a selected dof by inc respecting joint limits
+        if self.selectedBox is not None:
+            skel = self.viewer.sim.skeletons[self.skelix]
+            qpos = skel.q
+            qpos[self.selectedBox] += inc
+            qpos[self.selectedBox] = min(max(qpos[self.selectedBox], skel.position_lower_limits()[self.selectedBox]), skel.position_upper_limits()[self.selectedBox])
+            skel.set_positions(qpos)
+
+    def click(self, button, state, x, y):
+        tb = self.viewer.scene.tb
+        if state == 0:  # Mouse pressed
+            self.selectedBox = self.boxClickTest(np.array([x,y]))
+            if button == 0:
+                self.viewer.mouseLButton = True
+            if button == 2:
+                self.viewer.mouseRButton = True
+            self.viewer.mouseLastPos = np.array([x, y])
+            if button == 3:  # wheel up
+                if self.selectedBox is not None:
+                    self.incrementSelectedDOF(0.05)
+                else:
+                    tb.trans[2] += 0.1
+            elif button == 4:  # wheel down
+                if self.selectedBox is not None:
+                    self.incrementSelectedDOF(-0.05)
+                else:
+                    tb.trans[2] -= 0.1
+        elif state == 1:  # mouse released
+            self.selectedBox = None
+            # self.mouseLastPos = None
+            if button == 0:
+                self.viewer.mouseLButton = False
+            if button == 2:
+                self.viewer.mouseRButton = False
+
+    def drag(self, x, y):
+        dx = x - self.viewer.mouseLastPos[0]
+        dy = y - self.viewer.mouseLastPos[1]
+
+        if self.selectedBox is None:
+            tb = self.viewer.scene.tb
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                tb.zoom_to(dx, -dy)
+            elif self.viewer.mouseRButton is True:
+                tb.trans_to(dx, -dy)
+            elif self.viewer.mouseLButton is True:
+                tb.drag_to(x, y, dx, -dy)
+        else:
+            skel = self.viewer.sim.skeletons[self.skelix]
+            dofRange = skel.position_upper_limits()[self.selectedBox]-skel.position_lower_limits()[self.selectedBox]
+            self.incrementSelectedDOF(dx*((dofRange)/(self.boxRanges[self.selectedBox][0][1]-self.boxRanges[self.selectedBox][0][0])))
+        self.viewer.mouseLastPos = np.array([x, y])
+
+    def keyboard(self, key, x, y):
+        keycode = ord(key)
+        if keycode == 27:
+            self.viewer.close()
+            return
+        if keycode == 13:  # ENTER
+            if self.viewer.inputFunc is not None:
+                self.viewer.inputFunc()
+            return
+        if keycode == 112:  # 'p'
+            # print relevant info
+            skel = self.viewer.sim.skeletons[self.skelix]
+            dofstr = "["
+            for ix,dof in enumerate(skel.q):
+                dofstr = dofstr + str(dof)
+                if ix < len(skel.q)-1:
+                    dofstr = dofstr + ", "
+            dofstr = dofstr + "]"
+            print(dofstr)
+            return
+        self.viewer.keyPressed(key, x, y)

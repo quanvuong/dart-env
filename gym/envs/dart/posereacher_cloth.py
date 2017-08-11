@@ -39,7 +39,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.proxreward2 = 0
 
         self.useSPD = False #set True in reset
-        self.useSPDasAction = True
+        self.useSPDasAction = False
         self.q_target = None #set in reset()
         self.q_target1 = None
         self.q_target2 = None
@@ -50,6 +50,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.Kd = None
         self.Kp = None
         self.invM = None
+        self.lastControl = None
 
         self.restPoseActive = True
         self.restPoseWeight = 4
@@ -102,8 +103,8 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             observation_size += 22 #tq
 
 
-        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
+        #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
 
         self.robot_skeleton.set_self_collision_check(True)
         self.robot_skeleton.set_adjacent_body_check(False)
@@ -134,6 +135,19 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.robot_skeleton.bodynodes[23].set_collidable(False)  # forearmLIn
 
         self.restPose = np.array(self.robot_skeleton.q) #by default the rest pose is start pose. Change this in reset if desired.
+
+        self.graphTau = False
+        if self.graphTau:
+            self.taugraph = pyutils.LineGrapher(title="||Tau||")
+
+        self.graphPos = False
+        if self.graphPos:
+            self.posgraph = pyutils.LineGrapher(title="Pos", numPlots=len(self.robot_skeleton.q))
+
+        self.graphVel = True
+        if self.graphVel:
+            self.velgraph = pyutils.LineGrapher(title="Vel", numPlots=len(self.robot_skeleton.dq))
+
 
         for body in self.robot_skeleton.bodynodes:
             print(body.name + ": " + str(body.is_collidable()))
@@ -241,6 +255,11 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         
     def _step(self, a):
         #print("step " + str(self.reset_number))
+        if self.reset_number < 1:
+            return self._get_obs(), 0, False, {}
+
+        if self.numSteps == 0:
+            self.lastControl = np.array(a)
         clamped_control = np.array(a)
         if self.useAutoTau is True:
             clamped_control = clamped_control + self.autoT
@@ -325,7 +344,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
                 self.q_target = np.array(self.q_target2)
                 tau = self.quickSPD()
 
-
+        print("tau: " + str(tau))
         self.do_simulation(tau, self.frame_skip)
         
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
@@ -390,10 +409,12 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             if normError.max() < 0.1: #within 10% accuracy on all joints
                 self.restPoseReward += 5 #bonus should outweigh error here
 
-        
+        #regularization term
+        regweight = 0.5
+        regterm = np.linalg.norm(self.lastControl-a) * regweight
         
         #total reward        
-        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.restPoseMaxErrorReward
+        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.restPoseMaxErrorReward + regterm
         
         
         #record rewards for debugging
@@ -453,6 +474,17 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         #print("self collision check" + str(self.robot_skeleton.self_collision_check()))
         #print(self.robot_skeleton.contacted_bodies())
 
+        # graphing force
+        if self.graphTau and self.reset_number > 0:
+            self.taugraph.addToLinePlot(data=[np.linalg.norm(tau)])
+
+        if self.graphPos and self.reset_number > 0:
+            self.posgraph.addToLinePlot(data=np.array(self.robot_skeleton.q))
+
+        if self.graphVel and self.reset_number > 0:
+            self.velgraph.addToLinePlot(data=np.array(self.robot_skeleton.dq))
+
+        self.lastControl = np.array(a)
         return ob, reward, done, {}
 
     def _get_obs(self):
@@ -524,11 +556,11 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
             self.restPose = qpos
             #more edits here if necessary
             self.restPose = self.getRandomPose()
-            self.q_target = np.array(self.restPose)
+            '''self.q_target = np.array(self.restPose)
             self.q_target1 = np.array(qpos)
             self.q_target2 = np.array(self.restPose)
             self.useSPD = True
-            self.quickSPD(recompute=True)
+            self.quickSPD(recompute=True)'''
         
         #reset cloth tube orientation and rotate sphere position
         v1 = np.array([0,0,-1])

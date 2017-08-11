@@ -17,8 +17,14 @@ import OpenGL.GLUT as GLUT
 
 ''' This env is setup for upper body single arm reduced action space learning with draped shirt'''
 
+
+
 class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
+        self.totalTime = 0
+        self.lastTime = 0
+
+        #self.timeGraph = pyutils.LineGrapher("Step Time")
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -33,14 +39,33 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #SPD control
         self.useSPD = True
         self.q_target = None #set in reset()
+        self.Kp_scale = 800.0  # default params
+        self.timeStep = 0.04  # default params
+        self.Kd_scale = self.Kp_scale * self.timeStep * 0.5  # default params
         self.Kd = None
-        self.Kd_scale = 1.0 #default params
         self.Kp = None
-        self.Kp_scale = 10.0 #default params
-        self.timeStep = 0.05 #default params
+        self.totalTime = 0.
+
+        self.enforceTauLimits = False
+        self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
+
+        self.graphTau = False
+        if self.graphTau:
+            self.linegraph = pyutils.LineGrapher(title="||Tau||")
 
         #interactive handle mode
-        self.interactiveHandleNode = True
+        self.interactiveHandleNode = False
+
+        self.updateHandleNodeFrom = -1
+        #self.updateHandleNodeFrom = 14 #if -1, this feature is disabled
+        #self.interactiveIkTarget = True
+
+        #saved IK info
+        self.ikPose = None
+        self.ikRestPose = None
+        self.interactiveIK = False
+        self.ikTarget = np.array([0.2, -0.1, -0.5])
+        self.ikLines = []
 
         #randomized spline target mode
         self.randomHandleTargetSpline = False
@@ -78,8 +103,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #clothScene.togglePinned(0, 144)
         #clothScene.togglePinned(0, 190)
 
+        self.reset_number = 0  # increments on env.reset()
+
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -101,12 +128,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
-        self.simulateCloth = True
+        self.simulateCloth = False
         
         self.renderDofs = True #if true, show dofs text 
         self.renderForceText = False
-        
-        self.reset_number = 0 #increments on env.reset()
 
 
         for i in range(len(self.robot_skeleton.bodynodes)):
@@ -114,7 +139,6 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
 
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
-
 
         print("done init")
 
@@ -129,6 +153,11 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.loadObjState("objState", 0)
 
     def _step(self, a):
+        #starttime = time.time()
+        #print("     step " +str(self.numSteps))
+        if self.reset_number < 1:
+            return self._get_obs(), 0, False, {}
+
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -144,6 +173,8 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
                 self.handleNode.org = self.viewer.interactors[2].frame.org
                 self.handleNode.setOrientation(R=self.viewer.interactors[2].frame.orientation)
             #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
+            if self.updateHandleNodeFrom >= 0:
+                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
 
         #if self.gripper is not None:
@@ -156,23 +187,56 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
 
         #test SPD
         if self.useSPD is True:
+            #if self.numSteps == 0:
+            #    self.viewer.interactors[2].frame.org = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
+            #eftarget = self.viewer.interactors[2].frame.org
+            #eftarget = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)) + np.array([0.1,0,0])
+            #self.q_target = self.robot_skeleton.q + self.IK(target=eftarget)
+            #self.q_target = self.iterativeIK(target=self.ikTarget, iterations=50)
+
+            iknodes = [8]
+            offsets = [np.zeros(3)]
+            targets = [self.ikTarget]
+
+            if self.interactiveIK:
+                iknodes = self.viewer.interactors[3].ikNodes#[8]#, 13]
+                offsets = self.viewer.interactors[3].ikOffsets#[np.zeros(3)]#, np.zeros(3)]
+                targets = self.viewer.interactors[3].ikTargets#[self.ikTarget]#, self.ikTarget]
+
+            #self.q_target = self.iterativeMultiTargetIK(robot=self.robot_skeleton, nodeixs=iknodes, offsets=offsets, targets=targets, iterations=10, restPoseWeight=0.1, restPose=self.ikRestPose)
+
             tau = self.SPD(qt=self.q_target, Kd=self.Kd, Kp=self.Kp, dt=self.timeStep)
 
+            #tau = np.zeros(len(self.robot_skeleton.q))
+
+        if self.enforceTauLimits:
+            tau = np.maximum(np.minimum(self.tau_limits[1], tau), self.tau_limits[0])
+
         #apply action and simulate
+        #starttime = time.time()
         self.do_simulation(tau, self.frame_skip)
+        #endtime = time.time()
 
         reward = 0
         ob = self._get_obs()
         s = self.state_vector()
         
         #update physx capsules
+
         self.updateClothCollisionStructures(hapticSensors=True)
-        
+
         #check termination conditions
         done = False
 
-        self.numSteps += 1
+        #graphing force
+        if self.graphTau and self.reset_number > 0:
+            self.linegraph.addToLinePlot(data=[[np.linalg.norm(tau)]])
 
+        self.numSteps += 1
+        #endtime = time.time()
+        #self.totalTime += ((endtime - starttime) * 1000)
+        #self.timeGraph.addToLinePlot(data=[(endtime - starttime) * 1000])
+        #self.IK()
         return ob, reward, done, {}
 
     def _get_obs(self):
@@ -190,24 +254,47 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         return obs
 
     def reset_model(self):
+        #starttime = time.time()
+        #print("reset " +str(self.reset_number))
         '''reset_model'''
+        #if self.reset_number > 0:
+        #    self.enforceTauLimits = True
+        #if self.reset_number > 0:
+        #    print("average step time = " + str(self.totalTime/self.numSteps))
+        self.totalTime = 0
         self.numSteps = 0
         self.dart_world.reset()
         self.clothScene.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+        '''qpos = [  2.18672993e-03,  -4.72069042e-03,  -1.13570380e-02,   1.49440348e-02,
+   1.29127624e-02,  -1.14191071e-02,   6.39350903e-03,  -2.15463769e-03,
+  -8.75123999e-03,   1.12041144e-02,  -3.17658842e-02,  -1.11111111e-02,
+   8.33333333e-02,   1.16666667e-01,   1.12604700e+00,   6.30000000e-01,
+   1.38555556e+00,   6.00000000e-01,  -7.23481822e-02,  -7.26463958e-03,
+  -8.24054408e-03,  -1.29043413e-03] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
-        self.q_target = np.array(self.robot_skeleton.q)
-        self.q_target[8] = 1.0
+        #self.q_target = np.array(self.robot_skeleton.q)
+        #self.q_target[8] = 1.0
+
+        if self.reset_number == 0:
+            self.q_target = pyutils.getRandomPose(robot=self.robot_skeleton)
+            self.q_target[0] = 0.39
+            self.q_target = [ 0.39294164, -0.28923569,  0.44674558,  0.21799112,  0.22719583, -0.34199703,
+ -0.8429895,   1.50691939,  1.28366487,  0.54321876, -0.36126751,  0.11050672,
+ -0.12107801, -1.6634833,   1.03492742,  1.512525,    0.22033149,  0.48043698,
+  0.28899992,  0.15556353, -0.02484711,  0.19311922]
+        #self.ikLines.append(pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.q_target))
 
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 1., 0.])))
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=-1., axis=np.array([1., 0., 0.])))
         #self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
-        self.clothScene.setSelfCollisionDistance(0.025)
 
+        #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
+        self.clothScene.setSelfCollisionDistance(0.025)
 
         #load cloth state from ~/Documents/dev/objFile.obj
         #self.clothScene.loadObjState()
@@ -222,6 +309,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.refreshMotionConstraints()
         #self.clothScene.refreshCloth()
         #self.clothScene.clearInterpolation()
+        self.dart_world.skeletons[0].q = [0, 0, 0, self.ikTarget[0], self.ikTarget[1], self.ikTarget[2]]
+        self.ikRestPose = np.array(self.robot_skeleton.q)
+        self.ikRestPose[8] += 2.5 #elbow bend
+        self.ikRestPose[6] += 1.0
 
         self.handleNode.clearHandles()
         self.handleNode.addVertices(verts=[570, 1041, 993, 1185, 285, 1056, 283, 958, 905, 711, 435, 992, 50, 935, 489, 787, 327, 362, 676, 842, 873, 887, 54, 55])
@@ -266,6 +357,9 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.translateCloth(0, disp)
             self.handleNode.clearTargetSpline()
             self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
+        elif self.updateHandleNodeFrom >= 0:
+            self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+            #self.handleNode.org = self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].com()
 
 
         self.reset_number += 1
@@ -281,6 +375,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
+
         #collision spheres creation
         a=0
         
@@ -348,12 +443,28 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         
     def extraRenderFunction(self):
         #print("extra render function")
-        
+
         GL.glBegin(GL.GL_LINES)
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        #links = pyutils.getRobotLinks(self.robot_skeleton)
+        GL.glBegin(GL.GL_LINES)
+        for iter in self.ikLines:
+            for l in iter:
+                GL.glVertex3d(l[0][0], l[0][1], l[0][2])
+                GL.glVertex3d(l[1][0], l[1][1], l[1][2])
+        GL.glEnd()
+
+        #draw spheres at body node 0's
+        '''for ix, b in enumerate(self.robot_skeleton.bodynodes):
+            GL.glColor3d(0,0,0)
+            if ix == int(self.numSteps / 10):
+                print("b("+str(ix)+"): "+str(self.robot_skeleton.bodynodes[ix]))
+                GL.glColor3d(1, 0, 0)
+            renderUtils.drawSphere(b.to_world(np.zeros(3)))
+        '''
         #render debugging boxes
         if self.drawDebuggingBoxes:
             for ix,b in enumerate(self.debuggingBoxes):
@@ -420,12 +531,32 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
             for i in range(len(self.robot_skeleton.q)):
                 qlim = self.limits(i)
                 qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
+
+                '''
+                #testing
+                qrest = (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0])
+                qrestDistance = abs(qfill - qrest)
+                #done
+                '''
+
                 y = 58+18.*i
                 x0 = 121+70
                 x1 = 209+70
                 x = LERP(x0,x1,qfill)
                 xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
                 GL.glColor3d(0,2,3)
+
+                '''
+                #testing
+                if qrestDistance < 0.01:
+                    GL.glColor3d(0,3,0)
+                elif qrestDistance < 0.05:
+                    GL.glColor3d(0,3,2)
+                elif qrestDistance > 0.2:
+                    GL.glColor3d(3,1,1)
+                #done
+                '''
+
                 GL.glBegin(GL.GL_QUADS)
                 GL.glVertex2d(x0, y+1)
                 GL.glVertex2d(x0, y+14)
@@ -446,6 +577,20 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
                 GL.glVertex2d(x+1, y+14)
                 GL.glVertex2d(x+1, y+1)
                 GL.glEnd()
+
+                '''
+                #testing
+                rpx = LERP(x0, x1, (self.q_target[i] - qlim[0]) / (qlim[1] - qlim[0]))
+                GL.glColor3d(0, 2, 0)
+                GL.glBegin(GL.GL_QUADS)
+                GL.glVertex2d(rpx - 1, y + 1)
+                GL.glVertex2d(rpx - 1, y + 14)
+                GL.glVertex2d(rpx + 2, y + 14)
+                GL.glVertex2d(rpx + 2, y + 1)
+                GL.glEnd()
+                #done
+                '''
+
                 GL.glColor3d(0,0,0)
                 
                 textPrefix = "||q[" + str(i) + "]|| = "
@@ -457,6 +602,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
 
         self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
+
         #f = self.clothScene.getHapticSensorObs()
         f = np.zeros(66)
         maxf_mag = 0
@@ -469,9 +615,10 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
             if mag > maxf_mag:
                 maxf_mag = mag
         #exit()
-        self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
-        self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
-
+        #self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
+        #self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
+        #if self.numSteps > 0:
+        #    self.clothScene.drawText(x=15, y=620., text='Average SPD time = %.2f' % float(self.totalTime/self.reset_number), color=(0., 0, 0))
 
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glPopMatrix()
@@ -482,10 +629,11 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
-        self.track_skeleton_id = 0
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+            self.track_skeleton_id = 0
 
     def SPD(self, qt=None, Kp=None, Kd=None, dt=None):
         #compute the control torques to track qt using SPD
@@ -507,6 +655,69 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         T = p + d - Kd.dot(qddot * dt)
 
         return T
+
+    def IK(self, nodeix=8, offset=np.zeros(3), target=None):
+        if target is None:
+            target = self.robot_skeleton.bodynodes[nodeix].to_world(offset)
+        J = self.robot_skeleton.bodynodes[8].linear_jacobian(offset=offset, full=True)
+        Jt = np.transpose(J)
+        #pseudo inverse
+        Jinv = Jt.dot(np.linalg.inv(J.dot(Jt)))
+        #get global desired displacement
+        disp = target-self.robot_skeleton.bodynodes[nodeix].to_world(offset)
+        dQ = Jinv.dot(np.transpose(disp))
+        return dQ
+
+    def iterativeIK(self, nodeix=8, offset=np.zeros(3), target=None, iterations=1, restPoseWeight=0.5, restPose=None):
+        if target is None:
+            target = self.robot_skeleton.bodynodes[nodeix].to_world(offset)
+        if restPose is None:
+            #restPose = self.ikRestPose
+            restPose = np.array(self.robot_skeleton.q)
+        orgPose = np.array(self.robot_skeleton.q)
+        for i in range(iterations):
+            J = self.robot_skeleton.bodynodes[8].linear_jacobian(offset=offset, full=True)
+            Jt = np.transpose(J)
+            # pseudo inverse
+            Jinv = Jt.dot(np.linalg.inv(J.dot(Jt)))
+            # get global desired displacement
+            disp = target - self.robot_skeleton.bodynodes[nodeix].to_world(offset)
+            dQ = Jinv.dot(np.transpose(disp))
+            dQrest = (restPose-self.robot_skeleton.q)*restPoseWeight
+            newPose = self.robot_skeleton.q+dQ+dQrest
+            newPose = np.maximum(self.robot_skeleton.position_lower_limits(), np.minimum(newPose, self.robot_skeleton.position_upper_limits()))
+            self.robot_skeleton.set_positions(newPose)
+        self.ikLines.append(pyutils.getRobotLinks(self.robot_skeleton))
+        ikPose = np.array(self.robot_skeleton.q)
+        self.robot_skeleton.set_positions(orgPose)
+        return ikPose
+
+    def iterativeMultiTargetIK(self, robot, nodeixs=[], offsets=[], targets=[], iterations=1, restPose=None, restPoseWeight=0.1):
+        #iterative Jacobian pseudo inverse IK with rest pose objective
+        orgPose = np.array(robot.q)
+        if restPose is None:
+            restPose = np.array(robot.q)
+
+        for i in range(iterations):
+            dQ = np.zeros(len(robot.q))
+            for ix, n in enumerate(nodeixs):
+                J = robot.bodynodes[n].linear_jacobian(offset=offsets[ix], full=True)
+                Jt = np.transpose(J)
+                # pseudo inverse
+                Jinv = Jt.dot(np.linalg.inv(J.dot(Jt)))
+                # get global desired displacement
+                disp = targets[ix] - robot.bodynodes[n].to_world(offsets[ix])
+                dQ += Jinv.dot(np.transpose(disp))
+            dQrest = (restPose - robot.q) * restPoseWeight
+            newPose = robot.q + dQ + dQrest
+            newPose = np.maximum(robot.position_lower_limits(), np.minimum(newPose, robot.position_upper_limits()))
+            robot.set_positions(newPose)
+        ikPose = np.array(robot.q)
+        self.ikLines = [pyutils.getRobotLinks(robot)]
+        robot.set_positions(orgPose)
+        return ikPose
+
+
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

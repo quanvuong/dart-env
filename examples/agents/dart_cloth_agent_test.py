@@ -95,17 +95,30 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
+    prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
+    trial = None
+    #trial = "experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1"
+    #trial = "experiment_2017_06_22_UpperBodyShirtArm2"
+    #trial = "experiment_2017_06_06_upperBodyReacher_arm2"
+    #trial = "experiment_2017_08_07_posetracker_SPD"
+
+    loadSave = False
+
+    if loadSave is True:
+        if trial is not None:
+            #load the params.pkl file and save a policy.pkl file
+            with tf.Session() as sess:
+                print("trying to load the params.pkl file")
+                data = joblib.load(prefix+trial+"/params.pkl")
+                print("loaded the pkl file")
+                policy = data['policy']
+                pickle.dump(policy, open(prefix+trial+"/policy.pkl", "wb"))
+                print("saved the policy")
+                exit()
+
     policy = None
     policy2 = None
 
-    
-    if filename is not None:
-        with tf.Session() as sess:
-            data = joblib.load(filename)
-            policy = data['policy']
-            #loadenv = data['env']
-        print(policy)
-    
     #policy = pickle.load(open(filename, "rb"))
 
     if filename2 is not None:
@@ -193,11 +206,11 @@ if __name__ == '__main__':
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
     #env = gym.make('DartClothReacher-v2') #one arm reacher
-    env = gym.make('DartClothPoseReacher-v1')  #pose reacher
+    #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env = gym.make('DartClothGownDemo-v1')
-    #env = gym.make('DartClothTestbed-v1')
+    env = gym.make('DartClothTestbed-v1')
     #env.render()
     #time.sleep(4)
     #print("done init")
@@ -206,7 +219,19 @@ if __name__ == '__main__':
     #time.sleep(1)
     #Cloth sphere testing
 
-    #policy = pickle.load(open(filename, "rb"))
+    #if filename is not None:
+    #    obj = pickle.load(open(filename, "rb"))
+    #    print(obj)
+    #    exit()
+
+        #with tf.Session() as sess:
+        #    data = joblib.load(filename)
+        #    policy = data['policy']
+        #    #loadenv = data['env']
+        #print(policy)
+
+    if trial is not None and policy is None:
+        policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
 
     '''
     #save the policy in JSON
@@ -246,20 +271,24 @@ if __name__ == '__main__':
     print("about to run")
     paused = False
     time.sleep(0.5)
+    #totalTime = 0
     for i in range(10000):
         #print("about to reset")
         o = env.reset()
         #print("done reset")
         #print("v: " + str(o))
         env.render()
-        time.sleep(0.5)
         #time.sleep(0.5)
-        for j in range(500):
+        #time.sleep(0.5)
+        rolloutHorizon = 100
+        if paused is True:
+            rolloutHorizon = 10000
+        for j in range(rolloutHorizon):
             #a = np.array([0.,0.,0.,0.,0.])
             a = np.zeros(22) #22 dof upper body
             #a = np.ones(22)
             #a[0] = 1
-            a += np.random.uniform(-1,1,22)
+            #a += np.random.uniform(-1,1,22)
             '''if(i < 22):
                 a[i] += 1
             elif(i<44):
@@ -279,7 +308,11 @@ if __name__ == '__main__':
             #time.sleep(0.1)
             #if i > 3400:
             #if j > 9999 or j < 100: #add this for voxel testing
+            #starttime = time.time()
             env.render()
+            #endtime = time.time()
+            #totalTime += (endtime - starttime) * 1000
+            #print("avg time = " + str(totalTime/(i*rolloutHorizon + j + 1)))
             #if (j % 100) == 0:
             #    print(j)
             if done is True:

@@ -564,7 +564,7 @@
             </body>
             
             <body name="spacerL">
-                <transformation>0.21 0.3 0 0 0 0</transformation>
+                <transformation>0.21 -0.3 0 0 0 0</transformation>
                 <inertia>
                     <mass>0.01</mass>
                     <offset>0.0 0 0.0</offset>
