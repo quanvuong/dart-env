@@ -4,6 +4,7 @@ from gym.envs.dart import dart_env
 import copy
 
 from gym.envs.dart.parameter_managers import *
+from gym.envs.dart.sub_tasks import *
 import copy
 
 import joblib, os
@@ -14,7 +15,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.action_scale = np.array([200, 200, 200])
         self.train_UP = False
         self.noisy_input = False
-        self.avg_div = 0
+        self.avg_div = 2
 
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
@@ -23,8 +24,11 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.split_task_test = True
-
-        self.split_tasks = [[0.0, 0.6, 1], [0.6, 0.6, 1]] # torso mass, ankle strength, torso limit
+        self.tasks = TaskList(2)
+        self.tasks.add_fix_param_tasks([0, [0.0, 1.0]])
+        self.tasks.add_fix_param_tasks([1, [0.0, 1.0]])
+        self.tasks.add_range_param_tasks([2, [[0.0,0.5], [0.5, 1.0]]])
+        self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -38,7 +42,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         if self.train_mp_sel:
             obs_dim += 1
         if self.split_task_test:
-            obs_dim += len(self.split_tasks)
+            obs_dim += self.tasks.task_input_dim()
         #if self.avg_div > 1:
         #    obs_dim += self.avg_div
 
@@ -213,10 +217,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             state = np.concatenate([state, [np.random.random()]])
 
         if self.split_task_test:
-            return_state = np.zeros(len(state) + len(self.split_tasks))
-            return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1
-            state = return_state
+            state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
         if self.avg_div > 1:
             return_state = np.zeros(len(state) + self.avg_div)
@@ -276,15 +277,13 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
                 self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
 
         if self.split_task_test:
-            self.state_index = np.random.randint(len(self.split_tasks))
-            self.state_index = 0
-            self.param_manager.set_simulator_parameters(np.array(self.split_tasks[self.state_index])[0:-1])
-            if self.split_tasks[self.state_index][-1] < 0.5:
-                self.robot_skeleton.joints[-3].set_position_upper_limit(0, 0.0)
-                self.robot_skeleton.joints[-3].set_position_lower_limit(0, -2.61799)
-            else:
-                self.robot_skeleton.joints[-3].set_position_upper_limit(0, 2.61799)
-                self.robot_skeleton.joints[-3].set_position_lower_limit(0, 0.0)
+            self.state_index = np.random.randint(self.tasks.task_num)
+            pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
+            self.param_manager.controllable_param = pm_id
+            self.param_manager.set_simulator_parameters(np.array(pm_val))
+            for ind, jtid in enumerate(jt_id):
+                self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
+                self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
 
         self.state_action_buffer = [] # for UPOSI
 
