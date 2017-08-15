@@ -25,10 +25,10 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         self.split_task_test = True
         self.tasks = TaskList(2)
-        self.tasks.add_fix_param_tasks([0, [0.0, 1.0]])
-        self.tasks.add_fix_param_tasks([1, [0.0, 1.0]])
+        #self.tasks.add_fix_param_tasks([0, [0.0, 1.0]])
+        #self.tasks.add_fix_param_tasks([1, [0.0, 1.0]])
         self.tasks.add_range_param_tasks([2, [[0.0,0.5], [0.5, 1.0]]])
-        self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
+        #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")

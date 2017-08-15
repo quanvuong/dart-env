@@ -21,12 +21,18 @@ class TaskList:
         self.joint_limit_tasks.append(args)
 
     def get_task_inputs(self, taskid):
-        split_vec = np.zeros(self.task_num)
-        split_vec[taskid] = 1
-        return np.concatenate([split_vec, self.current_range_params])
+        if len(self.fix_param_tasks) > 0 or len(self.joint_limit_tasks) > 0:
+            split_vec = np.zeros(self.task_num)
+            split_vec[taskid] = 1
+            return np.concatenate([split_vec, self.current_range_params])
+        else:
+            return np.array(self.current_range_params)
 
     def task_input_dim(self):
-        return self.task_num + len(self.range_param_tasks)
+        if len(self.fix_param_tasks) > 0 or len(self.joint_limit_tasks) > 0:
+            return self.task_num + len(self.range_param_tasks)
+        else:
+            return len(self.range_param_tasks)
 
     def resample_task(self, taskid):
         self.current_range_params = []
