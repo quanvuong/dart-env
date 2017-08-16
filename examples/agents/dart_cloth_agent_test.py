@@ -96,9 +96,13 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
     prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
+    #prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
     trial = None
-    trial = "experiment_2017_08_14_poseTracker"
-    #trial = "experiment_2017_08_13_poseTracker"
+    trial = "experiment_2017_08_15_reacher_velacctau_restpose"
+    #trial = "experiment_2017_08_14_reacher_velaccpenalty"
+    #trial = "experiment_2017_08_13_reacher_velpenalty2"
+    #trial = "experiment_2017_08_12_reacher_velpenalty"
+    #trial = "experiment_2017_08_11_reacher"
     #trial = "experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1"
     #trial = "experiment_2017_06_22_UpperBodyShirtArm2"
     #trial = "experiment_2017_06_06_upperBodyReacher_arm2"
@@ -206,12 +210,16 @@ if __name__ == '__main__':
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
     #env = gym.make('DartClothReacher-v2') #one arm reacher
+<<<<<<< HEAD
     env = gym.make('DartClothPoseReacher-v1')  #pose reacher
+=======
+    #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
+>>>>>>> b5589fbf8787550b0c4cb57a2dae1e71569ede68
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
-    #env = gym.make('DartClothGrippedTshirt-v1')
+    env = gym.make('DartClothGrippedTshirt-v1')
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
@@ -223,7 +231,7 @@ if __name__ == '__main__':
         o = env.reset()
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 500
+        rolloutHorizon = 250
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
@@ -240,7 +248,7 @@ if __name__ == '__main__':
                 done = s_info[2]
             env.render()
             if done is True:
-                time.sleep(0.5)
+                time.sleep(5.5)
                 break
     env.render(close=True)
     
