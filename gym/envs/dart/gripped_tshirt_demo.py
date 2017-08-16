@@ -110,10 +110,10 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
-                                        state_path="/home/aclegg3/Documents/dev/tshirt_regrip3.obj",
+                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -128,7 +128,8 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6 #target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
+                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -279,6 +280,9 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         elif np.linalg.norm(vecR) < 0.1:
             done = True
             reward += 1000
+        elif self.headCollarContainment() is None:
+            done = True
+            reward = -4000
 
 
         #graphing force
@@ -516,6 +520,23 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
+
+    def headCollarContainment(self):
+        #returns None or distance to top of head of the collar triangle
+        tp0 = self.clothScene.getVertexPos(cid=0, vid=657)
+        tp1 = self.clothScene.getVertexPos(cid=0, vid=109)
+        tp2 = self.clothScene.getVertexPos(cid=0, vid=8)
+        lp0 = self.robot_skeleton.bodynodes[16].to_world(np.array([0., -0.05, 0.]))  # neck root
+        lp1 = self.robot_skeleton.bodynodes[16].to_world(np.array([0., 0.28, 0.]))  # head root
+        l_len = np.linalg.norm(lp1 - lp0)
+        intersection_distance = pyutils.triangleLineSegIntersect(tp0, tp1, tp2, lp0, lp1, False)
+        #intersection_point = pyutils.triangleLineSegIntersect(tp0, tp1, tp2, lp0, lp1, True)
+
+        if intersection_distance is not None:
+            #return the remaining distance to the top of the head
+            return l_len-intersection_distance
+
+        return intersection_distance
         
     def extraRenderFunction(self):
         #print("extra render function")
@@ -524,6 +545,27 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #test triangle/line segment intersection for neck/head
+        tp0 = self.clothScene.getVertexPos(cid=0, vid=657)
+        tp1 = self.clothScene.getVertexPos(cid=0, vid=109)
+        tp2 = self.clothScene.getVertexPos(cid=0, vid=8)
+        lp0 = self.robot_skeleton.bodynodes[16].to_world(np.array([0.,-0.05,0.])) #neck root
+        lp1 = self.robot_skeleton.bodynodes[16].to_world(np.array([0.,0.28,0.])) #head root
+        l_len = np.linalg.norm(lp1-lp0)
+        intersection_distance = pyutils.triangleLineSegIntersect(tp0, tp1, tp2, lp0, lp1, False)
+        #intersection_point = pyutils.triangleLineSegIntersect(tp0, tp1, tp2, lp0, lp1, True)
+        distance_text = str(intersection_distance)
+        if intersection_distance is not None:
+            distance_text = str(l_len-intersection_distance)
+
+        self.clothScene.drawText(x=300, y=self.viewer.viewport[3]-10,
+                                 text="Intersection distance = " + distance_text,
+                                 color=(0., 0, 0))
+        #if intersection_distance is not None:
+        #    renderUtils.drawSphere(intersection_point)
+        renderUtils.drawTriangle(tp0,tp1,tp2)
+        renderUtils.drawLines(lines=[[lp0,lp1]])
 
         #render force observations
         '''obs = self._get_obs()

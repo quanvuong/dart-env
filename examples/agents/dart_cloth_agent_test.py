@@ -95,8 +95,8 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
-    #prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
-    prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
+    prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
+    #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
     trial = "experiment_2017_08_15_grippedtshirt"
