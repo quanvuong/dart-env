@@ -99,7 +99,7 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
-    trial = "experiment_2017_08_15_grippedtshirt"
+    #trial = "experiment_2017_08_15_grippedtshirt"
     #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
     #trial = "experiment_2017_08_14_reacher_velaccpenalty"
     #trial = "experiment_2017_08_13_reacher_velpenalty2"
@@ -244,6 +244,7 @@ if __name__ == '__main__':
                 s_info = env.step(a)
                 o = s_info[0]
                 done = s_info[2]
+                print(o)
             env.render()
             if done is True:
                 time.sleep(5.5)
