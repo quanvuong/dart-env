@@ -33,6 +33,18 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             self.action_scale = np.ones(11) * 10
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
+        self.action_scale[0] = 150  # torso
+        self.action_scale[1] = 150
+        self.action_scale[2] = 100  # spine
+        self.action_scale[3] = 50  # clav
+        self.action_scale[4] = 50
+        self.action_scale[5] = 30  # shoulder
+        self.action_scale[6] = 30
+        self.action_scale[7] = 20
+        self.action_scale[8] = 20  # elbow
+        self.action_scale[9] = 8  # wrist
+        self.action_scale[10] = 8
+
         self.numSteps = 0 #increments every step, 0 on reset
 
         # handle node setup
@@ -116,7 +128,7 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6 #target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -244,13 +256,35 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         #check termination conditions
         done = False
 
+        fingertip = np.array([0.0, -0.06, 0.0])
+        wRFingertip = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        vecR = self.target - wRFingertip
+
+        reward_distR = -np.linalg.norm(vecR)*100
+        reward_ctrl = - np.square(tau).sum() * 0.00005
+        alive_bonus = -0.001
+        reward = reward_ctrl + alive_bonus + reward_distR
+
+        # check cloth deformation for termination
+        clothDeformation = 0
+        if self.simulateCloth is True:
+            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+        if not np.isfinite(s).all():
+            print("Infinite value detected..." + str(s))
+            done = True
+            reward -= 500
+        elif (clothDeformation > 20):
+            done = True
+            reward -= 500
+
+
         #graphing force
         if self.graphTau and self.reset_number > 0:
             self.linegraph.addToLinePlot(data=[[np.linalg.norm(tau)]])
 
         self.numSteps += 1
 
-        self.IK()
+        #self.IK()
 
         return ob, reward, done, {}
 
@@ -273,7 +307,8 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             else:
                 vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
             obs = np.concatenate([obs, vec, self.target]).ravel()
-        obs = np.concatenate([obs, f]).ravel()
+        obs = np.concatenate([obs, f*3.]).ravel()
+        #print(obs)
         #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
         return obs
 
@@ -333,6 +368,8 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.arm == 2:
             hemisphereDir = np.array([1.0, 0, 0])
         self.target = self.hemisphereSample(maxradius=reacher_range, minradius=0.9, norm=hemisphereDir)
+        while self.target[1] < 0:
+            self.target = self.hemisphereSample(maxradius=reacher_range, minradius=0.9, norm=hemisphereDir)
         if self.targetInObs:
             self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
@@ -485,6 +522,23 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        #render force observations
+        '''obs = self._get_obs()
+        for i in range(22):
+            f = obs[-66 + i*3:-66 + i*3 + 3]
+            self.clothScene.drawText(x=360, y=60. + 15 * i,
+                                     text="||f[" + str(i) + "]|| = " + str(f),
+                                     color=(0., 0, 0))'''
+
+        #target sample render
+        '''reacher_range = 1.1
+        hemisphereDir = np.array([-1.0, 0, 0])
+        for i in range(100):
+            target = self.hemisphereSample(maxradius=reacher_range, minradius=0.9, norm=hemisphereDir)
+            while target[1] < 0:
+                target = self.hemisphereSample(maxradius=reacher_range, minradius=0.9, norm=hemisphereDir)
+            renderUtils.drawSphere(target)'''
+
         '''GL.glBegin(GL.GL_POLYGON)
         GL.glVertex3d(-0.53636903, 0.0341332, -0.0731871)
         GL.glVertex3d(-0.54120499, 0.038279, -0.0522403)
@@ -559,10 +613,11 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
-        self.track_skeleton_id = 0
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+            self.track_skeleton_id = 0
 
     def SPD(self, qt=None, Kp=None, Kd=None, dt=None):
         #compute the control torques to track qt using SPD
