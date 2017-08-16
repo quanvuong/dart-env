@@ -110,10 +110,10 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
-                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
+                                        state_path="/home/aclegg3/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -128,7 +128,7 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6 #target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -260,7 +260,7 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         wRFingertip = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         vecR = self.target - wRFingertip
 
-        reward_distR = -np.linalg.norm(vecR)*100
+        reward_distR = -np.linalg.norm(vecR)*10
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
         reward = reward_ctrl + alive_bonus + reward_distR
@@ -275,7 +275,10 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             reward -= 500
         elif (clothDeformation > 20):
             done = True
-            reward -= 500
+            reward -= 5000
+        elif np.linalg.norm(vecR) < 0.1:
+            done = True
+            reward += 1000
 
 
         #graphing force

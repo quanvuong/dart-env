@@ -95,8 +95,9 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
-    prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
+    prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
     trial = None
+    trial = "experiment_2017_08_15_grippedtshirt"
     #trial = "experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1"
     #trial = "experiment_2017_06_22_UpperBodyShirtArm2"
     #trial = "experiment_2017_06_06_upperBodyReacher_arm2"
