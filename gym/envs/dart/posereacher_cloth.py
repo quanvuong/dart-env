@@ -74,7 +74,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         #set custom action scale
-        self.action_scale[0] = 250 #torso
+        '''self.action_scale[0] = 250 #torso
         self.action_scale[1] = 250
         self.action_scale[2] = 250 #spine
         self.action_scale[3] = 150 #clav
@@ -95,7 +95,30 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         self.action_scale[18] = 10
         self.action_scale[19] = 10 #neck/head
         self.action_scale[20] = 10
-        self.action_scale[21] = 10
+        self.action_scale[21] = 10'''
+        
+        self.action_scale[0] = 150 #torso
+        self.action_scale[1] = 150
+        self.action_scale[2] = 150 #spine
+        self.action_scale[3] = 100 #clav
+        self.action_scale[4] = 100
+        self.action_scale[5] = 30 #shoulder
+        self.action_scale[6] = 30
+        self.action_scale[7] = 20
+        self.action_scale[8] = 20 #elbow
+        self.action_scale[9] = 8  #wrist
+        self.action_scale[10] = 8
+        self.action_scale[11] = 100 #clav
+        self.action_scale[12] = 100
+        self.action_scale[13] = 30 #shoulder
+        self.action_scale[14] = 30
+        self.action_scale[15] = 20
+        self.action_scale[16] = 20 #elbow
+        self.action_scale[17] = 8 #wrist
+        self.action_scale[18] = 8
+        self.action_scale[19] = 8 #neck/head
+        self.action_scale[20] = 8
+        self.action_scale[21] = 8
 
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
         
@@ -128,7 +151,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
 
 
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
 
         self.robot_skeleton.set_self_collision_check(True)
         self.robot_skeleton.set_adjacent_body_check(False)
@@ -299,6 +322,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         wLFingertip1 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         vecR1 = self.target-wRFingertip1
         vecL1 = self.target2-wLFingertip1
+        qVel1 = np.array(self.robot_skeleton.dq)
         
         if self.doROM:
             #start from specific stage
@@ -389,7 +413,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         
         #force magnitude penalty    
         reward_ctrl = - np.square(tau).sum() * 0.001
-        reward_ctrl = 0
+        #reward_ctrl = 0
         
         #displacement toward target reward
         reward_progress1 = 0
@@ -437,9 +461,17 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
         regweight = 0.5
         regterm = np.linalg.norm(self.lastControl-a) * regweight
         
-        #total reward        
-        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.restPoseMaxErrorReward + regterm
+        #velocity term
+        velPenalty = -np.linalg.norm(self.robot_skeleton.dq)*0.1
         
+        #acceleration penalty
+        qVel2 = np.array(self.robot_skeleton.dq)
+        accPenalty = -np.linalg.norm(qVel2-qVel1) * 0.1
+        
+        #total reward        
+        #reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.restPoseMaxErrorReward + regterm + velPenalty
+        
+        reward = alive_bonus + self.restPoseReward + velPenalty + accPenalty + reward_ctrl 
         
         #record rewards for debugging
         self.cumulativeReward += reward
@@ -852,7 +884,7 @@ class DartClothPoseReacherEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
             textX += 160
         
-        renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
+        renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True, _topLeft=np.array([10., 240.]))
         
         if self.restPose is not None:
             qpos = np.array(self.restPose)
