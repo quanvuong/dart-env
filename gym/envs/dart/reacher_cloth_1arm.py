@@ -37,8 +37,10 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.dispreward2 = 0
         self.proxreward1 = 0
         self.proxreward2 = 0
+        self.velocityPenalty = 0
+        self.prevDq = None
 
-        self.restPoseActive = False
+        self.restPoseActive = True
         self.restPoseWeight = 0.05
         self.restPose = np.array([])
         self.restPoseReward = 0
@@ -69,7 +71,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         self.action_scale[5] = 60 #shoulder
         self.action_scale[6] = 60
         self.action_scale[7] = 50
-        self.action_scale[8] = 50 #elbow
+        self.action_scale[8] = 30 #elbow
         self.action_scale[9] = 10  #wrist
         self.action_scale[10] = 10
         '''self.action_scale[11] = 150 #clav
@@ -111,7 +113,8 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         if self.usePoseTarget is True:
             observation_size += 22
 
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+
         #DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(66+66+6), action_bounds=self.control_bounds, visualize=False)
 
         self.robot_skeleton.set_self_collision_check(True)
@@ -336,7 +339,13 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
         reward_dist = reward_dist1 + reward_dist2
         
         #force magnitude penalty    
-        reward_ctrl = - np.square(tau).sum() * 0.00005
+        reward_ctrl = - np.linalg.norm(tau) * 0.0001
+
+        self.velocityPenalty = -np.linalg.norm(self.robot_skeleton.dq) *0.001
+
+        accelerationPenalty = 0
+        if self.prevDq is not None:
+            accelerationPenalty = -np.linalg.norm(self.prevDq - self.robot_skeleton.dq)*0.01
         
         #displacement toward target reward
         reward_progress1 = 0
@@ -367,7 +376,7 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
 
         
         #total reward        
-        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward
+        reward = reward_ctrl + alive_bonus + reward_progress + reward_prox + self.restPoseReward + self.velocityPenalty + accelerationPenalty
         
         
         #record rewards for debugging
@@ -495,10 +504,13 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+        self.prevDq = np.array(qvel)
 
         #set rest pose
         if self.restPoseActive is True:
             self.restPose = qpos
+            self.restPose = np.array([0.001827724094, -0.00492083024962, 0.00269002874384, 0.00424451760036, 0.00892373789407, -0.275006149068, 0.421834512474, 0.703907952432, 1.83666666667, -0.00852162044016, 0.00391015137603, 0.00148231514513, -0.00964949311134, 0.00629198543994, 0.0058226973426, 0.00388720644317, 0.0, 0.0073720446693, -0.000369173199674, 0.00479662592095, -0.00559061958513, 0.000216556543277])
+
             #more edits here if necessary
         
         #reset cloth tube orientation and rotate sphere position
@@ -747,12 +759,13 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*1, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*2, text="Past Reward = " + str(self.pastReward), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*3, text="Dist Reward 1 = " + str(self.distreward1), color=(0.,0,0))
-            self.clothScene.drawText(x=15, y=m_viewport[3]-15*4, text="Dist Reward 2 = " + str(self.distreward2), color=(0.,0,0))
+            #self.clothScene.drawText(x=15, y=m_viewport[3]-15*4, text="Dist Reward 2 = " + str(self.distreward2), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*5, text="Tau Reward = " + str(self.taureward), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*6, text="Disp Reward 1 = " + str(self.dispreward1), color=(0.,0,0))
-            self.clothScene.drawText(x=15, y=m_viewport[3]-15*7, text="Disp Reward 2 = " + str(self.dispreward2), color=(0.,0,0))
+            self.clothScene.drawText(x=15, y=m_viewport[3]-15*7, text="Vel Penalty = " + str(self.velocityPenalty), color=(0.,0,0))
+            #self.clothScene.drawText(x=15, y=m_viewport[3]-15*7, text="Disp Reward 2 = " + str(self.dispreward2), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*8, text="Prox Reward 1 = " + str(self.proxreward1), color=(0.,0,0))
-            self.clothScene.drawText(x=15, y=m_viewport[3]-15*9, text="Prox Reward 2 = " + str(self.proxreward2), color=(0.,0,0))
+            #self.clothScene.drawText(x=15, y=m_viewport[3]-15*9, text="Prox Reward 2 = " + str(self.proxreward2), color=(0.,0,0))
             self.clothScene.drawText(x=15, y=m_viewport[3]-15*10, text="Rest-pose Reward = " + str(self.restPoseReward), color=(0., 0, 0))
         
         textX = 15.
@@ -766,96 +779,10 @@ class DartClothReacherEnv2(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
             textX += 160
         
-        #draw 2d HUD setup
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glOrtho(0, m_viewport[2], 0, m_viewport[3], -1, 1)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glDisable(GL.GL_CULL_FACE);
-        GL.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        
-        #draw the load bars
-        if self.renderDofs:
-            #draw the load bar outlines
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
-            GL.glColor3d(0,0,0)
-            GL.glBegin(GL.GL_QUADS)
-            for i in range(len(self.robot_skeleton.q)):
-                y = 58+18.*i
-                x0 = 120+70
-                x1 = 210+70
-                GL.glVertex2d(x0, y)
-                GL.glVertex2d(x0, y+15)
-                GL.glVertex2d(x1, y+15)
-                GL.glVertex2d(x1, y)
-            GL.glEnd()
-            #draw the load bar fills
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-            for i in range(len(self.robot_skeleton.q)):
-                qlim = self.limits(i)
-                qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
-                y = 58+18.*i
-                x0 = 121+70
-                x1 = 209+70
-                x = LERP(x0,x1,qfill)
-                xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
-                GL.glColor3d(0,2,3)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x0, y+1)
-                GL.glVertex2d(x0, y+14)
-                GL.glVertex2d(x, y+14)
-                GL.glVertex2d(x, y+1)
-                GL.glEnd()
-                GL.glColor3d(2,0,0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(xz-1, y+1)
-                GL.glVertex2d(xz-1, y+14)
-                GL.glVertex2d(xz+1, y+14)
-                GL.glVertex2d(xz+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,2)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x-1, y+1)
-                GL.glVertex2d(x-1, y+14)
-                GL.glVertex2d(x+1, y+14)
-                GL.glVertex2d(x+1, y+1)
-                GL.glEnd()
-                if self.restPoseActive and len(self.restPose) == len(self.robot_skeleton.q):
-                    rpx = LERP(x0,x1,(self.restPose[i]-qlim[0])/(qlim[1]-qlim[0]))
-                    GL.glColor3d(0, 2, 0)
-                    GL.glBegin(GL.GL_QUADS)
-                    GL.glVertex2d(rpx - 1, y + 1)
-                    GL.glVertex2d(rpx - 1, y + 14)
-                    GL.glVertex2d(rpx + 2, y + 14)
-                    GL.glVertex2d(rpx + 2, y + 1)
-                    GL.glEnd()
-                GL.glColor3d(0,0,0)
-                
-                textPrefix = "||q[" + str(i) + "]|| = "
-                if i < 10:
-                    textPrefix = "||q[0" + str(i) + "]|| = "
-                    
-                self.clothScene.drawText(x=30, y=60.+18*i, text=textPrefix + '%.2f' % qlim[0], color=(0.,0,0))
-                self.clothScene.drawText(x=x0, y=60.+18*i, text='%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
-        
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPopMatrix()
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPopMatrix()
-        a=0
-        
-        '''if self.renderDofs:
-            for i in range(len(self.robot_skeleton.q)):
-                if i < 10:
-                    self.clothScene.drawText(x=textX, y=60.+18*i, text="||q[0" + str(i) + "]|| = " + '%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                else:
-                    self.clothScene.drawText(x=textX, y=60.+18*i, text="||q[" + str(i) + "]|| = " + '%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                
-            textX += 30'''
+        topLeft = np.array([2.,self.viewer.viewport[3]-10-150])
+        self.viewer.interactors[4].topLeft = np.array(topLeft)
+        self.viewer.interactors[4].boxesDefined = False
+        renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False, _topLeft=topLeft)
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(self, repeat)
