@@ -95,9 +95,16 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
+    #prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
     prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
+
     trial = None
     trial = "experiment_2017_08_15_grippedtshirt"
+    #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
+    #trial = "experiment_2017_08_14_reacher_velaccpenalty"
+    #trial = "experiment_2017_08_13_reacher_velpenalty2"
+    #trial = "experiment_2017_08_12_reacher_velpenalty"
+    #trial = "experiment_2017_08_11_reacher"
     #trial = "experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1"
     #trial = "experiment_2017_06_22_UpperBodyShirtArm2"
     #trial = "experiment_2017_06_06_upperBodyReacher_arm2"
@@ -227,9 +234,9 @@ if __name__ == '__main__':
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(11) #22 dof upper body
+            a = np.zeros(22) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,11)
+            a += np.random.uniform(-1,1,22)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False

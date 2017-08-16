@@ -931,20 +931,23 @@ class PoseInteractor(BaseInteractor):
         self.skelix = 1  # change this if the skel file changes
         self.selectedBox = None
         self.boxesDefined = False
+        self.topLeft = None
 
     def defineBoxRanges(self):
         #manually defined
         #These values are taken from pyPhysX.renderUtils.renderDofs()
         skel = self.viewer.sim.skeletons[self.skelix]
-        topLeft = np.array([2., self.viewer.viewport[3] - 10])
+        if self.topLeft is None:
+            self.topLeft = np.array([2., self.viewer.viewport[3] - 10])
         textWidth = 165.  # pixel width of the text
         numWidth = 50.  # pixel width of the lower/upper bounds text
         barWidth = 90.
         barHeight = -15.
         barSpace = -10.
         #print("topLeft " + str(topLeft))
+        self.boxRanges = []
         for i in range(len(skel.q)):
-            self.boxRanges.append([[topLeft[0] + textWidth + numWidth, topLeft[0] + textWidth + numWidth + barWidth], [topLeft[1] + (barHeight + barSpace) * i + barHeight, topLeft[1] + (barHeight + barSpace) * i]])
+            self.boxRanges.append([[self.topLeft[0] + textWidth + numWidth, self.topLeft[0] + textWidth + numWidth + barWidth], [self.topLeft[1] + (barHeight + barSpace) * i + barHeight, self.topLeft[1] + (barHeight + barSpace) * i]])
         #print(self.boxRanges)
 
     def boxClickTest(self, point):
