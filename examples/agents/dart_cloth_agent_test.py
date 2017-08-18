@@ -214,13 +214,14 @@ if __name__ == '__main__':
     #env = gym.make('DartClothSphereTube-v1')
     #env = gym.make('DartReacher-v1')
     #env = gym.make('DartClothReacher-v2') #one arm reacher
-    env = gym.make('DartClothReacher-v3') #one arm reacher with target spline
+    #env = gym.make('DartClothReacher-v3') #one arm reacher with target spline
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1')
+    env = gym.make('DartClothGrippedTshirt-v2')
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))

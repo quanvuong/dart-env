@@ -363,6 +363,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothGrippedTshirt-v2',
+    entry_point='gym.envs.dart:DartClothGrippedTshirtSplineEnv',
+    #max_episode_steps=250,
+)
+
 
 # Mujoco
 # ----------------------------------------
