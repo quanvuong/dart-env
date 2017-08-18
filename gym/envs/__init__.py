@@ -322,6 +322,12 @@ register(
 )
 
 register(
+    id='DartClothReacher-v3',
+    entry_point='gym.envs.dart:DartClothReacherEnv3',
+    max_episode_steps=500,
+)
+
+register(
     id='DartClothPoseReacher-v1',
     entry_point='gym.envs.dart:DartClothPoseReacherEnv',
     max_episode_steps=500,

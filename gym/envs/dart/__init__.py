@@ -16,6 +16,7 @@ from gym.envs.dart.cart_pole_img import DartCartPoleImgEnv
 from gym.envs.dart.sphere_tube import DartClothSphereTubeEnv
 from gym.envs.dart.reacher_cloth import DartClothReacherEnv
 from gym.envs.dart.reacher_cloth_1arm import DartClothReacherEnv2
+from gym.envs.dart.reacher_cloth_1arm_spline import DartClothReacherEnv3
 from gym.envs.dart.reacher_cloth_sleeve import DartClothSleeveReacherEnv
 from gym.envs.dart.reacher_cloth_shirt import DartClothShirtReacherEnv
 from gym.envs.dart.posereacher_cloth import DartClothPoseReacherEnv
