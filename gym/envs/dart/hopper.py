@@ -20,12 +20,12 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
-        self.random_world = True
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
         self.split_task_test = True
         self.tasks = TaskList(3)
+        self.tasks.add_world_choice_tasks([0,1,2])
         #self.tasks.add_fix_param_tasks([0, [0.0, 1.0]])
         #self.tasks.add_fix_param_tasks([1, [0.0, 1.0]])
         #self.tasks.add_range_param_tasks([3, [[0.0,0.1], [0.3,0.4], [0.6,0.7], [0.9, 1.0]]])
@@ -222,6 +222,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             state = np.concatenate([state, [np.random.random()]])
 
         if self.split_task_test:
+            print(self.tasks.get_task_inputs(self.state_index))
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
         if self.avg_div > 1:
@@ -284,15 +285,15 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         if self.split_task_test:
             self.state_index = np.random.randint(self.tasks.task_num)
-            if self.random_world:
-                self.dart_world = self.dart_worlds[self.state_index]
+            world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
+            if self.dart_world != self.dart_worlds[world_choice]:
+                self.dart_world = self.dart_worlds[world_choice]
                 self.robot_skeleton = self.dart_world.skeletons[-1]
                 qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
                 qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
                 self.set_state(qpos, qvel)
                 if not self.disableViewer:
                     self._get_viewer().sim = self.dart_world
-            pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             self.param_manager.controllable_param = pm_id
             self.param_manager.set_simulator_parameters(np.array(pm_val))
             for ind, jtid in enumerate(jt_id):
