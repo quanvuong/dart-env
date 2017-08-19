@@ -18,7 +18,6 @@ class DartWalker2dPendulumEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)  # 3 is ode collision detector
 
-
         utils.EzPickle.__init__(self)
 
     def _step(self, a):

@@ -8,14 +8,14 @@ from gym.envs.dart import dart_env
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
-        self.action_scale = np.array([100.0]*15)
-        self.action_scale[[-1,-2,-7,-8]] = 20
+        self.action_scale = np.array([150.0]*15)
+        self.action_scale[[-1,-2,-7,-8]] = 60
         self.action_scale[[0, 1, 2]] = 150
         obs_dim = 41
 
         self.t = 0
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -45,6 +45,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         posafter = self.robot_skeleton.bodynodes[0].com()[0]
         height = self.robot_skeleton.bodynodes[0].com()[1]
         side_deviation = self.robot_skeleton.bodynodes[0].com()[2]
+        angle = self.robot_skeleton.q[3]
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, 0]))
@@ -72,7 +73,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         vel_rew = 1.0 * (posafter - posbefore) / self.dt
-        action_pen = 1e-3 * np.square(a).sum()
+        action_pen = 1e-2 * np.square(a).sum()
         joint_pen = 2e-1 * joint_limit_penalty
         deviation_pen = 1e-3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
@@ -86,7 +87,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.05) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84))
+                    (height > 0.8) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84)
+                    and np.abs(angle) < 0.4)
 
         if done:
             reward = 0
@@ -99,7 +101,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         com_foot_offset1 = robot_com - foot1_com
         com_foot_offset2 = robot_com - foot2_com
 
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done}
+        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done, 'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([

@@ -51,7 +51,10 @@ class DartEnv(gym.Env):
             full_paths.append(fullpath)
 
         if full_paths[0][-5:] == '.skel':
-            self.dart_world = pydart.World(dt, full_paths[0])
+            self.dart_worlds = []
+            for i in range(len(model_paths)):
+                self.dart_worlds.append(pydart.World(dt, full_paths[i]))
+            self.dart_world = self.dart_worlds[0]
         else:
             self.dart_world = pydart.World(dt)
             for fullpath in full_paths:
@@ -60,10 +63,12 @@ class DartEnv(gym.Env):
 
         self.robot_skeleton = self.dart_world.skeletons[-1] # assume that the skeleton of interest is always the last one
 
-        for jt in range(0, len(self.robot_skeleton.joints)):
-            for dof in range(len(self.robot_skeleton.joints[jt].dofs)):
-                if self.robot_skeleton.joints[jt].has_position_limit(dof):
-                    self.robot_skeleton.joints[jt].set_position_limit_enforced(True)
+        for world in self.dart_worlds:
+            for skeleton in world.skeletons:
+                for jt in range(0, len(skeleton.joints)):
+                    for dof in range(len(skeleton.joints[jt].dofs)):
+                        if skeleton.joints[jt].has_position_limit(dof):
+                            skeleton.joints[jt].set_position_limit_enforced(True)
 
         self._obs_type = obs_type
         self.frame_skip= frame_skip
