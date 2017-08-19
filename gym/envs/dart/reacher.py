@@ -12,15 +12,18 @@ class DartReacherEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
-        dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel']\
-                                  , 4, 21, self.control_bounds, disableViewer=True)
-
+        obs_dim=21
         self.train_UP = False
         self.perturb_MP = False
 
         self.split_task_test = True
         self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0,1,2])
+        self.tasks.add_world_choice_tasks([0, 1, 2])
+        if self.split_task_test:
+            obs_dim += self.tasks.task_input_dim()
+
+        dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel']\
+                                  , 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -54,7 +57,7 @@ class DartReacherEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         aux_pred_signal = np.hstack([self.robot_skeleton.bodynodes[2].to_world(fingertip), [reward]])
 
-        return ob, reward, done, {'aux_pred':aux_pred_signal, 'done_return':done, 'state_index':self.state_index}
+        return ob, reward, done, {'aux_pred':aux_pred_signal, 'done_return':done, 'state_index':self.state_index, 'dyn_model_id':0}
 
     def _get_obs(self):
         theta = self.robot_skeleton.q
