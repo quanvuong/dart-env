@@ -34,7 +34,7 @@ class TaskList:
             return np.array(self.current_range_params)
 
     def task_input_dim(self):
-        if len(self.fix_param_tasks) > 0 or len(self.joint_limit_tasks) > 0:
+        if len(self.fix_param_tasks) > 0 or len(self.joint_limit_tasks) > 0 or len(self.world_choice) > 0:
             return self.task_num + len(self.range_param_tasks)
         else:
             return len(self.range_param_tasks)
