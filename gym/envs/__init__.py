@@ -253,7 +253,7 @@ register(
     id='DartReacher3d-v1',
     entry_point='gym.envs.dart:DartReacherEnv',
     reward_threshold=-200,
-    max_episode_steps=500,
+    max_episode_steps=250,
 )
 
 register(

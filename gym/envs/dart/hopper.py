@@ -222,7 +222,6 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             state = np.concatenate([state, [np.random.random()]])
 
         if self.split_task_test:
-            print(self.tasks.get_task_inputs(self.state_index))
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
         if self.avg_div > 1:

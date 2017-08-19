@@ -34,73 +34,56 @@
                 <transformation>0 0 0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
-                    <offset>0 0 0</offset>
+                    <offset>0 -0.25 0</offset>
                 </inertia>
                 <visualization_shape>
+                    <transformation>0 -0.25 0 0 0 0</transformation>
                     <geometry>
                         <box>
                             <size>0.1 0.5 0.1</size>
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.5 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="link 2">
                 <transformation>0 -0.5 0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
-                    <offset>0 0 0</offset>
+                    <offset>0 -0.25 0</offset>
                 </inertia>
                 <visualization_shape>
+                    <transformation>0 -0.25 0 0 0 0</transformation>
                     <geometry>
                         <box>
                             <size>0.1 0.5 0.1</size>
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.5 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="link 3">
-                <transformation>0 -1 0 0 0 0</transformation>
+                <transformation>0 -1.0 0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
-                    <offset>0 0 0</offset>
+                    <offset>0 -0.25 0</offset>
                 </inertia>
                 <visualization_shape>
+                    <transformation>0 -0.25 0 0 0 0</transformation>
                     <geometry>
                         <box>
                             <size>0.1 0.5 0.1</size>
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.5 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
+
             <joint type="universal" name="joint 1">
                 <parent>world</parent>
                 <child>link 1</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-3.14</lower>
-                    	<upper>3.14</upper>
+                    	<lower>-1.57</lower>
+                    	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
@@ -110,15 +93,14 @@
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
  		     <limit>
-                    	<lower>-3.14</lower>
-                    	<upper>3.14</upper>
+                    	<lower>-1.57</lower>
+                    	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis2>
-                <transformation>0 0.25 0 0 0 0</transformation>
             </joint>
             <joint type="revolute" name="joint 2">
                 <parent>link 1</parent>
@@ -127,14 +109,13 @@
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
                     	<lower>-3.14</lower>
-                    	<upper>3.14</upper>
-                    </limit> 
+                    	<upper>0.0</upper>
+                    </limit>
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                  </axis>
-                <transformation>0 0.25 0 0 0 0</transformation>
             </joint>
             <joint type="universal" name="joint 3">
                 <parent>link 2</parent>
@@ -142,8 +123,8 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
  		            <limit>
-                    	<lower>-3.14</lower>
-                    	<upper>3.14</upper>
+                    	<lower>-1.57</lower>
+                    	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
@@ -153,15 +134,14 @@
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
  		     <limit>
-                    	<lower>-3.14</lower>
-                    	<upper>3.14</upper>
+                    	<lower>-1.57</lower>
+                    	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis2>
-                <transformation>0 0.25 0 0 0 0</transformation>
             </joint>
         </skeleton>	
     </world>

@@ -3,14 +3,29 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
+from gym.envs.dart.sub_tasks import *
 
-class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
+class DartReacherEnv(dart_env.DartEnv):#, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([10, 10, 10, 10, 10])
+        self.action_scale = np.array([100, 100, 50, 50, 50])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
-        dart_env.DartEnv.__init__(self, 'reacher.skel', 4, 21, self.control_bounds)
-        utils.EzPickle.__init__(self)
+        self.avg_div = 0
+
+        dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel']\
+                                  , 4, 21, self.control_bounds, disableViewer=True)
+
+        self.train_UP = False
+        self.perturb_MP = False
+
+        self.split_task_test = True
+        self.tasks = TaskList(3)
+        self.tasks.add_world_choice_tasks([0,1,2])
+
+        self.dart_world=self.dart_worlds[0]
+        self.robot_skeleton=self.dart_world.skeletons[-1]
+
+        #utils.EzPickle.__init__(self)
 
     def _step(self, a):
         clamped_control = np.array(a)
@@ -39,29 +54,50 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
 
         aux_pred_signal = np.hstack([self.robot_skeleton.bodynodes[2].to_world(fingertip), [reward]])
 
-        return ob, reward, done, {'aux_pred':aux_pred_signal, 'done_return':done}
+        return ob, reward, done, {'aux_pred':aux_pred_signal, 'done_return':done, 'state_index':self.state_index}
 
     def _get_obs(self):
         theta = self.robot_skeleton.q
         fingertip = np.array([0.0, -0.25, 0.0])
         vec = self.robot_skeleton.bodynodes[2].to_world(fingertip) - self.target
-        return np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
-        #return np.concatenate([theta, self.robot_skeleton.dq, vec]).ravel()
+        state = np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
+
+        if self.split_task_test:
+            state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
+
+        if self.avg_div > 1:
+            return_state = np.zeros(len(state) + self.avg_div)
+            return_state[0:len(state)] = state
+            return_state[len(state) + self.state_index] = 1
+            return return_state
+
+        return state
 
     def reset_model(self):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
-        '''while True:
+
+        if self.split_task_test:
+            self.state_index = np.random.randint(self.tasks.task_num)
+            world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
+            if self.dart_world != self.dart_worlds[world_choice]:
+                self.dart_world = self.dart_worlds[world_choice]
+                self.robot_skeleton = self.dart_world.skeletons[-1]
+                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                self.set_state(qpos, qvel)
+                if not self.disableViewer:
+                    self._get_viewer().sim = self.dart_world
+            for ind, jtid in enumerate(jt_id):
+                self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
+                self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
+
+        while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             #print('target = ' + str(self.target))
-            if np.linalg.norm(self.target) < 1.5: break'''
-        if np.random.random() > 0.5:
-            self.target = np.array([0, -1.2, 0]) + self.np_random.uniform(low=-0.01, high=0.01, size=3)
-        else:
-            self.target = np.array([0, 3.5, 0]) + self.np_random.uniform(low=-0.01, high=0.01, size=3)
-
+            if np.linalg.norm(self.target) < 1.5: break
 
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
