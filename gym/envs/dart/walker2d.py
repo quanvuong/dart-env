@@ -6,9 +6,9 @@ from gym.envs.dart import dart_env
 class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
-        self.control_bounds[1][1] = -0.3
-        self.control_bounds[1][4] = -0.3
-        self.action_scale = np.array([50, 50, 20, 50, 50, 20])
+        #self.control_bounds[1][1] = -0.3
+        #self.control_bounds[1][4] = -0.3
+        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
 
         dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=False)

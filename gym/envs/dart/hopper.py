@@ -55,7 +55,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_capsule_size_v1.skel', 'hopper_capsule_size_v2.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 

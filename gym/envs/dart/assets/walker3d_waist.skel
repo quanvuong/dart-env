@@ -256,19 +256,19 @@
             <joint type="translational" name="j_torso">
                 <parent>world</parent>
                 <child>h_torso_aux</child>
-                <axis3>
+                <!--<axis3>
  		            <limit>
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
                     </limit>
-                </axis3>
+                </axis3>-->
             </joint>
 
             <joint type="euler" name="j_torso">
                 <parent>h_torso_aux</parent>
                 <child>h_torso</child>
                 <axis_order>zyx</axis_order>
-                <axis2>
+                <!--<axis2>
 		            <limit>
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
@@ -279,7 +279,7 @@
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
                     </limit>
-                </axis3>
+                </axis3>-->
             </joint>
 
             <joint type="euler" name="j_pelvis_x">

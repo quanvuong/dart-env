@@ -3,6 +3,8 @@ __author__ = 'yuwenhao'
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
+import joblib
+import os
 
 
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
@@ -15,6 +17,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t = 0
 
+        self.base_policy = None
+        modelpath = os.path.join(os.path.dirname(__file__), "models")
+        self.base_policy = joblib.load(os.path.join(modelpath, 'init_policy.pkl'))
+
         dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 
         self.robot_skeleton.set_self_collision_check(True)
@@ -25,6 +31,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def advance(self, a):
+        if self.base_policy is not None:
+            base_action = self.base_policy.get_action(self._get_obs())[1]['mean']
+            base_action[0] = 0
+            a = 0.5*a+base_action
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -40,21 +50,21 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
-        self.advance(a)
+        self.advance(np.copy(a))
 
-        posafter = self.robot_skeleton.bodynodes[0].com()[0]
-        height = self.robot_skeleton.bodynodes[0].com()[1]
-        side_deviation = self.robot_skeleton.bodynodes[0].com()[2]
+        posafter = self.robot_skeleton.bodynodes[1].com()[0]
+        height = self.robot_skeleton.bodynodes[1].com()[1]
+        side_deviation = self.robot_skeleton.bodynodes[1].com()[2]
         angle = self.robot_skeleton.q[3]
 
         upward = np.array([0, 1, 0])
-        upward_world = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, 0]))
+        upward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
         upward_world /= np.linalg.norm(upward_world)
         ang_cos_uwd = np.dot(upward, upward_world)
         ang_cos_uwd = np.arccos(ang_cos_uwd)
 
         forward = np.array([1, 0, 0])
-        forward_world = self.robot_skeleton.bodynodes[0].to_world(np.array([1, 0, 0])) - self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, 0]))
+        forward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([1, 0, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
         forward_world /= np.linalg.norm(forward_world)
         ang_cos_fwd = np.dot(forward, forward_world)
         ang_cos_fwd = np.arccos(ang_cos_fwd)
@@ -71,12 +81,20 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        alive_bonus = 1.0
-        vel_rew = 1.0 * (posafter - posbefore) / self.dt
-        action_pen = 1e-2 * np.square(a).sum()
-        joint_pen = 2e-1 * joint_limit_penalty
-        deviation_pen = 1e-3 * abs(side_deviation)
-        reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+        if self.base_policy is None:
+            alive_bonus = 1.0
+            vel_rew = 1.0 * (posafter - posbefore) / self.dt
+            action_pen = 1e-2 * np.square(a).sum()
+            joint_pen = 2e-1 * joint_limit_penalty
+            deviation_pen = 1e-3 * abs(side_deviation)
+            reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+        else:
+            alive_bonus = 1.5
+            vel_rew = 1.0 * (posafter - posbefore) / self.dt
+            action_pen = 5e-2 * np.square(a).sum()
+            joint_pen = 2e-1 * joint_limit_penalty
+            deviation_pen = 5e-2 * abs(side_deviation)
+            reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
         #reward -= 1e-7 * total_force_mag
 
@@ -87,8 +105,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 0.8) and (height < 2.0) and (abs(ang_cos_uwd) < 0.84) and (abs(ang_cos_fwd) < 0.84)
-                    and np.abs(angle) < 0.4)
+                    (height > 0.8) and (height < 2.0) and (abs(ang_cos_uwd) < 0.6) and (abs(ang_cos_fwd) < 0.8)
+                    and np.abs(angle) < 0.4 and np.abs(side_deviation) < 0.3)
 
         if done:
             reward = 0
