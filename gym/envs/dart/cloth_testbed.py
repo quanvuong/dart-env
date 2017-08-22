@@ -10,6 +10,7 @@ import time
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
+from pyPhysX.clothfeature import *
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -501,6 +502,15 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #test plane
+        org = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
+        normal = self.robot_skeleton.bodynodes[8].to_world(np.array([0.0,-0.1,0.0])) - org
+        normal /= np.linalg.norm(normal)
+        basis1 = self.robot_skeleton.bodynodes[8].to_world(np.array([0.0,0.,0.1])) - org
+        basis2 = self.robot_skeleton.bodynodes[8].to_world(np.array([0.1, 0., 0.0])) - org
+        plane = Plane(org=org, normal=normal, b1=basis1, b2=basis2)
+        plane.draw()
 
         #links = pyutils.getRobotLinks(self.robot_skeleton)
         GL.glBegin(GL.GL_LINES)

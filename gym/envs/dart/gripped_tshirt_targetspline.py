@@ -10,6 +10,7 @@ import time
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
+from pyPhysX.clothfeature import *
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -116,10 +117,10 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
-                                        state_path="/home/aclegg3/Documents/dev/tshirt_regrip3.obj",
+                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -135,8 +136,10 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
+
+        self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
 
         #setup HandleNode here
         self.handleNode = HandleNode(self.clothScene, org=np.array([0.05,0.034,-0.975]))
@@ -591,6 +594,30 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #test best fit plane
+        limblines = []
+        fingertip = np.array([0.0, -0.06, 0.0])
+        limblines.append([self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)), self.robot_skeleton.bodynodes[8].to_world(fingertip)])
+        limblines.append([self.robot_skeleton.bodynodes[7].to_world(np.zeros(3)),
+                          self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))])
+        #limblines.append([self.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
+        #                  self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))])
+        #limblines.append([self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
+        #                  self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))])
+        contains = False
+        for line in limblines:
+            if self.CP0Feature.contains(l0=line[0], l1=line[1]):
+                contains = True
+        fillColor = [1.0,0.,0.]
+        if contains is True:
+            fillColor = [0.,1.,0.]
+        self.CP0Feature.drawProjectionPoly(fillColor=fillColor)
+
+        #plane = self.CP0Feature.fitPlane()
+        #plane.draw()
+        #for v in self.splineCP0Verts:
+         #   renderUtils.drawSphere(pos=self.clothScene.getVertexPos(vid=v))
 
         #test triangle/line segment intersection for neck/head
         tp0 = self.clothScene.getVertexPos(cid=0, vid=657)
