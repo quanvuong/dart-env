@@ -234,14 +234,14 @@ if __name__ == '__main__':
         o = env.reset()
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 2500
+        rolloutHorizon = 350
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
             a = np.zeros(11) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,11)
+            #a += np.random.uniform(-1,1,11)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
@@ -252,7 +252,7 @@ if __name__ == '__main__':
                 #print(o)
             env.render()
             if done is True:
-                #time.sleep(5.5)
+                time.sleep(0.5)
                 break
     env.render(close=True)
     
