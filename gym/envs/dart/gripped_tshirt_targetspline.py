@@ -136,7 +136,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
@@ -359,7 +359,6 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         self.targetSplineTime = 0
         self.dart_world.reset()
         self.clothScene.reset()
-        self.viewer.interactors[4].skelix = 2
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
         #first try: couples with tshirt_regrip1.obj
         '''qpos = [  2.18672993e-03,  -4.72069042e-03,  -1.13570380e-02,   1.49440348e-02,
@@ -812,6 +811,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
+            self.viewer.interactors[4].skelix = 2
             self._get_viewer().scene.tb.trans[2] = -3.5
             self._get_viewer().scene.tb._set_theta(180)
             self._get_viewer().scene.tb._set_phi(180)
