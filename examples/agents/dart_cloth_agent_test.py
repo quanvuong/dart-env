@@ -99,8 +99,8 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
-    trial = "experiment_2017_08_22_progressmetricpolicy"
-    #trial = "experiment_2017_08_19_splineshirtreacher"
+    #trial = "experiment_2017_08_22_progressmetricpolicy"
+    trial = "experiment_2017_08_19_splineshirtreacher"
     #trial = "experiment_2017_08_17_reacher_statepenalty"
     #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
     #trial = "experiment_2017_08_15_grippedtshirt"

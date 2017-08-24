@@ -136,10 +136,11 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
+        self.armLength = -1.0 #set when arm progress is queried
         self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120], clothScene=self.clothScene)
 
         #setup HandleNode here
@@ -256,6 +257,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         vecR1 = self.target - wRFingertip1
         self.setTargetSplineFromVerts()
         #now compute splineTime
+
         while self.targetSplineTime < 1.0 and np.linalg.norm(vecR1) < 0.1:
             self.targetSplineTime += 0.01
             self.target = self.targetSpline.pos(self.targetSplineTime)
@@ -288,12 +290,13 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         vecR2 = self.target - wRFingertip2
 
-        arm_progress = self.armSleeveProgress()*5.0
+        arm_progress = self.armSleeveProgress()/self.armLength
         reward_progress = self.targetSplineTime
         reward_distR = -np.linalg.norm(vecR2)*10
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
-        reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
+        #reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
+        reward = alive_bonus + reward_ctrl + arm_progress*10.0
 
         # check cloth deformation for termination
         clothDeformation = 0
@@ -315,6 +318,10 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             #print("Collar Termiantion")
             done = True
             reward = -4000
+        elif self.armLength > 0 and arm_progress >= 0.95:
+            done=True
+            reward = 1000
+            print("Dressing completed!")
 
 
         #graphing force
@@ -580,7 +587,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         if intersection_distance is not None:
             #return the remaining distance to the top of the head
             return l_len-intersection_distance
-        print("intersection_distance = " + str(intersection_distance))
+        #print("intersection_distance = " + str(intersection_distance))
         return intersection_distance
 
     def armSleeveProgress(self):
@@ -601,6 +608,11 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
                           self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))])
         limblines.append([self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
                           self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))])
+
+        if self.armLength < 0:
+            self.armLength = 0.
+            for line in limblines:
+                self.armLength += np.linalg.norm(line[1] - line[0])
         contains = False
         intersection_ix = -1
         intersection_depth = -1.0
@@ -647,7 +659,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         fingertip = np.array([0.0, -0.07, 0.0])
         end_effector = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         armProgress = 0
-        if self.CP0Feature.plane is not None:
+        armProgress = self.armSleeveProgress()
+        '''if self.CP0Feature.plane is not None:
             armProgress = -np.linalg.norm(end_effector-self.CP0Feature.plane.org)
         limblines.append([self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)),
                           self.robot_skeleton.bodynodes[8].to_world(fingertip)])
@@ -672,13 +685,14 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             fillColor = [0., 1., 0.]
             armProgress = -intersection_depth
             for i in range(intersection_ix+1):
-                armProgress += np.linalg.norm(limblines[i][1]-limblines[i][0])
-        self.CP0Feature.drawProjectionPoly(fillColor=fillColor)
+                armProgress += np.linalg.norm(limblines[i][1]-limblines[i][0])'''
+        self.CP0Feature.drawProjectionPoly(fillColor=[0.,1.0,0.0])
 
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
                                  text="Arm progress = " + str(armProgress),
                                  color=(0., 0, 0))
-        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 40,
+        renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=armProgress/self.armLength, color=[0.0,3.0,0])
+        '''self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 40,
                                  text="Intersection_ix = " + str(intersection_ix),
                                  color=(0., 0, 0))
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 55,
@@ -687,7 +701,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         if intersection_ix >= 0:
             self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 70,
                                      text="ix limb length = " + str(np.linalg.norm(limblines[intersection_ix][1]-limblines[intersection_ix][0])),
-                                     color=(0., 0, 0))
+                                     color=(0., 0, 0))'''
 
         '''self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 85,
                                  text="progress function = " + str(self.armSleeveProgress()),
