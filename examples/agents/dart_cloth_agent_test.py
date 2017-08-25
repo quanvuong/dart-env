@@ -99,8 +99,10 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
+    #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly" #no spline increment
+    #trial = "experiment_2017_08_22_progressmetricpolicy_cont2"
     #trial = "experiment_2017_08_22_progressmetricpolicy"
-    trial = "experiment_2017_08_19_splineshirtreacher"
+    #trial = "experiment_2017_08_19_splineshirtreacher"
     #trial = "experiment_2017_08_17_reacher_statepenalty"
     #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
     #trial = "experiment_2017_08_15_grippedtshirt"
@@ -222,8 +224,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothShirtReacher-v1')
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
-    #env = gym.make('DartClothGrippedTshirt-v1')
-    env = gym.make('DartClothGrippedTshirt-v2')
+    #env = gym.make('DartClothGrippedTshirt-v1') #no spline
+    #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
+    env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
@@ -235,7 +238,7 @@ if __name__ == '__main__':
         o = env.reset()
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 350
+        rolloutHorizon = 35000
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000

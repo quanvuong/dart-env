@@ -24,6 +24,7 @@ from gym.envs.dart.cloth_testbed import DartClothTestbedEnv
 from gym.envs.dart.gown_dressing_demo import DartClothGownDemoEnv
 from gym.envs.dart.gripped_tshirt_demo import DartClothGrippedTshirtEnv
 from gym.envs.dart.gripped_tshirt_targetspline import DartClothGrippedTshirtSplineEnv
+from gym.envs.dart.gripped_tshirt_targetspline_2ndarm import DartClothGrippedTshirtSpline2ndArmEnv
 
 from gym.envs.dart.walker2d import DartWalker2dEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv

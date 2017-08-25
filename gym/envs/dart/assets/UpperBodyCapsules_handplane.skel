@@ -33,7 +33,7 @@
         <skeleton name="handplane">
            <mobile>false</mobile>
            <body name="plane1">
-                <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                <transformation>0.0 -0.2 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
                     <offset>0 0 0</offset>

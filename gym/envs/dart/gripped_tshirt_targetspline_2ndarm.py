@@ -20,12 +20,11 @@ import OpenGL.GLUT as GLUT
 
 
 
-class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
+class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.phaseInObs = True
-        self.arm = 1  # 0 both, 1 right, 2 left
+        self.arm = 2  # 0 both, 1 right, 2 left
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -51,10 +50,10 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
         # target spline
         self.targetSpline = pyutils.Spline()
-        self.splineCP0Verts = [2621, 2518, 2576, 2549, 2554, 2544, 2616, 2558, 2519, 2561, 2593]
-        self.splineCP1Verts = [255, 253, 250, 247, 266, 264, 262, 260, 258]
+        self.splineCP0Verts = [7, 2339, 2398, 2343, 2384, 2405, 2421, 2275, 2250, 134, 136, 138]
+        self.splineCP1Verts = [232, 230, 227, 225, 222, 218, 241, 239, 237, 235, 233]
         self.targetSplineTime = 0  # set to 0 in reset
-        self.incrementSplineTime = False
+        self.incrementSplineTime = True
 
         # handle node setup
         self.handleNode = None
@@ -122,7 +121,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
                                         mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
-                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
+                                        #state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
+                                        state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -135,8 +135,6 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
         if self.targetInObs:
             observation_size += 6 #target reaching
-        if self.phaseInObs:
-            observation_size += 1
 
         #intialize the parent env
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
@@ -274,7 +272,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         if self.arm == 1:
             tau = np.concatenate([tau, np.zeros(11)])
         elif self.arm == 2:
-            tau = np.concatenate([tau[:3], np.zeros(9), tau[3:], np.zeros(3)])
+            tau = np.concatenate([tau[:3], np.zeros(8), tau[3:], np.zeros(3)])
         self.do_simulation(tau, self.frame_skip)
 
         #update the features
@@ -358,8 +356,6 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             else:
                 vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
             obs = np.concatenate([obs, vec, self.target]).ravel()
-        if self.phaseInObs:
-            obs = np.concatenate([obs, np.array([self.armSleeveProgress])]).ravel()
         obs = np.concatenate([obs, f*3.]).ravel()
         #print(obs)
         #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
@@ -387,14 +383,31 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
                 0.053095524649, 1.15934253669, 0.626036755784, 1.71154787065, 0.600289882587, -0.0740444449891,
                 -0.0163328396778, 0.00592014136357, -0.00843219489643] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
 
-        qpos = [0.123146842221, -0.0289355342829, 0.0228754335829, 0.178160667409, -0.232380860117, -0.92466391357,
+        #start pose of 1st sleeve dressing
+        '''qpos = [0.123146842221, -0.0289355342829, 0.0228754335829, 0.178160667409, -0.232380860117, -0.92466391357,
          0.799702454732, 2.1, 2.8925789487, -0.00872324714354, -0.0501696842966, 0.00447277300298, 0.0888644449976,
          0.0648296316731, 1.17563923517, 0.641600883822, 1.69865162075, 0.612304711936, -0.0668473720041,
-         -0.0071334969361, -0.00759981159759, -0.0168213446051] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+         -0.0071334969361, -0.00759981159759, -0.0168213446051] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+
+        #end pose of 1st sleeve dressing
+        '''qpos = [-0.41544270972, 0.242822559203, 1.00014704416, 0.203617333923, 0.0384987751629, 0.618666743985,
+                2.49978726812, 2.06799741286, 0.0577308155211, -0.605127798666, 0.186585275629, -0.225383463656,
+                0.105293054792, -0.332072203848, 0.970443711246, 0.920802253398, 1.66793432967, 0.611389466222,
+                -0.077386511834, 0.190709600282, -0.0302107834603, 0.00960955816463] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+
+        #regrip pose (hands together):
+        qpos = [-0.0665044783311, 0.0320441055726, 0.132492367645, -0.162985559062, 0.24800151523, -0.673821597214,
+         0.447179812699, 1.23709603772, 1.86643981164, 0.517966631991, -0.0315090321144, -0.00558062164692,
+         0.0466310070329, -0.385470651234, 1.04880411208, 0.86507793576, 1.68016635743, 0.615275768064,
+         -0.0824549688069, 0.185599327056, -0.0233487609124, -0.00244875091393] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
+        '''self.q_target = [-0.0665044783311, 0.0320441055726, 0.132492367645, -0.162985559062, 0.24800151523, -0.673821597214,
+         0.447179812699, 1.23709603772, 1.86643981164, 0.517966631991, -0.0315090321144, -0.00558062164692,
+         0.0466310070329, -0.385470651234, 1.04880411208, 0.86507793576, 1.68016635743, 0.615275768064,
+         -0.0824549688069, 0.185599327056, -0.0233487609124, -0.00244875091393]'''
         #self.q_target = np.array(self.robot_skeleton.q)
         #self.q_target[8] = 1.0
 
@@ -825,7 +838,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             textX += 160
         
         renderUtils.renderDofs(self.robot_skeleton, restPose=None, renderRestPose=False)
-
+        #renderUtils.renderDofs(self.robot_skeleton, restPose=self.q_target, renderRestPose=True)
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
