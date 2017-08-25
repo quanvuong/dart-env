@@ -245,7 +245,7 @@ if __name__ == '__main__':
         for j in range(rolloutHorizon):
             a = np.zeros(11) #22 dof upper body
             #a = np.ones(22)
-            #a += np.random.uniform(-1,1,11)
+            a += np.random.uniform(-1,1,11)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False

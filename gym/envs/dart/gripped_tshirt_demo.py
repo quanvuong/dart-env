@@ -128,7 +128,7 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6 #target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_R.skel', frame_skip=4,
                               observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 

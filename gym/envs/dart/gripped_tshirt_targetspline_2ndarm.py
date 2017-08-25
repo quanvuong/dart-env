@@ -24,7 +24,11 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
+        self.phaseInObs = True
         self.arm = 2  # 0 both, 1 right, 2 left
+
+        self.arm_progress = 0.  # set in step when first queried
+        self.armLength = -1.0  # set when arm progress is queried
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -80,7 +84,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #interactive handle mode
         self.interactiveHandleNode = False
 
-        self.updateHandleNodeFrom = 14 #if -1, this feature is disabled
+        self.updateHandleNodeFrom = 8 #if -1, this feature is disabled
         #self.interactiveIkTarget = True
 
         #saved IK info
@@ -122,7 +126,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
-                                        state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
+                                        #state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
+                                        state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -135,9 +140,11 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
         if self.targetInObs:
             observation_size += 6 #target reaching
+        if self.phaseInObs:
+            observation_size += 1
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane.skel', frame_skip=4,
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_L.skel', frame_skip=4,
                               observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
@@ -256,6 +263,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #update targetspline
         fingertip = np.array([0.0, -0.06, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        if self.arm == 2:
+            wRFingertip1 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         vecR1 = self.target - wRFingertip1
         self.setTargetSplineFromVerts()
 
@@ -280,6 +289,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.CP0Feature.fitPlane()
 
         reward = 0
+        self.arm_progress = self.armSleeveProgress() / self.armLength
         ob = self._get_obs()
         s = self.state_vector()
         
@@ -289,17 +299,17 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #check termination conditions
         done = False
 
-
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        if self.arm == 2:
+            wRFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         vecR2 = self.target - wRFingertip2
 
-        arm_progress = self.armSleeveProgress()/self.armLength
         reward_progress = self.targetSplineTime
         reward_distR = -np.linalg.norm(vecR2)*10
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
         #reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
-        reward = alive_bonus + reward_ctrl + arm_progress*10.0
+        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0
 
         # check cloth deformation for termination
         clothDeformation = 0
@@ -321,7 +331,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             #print("Collar Termiantion")
             done = True
             reward = -4000
-        elif self.armLength > 0 and arm_progress >= 0.95:
+        elif self.armLength > 0 and self.arm_progress >= 0.95:
             done=True
             reward = 1000
             print("Dressing completed!")
@@ -356,15 +366,24 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             else:
                 vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
             obs = np.concatenate([obs, vec, self.target]).ravel()
+        if self.phaseInObs:
+            obs = np.concatenate([obs, np.array([self.arm_progress])]).ravel()
+
         obs = np.concatenate([obs, f*3.]).ravel()
+        '''print("cos obs: " + str(obs[:22]))
+        print("sin obs: " + str(obs[22:44]))
+        print("dq obs: " + str(obs[44:66]))
+        print("target obs: " + str(obs[66:72]))
+        print("phase obs: " + str(obs[72]))
+        print("f obs: " + str(obs[72:138]))'''
         #print(obs)
         #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
         return obs
 
     def reset_model(self):
         '''reset_model'''
-        if self.reset_number > 0:
-            self.enforceTauLimits = True
+        #if self.reset_number > 0:
+        #    self.enforceTauLimits = True
         self.numSteps = 0
         self.targetSplineTime = 0
         self.dart_world.reset()
@@ -396,10 +415,16 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
                 -0.077386511834, 0.190709600282, -0.0302107834603, 0.00960955816463] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
 
         #regrip pose (hands together):
-        qpos = [-0.0665044783311, 0.0320441055726, 0.132492367645, -0.162985559062, 0.24800151523, -0.673821597214,
-         0.447179812699, 1.23709603772, 1.86643981164, 0.517966631991, -0.0315090321144, -0.00558062164692,
-         0.0466310070329, -0.385470651234, 1.04880411208, 0.86507793576, 1.68016635743, 0.615275768064,
-         -0.0824549688069, 0.185599327056, -0.0233487609124, -0.00244875091393] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+        '''qpos = [-0.0665044783311, 0.0320441055726, 0.132492367645, -0.162985559062, 0.24800151523, -0.673821597214,
+         0.447179812699, 1.23709603772, 1.96643981164, 0.517966631991, -0.0315090321144, -0.00558062164692,
+         0.0466310070329, -0.385470651234, 1.04880411208, 0.86507793576, 1.58016635743, 0.615275768064,
+         -0.0824549688069, 0.185599327056, -0.0233487609124, -0.00244875091393] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+
+        #start pose of 2nd sleeve dressing (gripped)
+        qpos = [-0.157687732756, 0.0162382715017, 0.0967432360388, -0.160683852563, 0.242810336962, -0.673174385754,
+         0.486173577025, 1.24943535367, 1.98050908209, 0.527001190001, -0.0222554188732, 0.00663342222776,
+         0.0836726418349, -0.63553814711, 0.866285606682, 1.14543917537, 2.08035747595, 0.6, 0.0572976400435,
+         0.167755129145, -0.0126048093718, 0.0106245477183] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
@@ -461,7 +486,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.ikRestPose[6] += 1.0
 
         self.handleNode.clearHandles()
-        self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+        self.handleNode.addVertices(verts=[489, 787, 327, 362, 676, 887, 54, 55])
         #self.handleNode.addVertices(verts=[468, 1129, 975, 354, 594, 843, 654, 682, 415, 378, 933, 547, 937, 946, 763, 923, 2395, 2280, 2601, 2454])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         #self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
@@ -523,6 +548,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
 
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
+
+        self.arm_progress = self.armSleeveProgress() / self.armLength
 
         return self._get_obs()
 
@@ -615,19 +642,31 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         limblines = []
         fingertip = np.array([0.0, -0.07, 0.0])
         end_effector = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        if self.arm == 2:
+            end_effector = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         armProgress = 0
 
         if self.CP0Feature.plane is not None:
             armProgress = -np.linalg.norm(end_effector - self.CP0Feature.plane.org)
 
-        limblines.append([self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)),
-                          self.robot_skeleton.bodynodes[8].to_world(fingertip)])
-        limblines.append([self.robot_skeleton.bodynodes[7].to_world(np.zeros(3)),
-                          self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))])
-        limblines.append([self.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
-                          self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))])
-        limblines.append([self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
-                          self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))])
+        if self.arm == 1:
+            limblines.append([self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[8].to_world(fingertip)])
+            limblines.append([self.robot_skeleton.bodynodes[7].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))])
+        elif self.arm == 2:
+            limblines.append([self.robot_skeleton.bodynodes[14].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[14].to_world(fingertip)])
+            limblines.append([self.robot_skeleton.bodynodes[13].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[12].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[10].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))])
 
         if self.armLength < 0:
             self.armLength = 0.
@@ -733,7 +772,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
          #   renderUtils.drawSphere(pos=self.clothScene.getVertexPos(vid=v))
 
         #test triangle/line segment intersection for neck/head
-        tp0 = self.clothScene.getVertexPos(cid=0, vid=657)
+        '''tp0 = self.clothScene.getVertexPos(cid=0, vid=657)
         tp1 = self.clothScene.getVertexPos(cid=0, vid=109)
         tp2 = self.clothScene.getVertexPos(cid=0, vid=8)
         lp0 = self.robot_skeleton.bodynodes[16].to_world(np.array([0.,-0.05,0.])) #neck root
@@ -751,7 +790,10 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #if intersection_distance is not None:
         #    renderUtils.drawSphere(intersection_point)
         renderUtils.drawTriangle(tp0,tp1,tp2)
-        renderUtils.drawLines(lines=[[lp0,lp1]])
+        renderUtils.drawLines(lines=[[lp0,lp1]])'''
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 10,
+                                 text="Head/neck intersection distance = " + str(self.headCollarContainment()),
+                                 color=(0., 0, 0))
 
         #render force observations
         '''obs = self._get_obs()
