@@ -144,6 +144,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
+        self.arm_progress = 0. #set in step when first queried
         self.armLength = -1.0 #set when arm progress is queried
         self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120], clothScene=self.clothScene)
 
@@ -295,13 +296,13 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         vecR2 = self.target - wRFingertip2
 
-        arm_progress = self.armSleeveProgress()/self.armLength
+        self.arm_progress = self.armSleeveProgress()/self.armLength
         reward_progress = self.targetSplineTime
         reward_distR = -np.linalg.norm(vecR2)*10
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
         #reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
-        reward = alive_bonus + reward_ctrl + arm_progress*10.0
+        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0
 
         # check cloth deformation for termination
         clothDeformation = 0
@@ -510,6 +511,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
 
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
+
+        self.arm_progress = self.armSleeveProgress()
 
         return self._get_obs()
 
