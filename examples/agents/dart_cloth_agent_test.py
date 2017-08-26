@@ -226,8 +226,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
-    #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
-    env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
+    env = gym.make('DartClothGrippedTshirt-v2') #1st arm
+    #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
