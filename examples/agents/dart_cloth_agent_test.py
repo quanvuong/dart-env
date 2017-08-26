@@ -99,6 +99,7 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
+    #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly"
     #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly" #no spline increment
     #trial = "experiment_2017_08_22_progressmetricpolicy_cont2"
     #trial = "experiment_2017_08_22_progressmetricpolicy"
@@ -238,14 +239,14 @@ if __name__ == '__main__':
         o = env.reset()
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 35000
+        rolloutHorizon = 350
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
             a = np.zeros(11) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,11)
+            #a += np.random.uniform(-1,1,22)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
@@ -258,6 +259,8 @@ if __name__ == '__main__':
             if done is True:
                 time.sleep(0.5)
                 break
+            if j == rolloutHorizon-1:
+                print("Time terminate")
     env.render(close=True)
     
 

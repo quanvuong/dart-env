@@ -57,7 +57,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.splineCP0Verts = [7, 2339, 2398, 2343, 2384, 2405, 2421, 2275, 2250, 134, 136, 138]
         self.splineCP1Verts = [232, 230, 227, 225, 222, 218, 241, 239, 237, 235, 233]
         self.targetSplineTime = 0  # set to 0 in reset
-        self.incrementSplineTime = True
+        self.incrementSplineTime = False
 
         # handle node setup
         self.handleNode = None
@@ -127,7 +127,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
-                                        state_path="/home/aclegg3/Documents/dev/start2ndSleeve_gripped.obj",
+                                        #state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped.obj",
+                                        state_path="/home/aclegg3/Documents/dev/start2ndSleeve_gripped_easy.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -420,11 +421,17 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
          0.0466310070329, -0.385470651234, 1.04880411208, 0.86507793576, 1.58016635743, 0.615275768064,
          -0.0824549688069, 0.185599327056, -0.0233487609124, -0.00244875091393] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
 
-        #start pose of 2nd sleeve dressing (gripped)
-        qpos = [-0.157687732756, 0.0162382715017, 0.0967432360388, -0.160683852563, 0.242810336962, -0.673174385754,
+        #start pose of 2nd sleeve dressing (gripped) (corresponds to start2ndsleeve_gripped.obj)
+        '''qpos = [-0.157687732756, 0.0162382715017, 0.0967432360388, -0.160683852563, 0.242810336962, -0.673174385754,
          0.486173577025, 1.24943535367, 1.98050908209, 0.527001190001, -0.0222554188732, 0.00663342222776,
          0.0836726418349, -0.63553814711, 0.866285606682, 1.14543917537, 2.08035747595, 0.6, 0.0572976400435,
-         0.167755129145, -0.0126048093718, 0.0106245477183] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+         0.167755129145, -0.0126048093718, 0.0106245477183] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)'''
+
+        #easier start pose of 2nd sleeve dressing (gripped) (corresponds to start2ndsleeve_gripped_easy.obj)
+        qpos = [0.00362010610933, 0.0703250612824, 0.0166962543044, -0.184366642354, 0.20626496349, -0.707279042691,
+         0.633210692541, 1.21458866989, 2.11223003587, 0.472799630871, -0.186799890496, 0.0571894134444, 0.123649461588,
+         -0.602553150012, 0.797597241975, 1.50669631424, 2.26882959353, 0.579261786627, 0.0720725378308, 0.146064284387,
+         -0.0228403491972, 0.012006764166] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)

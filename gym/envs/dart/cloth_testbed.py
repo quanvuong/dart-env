@@ -47,7 +47,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         self.Kp = None
         self.totalTime = 0.
 
-        self.enforceTauLimits = True
+        self.enforceTauLimits = False
         self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
         self.tau_limits[0][0] = -250
         self.tau_limits[1][0] = 250
@@ -171,7 +171,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
-        self.simulateCloth = False
+        self.simulateCloth = True
         
         self.renderDofs = True #if true, show dofs text 
         self.renderForceText = False
@@ -347,7 +347,7 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
 
-        self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
+        #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
         self.clothScene.setSelfCollisionDistance(0.025)
 
         #load cloth state from ~/Documents/dev/objFile.obj
