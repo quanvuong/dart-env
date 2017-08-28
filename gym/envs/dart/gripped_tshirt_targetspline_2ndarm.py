@@ -30,6 +30,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.arm_progress = 0.  # set in step when first queried
         self.armLength = -1.0  # set when arm progress is queried
 
+        self.interiorContactReward = 0.0
+
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
@@ -300,6 +302,19 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #check termination conditions
         done = False
 
+        #get contact IDs
+        HSIDs = self.clothScene.getHapticSensorContactIDs()
+        self.interiorContactReward = 0.0
+        if self.arm_progress <= 0:
+            for i in range(20,22):
+                if HSIDs[i] <= 0.0:
+                    self.interiorContactReward += -1.5
+                elif HSIDs[i] > 0.0:
+                    self.interiorContactReward += 0.5
+        else:
+            #automatic bonus for being in/beyond the sleeve
+            self.interiorContactReward = 1.0
+
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         if self.arm == 2:
             wRFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
@@ -310,7 +325,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
         #reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
-        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0
+        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0 + self.interiorContactReward
 
         # check cloth deformation for termination
         clothDeformation = 0
@@ -754,6 +769,12 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
                 armProgress += np.linalg.norm(limblines[i][1]-limblines[i][0])'''
         self.CP0Feature.drawProjectionPoly(fillColor=[0.,1.0,0.0])
 
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 55,
+                                 text="Interior Contact Reward = " + str(self.interiorContactReward),
+                                 color=(0., 0, 0))
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 40,
+                                 text="Arm progress Reward = " + str((self.arm_progress/self.armLength)*10.0),
+                                 color=(0., 0, 0))
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
                                  text="Arm progress = " + str(armProgress),
                                  color=(0., 0, 0))

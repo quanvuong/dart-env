@@ -99,6 +99,8 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
+    trial = "experiment_2017_08_26_gripped2ndarm_easier_phaseobs"
+    #trial = "experiment_2017_08_26_1starm_gripped_noplane"
     #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly"
     #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly" #no spline increment
     #trial = "experiment_2017_08_22_progressmetricpolicy_cont2"
@@ -226,8 +228,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
-    env = gym.make('DartClothGrippedTshirt-v2') #1st arm
-    #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
+    #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
+    env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
