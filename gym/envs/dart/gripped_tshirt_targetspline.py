@@ -24,7 +24,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.phaseInObs = False
+        self.phaseInObs = True
         self.arm = 1  # 0 both, 1 right, 2 left
 
         self.arm_progress = 0.  # set in step when first queried
@@ -72,7 +72,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         self.Kd = None
         self.Kp = None
 
-        self.enforceTauLimits = True
+        self.enforceTauLimits = False
         self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
         if self.arm > 0:
             self.tau_limits = [np.ones(11) * -10, np.ones(11) * 10]
@@ -122,10 +122,10 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
-                                        state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
+                                        state_path="/home/aclegg3/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -142,8 +142,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             observation_size += 1
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_R.skel', frame_skip=4,
+                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
@@ -314,21 +314,21 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
             done = True
             reward -= 500
         elif (clothDeformation > 20):
-            print("Deformation Termination")
+            #print("Deformation Termination")
             done = True
             reward -= 5000
         elif self.targetSplineTime >= 1.0:
-            print("Spline Termination")
+            #print("Spline Termination")
             done = True
             reward += 1000
         elif self.headCollarContainment() is None:
-            print("Collar Termiantion")
+            #print("Collar Termiantion")
             done = True
             reward = -4000
         elif self.armLength > 0 and self.arm_progress >= 0.95:
             done=True
             reward = 1000
-            print("Dressing completed!")
+            #print("Dressing completed!")
 
 
         #graphing force
@@ -352,7 +352,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         else:
             f = np.zeros(f_size)
 
-        f = np.zeros(f_size)
+        #f = np.zeros(f_size)
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
         if self.targetInObs:
