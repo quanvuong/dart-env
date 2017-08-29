@@ -32,7 +32,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.action_scale = np.ones(11) * 10
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
-        self.action_scale[0] = 150  # torso
+        '''self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
         self.action_scale[2] = 100  # spine
         self.action_scale[3] = 50  # clav
@@ -42,7 +42,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.action_scale[7] = 20
         self.action_scale[8] = 20  # elbow
         self.action_scale[9] = 8  # wrist
-        self.action_scale[10] = 8
+        self.action_scale[10] = 8'''
 
         self.numSteps = 0 #increments every step, 0 on reset
 
@@ -82,7 +82,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path="/home/ubuntu/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.3)
@@ -100,7 +100,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6  # target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
+                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -543,10 +544,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -3.5
-        self._get_viewer().scene.tb._set_theta(180)
-        self._get_viewer().scene.tb._set_phi(180)
-        self.track_skeleton_id = 0
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+            self.track_skeleton_id = 0
 
 
     def armSleeveProgress(self):
