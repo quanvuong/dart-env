@@ -66,7 +66,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.randomHandleTargetLinear = True
+        self.randomHandleTargetLinear = False
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
                                                                c1=np.array([-0.3, -0.5, -0.15]),
@@ -317,6 +317,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.translateCloth(0, disp)
             self.handleNode.clearTargetSpline()
             self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
+        else:
+            oldOrg = np.array(self.handleNode.org)
+            self.handleNode.usingTargets = False
+            self.handleNode.org = np.array([0.2, 0.15, -0.3])
+            disp = self.handleNode.org - oldOrg
+            self.clothScene.translateCloth(0, disp)
 
         self.target = pyutils.getVertCentroid(verts=self.CP0Feature.verts, clothscene=self.clothScene)
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
