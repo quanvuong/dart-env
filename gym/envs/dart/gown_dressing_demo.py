@@ -10,6 +10,7 @@ import time
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
+from pyPhysX.clothfeature import *
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -19,12 +20,34 @@ import OpenGL.GLUT as GLUT
 
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
+        self.target = np.array([0.8, -0.6, 0.6])
+        self.targetInObs = True
+        self.arm = 2
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
 
+        if self.arm > 0:
+            self.action_scale = np.ones(11) * 10
+            self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
+
+        self.action_scale[0] = 150  # torso
+        self.action_scale[1] = 150
+        self.action_scale[2] = 100  # spine
+        self.action_scale[3] = 50  # clav
+        self.action_scale[4] = 50
+        self.action_scale[5] = 30  # shoulder
+        self.action_scale[6] = 30
+        self.action_scale[7] = 20
+        self.action_scale[8] = 20  # elbow
+        self.action_scale[9] = 8  # wrist
+        self.action_scale[10] = 8
+
         self.numSteps = 0 #increments every step, 0 on reset
+
+        self.arm_progress = 0.  # set in step when first queried
+        self.armLength = -1.0  # set when arm progress is queried
 
         # handle node setup
         self.handleNode = None
@@ -59,7 +82,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        mesh_path="/home/ubuntu/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.3)
@@ -68,8 +91,16 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #clothScene.togglePinned(0, 144)
         #clothScene.togglePinned(0, 190)
 
+        self.CP0Feature = ClothFeature(verts=[475, 860, 1620, 1839, 994, 469, 153, 531, 1932, 140],
+                                       clothScene=clothScene)
+        self.armLength = -1.0  # set when arm progress is queried
+
+        observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
+        if self.targetInObs:
+            observation_size += 6  # target reaching
+
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=(44+66), action_bounds=self.control_bounds)
+        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4, observation_size=observation_size, action_bounds=self.control_bounds)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -145,17 +176,47 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.setSelfCollisionDistance(currentDistance + 0.0001)
 
         #apply action and simulate
+        # apply action and simulate
+        if self.arm == 1:
+            tau = np.concatenate([tau, np.zeros(11)])
+        elif self.arm == 2:
+            tau = np.concatenate([tau[:3], np.zeros(8), tau[3:], np.zeros(3)])
         self.do_simulation(tau, self.frame_skip)
 
+        self.target = pyutils.getVertCentroid(self.CP0Feature.verts, self.clothScene)
+        self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
+
+        self.CP0Feature.fitPlane()
+
         reward = 0
+        self.arm_progress = self.armSleeveProgress() / self.armLength
         ob = self._get_obs()
         s = self.state_vector()
+
+        reward += self.arm_progress
         
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
         
         #check termination conditions
         done = False
+
+        clothDeformation = 0
+        if self.simulateCloth is True:
+            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+
+        if not np.isfinite(s).all():
+            #print("Infinite value detected..." + str(s))
+            done = True
+            reward -= 500
+        elif (clothDeformation > 20):
+            #print("Deformation Termination")
+            done = True
+            reward -= 5000
+        elif self.armLength > 0 and self.arm_progress >= 0.95:
+            done=True
+            reward = 1000
+            print("Dressing completed!")
 
         self.numSteps += 1
 
@@ -171,8 +232,20 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         else:
             f = np.zeros(f_size)
 
+        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
+
+        if self.targetInObs:
+            fingertip = np.array([0.0, -0.06, 0.0])
+            vec = None
+            if self.arm == 1:
+                vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
+            else:
+                vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
+            obs = np.concatenate([obs, vec, self.target]).ravel()
+
+        obs = np.concatenate([obs, f * 3.]).ravel()
         #obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
-        obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
+        #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
         return obs
 
     def reset_model(self):
@@ -244,6 +317,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleNode.clearTargetSpline()
             self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
 
+        self.target = pyutils.getVertCentroid(verts=self.CP0Feature.verts, clothscene=self.clothScene)
+        self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
         self.reset_number += 1
 
@@ -330,6 +405,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
+
+        armProgress = self.armSleeveProgress()
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
+                                 text="Arm progress = " + str(armProgress),
+                                 color=(0., 0, 0))
+        renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60,
+                                    progress=armProgress / self.armLength, color=[0.0, 3.0, 0])
 
         #render debugging boxes
         if self.drawDebuggingBoxes:
@@ -463,6 +547,59 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self._get_viewer().scene.tb._set_theta(180)
         self._get_viewer().scene.tb._set_phi(180)
         self.track_skeleton_id = 0
-        
+
+
+    def armSleeveProgress(self):
+        # return the progress of the arm through the 1st sleeve seam
+        limblines = []
+        fingertip = np.array([0.0, -0.07, 0.0])
+        end_effector = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        if self.arm == 2:
+            end_effector = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        armProgress = 0
+
+        if self.CP0Feature.plane is not None:
+            armProgress = -np.linalg.norm(end_effector - self.CP0Feature.plane.org)
+
+        if self.arm == 1:
+            limblines.append([self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[8].to_world(fingertip)])
+            limblines.append([self.robot_skeleton.bodynodes[7].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))])
+        elif self.arm == 2:
+            limblines.append([self.robot_skeleton.bodynodes[14].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[14].to_world(fingertip)])
+            limblines.append([self.robot_skeleton.bodynodes[13].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[12].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))])
+            limblines.append([self.robot_skeleton.bodynodes[10].to_world(np.zeros(3)),
+                              self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))])
+
+        if self.armLength < 0:
+            self.armLength = 0.
+            for line in limblines:
+                self.armLength += np.linalg.norm(line[1] - line[0])
+        contains = False
+        intersection_ix = -1
+        intersection_depth = -1.0
+        for ix, line in enumerate(limblines):
+            line_contains, intersection_dist, intersection_point = self.CP0Feature.contains(l0=line[0], l1=line[1])
+            if line_contains is True:
+                intersection_ix = ix
+                intersection_depth = intersection_dist
+                contains = True
+
+        if contains is True:
+            armProgress = -intersection_depth
+            for i in range(intersection_ix + 1):
+                armProgress += np.linalg.norm(limblines[i][1] - limblines[i][0])
+
+        return armProgress
+
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

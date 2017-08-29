@@ -124,13 +124,13 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
                                         #state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped.obj",
-                                        state_path="/home/aclegg3/Documents/dev/start2ndSleeve_gripped_easy.obj",
+                                        state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped_easy.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -148,11 +148,10 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_L.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
-        self.armLength = -1.0 #set when arm progress is queried
         self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120], clothScene=self.clothScene)
 
         #setup HandleNode here
