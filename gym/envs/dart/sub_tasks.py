@@ -11,6 +11,7 @@ class TaskList:
         self.joint_limit_tasks = [] # format: [joint id, [ranges]]
         self.task_num = task_num
         self.current_range_params = []
+        self.range_param_expand_ratio = []
 
     def add_world_choice_tasks(self, args):
         # only one world choice task can be specified
@@ -19,8 +20,19 @@ class TaskList:
     def add_fix_param_tasks(self, args):
         self.fix_param_tasks.append(args)
 
-    def add_range_param_tasks(self, args):
+    def add_range_param_tasks(self, args, expand=None):
         self.range_param_tasks.append(args)
+        if expand is None:
+            self.range_param_expand_ratio.append(0)
+        else:
+            self.range_param_expand_ratio.append(expand)
+
+    def expand_range_param_tasks(self):
+        for i in range(len(self.range_param_tasks)):
+            expan_ratio = self.range_param_expand_ratio[i]
+            for j in range(len(self.range_param_tasks[i][1])):
+                self.range_param_tasks[i][1][j][0] -= expan_ratio
+                self.range_param_tasks[i][1][j][1] += expan_ratio
 
     def add_joint_limit_tasks(self, args):
         self.joint_limit_tasks.append(args)

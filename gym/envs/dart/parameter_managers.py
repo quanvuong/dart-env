@@ -349,6 +349,8 @@ class CartPoleManager:
     def __init__(self, simulator):
         self.simulator = simulator
         self.range = [0.05, 10.0] # mass range
+        self.joint_damping = [0.0, 1.0]
+        self.actuator_strength = [20, 50]
         self.attach_width = [0.2, 0.3]
         self.jug_mass = [0.2, 3.0]
 
@@ -362,13 +364,19 @@ class CartPoleManager:
         cur_mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
         mass_param = (cur_mass - self.range[0]) / (self.range[1] - self.range[0])
 
+        cur_damping = self.simulator.robot_skeleton.joints[1].damping_coefficient(0)
+        damping_param = (cur_damping - self.joint_damping[0]) / (self.joint_damping[1] - self.joint_damping[0])
+
+        cur_strength = self.simulator.action_scale[0]
+        strength_param = (cur_strength - self.actuator_strength[0]) / (self.actuator_strength[1] - self.actuator_strength[0])
+
         width = self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].shape.size()[0]
         width_param = (width - self.attach_width[0]) / (self.attach_width[1] - self.attach_width[0])
 
         jug_mass = self.simulator.dart_world.skeletons[1].bodynodes[0].mass()
         jug_mass_param = (jug_mass - self.jug_mass[0]) / (self.jug_mass[1] - self.jug_mass[0])
 
-        return np.array([mass_param, width_param, jug_mass_param])[self.activated_param]
+        return np.array([mass_param, damping_param, strength_param, width_param, jug_mass_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -377,6 +385,14 @@ class CartPoleManager:
             self.simulator.dart_world.skeletons[-1].bodynodes[2].set_mass(mass)
             cur_id += 1
         if 1 in self.controllable_param:
+            damping = x[cur_id] * (self.joint_damping[1] - self.joint_damping[0]) + self.joint_damping[0]
+            self.simulator.robot_skeleton.joints[1].set_damping_coefficient(0, damping)
+            cur_id += 1
+        if 2 in self.controllable_param:
+            strength = x[cur_id] * (self.actuator_strength[1] - self.actuator_strength[0]) + self.actuator_strength[0]
+            self.simulator.action_scale[0] = strength
+            cur_id += 1
+        if 3 in self.controllable_param:
             width = x[cur_id] * (self.attach_width[1] - self.attach_width[0]) + self.attach_width[0]
             size = np.copy(self.simulator.robot_skeleton.bodynodes[-1].shapenodes[0].shape.size())
             size[0] = width
@@ -386,7 +402,7 @@ class CartPoleManager:
             mass = self.simulator.dart_world.skeletons[-1].bodynodes[2].mass()
             self.simulator.robot_skeleton.bodynodes[-1].set_inertia_entries(1.0/12*mass*(size[1]+size[2]), 1.0/12*mass*(size[0]+size[2]), 1.0/12*mass*(size[1]+size[0]))
             cur_id += 1
-        if 2 in self.controllable_param:
+        if 4 in self.controllable_param:
             jug_mass = x[cur_id] * (self.jug_mass[1] - self.jug_mass[0]) + self.jug_mass[0]
             self.simulator.dart_world.skeletons[1].bodynodes[0].set_mass(jug_mass)
             self.simulator.dart_world.skeletons[2].bodynodes[0].set_mass(jug_mass)

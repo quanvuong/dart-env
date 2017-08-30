@@ -5,10 +5,10 @@ from gym import utils
 from gym.envs.dart import dart_env
 from gym.envs.dart.sub_tasks import *
 
-class DartReacherEnv(dart_env.DartEnv):#, utils.EzPickle):
+class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([100, 100, 50, 50, 50])
+        self.action_scale = np.array([50, 50, 50, 50, 50])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
@@ -28,7 +28,7 @@ class DartReacherEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
 
-        #utils.EzPickle.__init__(self)
+        utils.EzPickle.__init__(self)
 
     def _step(self, a):
         clamped_control = np.array(a)

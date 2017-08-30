@@ -9,7 +9,7 @@ import copy
 
 import joblib, os
 
-class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
+class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200, 200, 200])
@@ -24,12 +24,15 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.split_task_test = True
-        self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0,1,2])
-        #self.tasks.add_fix_param_tasks([0, [0.0, 1.0]])
-        #self.tasks.add_fix_param_tasks([1, [0.0, 1.0]])
-        #self.tasks.add_range_param_tasks([3, [[0.0,0.1], [0.3,0.4], [0.6,0.7], [0.9, 1.0]]])
+        self.tasks = TaskList(2)
+        #self.tasks.add_world_choice_tasks([0,1])
+        #self.tasks.add_fix_param_tasks([0, [0.4, 1.0]])
+        #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
+        #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
+        self.tasks.add_range_param_tasks([0, [[0.24,0.26], [0.74,0.76]]], expand=0.06)
+        #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
+        self.task_expand_flag = False
 
         self.upselector = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
@@ -44,8 +47,8 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
             obs_dim += 1
         if self.split_task_test:
             obs_dim += self.tasks.task_input_dim()
-        #if self.avg_div > 1:
-        #    obs_dim += self.avg_div
+        if self.avg_div > 1:
+            obs_dim += self.avg_div
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -55,13 +58,13 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_capsule_size_v1.skel', 'hopper_capsule_size_v2.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
         self.dart_worlds[0].set_collision_detector(3)
-        self.dart_worlds[1].set_collision_detector(3)
-        self.dart_worlds[2].set_collision_detector(2)
+        self.dart_worlds[1].set_collision_detector(0)
+        self.dart_worlds[2].set_collision_detector(1)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -71,7 +74,7 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
         self.param_manager.set_simulator_parameters([1.0])
         self.param_manager.controllable_param = curcontparam'''
 
-        #utils.EzPickle.__init__(self)
+        utils.EzPickle.__init__(self)
 
 
     def advance(self, a):
@@ -153,9 +156,9 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
 
         alive_bonus = 1.0
-        reward = 0.6*(posafter - posbefore) / self.dt
-        #if self.state_index == 1:
-        #    reward *= -1
+        reward = (posafter - posbefore) / self.dt
+        if self.state_index == 1:
+            reward *= -1
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
@@ -283,7 +286,11 @@ class DartHopperEnv(dart_env.DartEnv):#, utils.EzPickle):
                 self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
 
         if self.split_task_test:
+            if self.task_expand_flag:
+                self.tasks.expand_range_param_tasks()
+                self.task_expand_flag = False
             self.state_index = np.random.randint(self.tasks.task_num)
+            #self.state_index = 0
             world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
