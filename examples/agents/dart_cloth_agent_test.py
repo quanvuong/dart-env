@@ -99,6 +99,7 @@ if __name__ == '__main__':
     #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
 
     trial = None
+    trial = "experiment_2017_08_29_gripped1st_retrial_clamped"
     #trial = "experiment_2017_08_29_assistivelinear"
     #trial = "experiment_2017_08_28_gripped2ndarm_easy_contactReward"
     #trial = "experiment_2017_08_28_gripped1starm_phaseobs_retrial"
@@ -229,10 +230,10 @@ if __name__ == '__main__':
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
-    env = gym.make('DartClothGownDemo-v1')
+    #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
-    #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
+    env = gym.make('DartClothGrippedTshirt-v2') #1st arm
     #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:

@@ -57,7 +57,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         self.splineCP0Verts = [2621, 2518, 2576, 2549, 2554, 2544, 2616, 2558, 2519, 2561, 2593]
         self.splineCP1Verts = [255, 253, 250, 247, 266, 264, 262, 260, 258]
         self.targetSplineTime = 0  # set to 0 in reset
-        self.incrementSplineTime = False
+        self.incrementSplineTime = True
+        self.extendedSplineTarget = True
 
         # handle node setup
         self.handleNode = None
@@ -147,6 +148,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
+        self.CP1Feature = ClothFeature(verts=self.splineCP1Verts, clothScene=self.clothScene)
         self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120], clothScene=self.clothScene)
 
         #setup HandleNode here
@@ -282,6 +284,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         #update the features
         self.collarFeature.fitPlane()
         self.CP0Feature.fitPlane()
+        self.CP1Feature.fitPlane()
 
         reward = 0
         self.arm_progress = self.armSleeveProgress() / self.armLength
@@ -660,6 +663,9 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
     def setTargetSplineFromVerts(self):
         self.targetSpline.points[0].p = self.getVertCentroid(self.splineCP0Verts)
         self.targetSpline.points[1].p = self.getVertCentroid(self.splineCP1Verts)
+        if self.extendedSplineTarget is True and self.CP1Feature.plane is not None:
+            #get the target by extending the sleeve plane
+            self.targetSpline.points[2].p = self.targetSpline.points[1].p - self.CP1Feature.plane.normal
 
     def extraRenderFunction(self):
         #print("extra render function")
