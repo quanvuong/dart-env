@@ -213,3 +213,6 @@ class DartEnv(gym.Env):
             self.robot_skeleton.q,
             self.robot_skeleton.dq
         ])
+
+    def _getFile(self):
+        return __file__

@@ -22,6 +22,8 @@ import OpenGL.GLUT as GLUT
 
 class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
+        self.prefix = os.path.dirname(__file__)
+        self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.phaseInObs = True
@@ -124,13 +126,13 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
+                                        mesh_path=self.prefix + "/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip2.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip3.obj",
                                         #state_path="/home/alexander/Documents/dev/1st_to_2nd_regrip.obj",
                                         #state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped.obj",
-                                        state_path="/home/alexander/Documents/dev/start2ndSleeve_gripped_easy.obj",
+                                        state_path=self.prefix + "/../../../../start2ndSleeve_gripped_easy.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.4)
 
@@ -147,8 +149,15 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             observation_size += 1
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_L.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+        if self.useOpenGL is True:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_L.skel', frame_skip=4,
+                                  observation_size=observation_size, action_bounds=self.control_bounds)#, disableViewer=True, visualize=False)
+        else:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules_handplane_L.skel',
+                                  frame_skip=4,
+                                  observation_size=observation_size,
+                                  action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
@@ -186,6 +195,9 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             print(self.robot_skeleton.dofs[i])
 
         print("done init")
+
+    def _getFile(self):
+        return __file__
 
     def limits(self, dof_ix):
         return np.array([self.robot_skeleton.dof(dof_ix).position_lower_limit(), self.robot_skeleton.dof(dof_ix).position_upper_limit()])

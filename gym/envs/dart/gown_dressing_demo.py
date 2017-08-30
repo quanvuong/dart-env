@@ -20,6 +20,8 @@ import OpenGL.GLUT as GLUT
 
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
+        self.prefix = os.path.dirname(__file__)
+        self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.arm = 2
@@ -82,7 +84,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path="/home/aclegg3/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
+                                        mesh_path = self.prefix + "/assets/fullgown1.obj",
+                                        #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
                                         scale=1.3)
@@ -100,8 +103,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6  # target reaching
 
         #intialize the parent env
-        DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
-                              observation_size=observation_size, action_bounds=self.control_bounds, disableViewer=True, visualize=False)
+        if self.useOpenGL is True:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
+                                  observation_size=observation_size, action_bounds=self.control_bounds)
+        else:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
+                                  observation_size=observation_size,
+                                  action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
 
         #setup HandleNode here
@@ -139,6 +147,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         '''
 
         print("done init")
+        #print(self.getFile())
+
+    def _getFile(self):
+        return __file__
 
     def limits(self, dof_ix):
         return np.array([self.robot_skeleton.dof(dof_ix).position_lower_limit(), self.robot_skeleton.dof(dof_ix).position_upper_limit()])

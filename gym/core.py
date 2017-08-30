@@ -72,6 +72,7 @@ class Env(object):
     def _reset(self): raise NotImplementedError
     def _render(self, mode='human', close=False): return
     def _seed(self, seed=None): return []
+    def _getFile(self): raise NotImplementedError
 
     # Do not override
     _owns_render = True
@@ -210,6 +211,9 @@ class Env(object):
     def configure(self, *args, **kwargs):
         raise error.Error("Env.configure has been removed in gym v0.8.0, released on 2017/03/05. If you need Env.configure, please use gym version 0.7.x from pip, or checkout the `gym:v0.7.4` tag from git.")
 
+    def getFile(self):
+        return self._getFile()
+
 # Space-related abstractions
 
 class Space(object):
@@ -280,6 +284,9 @@ class Wrapper(Env):
 
     def _reset(self):
         return self.env.reset()
+
+    def _getFile(self):
+        return self.env.getFile()
 
     def _render(self, mode='human', close=False):
         return self.env.render(mode, close)

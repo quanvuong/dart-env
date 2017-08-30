@@ -52,6 +52,9 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         
         return DartEnv._reset(self)
 
+    def _getFile(self):
+        return __file__
+
     def do_simulation(self, tau, n_frames):
         'Overwrite of DartEnv.do_simulation to add cloth simulation step'
         

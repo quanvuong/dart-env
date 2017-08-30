@@ -9,6 +9,7 @@ import joblib
 import tensorflow as tf
 
 import pyPhysX.pyutils as pyutils
+import os
 
 if __name__ == '__main__':
     #load policy
@@ -95,11 +96,13 @@ if __name__ == '__main__':
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
     #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
-    prefix = "/home/alexander/Documents/dev/rllab/data/local/experiment/"
-    #prefix = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/"
+    prefix = os.path.dirname(os.path.abspath(__file__))
+    prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2017_08_29_gripped1st_retrial_clamped"
+    #trial = "experiment_2017_08_29_gown_fixed_clamped"
+    trial = "experiment_2017_08_29_clamped1stspline"
+    #trial = "experiment_2017_08_29_gripped1st_retrial_clamped"
     #trial = "experiment_2017_08_29_assistivelinear"
     #trial = "experiment_2017_08_28_gripped2ndarm_easy_contactReward"
     #trial = "experiment_2017_08_28_gripped1starm_phaseobs_retrial"
@@ -244,16 +247,18 @@ if __name__ == '__main__':
     time.sleep(0.5)
     for i in range(10000):
         o = env.reset()
+        #envFilename = env.getFile()
+        #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 350
+        rolloutHorizon = 10
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(11) #22 dof upper body
+            a = np.zeros(22) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,11)
+            a += np.random.uniform(-1,1,22)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
