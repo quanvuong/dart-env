@@ -157,8 +157,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
-        if self.state_index == 1:
-            reward *= -1
+        #if self.state_index == 1:
+        #    reward *= -1
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
