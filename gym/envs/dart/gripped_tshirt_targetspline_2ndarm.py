@@ -24,7 +24,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.phaseInObs = False
@@ -599,6 +599,10 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.target = self.targetSpline.pos(self.targetSplineTime)
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
+        self.CP0Feature.fitPlane()
+        if self.reset_number == 0:
+            self.testMeshGraph()
+
         self.reset_number += 1
 
         #self.handleNode.reset()
@@ -608,9 +612,6 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
 
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
-
-        self.CP0Feature.fitPlane()
-        self.testMeshGraph()
 
         self.arm_progress = self.armSleeveProgress() / self.armLength
 
