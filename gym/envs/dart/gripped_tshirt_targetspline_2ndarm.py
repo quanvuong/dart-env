@@ -11,6 +11,7 @@ from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
 from pyPhysX.clothfeature import *
+import pyPhysX.meshgraph as meshgraph
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -23,16 +24,18 @@ import OpenGL.GLUT as GLUT
 class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.phaseInObs = True
+        self.phaseInObs = False
         self.arm = 2  # 0 both, 1 right, 2 left
 
         self.arm_progress = 0.  # set in step when first queried
         self.armLength = -1.0  # set when arm progress is queried
 
         self.interiorContactReward = 0.0
+
+        self.reward = 0
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -42,7 +45,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             self.action_scale = np.ones(11) * 10
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
-        self.action_scale[0] = 150  # torso
+        '''self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
         self.action_scale[2] = 100  # spine
         self.action_scale[3] = 50  # clav
@@ -52,16 +55,18 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         self.action_scale[7] = 20
         self.action_scale[8] = 20  # elbow
         self.action_scale[9] = 8  # wrist
-        self.action_scale[10] = 8
+        self.action_scale[10] = 8'''
 
         self.numSteps = 0 #increments every step, 0 on reset
 
         # target spline
         self.targetSpline = pyutils.Spline()
-        self.splineCP0Verts = [7, 2339, 2398, 2343, 2384, 2405, 2421, 2275, 2250, 134, 136, 138]
+        self.splineCP0Verts = [7, 140, 2255, 2247, 2322, 2409, 2319, 2427, 2240, 2320, 2241, 2326, 2334, 2288, 2289, 2373, 2264, 2419, 2444, 2345, 2408, 2375, 2234, 2399]
+        #self.splineCP0Verts = [7, 2339, 2398, 2343, 2384, 2405, 2421, 2275, 2250, 134, 136, 138]
         self.splineCP1Verts = [232, 230, 227, 225, 222, 218, 241, 239, 237, 235, 233]
         self.targetSplineTime = 0  # set to 0 in reset
-        self.incrementSplineTime = False
+        self.incrementSplineTime = True
+        self.extendedSplineTarget = True
 
         # handle node setup
         self.handleNode = None
@@ -140,6 +145,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #clothScene.togglePinned(0, 144)
         #clothScene.togglePinned(0, 190)
 
+        self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+
         self.reset_number = 0  # increments on env.reset()
 
         observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
@@ -161,7 +168,9 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
         self.CP0Feature = ClothFeature(verts=self.splineCP0Verts, clothScene=self.clothScene)
-        self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120], clothScene=self.clothScene)
+        self.CP1Feature = ClothFeature(verts=self.splineCP1Verts, clothScene=self.clothScene)
+        self.collarFeature = ClothFeature(verts=[117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120],
+                                          clothScene=self.clothScene)
 
         #setup HandleNode here
         self.handleNode = HandleNode(self.clothScene, org=np.array([0.05,0.034,-0.975]))
@@ -298,9 +307,13 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
             tau = np.concatenate([tau[:3], np.zeros(8), tau[3:], np.zeros(3)])
         self.do_simulation(tau, self.frame_skip)
 
+        normhint = None
+        if self.numSteps == 0:
+            normhint = np.array([0.,1.0,0])
         #update the features
         self.collarFeature.fitPlane()
         self.CP0Feature.fitPlane()
+        self.CP1Feature.fitPlane(normhint=normhint)
 
         reward = 0
         self.arm_progress = self.armSleeveProgress() / self.armLength
@@ -314,8 +327,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         done = False
 
         #get contact IDs
-        HSIDs = self.clothScene.getHapticSensorContactIDs()
-        self.interiorContactReward = 0.0
+        #HSIDs = self.clothScene.getHapticSensorContactIDs()
+        '''self.interiorContactReward = 0.0
         if self.arm_progress <= 0:
             for i in range(20,22):
                 if HSIDs[i] <= 0.0:
@@ -324,7 +337,17 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
                     self.interiorContactReward += 0.5
         else:
             #automatic bonus for being in/beyond the sleeve
-            self.interiorContactReward = 1.0
+            self.interiorContactReward = 1.0'''
+
+        minContactGeodesic = None
+        if self.numSteps > 0:
+            minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene,
+                                                               meshgraph=self.separatedMesh)
+        contactGeoReward = 0
+        if self.arm_progress > 0:
+            contactGeoReward = 1.0
+        elif minContactGeodesic is not None:
+            contactGeoReward = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
 
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         if self.arm == 2:
@@ -336,7 +359,9 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         reward_ctrl = - np.square(tau).sum() * 0.00005
         alive_bonus = -0.001
         #reward = reward_ctrl + alive_bonus + reward_distR + reward_progress + arm_progress
-        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0 + self.interiorContactReward
+        reward = alive_bonus + reward_ctrl + self.arm_progress*10.0 + contactGeoReward*2.0 + self.targetSplineTime#+ self.interiorContactReward
+
+        self.reward = reward
 
         # check cloth deformation for termination
         clothDeformation = 0
@@ -484,6 +509,8 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
 
+        #self.clothScene.translateCloth(0, np.array([0.0, 1.0, 0.0]))
+
         #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
         self.clothScene.setSelfCollisionDistance(0.025)
 
@@ -581,6 +608,9 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
 
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
+
+        self.CP0Feature.fitPlane()
+        self.testMeshGraph()
 
         self.arm_progress = self.armSleeveProgress() / self.armLength
 
@@ -733,6 +763,9 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def setTargetSplineFromVerts(self):
         self.targetSpline.points[0].p = self.getVertCentroid(self.splineCP0Verts)
         self.targetSpline.points[1].p = self.getVertCentroid(self.splineCP1Verts)
+        if self.extendedSplineTarget is True and self.CP1Feature.plane is not None:
+            #get the target by extending the sleeve plane
+            self.targetSpline.points[2].p = self.targetSpline.points[1].p - self.CP1Feature.plane.normal
 
     def extraRenderFunction(self):
         #print("extra render function")
@@ -745,6 +778,37 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        # draw meshGraph stuff
+        '''for n in self.separatedMesh.nodes:
+            vpos = self.clothScene.getVertexPos(vid=n.vix)
+            norm = self.clothScene.getVertNormal(cid=0, vid=n.vix)
+            offset = 0.005
+            #c = n.ix / len(self.separatedMesh.nodes)
+            c=np.array([0.,0.,0.])
+            if self.separatedMesh.maxGeo > 0:
+                c = pyutils.heatmapColor(minimum=0.0, maximum=1.0, value=(n.geodesic / self.separatedMesh.maxGeo))
+                #c = n.geodesic / self.separatedMesh.maxGeo
+            renderUtils.setColor(color=c)
+            if n.side == 0:
+                renderUtils.drawSphere(pos=vpos + norm * offset, rad=0.005)
+            else:
+                renderUtils.drawSphere(pos=vpos - norm * offset, rad=0.005)'''
+
+        minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene,
+                                                           meshgraph=self.separatedMesh)
+        if minContactGeodesic is not None:
+            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 50,
+                                     text="Contact Geo reward = " + str(
+                                         1.0 - minContactGeodesic / self.separatedMesh.maxGeo),
+                                     color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 38], h=16, w=60,
+                                        progress=1.0 - minContactGeodesic / self.separatedMesh.maxGeo,
+                                        color=[0.0, 3.0, 3.0])
+
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 65,
+                                 text="Reward = " + str(self.reward),
+                                 color=(0., 0, 0))
 
         #test best fit plane
         limblines = []
@@ -1014,7 +1078,15 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         robot.set_positions(orgPose)
         return ikPose
 
+    def testMeshGraph(self):
+        print("Testing MeshGraph")
 
+        self.separatedMesh.initSeparatedMeshGraph()
+        self.separatedMesh.updateWeights()
+        self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True)
+
+        print("done")
+        #exit()
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

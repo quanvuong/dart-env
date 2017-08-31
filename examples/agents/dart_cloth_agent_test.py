@@ -237,11 +237,11 @@ if __name__ == '__main__':
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
-    env = gym.make('DartClothGownDemo-v1')
+    #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
     #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
-    #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
+    env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
@@ -255,7 +255,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 3500
+        rolloutHorizon = 35
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
