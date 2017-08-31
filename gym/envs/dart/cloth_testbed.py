@@ -11,6 +11,7 @@ from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
 from pyPhysX.clothfeature import *
+import pyPhysX.meshgraph as meshgraph
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -23,7 +24,7 @@ import OpenGL.GLUT as GLUT
 class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.totalTime = 0
         self.lastTime = 0
 
@@ -142,13 +143,19 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         mesh_path=self.prefix + "/assets/tshirt_m.obj",
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        state_path =self.prefix + "/../../../../tshirt_regrip1.obj",
+                                        #state_path =self.prefix + "/../../../../tshirt_regrip1.obj",
+                                        state_path=self.prefix + "/../../../../1stSleeveState.obj",
                                         #state_path="/home/alexander/Documents/dev/tshirt_regrip1.obj",
                                         scale=1.4)
 
         clothScene.togglePinned(0,0) #turn off auto-pin
         #clothScene.togglePinned(0, 144)
         #clothScene.togglePinned(0, 190)
+
+        self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+        #self.CP0Verts = [2621, 2518, 2576, 2549, 2554, 2544, 2616, 2558, 2519, 2561, 2593]
+        self.CP0Verts = [2, 2561, 2476, 2519, 2479, 2634, 2620, 2553, 2619, 2464, 2668, 2642, 2654, 2554, 2549, 2576, 2532, 2585, 2624, 2487, 2633, 2559, 2593]
+        self.CP0Feature = ClothFeature(verts=self.CP0Verts, clothScene=clothScene)
 
         self.reset_number = 0  # increments on env.reset()
 
@@ -272,6 +279,9 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         #starttime = time.time()
         self.do_simulation(tau, self.frame_skip)
         #endtime = time.time()
+
+        minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+        print("minContactGeodesic = " + str(minContactGeodesic))
 
         reward = 0
         ob = self._get_obs()
@@ -439,6 +449,9 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
 
+        self.CP0Feature.fitPlane()
+        self.testMeshGraph()
+
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
@@ -515,6 +528,20 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #draw meshGraph stuff
+        for n in self.separatedMesh.nodes:
+            vpos = self.clothScene.getVertexPos(vid=n.vix)
+            norm = self.clothScene.getVertNormal(cid=0, vid=n.vix)
+            offset = 0.005
+            c=n.ix/len(self.separatedMesh.nodes)
+            if self.separatedMesh.maxGeo > 0:
+                c = n.geodesic/self.separatedMesh.maxGeo
+            renderUtils.setColor(color=(c,c,c))
+            if n.side == 0:
+                renderUtils.drawSphere(pos=vpos+norm*offset, rad=0.005)
+            else:
+                renderUtils.drawSphere(pos=vpos - norm * offset, rad=0.005)
 
         #test plane
         org = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
@@ -676,7 +703,15 @@ class DartClothTestbedEnv(DartClothEnv, utils.EzPickle):
         robot.set_positions(orgPose)
         return ikPose
 
+    def testMeshGraph(self):
+        print("Testing MeshGraph")
 
+        self.separatedMesh.initSeparatedMeshGraph()
+        self.separatedMesh.updateWeights()
+        self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True)
+
+        print("done")
+        #exit()
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

@@ -100,8 +100,10 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2017_08_29_assistivelinear_torqueclamp"
+    #trial = "experiment_2017_08_29_clamped1stspline"
     #trial = "experiment_2017_08_29_gown_fixed_clamped"
-    trial = "experiment_2017_08_29_clamped1stspline"
+    #trial = "experiment_2017_08_29_clamped1stspline"
     #trial = "experiment_2017_08_29_gripped1st_retrial_clamped"
     #trial = "experiment_2017_08_29_assistivelinear"
     #trial = "experiment_2017_08_28_gripped2ndarm_easy_contactReward"
@@ -233,10 +235,10 @@ if __name__ == '__main__':
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
-    #env = gym.make('DartClothGownDemo-v1')
+    env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
-    env = gym.make('DartClothGrippedTshirt-v2') #1st arm
+    #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
     #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
@@ -251,14 +253,14 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 10
+        rolloutHorizon = 3500
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(22) #22 dof upper body
+            a = np.zeros(11) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,22)
+            #a += np.random.uniform(-1,1,22)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False

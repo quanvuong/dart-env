@@ -354,7 +354,7 @@ register(
 register(
     id='DartClothGownDemo-v1',
     entry_point='gym.envs.dart:DartClothGownDemoEnv',
-    max_episode_steps=250,
+    #max_episode_steps=250,
 )
 
 register(

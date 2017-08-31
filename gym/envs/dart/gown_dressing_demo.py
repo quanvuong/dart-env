@@ -11,6 +11,7 @@ from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 from pyPhysX.clothHandles import *
 from pyPhysX.clothfeature import *
+import pyPhysX.meshgraph as meshgraph
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
@@ -94,8 +95,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #clothScene.togglePinned(0, 144)
         #clothScene.togglePinned(0, 190)
 
-        self.CP0Feature = ClothFeature(verts=[475, 860, 1620, 1839, 994, 469, 153, 531, 1932, 140],
-                                       clothScene=clothScene)
+        self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+
+        #abridged feature
+        #self.CP0Feature = ClothFeature(verts=[475, 860, 1620, 1839, 994, 469, 153, 531, 1932, 140],
+        #                               clothScene=clothScene)
+        #full feature
+        self.CP0Feature = ClothFeature(
+            verts=[413, 1932, 1674, 1967, 475, 1517, 828, 881, 1605, 804, 1412, 1970, 682, 469, 155, 612, 1837, 531],
+            clothScene=clothScene)
         self.armLength = -1.0  # set when arm progress is queried
 
         observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
@@ -201,12 +209,25 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.CP0Feature.fitPlane()
 
+
         reward = 0
         self.arm_progress = self.armSleeveProgress() / self.armLength
+
+        minContactGeodesic = None
+        if self.numSteps > 0:
+            minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene,
+                                                           meshgraph=self.separatedMesh)
+        contactGeoReward = 0
+        if self.arm_progress > 0:
+            contactGeoReward = 1.0
+        elif minContactGeodesic is not None:
+            contactGeoReward = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+
         ob = self._get_obs()
         s = self.state_vector()
 
-        reward += self.arm_progress
+        reward += self.arm_progress + contactGeoReward
+        #print("reward = " + str(reward))
         
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -339,6 +360,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.target = pyutils.getVertCentroid(verts=self.CP0Feature.verts, clothscene=self.clothScene)
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
+        self.CP0Feature.fitPlane()
+        if self.reset_number == 0:
+            self.testMeshGraph()
+
         self.reset_number += 1
 
         #self.handleNode.reset()
@@ -419,11 +444,33 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         
     def extraRenderFunction(self):
         #print("extra render function")
+
+        #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
         
         GL.glBegin(GL.GL_LINES)
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        # draw meshGraph stuff
+        '''for n in self.separatedMesh.nodes:
+            vpos = self.clothScene.getVertexPos(vid=n.vix)
+            norm = self.clothScene.getVertNormal(cid=0, vid=n.vix)
+            offset = 0.005
+            c = n.ix / len(self.separatedMesh.nodes)
+            if self.separatedMesh.maxGeo > 0:
+                c = n.geodesic / self.separatedMesh.maxGeo
+            renderUtils.setColor(color=(c, c, c))
+            if n.side == 0:
+                renderUtils.drawSphere(pos=vpos + norm * offset, rad=0.005)
+            else:
+                renderUtils.drawSphere(pos=vpos - norm * offset, rad=0.005)'''
+
+        minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+        if minContactGeodesic is not None:
+            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 60,
+                                     text="Contact Geo reward = " + str(1.0-minContactGeodesic/self.separatedMesh.maxGeo),
+                                     color=(0., 0, 0))
 
         self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
 
@@ -469,72 +516,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
             textX += 160
         
-        #draw 2d HUD setup
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glOrtho(0, m_viewport[2], 0, m_viewport[3], -1, 1)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPushMatrix()
-        GL.glLoadIdentity()
-        GL.glDisable(GL.GL_CULL_FACE);
-        #GL.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        
-        #draw the load bars
-        if self.renderDofs:
-            #draw the load bar outlines
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_LINE)
-            GL.glColor3d(0,0,0)
-            GL.glBegin(GL.GL_QUADS)
-            for i in range(len(self.robot_skeleton.q)):
-                y = 58+18.*i
-                x0 = 120+70
-                x1 = 210+70
-                GL.glVertex2d(x0, y)
-                GL.glVertex2d(x0, y+15)
-                GL.glVertex2d(x1, y+15)
-                GL.glVertex2d(x1, y)
-            GL.glEnd()
-            #draw the load bar fills
-            GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-            for i in range(len(self.robot_skeleton.q)):
-                qlim = self.limits(i)
-                qfill = (self.robot_skeleton.q[i]-qlim[0])/(qlim[1]-qlim[0])
-                y = 58+18.*i
-                x0 = 121+70
-                x1 = 209+70
-                x = LERP(x0,x1,qfill)
-                xz = LERP(x0,x1,(-qlim[0])/(qlim[1]-qlim[0]))
-                GL.glColor3d(0,2,3)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x0, y+1)
-                GL.glVertex2d(x0, y+14)
-                GL.glVertex2d(x, y+14)
-                GL.glVertex2d(x, y+1)
-                GL.glEnd()
-                GL.glColor3d(2,0,0)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(xz-1, y+1)
-                GL.glVertex2d(xz-1, y+14)
-                GL.glVertex2d(xz+1, y+14)
-                GL.glVertex2d(xz+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,2)
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex2d(x-1, y+1)
-                GL.glVertex2d(x-1, y+14)
-                GL.glVertex2d(x+1, y+14)
-                GL.glVertex2d(x+1, y+1)
-                GL.glEnd()
-                GL.glColor3d(0,0,0)
-                
-                textPrefix = "||q[" + str(i) + "]|| = "
-                if i < 10:
-                    textPrefix = "||q[0" + str(i) + "]|| = "
-                    
-                self.clothScene.drawText(x=30, y=60.+18*i, text=textPrefix + '%.2f' % qlim[0], color=(0.,0,0))
-                self.clothScene.drawText(x=x0, y=60.+18*i, text='%.3f' % self.robot_skeleton.q[i], color=(0.,0,0))
-                self.clothScene.drawText(x=x1+2, y=60.+18*i, text='%.2f' % qlim[1], color=(0.,0,0))
+        if self.numSteps > 0:
+            renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
         self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
         #f = self.clothScene.getHapticSensorObs()
@@ -552,11 +535,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
         self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
 
-
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glPopMatrix()
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glPopMatrix()
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
@@ -620,6 +598,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 armProgress += np.linalg.norm(limblines[i][1] - limblines[i][0])
 
         return armProgress
+
+    def testMeshGraph(self):
+        print("Testing MeshGraph")
+
+        self.separatedMesh.initSeparatedMeshGraph()
+        self.separatedMesh.updateWeights()
+        self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True)
+
+        print("done")
 
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t
