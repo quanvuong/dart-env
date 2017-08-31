@@ -13,6 +13,7 @@ from gym.envs.dart.manipulator2d import DartManipulator2dEnv
 from gym.envs.dart.robot_walk import DartRobotWalk
 from gym.envs.dart.cart_pole_img import DartCartPoleImgEnv
 from gym.envs.dart.walker2d import DartWalker2dEnv
+from gym.envs.dart.walker2d_backpack import DartWalker2dBackpackEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv
 from gym.envs.dart.walker3d_restricted import DartWalker3dRestrictedEnv
 from gym.envs.dart.walker3d_project import DartWalker3dProjectionEnv

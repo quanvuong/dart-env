@@ -295,6 +295,12 @@ register(
 )
 
 register(
+    id='DartWalker2dBackpack-v1',
+    entry_point='gym.envs.dart:DartWalker2dBackpackEnv',
+    max_episode_steps=1000,
+)
+
+register(
     id='DartWalker3d-v1',
     entry_point='gym.envs.dart:DartWalker3dEnv',
     max_episode_steps=1000,
