@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.phaseInObs = False
@@ -75,7 +75,7 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         self.Kd = None
         self.Kp = None
 
-        self.enforceTauLimits = True
+        self.enforceTauLimits = False
         self.tau_limits = [np.ones(22) * -10, np.ones(22) * 10]
         if self.arm > 0:
             self.tau_limits = [np.ones(11) * -10, np.ones(11) * 10]
