@@ -80,7 +80,7 @@
             </body>
 
             <body name="h_backpack">
-                <transformation>-0.25 1.25 0.0 0.0 0.0 0.0</transformation>
+                <transformation>-0.15 1.25 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>2.0</mass>
                     <offset>0.0 0.0 0.0</offset>

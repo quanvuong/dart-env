@@ -420,7 +420,7 @@ class walker2dParamManager:
         self.simulator = simulator
         self.range = [0.4, 1.0] # friction range
         self.restitution_range = [0.0, 0.3]
-        self.backpack_mass_range = [2.0, 35.0]
+        self.backpack_mass_range = [0.05, 10.0]
         self.activated_param = [2]
         self.controllable_param = [2]
 
