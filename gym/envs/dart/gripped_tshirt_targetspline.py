@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.phaseInObs = False
@@ -277,8 +277,8 @@ class DartClothGrippedTshirtSplineEnv(DartClothEnv, utils.EzPickle):
         vecR1 = self.target - wRFingertip1
         # update the features
         normhint = None
-        #if self.numSteps == 0:
-        #    normhint = np.array([-1.0,0,0])
+        if self.numSteps == 0:
+            normhint = np.array([0.,1.0,0])
         self.collarFeature.fitPlane()
         self.CP0Feature.fitPlane()
         self.CP1Feature.fitPlane(normhint=normhint)

@@ -27,6 +27,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.arm = 2
 
+        self.reward = 0
+
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
@@ -51,6 +53,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.arm_progress = 0.  # set in step when first queried
         self.armLength = -1.0  # set when arm progress is queried
+
+        #set these in reset
+        self.q_target = None
+        self.q_weight = None
+        self.q_target_reward = 0
+        self.q_target_reward_active = True #set this here
 
         # handle node setup
         self.handleNode = None
@@ -79,7 +87,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                            org=np.array([0.,0.,0.]))
 
         #debugging boxes for visualizing distributions
-        self.drawDebuggingBoxes = True
+        self.drawDebuggingBoxes = False
         self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange]
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
@@ -89,6 +97,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
                                         #mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
                                         #state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
+                                        state_path=self.prefix + "/../../../../hanginggown.obj",
                                         scale=1.3)
 
         clothScene.togglePinned(0,0) #turn off auto-pin
@@ -206,6 +215,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.target = pyutils.getVertCentroid(self.CP0Feature.verts, self.clothScene)
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
+        #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
 
         self.CP0Feature.fitPlane()
 
@@ -226,7 +236,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         ob = self._get_obs()
         s = self.state_vector()
 
-        reward += self.arm_progress + contactGeoReward
+        self.q_target_reward = 0
+        if self.q_target_reward_active and self.numSteps > 0:
+            self.q_target_reward = np.linalg.norm((self.robot_skeleton.q-self.q_target)*self.q_weight)
+
+        reward += self.arm_progress + contactGeoReward - self.q_target_reward
+        self.reward = reward
         #print("reward = " + str(reward))
         
         #update physx capsules
@@ -287,13 +302,32 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.numSteps = 0
         self.dart_world.reset()
         self.clothScene.reset()
+        self.clothScene.setSelfCollisionDistance(0.03)
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+
+
+
+        qpos = [-0.0678033793307, 0.0460394372646, -0.0228567701463, 0.0164748821823, -0.0111482825353, 0.00188004225982,
+         -0.00116452660407, -0.00536063771987, 0.0106001520861, 0.00893180602343, 0.000975322470016, 0.00297590969194,
+         -0.0135842975992, -0.0107381796688, -0.805728339233, 1.44280155211, 2.65716610139, -0.00193051041281,
+         -0.00455716796044, -0.0229811572279, -0.00388094984923, -0.0132110585751] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.025, high=.025, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
-        self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
+        self.q_target = np.array(qpos)
+
+        self.q_weight = np.zeros(len(self.q_target)) #no penalty for pose
+        self.q_weight[0] = 1.0 #torso only
+        self.q_weight[1] = 1.0
+
+        #Usefull to position the hanging gown if no state_path is given...
+        '''self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 0, 1.])))
         self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=3.14, axis=np.array([0, 1., 0.])))
-        self.clothScene.translateCloth(0, np.array([0.75, -0.5, -0.5]))  # shirt in front of person
+        self.clothScene.translateCloth(0, np.array([0.75, -0.75, -0.75]))  # shirt in front of person'''
+
+        self.clothScene.translateCloth(0, np.array([0.25, 0., 0.]))
+
         #self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=random.uniform(0, 6.28), axis=np.array([0,0,1.])))
         
         #load cloth state from ~/Documents/dev/objFile.obj
@@ -445,6 +479,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def extraRenderFunction(self):
         #print("extra render function")
 
+        self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+
         #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
         
         GL.glBegin(GL.GL_LINES)
@@ -452,15 +488,28 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
+        HSL = self.clothScene.getHapticSensorLocations()
+        pos = HSL[21 * 3:21 * 3 + 3]
+        for c in contactIndices:
+            side = ((pos - self.clothScene.getVertexPos(vid=c)).dot(self.clothScene.getVertNormal(vid=c))) < 0
+            if side is True:
+                renderUtils.setColor(color=[1.0, 1.0, 0.])
+            else:
+                renderUtils.setColor(color=[1.0, 0.0, 1.0])
+            renderUtils.drawSphere(self.clothScene.getVertexPos(vid=c), rad=0.005)
+
         # draw meshGraph stuff
         '''for n in self.separatedMesh.nodes:
             vpos = self.clothScene.getVertexPos(vid=n.vix)
             norm = self.clothScene.getVertNormal(cid=0, vid=n.vix)
             offset = 0.005
-            c = n.ix / len(self.separatedMesh.nodes)
+            #c = n.ix / len(self.separatedMesh.nodes)
+            c=np.array([0.,0.,0.])
             if self.separatedMesh.maxGeo > 0:
-                c = n.geodesic / self.separatedMesh.maxGeo
-            renderUtils.setColor(color=(c, c, c))
+                c = pyutils.heatmapColor(minimum=0.0, maximum=1.0, value=(n.geodesic / self.separatedMesh.maxGeo))
+                #c = n.geodesic / self.separatedMesh.maxGeo
+            renderUtils.setColor(color=c)
             if n.side == 0:
                 renderUtils.drawSphere(pos=vpos + norm * offset, rad=0.005)
             else:
@@ -468,11 +517,17 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
         if minContactGeodesic is not None:
-            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 60,
+            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 50,
                                      text="Contact Geo reward = " + str(1.0-minContactGeodesic/self.separatedMesh.maxGeo),
                                      color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 38], h=16, w=60,
+                                        progress=1.0-minContactGeodesic/self.separatedMesh.maxGeo, color=[0.0, 3.0, 3.0])
 
-        self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
+        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 65,
+                                 text="Reward = " + str(self.reward),
+                                 color=(0., 0, 0))
+
+        #self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
 
         armProgress = self.armSleeveProgress()
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
@@ -491,10 +546,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 #    self.viewer.drawSphere(p=s, r=0.01)
 
         #render the vertex handleNode(s)/Handle(s)
-        if self.handleNode is not None:
-            self.handleNode.draw()
+        #if self.handleNode is not None:
+        #    self.handleNode.draw()
 
-        if self.gripper is not None:
+        if self.gripper is not None and False:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
             self.gripper.draw()
             if self.clothScene is not None and False:
