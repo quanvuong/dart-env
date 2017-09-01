@@ -335,6 +335,16 @@ class VertexSelectInteractor(BaseInteractor):
         if keycode == 13: #ENTER
             if self.viewer.inputFunc is not None:
                 self.viewer.inputFunc()
+        if keycode == 70: #'F'
+            if self.viewer.clothScene.cullFrontFaces:
+                self.viewer.clothScene.cullFrontFaces = False
+                self.viewer.clothScene.cullBackFaces = True
+            elif self.viewer.clothScene.cullBackFaces:
+                self.viewer.clothScene.cullFrontFaces = False
+                self.viewer.clothScene.cullBackFaces = False
+            else:
+                self.viewer.clothScene.cullFrontFaces = True
+                self.viewer.clothScene.cullBackFaces = False
         if keycode == 97: #'a'
             if self.selectedVertex is not None:
                 if self.selectedVertex not in self.selectedVertices:

@@ -512,7 +512,7 @@ class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.translateCloth(0, np.array([0.0, 1.0, 0.0]))
 
         #self.clothScene.translateCloth(0, np.array([5.75, -0.5, -0.5]))  # get the cloth out of the way
-        self.clothScene.setSelfCollisionDistance(0.025)
+        self.clothScene.setSelfCollisionDistance(0.03)
 
         #reset reacher target from hemisphere
         reacher_range = 1.1

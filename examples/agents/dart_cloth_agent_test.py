@@ -100,7 +100,10 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2017_08_30_fixedgown_geo_reinitialized"
+    trial = "experiment_2017_08_31_gripped_2ndarm_geospline_clamped"
+    #trial = "experiment_2017_08_31_gripped1st_spline_notclamped_nogeo"
+    #trial = "experiment_2017_08_31_gowndistribution_warmstart"
+    #trial = "experiment_2017_08_30_fixedgown_geo_reinitialized"
     #trial = "experiment_2017_08_30_fixedgown_geo"
     #trial = "experiment_2017_08_30_gripped_1st_splineprog_clamped"
     #trial = "experiment_2017_08_29_assistivelinear_torqueclamp"
@@ -238,11 +241,11 @@ if __name__ == '__main__':
     #env = gym.make('DartClothPoseReacher-v1')  #pose reacher
     #env = gym.make('DartClothSleeveReacher-v1')
     #env = gym.make('DartClothShirtReacher-v1')
-    env = gym.make('DartClothGownDemo-v1')
+    #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothTestbed-v1')
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
     #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
-    #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
+    env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
 
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))

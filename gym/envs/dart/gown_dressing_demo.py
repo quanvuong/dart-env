@@ -22,12 +22,13 @@ import OpenGL.GLUT as GLUT
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.arm = 2
 
         self.reward = 0
+        self.prevAction = None
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -196,6 +197,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+        self.prevAction = np.array(clamped_control)
         tau = np.multiply(clamped_control, self.action_scale)
 
 
@@ -497,6 +499,20 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #draw control torque bars
+        topLeft = np.array([1100, self.viewer.viewport[3]-15])
+        for ix,a in enumerate(self.prevAction):
+            c = np.array([0.0,1.0,0.0])
+            if a < 0:
+                c = np.array([1.0, 0.0, 0.0])
+            self.clothScene.drawText(x=topLeft[0]-125-50, y=topLeft[1]-15,
+                                     text=self.robot_skeleton.dof(ix).name,
+                                     color=(0., 0, 0))
+            self.clothScene.drawText(x=topLeft[0]-50, y=topLeft[1]-15, text='%.2f' % self.action_scale[ix],
+                                     color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=topLeft, h=16, w=100, progress=(a+1)/2.0, color=c, origin=0.5)
+            topLeft[1] -= 20
 
         contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
         HSL = self.clothScene.getHapticSensorLocations()
