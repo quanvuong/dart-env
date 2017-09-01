@@ -252,7 +252,16 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.q_target_reward_active and self.numSteps > 0:
             self.q_target_reward = np.linalg.norm((self.robot_skeleton.q-self.q_target)*self.q_weight)
 
-        reward += self.arm_progress + contactGeoReward - self.q_target_reward
+        clothDeformation = 0
+        if self.simulateCloth is True:
+            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+
+        clothDeformationReward = 0
+        if clothDeformation > 15:
+            #clothDeformationReward = 15.0-clothDeformation
+            clothDeformationReward = (math.tanh(9.24-0.5*clothDeformation)-1)/2.0 #near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+
+        reward += self.arm_progress + contactGeoReward - self.q_target_reward + clothDeformationReward*4
         self.reward = reward
         #print("reward = " + str(reward))
         
@@ -262,22 +271,19 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #check termination conditions
         done = False
 
-        clothDeformation = 0
-        if self.simulateCloth is True:
-            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
 
         if not np.isfinite(s).all():
             #print("Infinite value detected..." + str(s))
             done = True
             reward -= 500
-        elif (clothDeformation > 20):
-            #print("Deformation Termination")
-            done = True
-            reward -= 5000
-        elif self.armLength > 0 and self.arm_progress >= 0.95:
-            done=True
-            reward = 1000
-            print("Dressing completed!")
+        #elif (clothDeformation > 20):
+        #    #print("Deformation Termination")
+        #    done = True
+        #    reward -= 5000
+        #elif self.armLength > 0 and self.arm_progress >= 0.95:
+        #    done=True
+        #    reward = 1000
+        #    print("Dressing completed!")
 
         self.numSteps += 1
 
