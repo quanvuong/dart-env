@@ -77,17 +77,27 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.randomHandleTargetLinear = False
+        self.randomHandleTargetLinear = True
         self.handleTargetLinearWindow = 10.0
+
+        #old linear track
+        '''
         self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
                                                                c1=np.array([-0.3, -0.5, -0.15]),
                                                                org=np.array([-0.17205264,  0.12056234, -1.07377446]))
         self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.5, 0.3, 0.2]),
                                                            c1=np.array([0.1, -0.1, -0.1]),
                                                            org=np.array([0.,0.,0.]))
+        '''
+
+        self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                               c1=np.array([-0.15, -0.15, -0.1]),
+                                                               org=np.array([0.17205264, 0.052056234, -0.37377446]))
+
+        self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
-        self.drawDebuggingBoxes = False
+        self.drawDebuggingBoxes = True
         self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange]
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
