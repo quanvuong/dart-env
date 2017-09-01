@@ -19,7 +19,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        self.base_policy = joblib.load(os.path.join(modelpath, 'init_policy.pkl'))
+        #self.base_policy = joblib.load(os.path.join(modelpath, 'init_policy.pkl'))
 
         dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 

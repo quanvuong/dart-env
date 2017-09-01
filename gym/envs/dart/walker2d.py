@@ -58,14 +58,14 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                 reward += 0.3
 
         # uncomment to enable knee joint limit penalty
-        '''joint_limit_penalty = 0
+        joint_limit_penalty = 0
         for j in [-2, -5]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
                 joint_limit_penalty += abs(1.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        reward -= 5e-1 * joint_limit_penalty'''
+        reward -= 5e-1 * joint_limit_penalty
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
@@ -78,7 +78,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         ob = self._get_obs()
 
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done}
+        return ob, reward, done, {'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([

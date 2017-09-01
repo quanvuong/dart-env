@@ -82,7 +82,7 @@
             <body name="h_backpack">
                 <transformation>-0.15 1.25 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>2.0</mass>
+                    <mass>0.0</mass>
                     <offset>0.0 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -303,8 +303,8 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-2.61799</lower>
-                    	<upper>0.0</upper>
+                    	<lower>-0.61799</lower>
+                    	<upper>2.61799</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>
@@ -361,8 +361,8 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-2.61799</lower>
-                    	<upper>0.0</upper>
+                    	<lower>-0.61799</lower>
+                    	<upper>2.61799</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>

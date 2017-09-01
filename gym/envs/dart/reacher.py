@@ -8,14 +8,14 @@ from gym.envs.dart.sub_tasks import *
 class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([50, 50, 50, 50, 50])
+        self.action_scale = np.array([20, 20, 20, 20, 20])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
         obs_dim=21
         self.train_UP = False
         self.perturb_MP = False
-
+        self.state_index = 0
         self.split_task_test = True
         self.tasks = TaskList(3)
         self.tasks.add_world_choice_tasks([0, 1, 2])
@@ -24,6 +24,16 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel']\
                                   , 4, obs_dim, self.control_bounds, disableViewer=True)
+
+        for world in self.dart_worlds:
+            for i, joint in enumerate(world.skeletons[-1].joints):
+                if i == 0:
+                    limit = 5.7
+                else:
+                    limit = 3.14
+                for dof in range(joint.num_dofs()):
+                    joint.set_position_upper_limit(dof, limit)
+                    joint.set_position_lower_limit(dof, -limit)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -39,13 +49,12 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
 
-        fingertip = np.array([0.0, -0.25, 0.0])
-        vec = self.robot_skeleton.bodynodes[2].to_world(fingertip) - self.target
+        vec = self.robot_skeleton.bodynodes[-1].C - self.target
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.square(tau).sum() * 0.001
         alive_bonus = 0
         reward = reward_dist + reward_ctrl + alive_bonus
-        
+
         self.do_simulation(tau, self.frame_skip)
         ob = self._get_obs()
 
@@ -55,14 +64,11 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
 #        done = not (np.isfinite(s).all() and (-reward_dist > 0.01) and (velocity < 10000))
 
-        aux_pred_signal = np.hstack([self.robot_skeleton.bodynodes[2].to_world(fingertip), [reward]])
-
-        return ob, reward, done, {'aux_pred':aux_pred_signal, 'done_return':done, 'state_index':self.state_index, 'dyn_model_id':0}
+        return ob, reward, done, {'state_index':self.state_index, 'dyn_model_id':0}
 
     def _get_obs(self):
         theta = self.robot_skeleton.q
-        fingertip = np.array([0.0, -0.25, 0.0])
-        vec = self.robot_skeleton.bodynodes[2].to_world(fingertip) - self.target
+        vec = self.robot_skeleton.bodynodes[-1].C - self.target
         state = np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
 
         if self.split_task_test:

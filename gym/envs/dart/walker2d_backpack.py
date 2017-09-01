@@ -14,7 +14,7 @@ class DartWalker2dBackpackEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.param_manager = walker2dParamManager(self)
 
-        self.split_task_test = True
+        self.split_task_test = False
         self.tasks = TaskList(2)
         self.tasks.add_range_param_tasks([2, [[0.0, 0.5], [0.5, 1.0]]], expand=0.0)
 
@@ -24,7 +24,7 @@ class DartWalker2dBackpackEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += self.avg_div
         self.state_index = 0
 
-        dart_env.DartEnv.__init__(self, 'walker2d_backpack.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'walker2d_backpack.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
         self.avg_div = 0
         self.dart_world.set_collision_detector(3)  # 3 is ode collision detector
 

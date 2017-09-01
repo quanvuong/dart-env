@@ -20,6 +20,7 @@
                             <size>0.1 0.1 0.1</size>
                         </box>
                     </geometry>
+                    <color>0.9 0.5 0.5 1.0 </color>
                 </visualization_shape>
             </body>
              <joint type="free" name="joint 1">
@@ -73,6 +74,22 @@
                             <size>0.1 0.7 0.1</size>
                         </box>
                     </geometry>
+                </visualization_shape>
+            </body>
+            <body name="link 4">
+                <transformation>0 -1.55 0 0 0 0</transformation>
+                <inertia>
+                    <mass>0.2</mass>
+                    <offset>0 0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.1 0.1 0.1</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>0.1 0.1 0.9 1.0 </color>
                 </visualization_shape>
             </body>
 
@@ -142,6 +159,11 @@
                         <friction>0.0</friction>
                     </dynamics>
                 </axis2>
+            </joint>
+
+            <joint type="weld" name="joint 4">
+                <parent>link 3</parent>
+                <child>link 4</child>
             </joint>
         </skeleton>	
     </world>
