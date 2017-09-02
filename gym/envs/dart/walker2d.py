@@ -1,6 +1,7 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
+from gym.envs.dart.parameter_managers import *
 from gym.envs.dart.sub_tasks import *
 import copy
 
@@ -12,11 +13,13 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.control_bounds[1][4] = -0.3
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
+        self.param_manager = hopperContactMassManager(self)
 
         self.avg_div = 0
         self.split_task_test = True
         self.tasks = TaskList(4)
         self.tasks.add_world_choice_tasks([0, 1, 2, 3])
+        self.task_expand_flag = False
 
         if self.split_task_test:
             obs_dim += self.tasks.task_input_dim()
