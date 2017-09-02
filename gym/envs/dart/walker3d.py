@@ -82,7 +82,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
 
         if self.base_policy is None:
-            alive_bonus = 1.0
+            alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 1e-2 * np.square(a).sum()
             joint_pen = 2e-1 * joint_limit_penalty
@@ -92,8 +92,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             alive_bonus = 1.5
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 5e-2 * np.square(a).sum()
-            joint_pen = 2e-1 * joint_limit_penalty
-            deviation_pen = 5e-2 * abs(side_deviation)
+            joint_pen = 1e-1 * joint_limit_penalty
+            deviation_pen = 5e-3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
         #reward -= 1e-7 * total_force_mag
@@ -105,8 +105,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 0.8) and (height < 2.0) and (abs(ang_cos_uwd) < 0.6) and (abs(ang_cos_fwd) < 0.8)
-                    and np.abs(angle) < 0.4 and np.abs(side_deviation) < 0.3)
+                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 0.6) and (abs(ang_cos_fwd) < 1.0)
+                    and np.abs(angle) < 0.4 and np.abs(side_deviation) < 0.9)
 
         if done:
             reward = 0
@@ -132,11 +132,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reset_model(self):
         self.dart_world.reset()
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         sign = np.sign(np.random.uniform(-1, 1))
-        #qpos[9] = sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
-        #qpos[15] = -sign * self.np_random.uniform(low=0.3, high=0.35, size=1)
+        qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
+        qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
 
@@ -145,24 +145,3 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
-
-    def get_div(self):
-        div = 0
-        cur_state = self.state_vector()
-        d_state0 = self.get_d_state(cur_state)
-        dv = 0.0001
-        for j in [6,7,8,12, 18, 27, 28, 29, 33, 39]:
-            pert_state = np.array(cur_state)
-            pert_state[j] += dv
-            d_state1 = self.get_d_state(pert_state)
-
-            div += (d_state1[j] - d_state0[j]) / dv
-        self.set_state_vector(cur_state)
-        return div
-
-    def get_d_state(self, state):
-        self.set_state_vector(state)
-        self.advance(np.array([0]*15))
-        next_state = self.state_vector()
-        d_state = next_state - state
-        return d_state

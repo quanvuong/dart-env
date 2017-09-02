@@ -83,23 +83,23 @@
             <body name="h_thigh">
                 <transformation>0.0 1.05 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>3.92699082</mass>
-                    <offset>0.0 -0.225 0.0</offset>
+                    <mass>5.67232007333</mass>
+                    <offset>0.0 -0.325 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.325 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.45</height>
+                            <height>0.65</height>
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.325 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.45</height>
+                            <height>0.65</height>
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
@@ -107,25 +107,25 @@
             </body>
 
             <body name="h_shin">
-                <transformation>0.0 0.6 0.0 0.0 0.0 0.0</transformation>
+                <transformation>0.0 0.4 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>2.71433605</mass>
-                    <offset>0.0 -0.25 0.0</offset>
+                    <mass>1.62860163</mass>
+                    <offset>0.0 -0.15 0.0</offset>
                 </inertia>
-                <visualization_shape>
-                    <transformation>0.0 -0.25 0.0 1.57079632679 0.0 0.0</transformation>
+                <visualization_shape>a
+                    <transformation>0.0 -0.15 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.5</height>
+                            <height>0.3</height>
                             <radius>0.04</radius>
                         </capsule>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.25 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.15 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.5</height>
+                            <height>0.3</height>
                             <radius>0.04</radius>
                         </capsule>
                     </geometry>
@@ -163,24 +163,24 @@
             <body name="h_thigh_left">
                 <transformation>0.0 1.05 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>3.92699082</mass>
-                    <offset>0.0 -0.225 0.0</offset>
+                    <mass>5.67232007333</mass>
+                    <offset>0.0 -0.325 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.325 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.45</height>
+                            <height>0.65</height>
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
                     <color>0.7 0.3 0.6</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.325 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.45</height>
+                            <height>0.65</height>
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
@@ -188,26 +188,26 @@
             </body>
 
             <body name="h_shin_left">
-                <transformation>0.0 0.6 0.0 0.0 0.0 0.0</transformation>
+                <transformation>0.0 0.4 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>2.71433605</mass>
-                    <offset>0.0 -0.25 0.0</offset>
+                    <mass>1.62860163</mass>
+                    <offset>0.0 -0.15 0.0</offset>
                 </inertia>
                 <visualization_shape>a
-                    <transformation>0.0 -0.25 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.15 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.5</height>
+                            <height>0.3</height>
                             <radius>0.04</radius>
                         </capsule>
                     </geometry>
                     <color>0.7 0.3 0.6</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.25 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>0.0 -0.15 0.0 1.57079632679 0.0 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.5</height>
+                            <height>0.3</height>
                             <radius>0.04</radius>
                         </capsule>
                     </geometry>

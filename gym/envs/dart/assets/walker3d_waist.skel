@@ -50,7 +50,7 @@
             <body name="h_torso">
                 <transformation> 0.0 1.425 0 0 0 0</transformation>
                 <inertia>
-                    <mass>11.88</mass>
+                    <mass>5.88</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -76,7 +76,7 @@
             <body name="h_pelvis">
                 <transformation> 0.0 1.2 0 0 0 0</transformation>
                 <inertia>
-                    <mass>3</mass>
+                    <mass>1.9</mass>
                     <offset>0.0 -0.075 0.0</offset>
                 </inertia>
                 <visualization_shape>

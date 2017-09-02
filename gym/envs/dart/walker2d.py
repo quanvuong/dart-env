@@ -1,6 +1,8 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
+from gym.envs.dart.sub_tasks import *
+import copy
 
 
 class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
@@ -11,9 +13,28 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
 
-        dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
+        self.avg_div = 0
+        self.split_task_test = True
+        self.tasks = TaskList(4)
+        self.tasks.add_world_choice_tasks([0, 1, 2, 3])
 
-        self.dart_world.set_collision_detector(3)  # 3 is ode collision detector
+        if self.split_task_test:
+            obs_dim += self.tasks.task_input_dim()
+        if self.avg_div > 1:
+            obs_dim += self.avg_div
+
+        dart_env.DartEnv.__init__(self, ['walker2d.skel', 'walker2d_variation1.skel'\
+                                         , 'walker2d_variation2.skel', 'walker2d_variation3.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+
+        self.dart_worlds[0].set_collision_detector(3)
+        self.dart_worlds[1].set_collision_detector(3)
+        self.dart_worlds[2].set_collision_detector(3)
+        self.dart_worlds[3].set_collision_detector(3)
+
+        self.dart_world=self.dart_worlds[3]
+        self.robot_skeleton=self.dart_world.skeletons[-1]
+        if not self.disableViewer:
+            self._get_viewer().sim = self.dart_world
 
         utils.EzPickle.__init__(self)
 
@@ -78,7 +99,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         ob = self._get_obs()
 
-        return ob, reward, done, {'dyn_model_id':0, 'state_index':0}
+        return ob, reward, done, {'dyn_model_id':0, 'state_index':self.state_index}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -87,6 +108,15 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
+        if self.split_task_test:
+            state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
+
+        if self.avg_div > 1:
+            return_state = np.zeros(len(state) + self.avg_div)
+            return_state[0:len(state)] = state
+            return_state[len(state) + self.state_index] = 1
+            return return_state
+
         return state
 
     def reset_model(self):
@@ -94,6 +124,26 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        if self.split_task_test:
+            if self.task_expand_flag:
+                self.tasks.expand_range_param_tasks()
+                self.task_expand_flag = False
+            self.state_index = np.random.randint(self.tasks.task_num)
+            world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
+            if self.dart_world != self.dart_worlds[world_choice]:
+                self.dart_world = self.dart_worlds[world_choice]
+                self.robot_skeleton = self.dart_world.skeletons[-1]
+                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                self.set_state(qpos, qvel)
+                if not self.disableViewer:
+                    self._get_viewer().sim = self.dart_world
+            self.param_manager.controllable_param = pm_id
+            self.param_manager.set_simulator_parameters(np.array(pm_val))
+            for ind, jtid in enumerate(jt_id):
+                self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
+                self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
 
         return self._get_obs()
 

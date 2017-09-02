@@ -1,7 +1,6 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
-import copy
 
 from gym.envs.dart.parameter_managers import *
 from gym.envs.dart.sub_tasks import *
@@ -24,12 +23,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.split_task_test = True
-        self.tasks = TaskList(2)
-        #self.tasks.add_world_choice_tasks([0,1])
-        #self.tasks.add_fix_param_tasks([0, [0.4, 1.0]])
+        self.tasks = TaskList(3)
+        self.tasks.add_world_choice_tasks([0, 1, 2])
+        #self.tasks.add_fix_param_tasks([0, [1.0, 1.0, 1.0]])
         #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
         #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
-        self.tasks.add_range_param_tasks([0, [[0.24,0.26], [0.74,0.76]]], expand=0.06)
+        #self.tasks.add_range_param_tasks([0, [[0.24,0.26], [0.74,0.76]]], expand=0.06)
         #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
         self.task_expand_flag = False
@@ -58,13 +57,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
         self.dart_worlds[0].set_collision_detector(3)
         self.dart_worlds[1].set_collision_detector(0)
         self.dart_worlds[2].set_collision_detector(1)
+        self.dart_worlds[3].set_collision_detector(1)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -290,7 +290,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.tasks.expand_range_param_tasks()
                 self.task_expand_flag = False
             self.state_index = np.random.randint(self.tasks.task_num)
-            #self.state_index = 0
             world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
