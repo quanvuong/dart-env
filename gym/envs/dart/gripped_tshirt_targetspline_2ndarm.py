@@ -24,7 +24,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGrippedTshirtSpline2ndArmEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.phaseInObs = False

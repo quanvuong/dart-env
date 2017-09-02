@@ -27,6 +27,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.arm = 2
 
+        self.gripperCover = False
+
         self.reward = 0
         self.prevAction = None
 
@@ -91,15 +93,21 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                            org=np.array([0.,0.,0.]))
         '''
 
-        self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+        #small distribution
+        self.smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                c1=np.array([-0.15, -0.15, -0.1]),
+                                                               org=np.array([0.17205264, 0.052056234, -0.37377446]))
+
+        #slightly larger distribution
+        self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.15]),
+                                                               c1=np.array([-0.35, -0.25, -0.15]),
                                                                org=np.array([0.17205264, 0.052056234, -0.37377446]))
 
         self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
         self.drawDebuggingBoxes = True
-        self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange]
+        self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange, self.smallhandleTargetLinearInitialRange]
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
         #create cloth scene
@@ -131,14 +139,29 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6  # target reaching
 
         #intialize the parent env
+        model_path = 'UpperBodyCapsules_collisiontest.skel'
+        if self.gripperCover:
+            model_path = 'UpperBodyCapsules_gripper.skel'
         if self.useOpenGL is True:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size, action_bounds=self.control_bounds)
         else:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths='UpperBodyCapsules.skel', frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size,
                                   action_bounds=self.control_bounds, disableViewer=True, visualize=False)
         utils.EzPickle.__init__(self)
+
+        #eanble pydart2 collision
+        self.robot_skeleton.set_self_collision_check(True)
+        self.robot_skeleton.set_adjacent_body_check(False)
+
+        #setup pydart collision filter
+        collision_filter = self.dart_world.create_collision_filter()
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[4], self.robot_skeleton.bodynodes[6]) #right forearm to upper-arm
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10], self.robot_skeleton.bodynodes[12]) #left forearm to upper-arm
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[12],
+                                           self.robot_skeleton.bodynodes[14])  # left forearm to fingers
+
 
         #setup HandleNode here
         self.handleNode = HandleNode(self.clothScene, org=np.array([0.05,0.034,-0.975]))
@@ -166,13 +189,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         
         self.reset_number = 0 #increments on env.reset()
 
-        '''
+
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
 
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
-        '''
+
 
         print("done init")
         #print(self.getFile())
@@ -208,6 +231,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 self.handleNode.setOrientation(R=self.viewer.interactors[2].frame.orientation)
             #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
             self.handleNode.step()
+
+        if self.gripperCover and self.handleNode is not None:
+            #self.dart_world.skeletons[1].q = [0, 0, 0, self.CP0Feature.plane.org[0], self.CP0Feature.plane.org[1], self.CP0Feature.plane.org[2]]
+            self.dart_world.skeletons[1].q = [0, 0, 0, self.handleNode.org[0], self.handleNode.org[1], self.handleNode.org[2]]
 
         #if self.gripper is not None:
         #    self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
@@ -628,6 +655,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
+            if self.gripperCover:
+                self.viewer.interactors[4].skelix = 2
             self._get_viewer().scene.tb.trans[2] = -3.5
             self._get_viewer().scene.tb._set_theta(180)
             self._get_viewer().scene.tb._set_phi(180)

@@ -100,6 +100,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+
+    #trial = "experiment_2017_09_01_gripped2nd_geoclamped"
+    trial = "experiment_2017_09_01_gowndistribution_noterm" #successful controller
     #trial = "experiment_2017_08_31_gripped_2ndarm_geospline_clamped"
     #trial = "experiment_2017_08_31_gripped1st_spline_notclamped_nogeo"
     #trial = "experiment_2017_08_31_gowndistribution_warmstart"
