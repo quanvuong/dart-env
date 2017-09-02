@@ -27,7 +27,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.arm = 2
 
-        self.gripperCover = False
+        self.deformationTerm = False
+
+        self.gripperCover = True
 
         self.reward = 0
         self.prevAction = None
@@ -80,34 +82,45 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
+        self.handleTargetLinearMode = 2  # 1 is linear, 2 is small range, 3 is larger range
         self.randomHandleTargetLinear = True
         self.handleTargetLinearWindow = 10.0
 
-        #old linear track
-        '''
-        self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
-                                                               c1=np.array([-0.3, -0.5, -0.15]),
-                                                               org=np.array([-0.17205264,  0.12056234, -1.07377446]))
-        self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.5, 0.3, 0.2]),
-                                                           c1=np.array([0.1, -0.1, -0.1]),
-                                                           org=np.array([0.,0.,0.]))
-        '''
+        self.handleTargetLinearInitialRange = None
+        self.handleTargetLinearEndRange = None
 
-        #small distribution
-        self.smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
-                                                               c1=np.array([-0.15, -0.15, -0.1]),
-                                                               org=np.array([0.17205264, 0.052056234, -0.37377446]))
+        self.debuggingBoxes = []
 
-        #slightly larger distribution
-        self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.15]),
-                                                               c1=np.array([-0.35, -0.25, -0.15]),
-                                                               org=np.array([0.17205264, 0.052056234, -0.37377446]))
+        if self.handleTargetLinearMode == 1:
+            # old linear track
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
+                                                                   c1=np.array([-0.3, -0.5, -0.15]),
+                                                                   org=np.array([-0.17205264,  0.12056234, -1.07377446]))
+            self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.5, 0.3, 0.2]),
+                                                               c1=np.array([0.1, -0.1, -0.1]),
+                                                               org=np.array([0.,0.,0.]))
+        elif self.handleTargetLinearMode == 2:
+            # small distribution
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
-        self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
+        elif self.handleTargetLinearMode == 3:
+            #slightly larger distribution
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.15]),
+                                                                   c1=np.array([-0.35, -0.25, -0.15]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+            self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
         self.drawDebuggingBoxes = True
-        self.debuggingBoxes = [self.handleTargetLinearInitialRange, self.handleTargetLinearEndRange, self.smallhandleTargetLinearInitialRange]
+        self.debuggingBoxes.append(self.handleTargetLinearInitialRange)
+        self.debuggingBoxes.append(self.handleTargetLinearEndRange)
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
         #create cloth scene
@@ -157,10 +170,20 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #setup pydart collision filter
         collision_filter = self.dart_world.create_collision_filter()
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[4], self.robot_skeleton.bodynodes[6]) #right forearm to upper-arm
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10], self.robot_skeleton.bodynodes[12]) #left forearm to upper-arm
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[4],
+                                           self.robot_skeleton.bodynodes[6]) #right forearm to upper-arm
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+                                           self.robot_skeleton.bodynodes[12]) #left forearm to upper-arm
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[12],
                                            self.robot_skeleton.bodynodes[14])  # left forearm to fingers
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[6],
+                                           self.robot_skeleton.bodynodes[8])  # right forearm to fingers
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                           self.robot_skeleton.bodynodes[15])  # torso to neck
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                           self.robot_skeleton.bodynodes[3])  # torso to right shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                           self.robot_skeleton.bodynodes[9])  # torso to left shoulder
 
 
         #setup HandleNode here
@@ -284,7 +307,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             clothDeformation = self.clothScene.getMaxDeformationRatio(0)
 
         clothDeformationReward = 0
-        if clothDeformation > 15:
+        if clothDeformation > 15 and self.deformationTerm is False:
             #clothDeformationReward = 15.0-clothDeformation
             clothDeformationReward = (math.tanh(9.24-0.5*clothDeformation)-1)/2.0 #near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
@@ -303,10 +326,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #print("Infinite value detected..." + str(s))
             done = True
             reward -= 500
-        #elif (clothDeformation > 20):
-        #    #print("Deformation Termination")
-        #    done = True
-        #    reward -= 5000
+        elif (clothDeformation > 20 and self.deformationTerm is True):
+            #print("Deformation Termination")
+            done = True
+            reward -= 5000
         #elif self.armLength > 0 and self.arm_progress >= 0.95:
         #    done=True
         #    reward = 1000
@@ -352,7 +375,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
 
 
-        qpos = [-0.0678033793307, 0.0460394372646, -0.0228567701463, 0.0164748821823, -0.0111482825353, 0.00188004225982,
+        qpos = [-0.0678033793307, 0.0460394372646, -0.0228567701463, 0.0164748821823, -0.0111482825353, -0.2088004225982,
          -0.00116452660407, -0.00536063771987, 0.0106001520861, 0.00893180602343, 0.000975322470016, 0.00297590969194,
          -0.0135842975992, -0.0107381796688, -0.805728339233, 1.44280155211, 2.65716610139, -0.00193051041281,
          -0.00455716796044, -0.0229811572279, -0.00388094984923, -0.0132110585751] + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
@@ -392,6 +415,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.handleNode.clearHandles()
         self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
         self.handleNode.setOrgToCentroid()
+        if self.gripperCover and self.handleNode is not None:
+            self.dart_world.skeletons[1].q = [0, 0, 0, self.handleNode.org[0], self.handleNode.org[1], self.handleNode.org[2]]
         #print("org = " + str(self.handleNode.org))
         if self.interactiveHandleNode:
             self.handleNode.usingTargets = False
