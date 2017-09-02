@@ -27,7 +27,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.arm = 2
 
-        self.deformationTerm = False
+        self.deformationTerm = True
 
         self.gripperCover = True
 
