@@ -27,9 +27,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.arm = 2
 
-        self.deformationTerm = True
+        self.deformationTerm = False
 
-        self.gripperCover = True
+        self.gripperCover = False
 
         self.reward = 0
         self.prevAction = None
@@ -42,7 +42,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.action_scale = np.ones(11) * 10
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
-        '''self.action_scale[0] = 150  # torso
+        self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
         self.action_scale[2] = 100  # spine
         self.action_scale[3] = 50  # clav
@@ -52,7 +52,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.action_scale[7] = 20
         self.action_scale[8] = 20  # elbow
         self.action_scale[9] = 8  # wrist
-        self.action_scale[10] = 8'''
+        self.action_scale[10] = 8
 
         self.numSteps = 0 #increments every step, 0 on reset
 
@@ -82,7 +82,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 2  # 1 is linear, 2 is small range, 3 is larger range
+        self.handleTargetLinearMode = 3  # 1 is linear, 2 is small range, 3 is larger range
         self.randomHandleTargetLinear = True
         self.handleTargetLinearWindow = 10.0
 
@@ -311,7 +311,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #clothDeformationReward = 15.0-clothDeformation
             clothDeformationReward = (math.tanh(9.24-0.5*clothDeformation)-1)/2.0 #near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
-        reward += self.arm_progress + contactGeoReward - self.q_target_reward + clothDeformationReward*4
+        #torque penalty
+        torquePenalty = 0
+        torquePenalty = -np.linalg.norm(tau)
+
+        reward += self.arm_progress*5 + contactGeoReward - self.q_target_reward + clothDeformationReward*4 + torquePenalty*0.1
         self.reward = reward
         #print("reward = " + str(reward))
         

@@ -101,8 +101,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2017_09_02_gownsmalldist_noterm_coll_gripbox"
+    #trial = "experiment_2017_09_02_gownsmalldist_term_coll_gripbox"
+    #trial = "experiment_2017_09_02_gowndistexpanded_noterm_bodycollision"
     #trial = "experiment_2017_09_01_gripped2nd_geoclamped"
-    trial = "experiment_2017_09_01_gowndistribution_noterm" #successful controller
+    #trial = "experiment_2017_09_01_gowndistribution_noterm" #successful controller
     #trial = "experiment_2017_08_31_gripped_2ndarm_geospline_clamped"
     #trial = "experiment_2017_08_31_gripped1st_spline_notclamped_nogeo"
     #trial = "experiment_2017_08_31_gowndistribution_warmstart"
@@ -262,7 +265,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 350
+        rolloutHorizon = 400
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
