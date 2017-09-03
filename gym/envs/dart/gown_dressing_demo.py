@@ -29,7 +29,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.deformationTerm = False
 
-        self.gripperCover = False
+        self.gripperCover = True
 
         self.reward = 0
         self.prevAction = None
@@ -82,7 +82,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 1  # 1 is linear, 2 is small range, 3 is larger range
+        self.handleTargetLinearMode = 3  # 1 is linear, 2 is small range, 3 is larger range
         self.randomHandleTargetLinear = True
         self.handleTargetLinearWindow = 10.0
 
