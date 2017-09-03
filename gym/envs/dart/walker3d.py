@@ -10,9 +10,9 @@ import os
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
-        self.action_scale = np.array([150.0]*15)
+        self.action_scale = np.array([250.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 60
-        self.action_scale[[0, 1, 2]] = 150
+        self.action_scale[[0, 1, 2]] = 250
         obs_dim = 41
 
         self.t = 0
@@ -82,7 +82,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
 
         if self.base_policy is None:
-            alive_bonus = 2.0
+            alive_bonus = 1.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 1e-2 * np.square(a).sum()
             joint_pen = 2e-1 * joint_limit_penalty
@@ -135,8 +135,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         sign = np.sign(np.random.uniform(-1, 1))
-        qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
-        qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
+        #qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
+        #qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
 

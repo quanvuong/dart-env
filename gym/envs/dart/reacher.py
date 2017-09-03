@@ -106,11 +106,11 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             #print('target = ' + str(self.target))
-            if np.linalg.norm(self.target) < 1.5: break
-        if self.np_random.uniform(low=-1, high=1) > 0:
+            if np.linalg.norm(self.target) < 1.2: break
+        '''if self.np_random.uniform(low=-1, high=1) > 0:
             self.target = np.array([0.1,0.8,0.1])
         else:
-            self.target = np.array([-0.1, -0.8, -0.1])
+            self.target = np.array([-0.1, -0.8, -0.1])'''
 
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
