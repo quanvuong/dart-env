@@ -350,6 +350,9 @@ class VertexSelectInteractor(BaseInteractor):
                 if self.selectedVertex not in self.selectedVertices:
                     self.selectedVertices.append(self.selectedVertex)
             return
+        if keycode == 98:  # 'b'
+            self.viewer.clothScene.renderClothBoundary = not self.viewer.clothScene.renderClothBoundary
+            print("renderClothBoundary = " + str(self.viewer.clothScene.renderClothBoundary))
         if keycode == 99:  # 'c'
             self.selectedVertices = []
             return

@@ -11,6 +11,7 @@ from pydart2.gui.glut.window import *
 
 class StaticGLUTWindow(GLUTWindow):
     def __init__(self, sim, title):
+        self.renderWorld = True
         super(StaticGLUTWindow,self).__init__(sim, title)
 
     def close(self):
@@ -18,7 +19,14 @@ class StaticGLUTWindow(GLUTWindow):
         GLUT.glutMainLoopEvent()
 
     def drawGL(self, ):
-        self.scene.render(self.sim)
+        if self.renderWorld:
+            self.scene.render(self.sim)
+        else:
+            GL.glClearColor(1.0, 1.0, 1.0, 1.0)
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+            GL.glLoadIdentity()
+            GL.glTranslate(*self.scene.tb.trans)
+            GL.glMultMatrixf(self.scene.tb.matrix)
         self.extraRender()
         GLUT.glutSwapBuffers()
         

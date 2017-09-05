@@ -22,14 +22,18 @@ import OpenGL.GLUT as GLUT
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
+        self.geoVecInObs = False
+        self.contactIDInObs = False
         self.arm = 2
+
+        self.renderObs = False
 
         self.deformationTerm = False
 
-        self.gripperCover = True
+        self.gripperCover = False
 
         self.reward = 0
         self.prevAction = None
@@ -150,6 +154,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
         if self.targetInObs:
             observation_size += 6  # target reaching
+        if self.contactIDInObs:
+            observation_size += 22
+        if self.geoVecInObs:
+            observation_size += 3
 
         #intialize the parent env
         model_path = 'UpperBodyCapsules_collisiontest.skel'
@@ -276,7 +284,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
         self.target = pyutils.getVertCentroid(self.CP0Feature.verts, self.clothScene)
-        self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
+        if self.renderObs is False:
+            self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
         #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
 
         self.CP0Feature.fitPlane()
@@ -347,6 +356,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         '''get_obs'''
         f_size = 66
         theta = self.robot_skeleton.q
+        efnodeix = 8
+        if self.arm == 2:
+            efnodeix = 14
 
         if self.simulateCloth is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation
@@ -357,12 +369,30 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.targetInObs:
             fingertip = np.array([0.0, -0.06, 0.0])
-            vec = None
-            if self.arm == 1:
-                vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
-            else:
-                vec = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target
+            vec = self.robot_skeleton.bodynodes[efnodeix].to_world(fingertip) - self.target
             obs = np.concatenate([obs, vec, self.target]).ravel()
+
+        if self.geoVecInObs:
+            if self.arm_progress >= 0:
+                obs = np.concatenate([obs, self.CP0Feature.plane.normal]).ravel()
+            else:
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,
+                                                                                     clothscene=self.clothScene,
+                                                                                     meshgraph=self.separatedMesh,
+                                                                                     returnOnlyGeo=False)
+                if minGeoVix is None:
+                    obs = np.concatenate([obs, np.zeros(3)]).ravel()
+                else:
+                    vixSide = 0
+                    if _side:
+                        vixSide=1
+                    if minGeoVix >= 0:
+                        geoVec = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+                        obs = np.concatenate([obs, geoVec]).ravel()
+
+        if self.contactIDInObs:
+            HSIDs = self.clothScene.getHapticSensorContactIDs()
+            obs = np.concatenate([obs, HSIDs]).ravel()
 
         obs = np.concatenate([obs, f * 3.]).ravel()
         #obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
@@ -549,18 +579,110 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
+
+    def renderObservation(self):
+        self._get_viewer().renderWorld = False
+        self.clothScene.renderCollisionCaps = False
+        self.clothScene.renderCollisionSpheres = False
+        ef = None
+        fingertip = np.array([0.0, -0.06, 0.0])
+        if self.arm == 1:
+            ef = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        elif self.arm == 2:
+            ef = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        vec = ef-self.target
+        renderUtils.drawArrow(p1=ef, p0=self.target)
+        renderUtils.setColor(color=[1.0,0,0])
+        renderUtils.drawSphere(self.target,0.01)
+        HSL = self.clothScene.getHapticSensorLocations()
+        HSF = self.clothScene.getHapticSensorObs()
+        HSIDs = self.clothScene.getHapticSensorContactIDs()
+        for i in range(int(len(HSL)/3)):
+            p = HSL[i * 3: i * 3 + 3]
+            f = HSF[i * 3: i * 3 + 3]
+
+            GL.glColor3d(0.0, 0.0, 1.0)
+            if HSIDs[i] < 0:
+                GL.glColor3d(1.0, 0.0, 0.0)
+            elif HSIDs[i] > 0:
+                GL.glColor3d(0.0, 1.0, 0.0)
+            renderUtils.drawSphere(pos=p, rad=0.015)
+
+            renderUtils.drawArrow(p0=p, p1=p+f)
+            #GL.glBegin(GL.GL_LINES)
+            #GL.glVertex(p[0] + f[0], p[1] + f[1], p[2] + f[2])
+            #GL.glVertex(p[0], p[1], p[2])
+            #GL.glEnd()
+        minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh, returnOnlyGeo=False)
+        if minGeoVix is not None and self.arm_progress < 0:
+            vixSide = 0
+            if _side:
+                vixSide = 1
+            geoVec = None
+            if minGeoVix >= 0:
+                geoVec = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+                renderUtils.setColor(color=(0.,1.0,1.0))
+                renderUtils.drawArrow(p0=ef, p1=ef+geoVec*0.25)
+        elif self.arm_progress >= 0:
+            geoVec = self.CP0Feature.plane.normal
+            renderUtils.setColor(color=(0., 1.0, 1.0))
+            renderUtils.drawArrow(p0=ef, p1=ef + geoVec * 0.25)
+        a=0
         
     def extraRenderFunction(self):
+        self._get_viewer().renderWorld = True
+        self.clothScene.renderCollisionCaps = True
+        self.clothScene.renderCollisionSpheres = True
         #print("extra render function")
 
         self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
 
+        if self.renderObs:
+            self.renderObservation()
+
+        #draw contact points
+        contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
+        for c in contactIndices:
+            f = self.clothScene.getVertForce(vid=c)
+            n = self.clothScene.getVertNormal(vid=c)
+            side = f.dot(n) < 0
+            print("v["+str(c)+"]"
+                  #+" f="+str(f)
+                  #+" n="+str(n)
+                  +" side="+str(side))
+
+            geo = 0
+            if side:
+                geo = self.separatedMesh.nodes[c + self.separatedMesh.numv].geodesic
+            else:
+                geo = self.separatedMesh.nodes[c].geodesic
+
+            #print("geo = " + str(geo) + " (" + str(self.separatedMesh.nodes[c].geodesic) +"/"+ str(self.separatedMesh.nodes[c+self.separatedMesh.numv].geodesic)+")")
+
+            if self.separatedMesh.maxGeo > 0:
+                col = pyutils.heatmapColor(minimum=0.0, maximum=1.0, value=(geo / self.separatedMesh.maxGeo))
+                renderUtils.setColor(color=col)
+            vpos = self.clothScene.getVertexPos(vid=c)
+            rad = 0.005
+            geoSide = 0
+            if side:
+                geoSide = 1
+            geoVec = self.separatedMesh.geoVectorAt(vix=c, side=geoSide)
+            spherePos = None
+            if side:
+                renderUtils.drawSphere(pos=vpos + (n * rad), rad=rad)
+                spherePos = vpos + (n * rad)
+            else:
+                renderUtils.drawSphere(pos=vpos - (n * rad), rad=rad)
+                spherePos = vpos - (n * rad)
+            renderUtils.drawArrow(p0=spherePos, p1=spherePos+geoVec*0.05)
+
         #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
         
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex3d(0,0,0)
-        GL.glVertex3d(-1,0,0)
-        GL.glEnd()
+        #GL.glBegin(GL.GL_LINES)
+        #GL.glVertex3d(0,0,0)
+        #GL.glVertex3d(-1,0,0)
+        #GL.glEnd()
 
         #draw control torque bars
         topLeft = np.array([1100, self.viewer.viewport[3]-15])
@@ -579,18 +701,20 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
         HSL = self.clothScene.getHapticSensorLocations()
         pos = HSL[21 * 3:21 * 3 + 3]
-        for c in contactIndices:
-            side = ((pos - self.clothScene.getVertexPos(vid=c)).dot(self.clothScene.getVertNormal(vid=c))) < 0
-            if side is True:
-                renderUtils.setColor(color=[1.0, 1.0, 0.])
-            else:
-                renderUtils.setColor(color=[1.0, 0.0, 1.0])
-            renderUtils.drawSphere(self.clothScene.getVertexPos(vid=c), rad=0.005)
+        if self.renderObs is False:
+            for c in contactIndices:
+                side = ((pos - self.clothScene.getVertexPos(vid=c)).dot(self.clothScene.getVertNormal(vid=c))) < 0
+                if side is True:
+                    renderUtils.setColor(color=[1.0, 1.0, 0.])
+                else:
+                    renderUtils.setColor(color=[1.0, 0.0, 1.0])
+                renderUtils.drawSphere(self.clothScene.getVertexPos(vid=c), rad=0.005)
 
         # draw meshGraph stuff
         '''for n in self.separatedMesh.nodes:
             vpos = self.clothScene.getVertexPos(vid=n.vix)
             norm = self.clothScene.getVertNormal(cid=0, vid=n.vix)
+            #geoVec = self.separatedMesh.geoVectorAt(n.vix,n.side)
             offset = 0.005
             #c = n.ix / len(self.separatedMesh.nodes)
             c=np.array([0.,0.,0.])
@@ -598,10 +722,16 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 c = pyutils.heatmapColor(minimum=0.0, maximum=1.0, value=(n.geodesic / self.separatedMesh.maxGeo))
                 #c = n.geodesic / self.separatedMesh.maxGeo
             renderUtils.setColor(color=c)
+            spherePos = None
+            rad = 0.005
             if n.side == 0:
-                renderUtils.drawSphere(pos=vpos + norm * offset, rad=0.005)
+                spherePos = vpos - (norm * rad)
             else:
-                renderUtils.drawSphere(pos=vpos - norm * offset, rad=0.005)'''
+                spherePos = vpos + (norm * rad)
+            if n.geodesic < 0.1:
+                geoVec = self.separatedMesh.geoVectorAt(n.vix, n.side)
+                renderUtils.drawSphere(pos=spherePos, rad=rad)
+                renderUtils.drawArrow(p0=spherePos, p1=spherePos + geoVec * 0.05)'''
 
         minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
         if minContactGeodesic is not None:
@@ -615,7 +745,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                  text="Reward = " + str(self.reward),
                                  color=(0., 0, 0))
 
-        #self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
+        self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
 
         armProgress = self.armSleeveProgress()
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
@@ -749,7 +879,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.separatedMesh.initSeparatedMeshGraph()
         self.separatedMesh.updateWeights()
-        self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True)
+        self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=1)
 
         print("done")
 
