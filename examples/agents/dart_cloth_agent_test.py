@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2017_09_03_gownlinear_noterm_coll_largetorque"
     #trial = "experiment_2017_09_03_gownlargerange_noterm_coll_largetorque_gripcover"
-    trial = "experiment_2017_09_03_gownlargedist_noterm_coll_largetorque"
+    #trial = "experiment_2017_09_03_gownlargedist_noterm_coll_largetorque"
 
     #trial = "experiment_2017_09_02_gownsmalldist_noterm_coll_gripbox"
     #trial = "experiment_2017_09_02_gownsmalldist_term_coll_gripbox"

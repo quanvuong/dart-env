@@ -26,7 +26,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.geoVecInObs = False
-        self.contactIDInObs = False
+        self.contactIDInObs = True
         self.arm = 2
 
         self.renderObs = False
@@ -646,10 +646,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             f = self.clothScene.getVertForce(vid=c)
             n = self.clothScene.getVertNormal(vid=c)
             side = f.dot(n) < 0
-            print("v["+str(c)+"]"
+            '''print("v["+str(c)+"]"
                   #+" f="+str(f)
                   #+" n="+str(n)
-                  +" side="+str(side))
+                  +" side="+str(side))'''
 
             geo = 0
             if side:
