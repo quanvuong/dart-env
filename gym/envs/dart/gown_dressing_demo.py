@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.geoVecInObs = True
@@ -127,6 +127,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.debuggingBoxes.append(self.handleTargetLinearEndRange)
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
 
+        self.reset_number = 0  # increments on env.reset()
+
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         mesh_path = self.prefix + "/assets/fullgown1.obj",
@@ -217,8 +219,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         
         self.renderDofs = True #if true, show dofs text 
         self.renderForceText = False
-        
-        self.reset_number = 0 #increments on env.reset()
 
 
         for i in range(len(self.robot_skeleton.bodynodes)):
@@ -373,13 +373,16 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             obs = np.concatenate([obs, vec, self.target]).ravel()
 
         if self.geoVecInObs:
-            if self.arm_progress >= 0:
+            if self.reset_number == 0:
+                obs = np.concatenate([obs, np.zeros(3)]).ravel()
+            elif self.arm_progress >= 0:
                 obs = np.concatenate([obs, self.CP0Feature.plane.normal]).ravel()
             else:
                 minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,
                                                                                      clothscene=self.clothScene,
                                                                                      meshgraph=self.separatedMesh,
                                                                                      returnOnlyGeo=False)
+                #print("here")
                 if minGeoVix is None:
                     obs = np.concatenate([obs, np.zeros(3)]).ravel()
                 else:
@@ -389,6 +392,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                     if minGeoVix >= 0:
                         geoVec = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
                         obs = np.concatenate([obs, geoVec]).ravel()
+                        #print(geoVec)
 
         if self.contactIDInObs:
             HSIDs = self.clothScene.getHapticSensorContactIDs()
