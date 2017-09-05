@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.geoVecInObs = False
