@@ -25,7 +25,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.geoVecInObs = False
+        self.geoVecInObs = True
         self.contactIDInObs = True
         self.arm = 2
 
