@@ -373,9 +373,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             obs = np.concatenate([obs, vec, self.target]).ravel()
 
         if self.geoVecInObs:
+            #print("Getting geoVec Obs...")
             if self.reset_number == 0:
                 obs = np.concatenate([obs, np.zeros(3)]).ravel()
-            elif self.arm_progress >= 0:
+            elif self.arm_progress > 0:
+                #print("plane mode")
                 obs = np.concatenate([obs, self.CP0Feature.plane.normal]).ravel()
             else:
                 minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,
@@ -383,6 +385,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                                      meshgraph=self.separatedMesh,
                                                                                      returnOnlyGeo=False)
                 #print("here")
+                #print("minContactGeodesic, minGeoVix, _side: " + str(minContactGeodesic) +", "+str(minGeoVix)+", "+str( _side))
                 if minGeoVix is None:
                     obs = np.concatenate([obs, np.zeros(3)]).ravel()
                 else:
@@ -392,7 +395,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                     if minGeoVix >= 0:
                         geoVec = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
                         obs = np.concatenate([obs, geoVec]).ravel()
-                        #print(geoVec)
+                        #print("geoVec: " + str(geoVec))
+                    else:
+                        print("error to be here")
+            ##print("...done")
+            #print(obs)
 
         if self.contactIDInObs:
             HSIDs = self.clothScene.getHapticSensorContactIDs()
@@ -515,6 +522,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.gripper is not None:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
+
+        #print("reset " + str(self.reset_number))
 
         return self._get_obs()
 
