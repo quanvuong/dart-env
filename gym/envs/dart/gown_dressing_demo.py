@@ -376,8 +376,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #self.deformationGraph.addToLinePlot(data=[[clothDeformation]])
 
 
-        if self.numSteps >= 400 or done is True:
-            print("arm_progress = " + str(self.arm_progress) + " | maxDeformation = " + str(self.maxDeformation))
+        #if self.numSteps >= 400 or done is True:
+        #    print("arm_progress = " + str(self.arm_progress) + " | maxDeformation = " + str(self.maxDeformation))
 
         return ob, reward, done, {}
 
