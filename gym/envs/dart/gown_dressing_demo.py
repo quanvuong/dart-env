@@ -93,9 +93,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 4  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
+        self.handleTargetLinearMode = 5  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = True #if true, end point is start point
+        self.linearTargetFixed = False #if true, end point is start point
         self.handleTargetLinearWindow = 10.0
 
         self.handleTargetLinearInitialRange = None
