@@ -93,8 +93,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 3  # 1 is linear, 2 is small range, 3 is larger range
+        self.handleTargetLinearMode = 4  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
         self.randomHandleTargetLinear = True
+        self.linearTargetFixed = True #if true, end point is start point
         self.handleTargetLinearWindow = 10.0
 
         self.handleTargetLinearInitialRange = None
@@ -127,6 +128,27 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
             self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
+
+        elif self.handleTargetLinearMode == 4:
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.05]),
+                                                                   c1=np.array([-0.35, -0.25, -0.05]),
+                                                                   org=np.array([0.27205264, 0.052056234, -0.37377446]))
+            smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+            self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
+        elif self.handleTargetLinearMode == 5:
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.2, 0.25, 0.05]),
+                                                                   c1=np.array([-0.2, -0.2, -0.05]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.57377446]))
+            self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, 0.0]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
 
         #debugging boxes for visualizing distributions
         self.drawDebuggingBoxes = True
@@ -338,7 +360,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         torquePenalty = 0
         torquePenalty = -np.linalg.norm(tau)
 
-        reward += self.arm_progress*5 + contactGeoReward - self.q_target_reward + clothDeformationReward*4 + torquePenalty*0.1
+        reward += self.arm_progress*5 + contactGeoReward*2 - self.q_target_reward + clothDeformationReward*4# + torquePenalty*0.1
         self.reward = reward
         #print("reward = " + str(reward))
         
@@ -528,7 +550,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             disp = self.handleNode.org-oldOrg
             self.clothScene.translateCloth(0, disp)
             self.handleNode.clearTargetSpline()
-            self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
+            if self.linearTargetFixed:
+                self.handleNode.addTarget(t=self.handleTargetLinearWindow,
+                                          pos=self.handleNode.org)
+            else:
+                self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
         else:
             oldOrg = np.array(self.handleNode.org)
             self.handleNode.usingTargets = False
