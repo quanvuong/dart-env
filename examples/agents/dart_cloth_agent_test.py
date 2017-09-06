@@ -101,11 +101,17 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2017_09_05_gownlargerange_contactIDS"
+    #trial = "experiment_2017_09_06_gownlargerange_geofix"
+    #trial = "experiment_2017_09_06_gownlargerange_contactIDS_geovec"
+
+
     #trial = "experiment_2017_09_03_gownlinear_noterm_coll_largetorque"
     #trial = "experiment_2017_09_03_gownlargerange_noterm_coll_largetorque_gripcover"
     #trial = "experiment_2017_09_03_gownlargedist_noterm_coll_largetorque"
 
-    #trial = "experiment_2017_09_02_gownsmalldist_noterm_coll_gripbox"
+    #trial = "experiment_2017_09_02_gownsmalldist_noterm_coll_gripbox" #best?
+
     #trial = "experiment_2017_09_02_gownsmalldist_term_coll_gripbox"
     #trial = "experiment_2017_09_02_gowndistexpanded_noterm_bodycollision"
     #trial = "experiment_2017_09_01_gripped2nd_geoclamped"
@@ -124,26 +130,6 @@ if __name__ == '__main__':
     #trial = "experiment_2017_08_29_assistivelinear"
     #trial = "experiment_2017_08_28_gripped2ndarm_easy_contactReward"
     #trial = "experiment_2017_08_28_gripped1starm_phaseobs_retrial"
-
-    #trial = "experiment_2017_08_25_gripped1starm_phaseinobs"
-    #trial = "experiment_2017_08_26_gripped2ndarm_easier_phaseobs"
-    #trial = "experiment_2017_08_26_1starm_gripped_noplane"
-    #trial = "experiment_2017_08_24_shirtreacher_progressmetriconly" #no spline increment
-    #trial = "experiment_2017_08_22_progressmetricpolicy_cont2"
-    #trial = "experiment_2017_08_22_progressmetricpolicy"
-    #trial = "experiment_2017_08_19_splineshirtreacher"
-    #trial = "experiment_2017_08_17_reacher_statepenalty"
-    #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
-    #trial = "experiment_2017_08_15_grippedtshirt"
-    #trial = "experiment_2017_08_15_reacher_velacctau_restpose"
-    #trial = "experiment_2017_08_14_reacher_velaccpenalty"
-    #trial = "experiment_2017_08_13_reacher_velpenalty2"
-    #trial = "experiment_2017_08_12_reacher_velpenalty"
-    #trial = "experiment_2017_08_11_reacher"
-    #trial = "experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1"
-    #trial = "experiment_2017_06_22_UpperBodyShirtArm2"
-    #trial = "experiment_2017_06_06_upperBodyReacher_arm2"
-    #trial = "experiment_2017_08_07_posetracker_SPD"
 
     loadSave = False
 
@@ -289,8 +275,8 @@ if __name__ == '__main__':
             if done is True:
                 time.sleep(0.5)
                 break
-            if j == rolloutHorizon-1:
-                print("Time terminate")
+            #if j == rolloutHorizon-1:
+            #    print("Time terminate")
     env.render(close=True)
     
 

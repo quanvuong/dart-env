@@ -27,16 +27,23 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.targetInObs = True
         self.geoVecInObs = True
         self.contactIDInObs = True
+        self.hapticsAware = True #if false, 0's for haptic input
         self.arm = 2
 
         self.renderObs = False
 
         self.deformationTerm = False
+        self.maxDeformation = 0.0
 
         self.gripperCover = False
 
         self.reward = 0
         self.prevAction = None
+
+        self.graphArmProgress = False
+        self.graphDeformation = False
+        self.armProgressGraph = None
+        self.deformationGraph = None
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -46,7 +53,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.action_scale = np.ones(11) * 10
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
-        self.action_scale[0] = 150  # torso
+        '''self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
         self.action_scale[2] = 100  # spine
         self.action_scale[3] = 50  # clav
@@ -56,7 +63,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.action_scale[7] = 20
         self.action_scale[8] = 20  # elbow
         self.action_scale[9] = 8  # wrist
-        self.action_scale[10] = 8
+        self.action_scale[10] = 8'''
 
         self.numSteps = 0 #increments every step, 0 on reset
 
@@ -227,6 +234,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
 
+        if self.graphArmProgress:
+            self.armProgressGraph = pyutils.LineGrapher(title="Arm Progress")
+        if self.graphDeformation:
+            self.deformationGraph = pyutils.LineGrapher(title="Deformation")
+
 
         print("done init")
         #print(self.getFile())
@@ -314,6 +326,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         clothDeformation = 0
         if self.simulateCloth is True:
             clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+        if clothDeformation > self.maxDeformation:
+            self.maxDeformation = clothDeformation
 
         clothDeformationReward = 0
         if clothDeformation > 15 and self.deformationTerm is False:
@@ -350,6 +364,21 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.numSteps += 1
 
+        if self.graphArmProgress and self.armProgressGraph is not None:
+            #self.armProgressGraph.addToLinePlot(data=[[self.arm_progress]])
+            self.armProgressGraph.yData[self.reset_number-1][self.numSteps-1] = self.arm_progress
+            if self.numSteps % 20 == 0:
+                self.armProgressGraph.update()
+        if self.graphDeformation and self.deformationGraph is not None:
+            self.deformationGraph.yData[self.reset_number - 1][self.numSteps - 1] = clothDeformation
+            if self.numSteps % 20 == 0:
+                self.deformationGraph.update()
+            #self.deformationGraph.addToLinePlot(data=[[clothDeformation]])
+
+
+        if self.numSteps >= 400 or done is True:
+            print("arm_progress = " + str(self.arm_progress) + " | maxDeformation = " + str(self.maxDeformation))
+
         return ob, reward, done, {}
 
     def _get_obs(self):
@@ -360,7 +389,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.arm == 2:
             efnodeix = 14
 
-        if self.simulateCloth is True:
+        if self.simulateCloth is True and self.hapticsAware is True:
             f = self.clothScene.getHapticSensorObs()#get force from simulation
         else:
             f = np.zeros(f_size)
@@ -413,6 +442,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def reset_model(self):
         '''reset_model'''
         self.numSteps = 0
+        self.maxDeformation = 0.0
         self.dart_world.reset()
         self.clothScene.reset()
         self.clothScene.setSelfCollisionDistance(0.03)
@@ -513,8 +543,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.reset_number == 0:
             self.testMeshGraph()
 
-        self.reset_number += 1
-
         #self.handleNode.reset()
         if self.handleNode is not None:
             #self.handleNode.setTransform(self.robot_skeleton.bodynodes[8].T)
@@ -524,6 +552,23 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
 
         #print("reset " + str(self.reset_number))
+
+        if self.graphArmProgress:
+            if self.reset_number == 0:
+                xdata = np.arange(400)
+                self.armProgressGraph.xdata = xdata
+            initialYData = np.zeros(400)
+            self.armProgressGraph.plotData(ydata=initialYData, label=str(self.reset_number))
+
+        if self.graphDeformation:
+            if self.reset_number == 0:
+                xdata = np.arange(400)
+                self.deformationGraph.xdata = xdata
+            initialYData = np.zeros(400)
+            self.deformationGraph.plotData(ydata=initialYData, label=str(self.reset_number))
+
+
+        self.reset_number += 1
 
         return self._get_obs()
 
