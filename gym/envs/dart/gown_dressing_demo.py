@@ -6,6 +6,7 @@ from gym import utils
 from gym.envs.dart.dart_cloth_env import *
 import random
 import time
+import math
 
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
@@ -32,7 +33,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.renderObs = False
 
-        self.deformationTerm = False
+        self.deformationTerm = True
+        self.deformationTermLimit = 40
+        self.deformationPenalty = True
         self.maxDeformation = 0.0
 
         self.gripperCover = False
@@ -44,6 +47,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.graphDeformation = False
         self.armProgressGraph = None
         self.deformationGraph = None
+        self.colorFromDistribution = True #if true, draw graph color based on distribution point
+        self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
+        self.domainTesting = False #if true, sample gown locations from a grid instead of random
+        self.domainTestingDim = np.array([5, 5, 1])
+        self.renderDomainTestingResults = False  # if true, sample the linear target range and color spheres as map
+
 
         #22 dof upper body
         self.action_scale = np.ones(22)*10
@@ -93,7 +102,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 2  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
+        self.handleTargetLinearMode = 4  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
         self.randomHandleTargetLinear = True
         self.linearTargetFixed = True #if true, end point is start point
         self.handleTargetLinearWindow = 10.0
@@ -352,7 +361,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.maxDeformation = clothDeformation
 
         clothDeformationReward = 0
-        if clothDeformation > 15 and self.deformationTerm is False:
+        if clothDeformation > 15 and self.deformationPenalty is True:
             #clothDeformationReward = 15.0-clothDeformation
             clothDeformationReward = (math.tanh(9.24-0.5*clothDeformation)-1)/2.0 #near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
@@ -360,7 +369,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         torquePenalty = 0
         torquePenalty = -np.linalg.norm(tau)
 
-        reward += self.arm_progress*5 + contactGeoReward*2 - self.q_target_reward + clothDeformationReward*4# + torquePenalty*0.1
+        reward += self.arm_progress*5 + contactGeoReward*2 - self.q_target_reward + clothDeformationReward*6# + torquePenalty*0.1
         self.reward = reward
         #print("reward = " + str(reward))
         
@@ -375,7 +384,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #print("Infinite value detected..." + str(s))
             done = True
             reward -= 500
-        elif (clothDeformation > 20 and self.deformationTerm is True):
+        elif (clothDeformation > self.deformationTermLimit and self.deformationTerm is True):
             #print("Deformation Termination")
             done = True
             reward -= 5000
@@ -392,6 +401,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             if self.numSteps % 20 == 0:
                 self.armProgressGraph.update()
         if self.graphDeformation and self.deformationGraph is not None:
+            if clothDeformation > 50:
+                clothDeformation = 50
             self.deformationGraph.yData[self.reset_number - 1][self.numSteps - 1] = clothDeformation
             if self.numSteps % 20 == 0:
                 self.deformationGraph.update()
@@ -547,6 +558,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #draw initial pos
             oldOrg = np.array(self.handleNode.org)
             self.handleNode.org = self.handleTargetLinearInitialRange.sample(1)[0]
+            if self.domainTesting:
+                dim = self.domainTestingDim
+                lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))])
+                for i in range(3):
+                    lpos[i] = lpos[i]/float(max(dim[i]-1, 1))
+                print("ix="+str(self.reset_number) + " | lpos="+str(lpos))
+                self.handleNode.org = self.handleTargetLinearInitialRange.localSample(lpos=lpos)
             disp = self.handleNode.org-oldOrg
             self.clothScene.translateCloth(0, disp)
             self.handleNode.clearTargetSpline()
@@ -579,19 +597,30 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #print("reset " + str(self.reset_number))
 
+        color = None
+        if self.colorFromDistribution and self.randomHandleTargetLinear:
+            xmin = min(self.handleTargetLinearInitialRange.c0[0], self.handleTargetLinearInitialRange.c1[0]) + self.handleTargetLinearInitialRange.org[0]
+            xmax = max(self.handleTargetLinearInitialRange.c0[0], self.handleTargetLinearInitialRange.c1[0]) + self.handleTargetLinearInitialRange.org[0]
+            ymin = min(self.handleTargetLinearInitialRange.c0[1], self.handleTargetLinearInitialRange.c1[1]) + self.handleTargetLinearInitialRange.org[1]
+            ymax = max(self.handleTargetLinearInitialRange.c0[1], self.handleTargetLinearInitialRange.c1[1]) + self.handleTargetLinearInitialRange.org[1]
+            #print("x ["+str(xmin)+","+str(xmax)+"]")
+            #print("y [" + str(ymin) + "," + str(ymax) + "]")
+            #print("point: " +str(self.handleNode.org[0])+","+str(self.handleNode.org[1]))
+            #print("color [" + str((self.handleNode.org[0]-xmin)/(xmin-xmax)) + "," + str((self.handleNode.org[1]-ymin)/(ymin-ymax)) + "]")
+            color = np.array([(self.handleNode.org[0]-xmin)/(xmax-xmin), 0.0, (self.handleNode.org[1]-ymin)/(ymax-ymin)])
         if self.graphArmProgress:
             if self.reset_number == 0:
                 xdata = np.arange(400)
                 self.armProgressGraph.xdata = xdata
             initialYData = np.zeros(400)
-            self.armProgressGraph.plotData(ydata=initialYData, label=str(self.reset_number))
+            self.armProgressGraph.plotData(ydata=initialYData, color=color)
 
         if self.graphDeformation:
             if self.reset_number == 0:
                 xdata = np.arange(400)
                 self.deformationGraph.xdata = xdata
             initialYData = np.zeros(400)
-            self.deformationGraph.plotData(ydata=initialYData, label=str(self.reset_number))
+            self.deformationGraph.plotData(ydata=initialYData, color=color)
 
 
         self.reset_number += 1
@@ -723,6 +752,25 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.renderObs:
             self.renderObservation()
+
+        if self.renderZoneColorFromDistribution and self.randomHandleTargetLinear:
+            xmin = min(self.handleTargetLinearInitialRange.c0[0], self.handleTargetLinearInitialRange.c1[0]) + \
+                   self.handleTargetLinearInitialRange.org[0]
+            xmax = max(self.handleTargetLinearInitialRange.c0[0], self.handleTargetLinearInitialRange.c1[0]) + \
+                   self.handleTargetLinearInitialRange.org[0]
+            ymin = min(self.handleTargetLinearInitialRange.c0[1], self.handleTargetLinearInitialRange.c1[1]) + \
+                   self.handleTargetLinearInitialRange.org[1]
+            ymax = max(self.handleTargetLinearInitialRange.c0[1], self.handleTargetLinearInitialRange.c1[1]) + \
+                   self.handleTargetLinearInitialRange.org[1]
+            samples = 20
+            for x in range(samples):
+                for y in range(samples):
+                    pos = np.array([(x/samples*(xmax-xmin))+xmin, (y/samples*(ymax-ymin))+ymin, self.handleTargetLinearInitialRange.org[2]])
+                    #pos += self.handleTargetLinearInitialRange.org
+                    color = color = np.array([(pos[0]-xmin)/(xmax-xmin), 0.0, (pos[1]-ymin)/(ymax-ymin)])
+                    color = color*1.5
+                    renderUtils.setColor(color=color)
+                    renderUtils.drawSphere(pos=pos,rad=min(xmax-xmin, ymax-ymin)/samples)
 
         #draw contact points
         contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
@@ -937,10 +985,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             limblines.append([self.robot_skeleton.bodynodes[10].to_world(np.zeros(3)),
                               self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))])
 
+        #print("---")
         if self.armLength < 0:
             self.armLength = 0.
             for line in limblines:
+                #print("limb length = " + str(np.linalg.norm(line[1] - line[0])))
                 self.armLength += np.linalg.norm(line[1] - line[0])
+        #print("arm length = " +str(self.armLength))
         contains = False
         intersection_ix = -1
         intersection_depth = -1.0

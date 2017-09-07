@@ -16,90 +16,13 @@ if __name__ == '__main__':
     
     filename = None
     filename2 = None
-    
-    #standard reacher: moved cloth 
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_sphere_movedcloth_2017_04_28_10_02_27_0001/params.pkl"
-    
-    #standard reacher: no simulated cloth
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_sphere_noclothsim_2017_04_29_13_31_56_0001/params.pkl"
-    
-    #self terminating (1st try w/ small penalty for deformation)
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_selfterminating_2017_04_26_21_00_09_0001/params.pkl"
-    
-    #cloth trial 1?
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_cloth1st(slow)_2017_04_27_11_06_16_0001/params.pkl"
-    
-    #cloth trial alternate reward
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_cloth_alternatereward_2017_04_28_00_12_56_0001/params.pkl"
-    
-    #hemisphere no cloth test
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_01_noclothhemisphere_statereward/params.pkl"
-    
-    #sphere samples with cloth test (-2000 penalty)
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/reacher_sphere_cloth(-2000 penalty)_2017_04_30_12_15_00_0001/params.pkl"
-    
-    #Cloth reacher new reward
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_03_clothreacher_disprewardtuned/params.pkl"
-    
-    #warm start
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_04_clothreacher_warmstart_hemispherestatereward/params.pkl"
-    
-    #vanilla reacher new reward
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_02_reacher_displacementreward_nocloth/params.pkl"
-    
-    #warm start stabilizer trial:
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_04_reacher_warmstart_sphere_state2stable_prox/params.pkl"
-    
-    #warm start moving cloth trial 1 (~600 iter)
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_04_reacher_warmstart_stablesphere2movingcloth/params.pkl"
-    
-    #warm start moving cloth trial 2 (1500 iter)
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_08_reacher_warmstart_stablesphere2movingcloth3/params.pkl"
-    
-    #sleeve reacher experiment 1
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_10_sleevereacher1/params.pkl"
-    
-    #new arm reacher experiment 2
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_12_newArmReacher2/params.pkl"
-    
-    #stable reacher (new arm)
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_14_newArmReacher_stable_warmstart2/params.pkl"
-    
-    #new arm sleeve reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_14_newArmSleeveReacher_stablewarmstart/params.pkl"
-    
-    #shirt reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_15_shirtReacher_stablewarmstart/params.pkl"
-    
-    #9 dof arm reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher/params.pkl"
-    
-    #9 dof arm stable reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_05_16_9dofReacher_stable/params.pkl"
-    
-    #Upper Body reacher
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_06_upperBodyReacher_arm2/policy.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_22_UpperBodyShirtArm2/params.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_26_UpperBodyReacher2ndArm/params.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_27_UpperBodyReacherShirt2ndArm/params.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_29_mirrorwarmstart/params.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_06_30_relaxedwarmstart/params11.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params24.pkl"
-    #filename = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_19_posereacher/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_23_posereacher4/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_24_posereacher5_q/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_25_posereacher6_q_normerror_prox/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_27_posereacher7_q_normerror_prox_notau/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_07_31_posereacher8_q_normerror_prox_notau_nohaptics/params.pkl"
-    #filename = "/home/aclegg3/Documents/dev/rllab/data/local/experiment/experiment_2017_08_01_posereacher8_q_normerror_prox_notau_nohaptics_cont1/params.pkl"
-    #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_13_hapticNoiseTest_reacher2/params.pkl"
-    #filename2 = "/home/alexander/Documents/dev/rllab/data/local/experiment/experiment_2017_07_14_posthapticNoise_Shirtreacher/params.pkl"
 
     prefix = os.path.dirname(os.path.abspath(__file__))
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+
+    trial = "experiment_2017_09_06_fixedgownwide"
 
     #trial = "experiment_2017_09_05_gownlargerange_contactIDS"
     #trial = "experiment_2017_09_06_gownlargerange_geofix"
