@@ -22,7 +22,9 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_09_06_fixedgownwide"
+    #trial = "experiment_2017_09_06_fixedgownwide"
+    #trial = "experiment_2017_09_06_lineargownclose"
+    #trial = "experiment_2017_09_06_linearfixedsmall_baseline" #oddly doesn't work
 
     #trial = "experiment_2017_09_05_gownlargerange_contactIDS"
     #trial = "experiment_2017_09_06_gownlargerange_geofix"

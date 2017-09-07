@@ -33,7 +33,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.renderObs = False
 
-        self.deformationTerm = True
+        self.deformationTerm = False
         self.deformationTermLimit = 40
         self.deformationPenalty = True
         self.maxDeformation = 0.0
@@ -52,6 +52,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.domainTestingDim = np.array([5, 5, 1])
         self.renderDomainTestingResults = False  # if true, sample the linear target range and color spheres as map
+
+        #self.progressHistogram = pyutils.Histogram2D()
 
 
         #22 dof upper body
@@ -102,11 +104,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 4  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear
+        self.handleTargetLinearMode = 6  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = True #if true, end point is start point
+        self.linearTargetFixed = False #if true, end point is start point
+        self.orientationFromSpline = True #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
-
         self.handleTargetLinearInitialRange = None
         self.handleTargetLinearEndRange = None
 
@@ -154,6 +156,17 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                    c1=np.array([-0.15, -0.15, 0.0]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+        elif self.handleTargetLinearMode == 6:
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.05, 0.25, 0.25]),
+                                                                   c1=np.array([-0.05, -0.2, -0.25]),
+                                                                   org=np.array([0.77205264, 0.052056234, -0.27377446]))
+            self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.05, 0.15, 0.15]),
+                                                                   c1=np.array([-0.05, -0.15, -0.15]),
+                                                                   org=np.array([0.36205264, 0.052056234, -0.17377446]))
             smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
@@ -272,6 +285,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
 
         print("done init")
+        #print("random = " + str(random.randint(1, 100)))
         #print(self.getFile())
 
     def _getFile(self):
@@ -566,13 +580,28 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 print("ix="+str(self.reset_number) + " | lpos="+str(lpos))
                 self.handleNode.org = self.handleTargetLinearInitialRange.localSample(lpos=lpos)
             disp = self.handleNode.org-oldOrg
-            self.clothScene.translateCloth(0, disp)
             self.handleNode.clearTargetSpline()
             if self.linearTargetFixed:
                 self.handleNode.addTarget(t=self.handleTargetLinearWindow,
                                           pos=self.handleNode.org)
+                self.clothScene.translateCloth(0, disp)
             else:
                 self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
+                if self.orientationFromSpline:
+                    self.clothScene.translateCloth(0, -oldOrg)
+                    splineDirection = self.handleNode.targetSpline.pos(1)-self.handleNode.targetSpline.pos(0)
+                    splineDirection[1] = 0 #project onto xz plane
+                    splineDirection = splineDirection / np.linalg.norm(splineDirection)
+                    angle = math.acos(splineDirection.dot(np.array([0,0,1.])))
+                    cross = np.cross(splineDirection, np.array([0,0,1.]))
+                    if cross.dot(np.array([0,1.0,0])) > 0:
+                        angle = -angle
+                    self.clothScene.rotateCloth(0, self.clothScene.getRotationMatrix(a=angle, axis=np.array([0, 1.0, 0.0])))
+                    self.clothScene.translateCloth(0, self.handleNode.org)
+                    self.handleNode.recomputeOffsets()
+                else:
+                    self.clothScene.translateCloth(0, disp)
+
         else:
             oldOrg = np.array(self.handleNode.org)
             self.handleNode.usingTargets = False
@@ -896,8 +925,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 #    self.viewer.drawSphere(p=s, r=0.01)
 
         #render the vertex handleNode(s)/Handle(s)
-        #if self.handleNode is not None:
-        #    self.handleNode.draw()
+        if self.handleNode is not None:
+            self.handleNode.draw()
 
         if self.gripper is not None and False:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
