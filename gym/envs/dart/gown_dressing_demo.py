@@ -47,7 +47,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.graphDeformation = False
         self.armProgressGraph = None
         self.deformationGraph = None
-        self.colorFromDistribution = True #if true, draw graph color based on distribution point
+        self.colorFromDistribution = False #if true, draw graph color based on distribution point
         self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.domainTestingDim = np.array([5, 5, 1])
@@ -104,17 +104,17 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 6  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
+        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = False #if true, end point is start point
-        self.orientationFromSpline = True #if true, the gripper orientation is changed to match the spline direction (y rotation only)
+        self.linearTargetFixed = True #if true, end point is start point
+        self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
         self.handleTargetLinearEndRange = None
 
         self.debuggingBoxes = []
 
-        if self.handleTargetLinearMode == 1:
+        if self.handleTargetLinearMode == 1: #original fast linear
             # old linear track
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.7,0.5,0.15]),
                                                                    c1=np.array([-0.3, -0.5, -0.15]),
@@ -122,14 +122,14 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleTargetLinearEndRange = pyutils.BoxFrame(c0=np.array([0.5, 0.3, 0.2]),
                                                                c1=np.array([0.1, -0.1, -0.1]),
                                                                org=np.array([0.,0.,0.]))
-        elif self.handleTargetLinearMode == 2:
+        elif self.handleTargetLinearMode == 2: #original small range
             # small distribution
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
-        elif self.handleTargetLinearMode == 3:
+        elif self.handleTargetLinearMode == 3: #original larger range
             #slightly larger distribution
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.15]),
                                                                    c1=np.array([-0.35, -0.25, -0.15]),
@@ -140,7 +140,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
-        elif self.handleTargetLinearMode == 4:
+        elif self.handleTargetLinearMode == 4: #new larger static range
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.05]),
                                                                    c1=np.array([-0.35, -0.25, -0.05]),
                                                                    org=np.array([0.27205264, 0.052056234, -0.37377446]))
@@ -149,7 +149,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
             self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
-        elif self.handleTargetLinearMode == 5:
+        elif self.handleTargetLinearMode == 5: #close linear range
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.2, 0.25, 0.05]),
                                                                    c1=np.array([-0.2, -0.2, -0.05]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.57377446]))
@@ -160,7 +160,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
             self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
-        elif self.handleTargetLinearMode == 6:
+        elif self.handleTargetLinearMode == 6: #linear range beside the character
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.05, 0.25, 0.25]),
                                                                    c1=np.array([-0.05, -0.2, -0.25]),
                                                                    org=np.array([0.77205264, 0.052056234, -0.27377446]))
@@ -171,6 +171,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
             self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+        elif self.handleTargetLinearMode == 7: #large static range with increase min y
+            self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.25, 0.2, 0.05]),
+                                                                   c1=np.array([-0.35, -0.15, -0.05]),
+                                                                   org=np.array([0.27205264, 0.052056234, -0.37377446]))
+            smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
+                                                                   c1=np.array([-0.15, -0.15, -0.1]),
+                                                                   org=np.array([0.17205264, 0.052056234, -0.37377446]))
+            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+            self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
         self.drawDebuggingBoxes = True
@@ -574,6 +583,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleNode.org = self.handleTargetLinearInitialRange.sample(1)[0]
             if self.domainTesting:
                 dim = self.domainTestingDim
+                if dim[0]*dim[1]*dim[2] <= self.reset_number:
+                    if self.graphArmProgress:
+                        self.armProgressGraph.save(filename="/home/alexander/armprogress.png")
+                    if self.graphDeformation:
+                        self.deformationGraph.save(filename="/home/alexander/deformation.png")
+                    exit()
                 lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))])
                 for i in range(3):
                     lpos[i] = lpos[i]/float(max(dim[i]-1, 1))
