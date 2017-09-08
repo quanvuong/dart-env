@@ -256,12 +256,12 @@
             <joint type="translational" name="j_torso">
                 <parent>world</parent>
                 <child>h_torso_aux</child>
-                <!--<axis3>
+                <axis3>
  		            <limit>
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
                     </limit>
-                </axis3>-->
+                </axis3>
             </joint>
 
             <joint type="euler" name="j_torso2">
@@ -288,8 +288,8 @@
                 <axis_order>xyz</axis_order>
                 <axis>
 		            <limit>
-                    	<lower>-1.0</lower>
-                    	<upper>1.0</upper>
+                    	<lower>-0.6</lower>
+                    	<upper>0.6</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -298,8 +298,8 @@
                 </axis>
                 <axis2>
 		            <limit>
-                    	<lower>-0.08</lower>
-                    	<upper>0.08</upper>
+                    	<lower>-0.3</lower>
+                    	<upper>0.3</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -308,7 +308,7 @@
                 </axis2>
                 <axis3>
  		            <limit>
-                    	<lower>-0.0</lower>
+                    	<lower>-0.1</lower>
                     	<upper>0.8</upper>
                     </limit>
                     <dynamics>
@@ -347,7 +347,7 @@
                 </axis2>
                 <axis3>
  		            <limit>
-                    	<lower>-0.25</lower>
+                    	<lower>-0.8</lower>
                     	<upper>0.0</upper>
                     </limit>
                     <dynamics>
@@ -433,7 +433,7 @@
                 <axis3>
  		            <limit>
                     	<lower>0.0</lower>
-                    	<upper>0.25</upper>
+                    	<upper>0.8</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>

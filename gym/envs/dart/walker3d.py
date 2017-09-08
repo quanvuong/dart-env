@@ -10,18 +10,34 @@ import os
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
-        self.action_scale = np.array([250.0]*15)
+        self.action_scale = np.array([150.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 60
-        self.action_scale[[0, 1, 2]] = 250
+        self.action_scale[[0, 1, 2]] = 150
         obs_dim = 41
 
         self.t = 0
 
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
-        #self.base_policy = joblib.load(os.path.join(modelpath, 'init_policy.pkl'))
+        #self.base_policy = joblib.load(os.path.join(modelpath, 'sym_walker/init_policy_forward_translation.pkl'))
 
-        dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
+        if self.base_policy is not None:
+            # when training balance delta function
+            self.base_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]
+            #self.deltacontrol_bounds = np.array([[1.0] * 15, [-1.0] * 15])
+            #self.delta_action_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+            self.deltacontrol_bounds = np.array([[1.0]*8,[-1.0]*8])
+            self.delta_action_indices = [0,1, 4,5, 8, 10,11, 14]
+
+            # when training forward delta function
+            '''self.base_action_indices = [0,1, 4,5, 8, 10,11, 14]
+            self.deltacontrol_bounds = np.array([[1.0]*15,[-1.0]*15])
+            self.delta_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]'''
+
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.deltacontrol_bounds, disableViewer=True)
+        else:
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+
 
         self.robot_skeleton.set_self_collision_check(True)
 
@@ -32,9 +48,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
     def advance(self, a):
         if self.base_policy is not None:
+            full_a = np.zeros(np.max([len(self.base_action_indices), len(self.delta_action_indices)]))
             base_action = self.base_policy.get_action(self._get_obs())[1]['mean']
-            base_action[0] = 0
-            a = 0.5*a+base_action
+            full_a[self.base_action_indices] += base_action
+            full_a[self.delta_action_indices] += a*0.4
+            a = np.copy(full_a)
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -82,18 +100,18 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
 
         if self.base_policy is None:
-            alive_bonus = 1.0
+            alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 1e-2 * np.square(a).sum()
             joint_pen = 2e-1 * joint_limit_penalty
             deviation_pen = 1e-3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
         else:
-            alive_bonus = 1.5
+            alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
-            action_pen = 5e-2 * np.square(a).sum()
-            joint_pen = 1e-1 * joint_limit_penalty
-            deviation_pen = 5e-3 * abs(side_deviation)
+            action_pen = 1e-2 * np.square(a).sum()
+            joint_pen = 2e-1 * joint_limit_penalty
+            deviation_pen = 1e-3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
         #reward -= 1e-7 * total_force_mag
@@ -105,8 +123,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 0.6) and (abs(ang_cos_fwd) < 1.0)
-                    and np.abs(angle) < 0.4 and np.abs(side_deviation) < 0.9)
+                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.0)
+                    and np.abs(angle) < 0.8 and np.abs(side_deviation) < 0.9)
 
         if done:
             reward = 0
@@ -137,6 +155,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         sign = np.sign(np.random.uniform(-1, 1))
         #qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
         #qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
+        qpos[11] = sign * self.np_random.uniform(low=-0.1, high=-0.05, size=1)
+        qpos[17] = -sign * self.np_random.uniform(low=0.05, high=0.1, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
 
