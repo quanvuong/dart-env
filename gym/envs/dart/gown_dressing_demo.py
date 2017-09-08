@@ -25,7 +25,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
         self.useOpenGL = False
         self.target = np.array([0.8, -0.6, 0.6])
-        self.targetInObs = True
+        self.targetInObs = False
         self.geoVecInObs = True
         self.contactIDInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
@@ -62,6 +62,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.arm > 0:
             self.action_scale = np.ones(11) * 10
+            self.action_scale[0] *= 2.0 #increase torso strength only
+            self.action_scale[1] *= 2.0
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
         '''self.action_scale[0] = 150  # torso
@@ -104,9 +106,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
+        self.handleTargetLinearMode = 5  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = True #if true, end point is start point
+        self.linearTargetFixed = False #if true, end point is start point
         self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
@@ -469,10 +471,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                                                                      clothscene=self.clothScene,
                                                                                      meshgraph=self.separatedMesh,
                                                                                      returnOnlyGeo=False)
-                #print("here")
-                #print("minContactGeodesic, minGeoVix, _side: " + str(minContactGeodesic) +", "+str(minGeoVix)+", "+str( _side))
                 if minGeoVix is None:
-                    obs = np.concatenate([obs, np.zeros(3)]).ravel()
+                    # obs = np.concatenate([obs, np.zeros(3)]).ravel()
+                    #no contact points: ef toward the sleeve target (added 09/08/2017)
+                    fingertip = np.array([0.0, -0.06, 0.0])
+                    vec = self.target - self.robot_skeleton.bodynodes[efnodeix].to_world(fingertip)
+                    vec = vec / np.linalg.norm(vec)
+                    obs = np.concatenate([obs, vec]).ravel()
                 else:
                     vixSide = 0
                     if _side:
@@ -483,8 +488,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                         #print("geoVec: " + str(geoVec))
                     else:
                         print("error to be here")
-            ##print("...done")
-            #print(obs)
 
         if self.contactIDInObs:
             HSIDs = self.clothScene.getHapticSensorContactIDs()
@@ -782,6 +785,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawArrow(p0=ef, p1=ef+geoVec*0.25)
         elif self.arm_progress >= 0:
             geoVec = self.CP0Feature.plane.normal
+            renderUtils.setColor(color=(0., 1.0, 1.0))
+            renderUtils.drawArrow(p0=ef, p1=ef + geoVec * 0.25)
+        else:
+            geoVec = self.target - ef
+            geoVec = geoVec/np.linalg.norm(geoVec)
             renderUtils.setColor(color=(0., 1.0, 1.0))
             renderUtils.drawArrow(p0=ef, p1=ef + geoVec * 0.25)
         a=0
