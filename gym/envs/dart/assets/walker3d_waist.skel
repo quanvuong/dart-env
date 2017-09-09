@@ -256,12 +256,12 @@
             <joint type="translational" name="j_torso">
                 <parent>world</parent>
                 <child>h_torso_aux</child>
-                <axis3>
+                <!--<axis3>
  		            <limit>
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
                     </limit>
-                </axis3>
+                </axis3>-->
             </joint>
 
             <joint type="euler" name="j_torso2">

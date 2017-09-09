@@ -120,8 +120,8 @@
                 </axis2>
             </joint>
             <joint type="revolute" name="joint 2">
-                <parent>link 1</parent>
-                <child>link 2</child>
+                <parent>link 2</parent>
+                <child>link 3</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
@@ -129,14 +129,14 @@
                     	<upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                  </axis>
             </joint>
             <joint type="universal" name="joint 3">
-                <parent>link 2</parent>
-                <child>link 3</child>
+                <parent>link 1</parent>
+                <child>link 2</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
  		            <limit>
@@ -144,7 +144,7 @@
                     	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -155,7 +155,7 @@
                     	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis2>

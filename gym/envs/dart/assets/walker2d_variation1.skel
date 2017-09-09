@@ -139,22 +139,20 @@
                     <offset>0.1 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.1 0.0 0.0 0.0 1.57079632679 0.0</transformation>
+                    <transformation>0.1 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
-                        <capsule>
-                            <height>0.2</height>
-                            <radius>0.06</radius>
-                        </capsule>
+                        <box>
+                            <size>0.2 0.12 0.12</size>
+                        </box>
                     </geometry>
                     <color>1.0 0.5 0.0</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.1 0.0 0.0 0.0 1.57079632679 0.0</transformation>
+                    <transformation>0.1 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
-                        <capsule>
-                            <height>0.2</height>
-                            <radius>0.06</radius>
-                        </capsule>
+                        <box>
+                            <size>0.2 0.12 0.12</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -221,22 +219,20 @@
                     <offset>0.1 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.1 0.0 0.0 0.0 1.57079632679 0.0</transformation>
+                    <transformation>0.1 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
-                        <capsule>
-                            <height>0.2</height>
-                            <radius>0.06</radius>
-                        </capsule>
+                        <box>
+                            <size>0.2 0.12 0.12</size>
+                        </box>
                     </geometry>
                     <color>0.7 0.3 0.6</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.1 0.0 0.0 0.0 1.57079632679 0.0</transformation>
+                    <transformation>0.1 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
-                        <capsule>
-                            <height>0.2</height>
-                            <radius>0.06</radius>
-                        </capsule>
+                        <box>
+                            <size>0.2 0.12 0.12</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>

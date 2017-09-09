@@ -26,7 +26,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.base_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]
             #self.deltacontrol_bounds = np.array([[1.0] * 15, [-1.0] * 15])
             #self.delta_action_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-            self.deltacontrol_bounds = np.array([[1.0]*8,[-1.0]*8])
+            self.deltacontrol_bounds = np.array([[2.0]*8,[-2.0]*8])
             self.delta_action_indices = [0,1, 4,5, 8, 10,11, 14]
 
             # when training forward delta function
@@ -155,8 +155,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         sign = np.sign(np.random.uniform(-1, 1))
         #qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
         #qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
-        qpos[11] = sign * self.np_random.uniform(low=-0.1, high=-0.05, size=1)
-        qpos[17] = -sign * self.np_random.uniform(low=0.05, high=0.1, size=1)
+        qpos[11] = self.np_random.uniform(low=-0.1, high=-0.05, size=1)
+        qpos[17] = self.np_random.uniform(low=0.05, high=0.1, size=1)
         self.set_state(qpos, qvel)
         self.t = 0
 

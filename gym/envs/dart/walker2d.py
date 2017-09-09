@@ -17,8 +17,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.avg_div = 0
         self.split_task_test = True
-        self.tasks = TaskList(4)
-        self.tasks.add_world_choice_tasks([0, 1, 2, 3])
+        self.tasks = TaskList(3)
+        self.tasks.add_world_choice_tasks([0, 1, 2])
         self.task_expand_flag = False
 
         if self.split_task_test:
@@ -27,7 +27,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += self.avg_div
 
         dart_env.DartEnv.__init__(self, ['walker2d.skel', 'walker2d_variation1.skel'\
-                                         , 'walker2d_variation2.skel', 'walker2d_variation3.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+                                         , 'walker2d_variation2.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
 
         self.dart_worlds[0].set_collision_detector(3)
         self.dart_worlds[1].set_collision_detector(3)
@@ -74,12 +74,6 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*6], axis=0)) - [1]*6)
         action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*6], axis=0)) - [1]*6)
         reward -= 0.1*action_vio
-
-        # give a little reward if near zero torque is used
-        ctl_tq = clamped_control * self.action_scale
-        for tq in ctl_tq:
-            if np.abs(tq) < 1e-3:
-                reward += 0.3
 
         # uncomment to enable knee joint limit penalty
         joint_limit_penalty = 0

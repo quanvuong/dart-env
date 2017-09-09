@@ -28,7 +28,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         for world in self.dart_worlds:
             for i, joint in enumerate(world.skeletons[-1].joints):
                 if i == 0:
-                    limit = 5.7
+                    limit = 3.2
                 else:
                     limit = 3.14
                 for dof in range(joint.num_dofs()):
