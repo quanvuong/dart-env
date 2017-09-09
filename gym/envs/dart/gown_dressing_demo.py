@@ -106,9 +106,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 5  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside
+        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = False #if true, end point is start point
+        self.linearTargetFixed = True #if true, end point is start point
         self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
