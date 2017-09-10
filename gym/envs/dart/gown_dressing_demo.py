@@ -69,12 +69,21 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.arm > 0:
             self.action_scale = np.ones(11) * 10
-            torqueScaleRange = np.array([20, 7])
-            for i in range(11):
-                self.action_scale[i] = torqueScaleRange*(i/10)
             #self.action_scale[0] *= 2.0 #increase torso strength only
             #self.action_scale[1] *= 2.0
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
+
+            self.action_scale[0] = 25  # torso
+            self.action_scale[1] = 25
+            self.action_scale[2] = 10  # spine
+            self.action_scale[3] = 10  # clav
+            self.action_scale[4] = 10
+            self.action_scale[5] = 10  # shoulder
+            self.action_scale[6] = 10
+            self.action_scale[7] = 8
+            self.action_scale[8] = 8  # elbow
+            self.action_scale[9] = 6  # wrist
+            self.action_scale[10] = 6
 
         '''self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
