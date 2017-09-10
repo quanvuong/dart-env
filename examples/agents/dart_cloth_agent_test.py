@@ -22,7 +22,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2017_09_09_largestatichighy_oracleonly" #TODO
+    #trial = "experiment_2017_09_09_mode7_torquerange" #more time
+    #trial = "experiment_2017_09_09_largestatichighy_oracleonly" #bad
     #trial = "experiment_2017_09_08_closelinear_oracleonly" #TODO
     trial = "experiment_2017_09_08_gownfixed_mode7" #TODO
     #trial = "experiment_2017_09_07_gownlinearside"

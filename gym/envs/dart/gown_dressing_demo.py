@@ -39,7 +39,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.deformationPenalty = True
         self.maxDeformation = 0.0
 
-        self.gripperCover = False
+        self.gripperCover = True
 
         self.reward = 0
         self.prevAction = None
@@ -48,12 +48,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.graphDeformation = False
         self.armProgressGraph = None
         self.deformationGraph = None
-        self.colorFromDistribution = False #if true, draw graph color based on distribution point
+        self.colorFromDistribution = True #if true, draw graph color based on distribution point
         self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.domainTestingDim = np.array([5, 5, 1])
 
-        self.numRollouts = 10 #terminate after this many resets and save the graphs (if -1, do't terminate)
+        self.numRollouts = 25 #terminate after this many resets and save the graphs (if -1, do't terminate)
         if self.domainTesting:
             self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
         self.numRollouts = -1
@@ -73,7 +73,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             #self.action_scale[1] *= 2.0
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
-            self.action_scale[0] = 25  # torso
+            '''self.action_scale[0] = 25  # torso
             self.action_scale[1] = 25
             self.action_scale[2] = 10  # spine
             self.action_scale[3] = 10  # clav
@@ -83,7 +83,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.action_scale[7] = 8
             self.action_scale[8] = 8  # elbow
             self.action_scale[9] = 6  # wrist
-            self.action_scale[10] = 6
+            self.action_scale[10] = 6'''
 
         '''self.action_scale[0] = 150  # torso
         self.action_scale[1] = 150
@@ -819,6 +819,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.renderCollisionCaps = True
         self.clothScene.renderCollisionSpheres = True
         #print("extra render function")
+
+        #draw a gripper box
+        if self.handleNode is not None:
+            renderUtils.drawBox(cen=self.handleNode.org, dim=np.array([0.1,0.1,0.1]))
 
         self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
 
