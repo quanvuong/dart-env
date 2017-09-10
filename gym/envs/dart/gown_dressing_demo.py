@@ -24,8 +24,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
         self.useOpenGL = False
+        self.renderDARTWorld = False
         self.target = np.array([0.8, -0.6, 0.6])
-        self.targetInObs = False
+        self.targetInObs = True
         self.geoVecInObs = True
         self.contactIDInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
@@ -51,6 +52,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.domainTestingDim = np.array([5, 5, 1])
+
+        self.numRollouts = 10 #terminate after this many resets and save the graphs (if -1, do't terminate)
+        if self.domainTesting:
+            self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
+        self.numRollouts = -1
+
         self.renderDomainTestingResults = False  # if true, sample the linear target range and color spheres as map
 
         #self.progressHistogram = pyutils.Histogram2D()
@@ -62,8 +69,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         if self.arm > 0:
             self.action_scale = np.ones(11) * 10
-            self.action_scale[0] *= 2.0 #increase torso strength only
-            self.action_scale[1] *= 2.0
+            torqueScaleRange = np.array([20, 7])
+            for i in range(11):
+                self.action_scale[i] = torqueScaleRange*(i/10)
+            #self.action_scale[0] *= 2.0 #increase torso strength only
+            #self.action_scale[1] *= 2.0
             self.control_bounds = np.array([np.ones(11), np.ones(11) * -1])
 
         '''self.action_scale[0] = 150  # torso
@@ -161,7 +171,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
-            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+            #self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
         elif self.handleTargetLinearMode == 6: #linear range beside the character
             self.handleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.05, 0.25, 0.25]),
                                                                    c1=np.array([-0.05, -0.2, -0.25]),
@@ -507,7 +517,14 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.setSelfCollisionDistance(0.03)
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.015, high=.015, size=self.robot_skeleton.ndofs)
 
-
+        #terminate after predesignated # of rollouts
+        if self.numRollouts >= 0:
+            if self.numRollouts <= self.reset_number:
+                if self.graphArmProgress:
+                    self.armProgressGraph.save(filename="/home/alexander/armprogress.png")
+                if self.graphDeformation:
+                    self.deformationGraph.save(filename="/home/alexander/deformation.png")
+                exit()
 
         qpos = [-0.0678033793307, 0.0460394372646, -0.0228567701463, 0.0164748821823, -0.0111482825353, -0.2088004225982,
          -0.00116452660407, -0.00536063771987, 0.0106001520861, 0.00893180602343, 0.000975322470016, 0.00297590969194,
@@ -586,12 +603,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleNode.org = self.handleTargetLinearInitialRange.sample(1)[0]
             if self.domainTesting:
                 dim = self.domainTestingDim
-                if dim[0]*dim[1]*dim[2] <= self.reset_number:
-                    if self.graphArmProgress:
-                        self.armProgressGraph.save(filename="/home/alexander/armprogress.png")
-                    if self.graphDeformation:
-                        self.deformationGraph.save(filename="/home/alexander/deformation.png")
-                    exit()
                 lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))])
                 for i in range(3):
                     lpos[i] = lpos[i]/float(max(dim[i]-1, 1))
@@ -795,7 +806,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         a=0
         
     def extraRenderFunction(self):
-        self._get_viewer().renderWorld = True
+        #self._get_viewer().renderWorld = True
         self.clothScene.renderCollisionCaps = True
         self.clothScene.renderCollisionSpheres = True
         #print("extra render function")
@@ -854,12 +865,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             geoVec = self.separatedMesh.geoVectorAt(vix=c, side=geoSide)
             spherePos = None
             if side:
-                renderUtils.drawSphere(pos=vpos + (n * rad), rad=rad)
+                #renderUtils.drawSphere(pos=vpos + (n * rad), rad=rad)
                 spherePos = vpos + (n * rad)
             else:
-                renderUtils.drawSphere(pos=vpos - (n * rad), rad=rad)
+                #renderUtils.drawSphere(pos=vpos - (n * rad), rad=rad)
                 spherePos = vpos - (n * rad)
-            renderUtils.drawArrow(p0=spherePos, p1=spherePos+geoVec*0.05)
+            #renderUtils.drawArrow(p0=spherePos, p1=spherePos+geoVec*0.05)
 
         #self.dart_world.skeletons[0].q = [0, 0, 0, 0, 0, 0]
         
@@ -892,7 +903,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                     renderUtils.setColor(color=[1.0, 1.0, 0.])
                 else:
                     renderUtils.setColor(color=[1.0, 0.0, 1.0])
-                renderUtils.drawSphere(self.clothScene.getVertexPos(vid=c), rad=0.005)
+                #renderUtils.drawSphere(self.clothScene.getVertexPos(vid=c), rad=0.005)
 
         # draw meshGraph stuff
         '''for n in self.separatedMesh.nodes:
@@ -929,14 +940,14 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                  text="Reward = " + str(self.reward),
                                  color=(0., 0, 0))
 
-        self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
+        #self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
 
-        armProgress = self.armSleeveProgress()
+        #armProgress = self.armSleeveProgress()
         self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
-                                 text="Arm progress = " + str(armProgress),
+                                 text="Arm progress = " + str(self.arm_progress),
                                  color=(0., 0, 0))
         renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60,
-                                    progress=armProgress / self.armLength, color=[0.0, 3.0, 0])
+                                    progress=self.arm_progress, color=[0.0, 3.0, 0])
 
         #render debugging boxes
         if self.drawDebuggingBoxes:
@@ -948,8 +959,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 #    self.viewer.drawSphere(p=s, r=0.01)
 
         #render the vertex handleNode(s)/Handle(s)
-        if self.handleNode is not None:
-            self.handleNode.draw()
+        #if self.handleNode is not None:
+        #    self.handleNode.draw()
 
         if self.gripper is not None and False:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
@@ -991,7 +1002,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #exit()
         self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
         self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
-
+        #print(self.viewer.renderWorld)
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
@@ -1004,6 +1015,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self._get_viewer().scene.tb._set_theta(180)
             self._get_viewer().scene.tb._set_phi(180)
             self.track_skeleton_id = 0
+        if not self.renderDARTWorld:
+            self.viewer.renderWorld = False
 
 
     def armSleeveProgress(self):
