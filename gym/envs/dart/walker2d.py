@@ -30,11 +30,10 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                                          , 'walker2d_variation2.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
 
         self.dart_worlds[0].set_collision_detector(3)
-        self.dart_worlds[1].set_collision_detector(3)
-        self.dart_worlds[2].set_collision_detector(3)
-        self.dart_worlds[3].set_collision_detector(3)
+        self.dart_worlds[1].set_collision_detector(0)
+        self.dart_worlds[2].set_collision_detector(1)
 
-        self.dart_world=self.dart_worlds[3]
+        self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
         if not self.disableViewer:
             self._get_viewer().sim = self.dart_world
