@@ -28,9 +28,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.renderUI = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.geoVecInObs = True
+        self.geoVecInObs = False
         self.contactIDInObs = True
-        self.hapticsInObs = False
+        self.hapticsInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
         self.arm = 2
 
@@ -38,7 +38,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.deformationTerm = False
         self.deformationTermLimit = 40
-        self.deformationPenalty = False
+        self.deformationPenalty = True
         self.maxDeformation = 0.0
 
         self.gripperCover = True
