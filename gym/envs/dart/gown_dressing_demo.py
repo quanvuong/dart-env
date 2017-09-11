@@ -25,10 +25,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
         self.useOpenGL = False
         self.renderDARTWorld = False
+        self.renderUI = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.geoVecInObs = True
         self.contactIDInObs = True
+        self.hapticsInObs = False
         self.hapticsAware = True #if false, 0's for haptic input
         self.arm = 2
 
@@ -36,10 +38,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.deformationTerm = False
         self.deformationTermLimit = 40
-        self.deformationPenalty = True
+        self.deformationPenalty = False
         self.maxDeformation = 0.0
 
         self.gripperCover = True
+        self.renderCover = True
 
         self.reward = 0
         self.prevAction = None
@@ -53,7 +56,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.domainTestingDim = np.array([5, 5, 1])
 
-        self.numRollouts = 25 #terminate after this many resets and save the graphs (if -1, do't terminate)
+        self.numRollouts = 16 #terminate after this many resets and save the graphs (if -1, do't terminate)
         if self.domainTesting:
             self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
         self.numRollouts = -1
@@ -199,11 +202,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             smallhandleTargetLinearInitialRange = pyutils.BoxFrame(c0=np.array([0.15, 0.15, 0.1]),
                                                                    c1=np.array([-0.15, -0.15, -0.1]),
                                                                    org=np.array([0.17205264, 0.052056234, -0.37377446]))
-            self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
+            #self.debuggingBoxes.append(smallhandleTargetLinearInitialRange)
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
-        self.drawDebuggingBoxes = True
+        self.drawDebuggingBoxes = False
         self.debuggingBoxes.append(self.handleTargetLinearInitialRange)
         self.debuggingBoxes.append(self.handleTargetLinearEndRange)
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
@@ -234,7 +237,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             clothScene=clothScene)
         self.armLength = -1.0  # set when arm progress is queried
 
-        observation_size = 66 + 66  # pose(sin,cos), pose vel, haptics
+        observation_size = 66  # pose(sin,cos), pose vel, haptics
+        if self.hapticsInObs:
+            observation_size += 66
         if self.targetInObs:
             observation_size += 6  # target reaching
         if self.contactIDInObs:
@@ -512,7 +517,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             HSIDs = self.clothScene.getHapticSensorContactIDs()
             obs = np.concatenate([obs, HSIDs]).ravel()
 
-        obs = np.concatenate([obs, f * 3.]).ravel()
+        if self.hapticsInObs:
+            obs = np.concatenate([obs, f * 3.]).ravel()
         #obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq, vec, self.target, f]).ravel()
         #obs = np.concatenate([theta, self.robot_skeleton.dq, f]).ravel()
         return obs
@@ -821,10 +827,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #print("extra render function")
 
         #draw a gripper box
-        if self.handleNode is not None:
-            renderUtils.drawBox(cen=self.handleNode.org, dim=np.array([0.1,0.1,0.1]))
+        if self.handleNode is not None and self.renderCover:
+            renderUtils.setColor(color=[0.6, 0.6, 0.6])
+            renderUtils.drawBox(cen=self.handleNode.org, dim=np.array([0.125,0.025,0.1]))
 
-        self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+        if self.renderUI:
+            self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
 
         if self.renderObs:
             self.renderObservation()
@@ -894,17 +902,18 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         #draw control torque bars
         topLeft = np.array([1100, self.viewer.viewport[3]-15])
-        for ix,a in enumerate(self.prevAction):
-            c = np.array([0.0,1.0,0.0])
-            if a < 0:
-                c = np.array([1.0, 0.0, 0.0])
-            self.clothScene.drawText(x=topLeft[0]-125-50, y=topLeft[1]-15,
-                                     text=self.robot_skeleton.dof(ix).name,
-                                     color=(0., 0, 0))
-            self.clothScene.drawText(x=topLeft[0]-50, y=topLeft[1]-15, text='%.2f' % self.action_scale[ix],
-                                     color=(0., 0, 0))
-            renderUtils.drawProgressBar(topLeft=topLeft, h=16, w=100, progress=(a+1)/2.0, color=c, origin=0.5)
-            topLeft[1] -= 20
+        if self.renderUI:
+            for ix,a in enumerate(self.prevAction):
+                c = np.array([0.0,1.0,0.0])
+                if a < 0:
+                    c = np.array([1.0, 0.0, 0.0])
+                self.clothScene.drawText(x=topLeft[0]-125-50, y=topLeft[1]-15,
+                                         text=self.robot_skeleton.dof(ix).name,
+                                         color=(0., 0, 0))
+                self.clothScene.drawText(x=topLeft[0]-50, y=topLeft[1]-15, text='%.2f' % self.action_scale[ix],
+                                         color=(0., 0, 0))
+                renderUtils.drawProgressBar(topLeft=topLeft, h=16, w=100, progress=(a+1)/2.0, color=c, origin=0.5)
+                topLeft[1] -= 20
 
         contactIndices = self.clothScene.getHapticSensorContactVertexIndices(21)
         HSL = self.clothScene.getHapticSensorLocations()
@@ -942,25 +951,26 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawArrow(p0=spherePos, p1=spherePos + geoVec * 0.05)'''
 
         minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
-        if minContactGeodesic is not None:
+        if minContactGeodesic is not None and self.renderUI:
             self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 50,
                                      text="Contact Geo reward = " + str(1.0-minContactGeodesic/self.separatedMesh.maxGeo),
                                      color=(0., 0, 0))
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 38], h=16, w=60,
                                         progress=1.0-minContactGeodesic/self.separatedMesh.maxGeo, color=[0.0, 3.0, 3.0])
 
-        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 65,
-                                 text="Reward = " + str(self.reward),
-                                 color=(0., 0, 0))
 
-        #self.CP0Feature.drawProjectionPoly(fillColor=[0., 1.0, 0.0])
+        if self.renderUI:
+            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 65,
+                                    text="Reward = " + str(self.reward),
+                                    color=(0., 0, 0))
 
-        #armProgress = self.armSleeveProgress()
-        self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
-                                 text="Arm progress = " + str(self.arm_progress),
-                                 color=(0., 0, 0))
-        renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60,
-                                    progress=self.arm_progress, color=[0.0, 3.0, 0])
+            self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
+                                    text="Arm progress = " + str(self.arm_progress),
+                                    color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60,
+                                        progress=self.arm_progress, color=[0.0, 3.0, 0])
+
+        #self.CP0Feature.drawProjectionPoly(renderPoints=True, renderNormal=False, fillColor=[0.75, 0.2, 0.2])
 
         #render debugging boxes
         if self.drawDebuggingBoxes:
@@ -991,30 +1001,31 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         m_viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
         
         textX = 15.
-        if self.renderForceText:
-            HSF = self.clothScene.getHapticSensorObs()
-            for i in range(self.clothScene.getNumHapticSensors()):
-                self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
-            textX += 160
-        
-        if self.numSteps > 0:
-            renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+        if self.renderUI:
+            if self.renderForceText:
+                HSF = self.clothScene.getHapticSensorObs()
+                for i in range(self.clothScene.getNumHapticSensors()):
+                    self.clothScene.drawText(x=textX, y=60.+15*i, text="||f[" + str(i) + "]|| = " + str(np.linalg.norm(HSF[3*i:3*i+3])), color=(0.,0,0))
+                textX += 160
 
-        self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
-        #f = self.clothScene.getHapticSensorObs()
-        f = np.zeros(66)
-        maxf_mag = 0
+            if self.numSteps > 0:
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
-        for i in range(int(len(f)/3)):
-            fi = f[i*3:i*3+3]
-            #print(fi)
-            mag = np.linalg.norm(fi)
-            #print(mag)
-            if mag > maxf_mag:
-                maxf_mag = mag
-        #exit()
-        self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
-        self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
+            self.clothScene.drawText(x=15 , y=600., text='Friction: %.2f' % self.clothScene.getFriction(), color=(0., 0, 0))
+            #f = self.clothScene.getHapticSensorObs()
+            f = np.zeros(66)
+            maxf_mag = 0
+
+            for i in range(int(len(f)/3)):
+                fi = f[i*3:i*3+3]
+                #print(fi)
+                mag = np.linalg.norm(fi)
+                #print(mag)
+                if mag > maxf_mag:
+                    maxf_mag = mag
+            #exit()
+            self.clothScene.drawText(x=15, y=620., text='Max force (1 dim): %.2f' % np.amax(f), color=(0., 0, 0))
+            self.clothScene.drawText(x=15, y=640., text='Max force (3 dim): %.2f' % maxf_mag, color=(0., 0, 0))
         #print(self.viewer.renderWorld)
 
     def inputFunc(self, repeat=False):

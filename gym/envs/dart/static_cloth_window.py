@@ -76,9 +76,6 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         GL.glTranslate(*self.scene.tb.trans)
         GL.glMultMatrixf(self.scene.tb.matrix)
         #GLUT.glutSolidSphere(0.05,10,10) #testing origin location
-        if self.clothScene is not None:
-            #print("render cloth")
-            self.clothScene.render()
 
         #grab the current rendering params
         self.modelviewM = GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)
@@ -122,6 +119,9 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
 
         if self.extraRenderFunc is not None:
             self.extraRenderFunc()
+
+        if self.clothScene is not None:
+            self.clothScene.render()
 
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].contextRender()

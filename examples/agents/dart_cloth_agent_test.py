@@ -21,11 +21,11 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-
-    #trial = "experiment_2017_09_09_mode7_torquerange" #more time
+    #trial = "experiment_2017_09_10_mode7_gripcover" #good
+    #trial = "experiment_2017_09_09_mode7_torquerange" #meh
     #trial = "experiment_2017_09_09_largestatichighy_oracleonly" #bad
-    #trial = "experiment_2017_09_08_closelinear_oracleonly" #TODO
-    trial = "experiment_2017_09_08_gownfixed_mode7" #TODO
+    #trial = "experiment_2017_09_08_closelinear_oracleonly" #bad
+    #trial = "experiment_2017_09_08_gownfixed_mode7" #best w/ grip cover on.
     #trial = "experiment_2017_09_07_gownlinearside"
 
     #trial = "experiment_2017_09_06_fixedgownwide"
