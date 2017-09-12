@@ -28,7 +28,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.renderUI = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
-        self.geoVecInObs = False
+        self.geoVecInObs = True
         self.contactIDInObs = True
         self.hapticsInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
@@ -43,6 +43,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.gripperCover = True
         self.renderCover = True
+        self.renderGripPath = True
 
         self.reward = 0
         self.prevAction = None
@@ -54,11 +55,15 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.colorFromDistribution = True #if true, draw graph color based on distribution point
         self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
-        self.domainTestingDim = np.array([5, 5, 1])
+        self.jitteredSamples = True #True if using jittered sampling inside the grid instead of grid corners
+        self.twoDistributions = False #True if domain testing on initial and end distributions
+        #self.domainTestingDim = np.array([4, 4, 1])
+        #self.domainTestingDim = np.array([2, 2, 1])
+        self.domainTestingDim = np.array([1, 2, 2]) #side linear range
 
-        self.numRollouts = 16 #terminate after this many resets and save the graphs (if -1, do't terminate)
-        if self.domainTesting:
-            self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
+        self.numRollouts = 16 #terminate after this many resets and save the graphs (if -1, don't terminate)
+        #if self.domainTesting:
+        #    self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
         self.numRollouts = -1
 
         self.renderDomainTestingResults = False  # if true, sample the linear target range and color spheres as map
@@ -128,10 +133,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
+        self.handleTargetLinearMode = 6  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = True #if true, end point is start point
-        self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
+        self.linearTargetFixed = False #if true, end point is start point
+        self.orientationFromSpline = True #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
         self.handleTargetLinearEndRange = None
@@ -206,7 +211,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
-        self.drawDebuggingBoxes = False
+        self.drawDebuggingBoxes = True
         self.debuggingBoxes.append(self.handleTargetLinearInitialRange)
         self.debuggingBoxes.append(self.handleTargetLinearEndRange)
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
@@ -536,9 +541,18 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.numRollouts >= 0:
             if self.numRollouts <= self.reset_number:
                 if self.graphArmProgress:
-                    self.armProgressGraph.save(filename="/home/alexander/armprogress.png")
+                    self.armProgressGraph.save(filename="/home/alexander/armprogress.png", datafile="/home/alexander/armprogress.txt")
                 if self.graphDeformation:
-                    self.deformationGraph.save(filename="/home/alexander/deformation.png")
+                    self.deformationGraph.save(filename="/home/alexander/deformation.png", datafile="/home/alexander/deformation.txt")
+                '''dataTest = pyutils.loadData2D(filename="/home/alexander/armprogress.txt")
+                print("dataTest = " + str(dataTest))
+                print("||dataTest|| = " + str(len(dataTest)))
+                for ix,i in enumerate(dataTest):
+                    print(" ||"+str(ix)+"||: " + str(len(i)))
+                sortedIXs = pyutils.getListsIXByLastElement(dataTest)
+                print("sortedIXs: " + str(sortedIXs))
+                for ix in sortedIXs:
+                    print(" ix " + str(ix) + ": " + str(dataTest[ix][-1]))'''
                 exit()
 
         qpos = [-0.0678033793307, 0.0460394372646, -0.0228567701463, 0.0164748821823, -0.0111482825353, -0.2088004225982,
@@ -618,11 +632,18 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleNode.org = self.handleTargetLinearInitialRange.sample(1)[0]
             if self.domainTesting:
                 dim = self.domainTestingDim
-                lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))])
-                for i in range(3):
-                    lpos[i] = lpos[i]/float(max(dim[i]-1, 1))
-                print("ix="+str(self.reset_number) + " | lpos="+str(lpos))
-                self.handleNode.org = self.handleTargetLinearInitialRange.localSample(lpos=lpos)
+                lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))%dim[2]])
+                #print("ix="+str(self.reset_number) + " | lpos="+str(lpos))
+                if self.jitteredSamples:
+                    for i in range(3):
+                        lpos[i] = lpos[i] / float(max(dim[i], 1))
+                    gridSize = np.array([1.0/dim[0], 1.0/dim[1], 1.0/dim[2]])
+                    rand = np.random.rand()
+                    self.handleNode.org = self.handleTargetLinearInitialRange.localSample(lpos=lpos+(rand*gridSize))
+                else:
+                    for i in range(3):
+                        lpos[i] = lpos[i] / float(max(dim[i] - 1, 1))
+                    self.handleNode.org = self.handleTargetLinearInitialRange.localSample(lpos=lpos)
             disp = self.handleNode.org-oldOrg
             self.handleNode.clearTargetSpline()
             if self.linearTargetFixed:
@@ -630,7 +651,23 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                                           pos=self.handleNode.org)
                 self.clothScene.translateCloth(0, disp)
             else:
-                self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
+                if self.twoDistributions and self.domainTesting:
+                    endIX = math.floor(self.reset_number/(dim[0]*dim[1]*dim[2]))
+                    lpos = np.array([float(endIX % dim[0]), math.floor(endIX / dim[0]) % dim[1], math.floor(endIX / (dim[0] * dim[1]))])
+
+                    if self.jitteredSamples:
+                        for i in range(3):
+                            lpos[i] = lpos[i] / float(max(dim[i], 1))
+                        gridSize = np.array([1.0 / dim[0], 1.0 / dim[1], 1.0 / dim[2]])
+                        rand = np.random.rand()
+                        self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.localSample(lpos=lpos + (rand * gridSize)))
+                    else:
+                        for i in range(3):
+                            lpos[i] = lpos[i] / float(max(dim[i] - 1, 1))
+                        self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.localSample(lpos=lpos))
+
+                else:
+                    self.handleNode.addTarget(t=self.handleTargetLinearWindow, pos=self.handleTargetLinearEndRange.sample(1)[0])
                 if self.orientationFromSpline:
                     self.clothScene.translateCloth(0, -oldOrg)
                     splineDirection = self.handleNode.targetSpline.pos(1)-self.handleNode.targetSpline.pos(0)
@@ -982,8 +1019,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
                 #    self.viewer.drawSphere(p=s, r=0.01)
 
         #render the vertex handleNode(s)/Handle(s)
-        #if self.handleNode is not None:
-        #    self.handleNode.draw()
+        if self.handleNode is not None and self.renderGripPath:
+            self.handleNode.draw()
 
         if self.gripper is not None and False:
             self.gripper.setTransform(self.robot_skeleton.bodynodes[8].T)
