@@ -32,6 +32,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.contactIDInObs = True
         self.hapticsInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
+        self.pureProprioceptionObs = True
         self.arm = 2
 
         self.renderObs = False
@@ -133,10 +134,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 6  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
+        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
         self.randomHandleTargetLinear = True
-        self.linearTargetFixed = False #if true, end point is start point
-        self.orientationFromSpline = True #if true, the gripper orientation is changed to match the spline direction (y rotation only)
+        self.linearTargetFixed = True #if true, end point is start point
+        self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
         self.handleTargetLinearEndRange = None
@@ -481,7 +482,11 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         else:
             f = np.zeros(f_size)
 
-        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
+        obs = np.array([])
+        if self.pureProprioceptionObs:
+            obs = np.concatenate([theta, self.robot_skeleton.dq]).ravel()
+        else:
+            obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
 
         if self.targetInObs:
             fingertip = np.array([0.0, -0.06, 0.0])
