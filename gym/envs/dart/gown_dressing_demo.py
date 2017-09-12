@@ -244,6 +244,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.armLength = -1.0  # set when arm progress is queried
 
         observation_size = 66  # pose(sin,cos), pose vel, haptics
+        if self.pureProprioceptionObs:
+            observation_size = 44
+
         if self.hapticsInObs:
             observation_size += 66
         if self.targetInObs:
