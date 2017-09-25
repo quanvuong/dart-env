@@ -11,7 +11,7 @@ from gym.envs.dart import dart_env
 class hopperContactMassManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.4, 1.0] # friction range
+        self.range = [0.2, 1.0] # friction range
         '''self.restitution_range = [0.0, 0.05]
         self.torso_mass_range = [2.5, 4.5]
         self.foot_mass_range = [4.0, 6.0]

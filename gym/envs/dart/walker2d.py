@@ -16,10 +16,12 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.avg_div = 0
-        self.split_task_test = True
-        self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0, 1, 2])
+        self.split_task_test = False
+        self.tasks = TaskList(2)
+        self.tasks.add_world_choice_tasks([0, 0])
+        self.learn_forwardbackward = True
         self.task_expand_flag = False
+        self.state_index = 0
 
         if self.split_task_test:
             obs_dim += self.tasks.task_input_dim()
@@ -65,7 +67,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             total_force_mag += np.square(contact.force).sum()
 
         alive_bonus = 1.0
-        vel = (posafter - posbefore) / self.dt
+        vel = -(posafter - posbefore) / self.dt
+        #if self.state_index == 1 and self.learn_forwardbackward:
+        #    vel *= -1
         reward = vel#-(vel-1.0)**2
         reward += alive_bonus
         reward -= 1e-4 * np.square(a).sum()

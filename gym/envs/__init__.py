@@ -303,7 +303,7 @@ register(
 register(
     id='DartWalker3d-v1',
     entry_point='gym.envs.dart:DartWalker3dEnv',
-    max_episode_steps=1000,
+    max_episode_steps=400,
 )
 
 register(
