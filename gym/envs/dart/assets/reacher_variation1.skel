@@ -123,13 +123,13 @@
                 <parent>link 1</parent>
                 <child>link 2</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>1.0 0.0 0.0</xyz>
 		     <limit>
                     	<lower>-3.14</lower>
                     	<upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                  </axis>
@@ -144,7 +144,7 @@
                     	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -155,7 +155,7 @@
                     	<upper>1.57</upper>
                     </limit> 
                     <dynamics>
-                        <damping>2.0</damping>
+                        <damping>1.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis2>

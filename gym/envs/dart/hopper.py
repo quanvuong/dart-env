@@ -24,12 +24,15 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.split_task_test = True
+        self.learn_diff_style = False
+        self.learn_forwardbackward = False
         self.tasks = TaskList(2)
-        #self.tasks.add_world_choice_tasks([0,1])
-        #self.tasks.add_fix_param_tasks([0, [0.4, 1.0]])
+        self.tasks.add_world_choice_tasks([1,1])
+        #self.tasks.add_fix_param_tasks([0, [0.1, 1.0]])
+        #self.tasks.add_fix_param_tasks([1, [0.3, 0.0]])
         #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
         #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
-        self.tasks.add_range_param_tasks([0, [[0.24,0.26], [0.74,0.76]]], expand=0.06)
+        self.tasks.add_range_param_tasks([1, [[0.0,0.2], [0.8,1.0]]], expand=0.0)
         #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
         self.task_expand_flag = False
@@ -73,6 +76,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager.controllable_param = [1]
         self.param_manager.set_simulator_parameters([1.0])
         self.param_manager.controllable_param = curcontparam'''
+
+        #if self.learn_diff_style:
+        #    for world in self.dart_worlds:
+        #        world.skeletons[-1].joints[-3].set_position_upper_limit(0, 2.5)
+        #        world.skeletons[-1].joints[-3].set_position_lower_limit(0, -0.0)
 
         utils.EzPickle.__init__(self)
 
@@ -157,19 +165,27 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
-        #if self.state_index == 1:
-        #    reward *= -1
+        if self.state_index == 1 and self.learn_forwardbackward:
+            reward *= -1
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
-        #print(abs(ang))
+
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > self.height_threshold_low) and (abs(ang) < .4))
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
+                      and (height > self.height_threshold_low) and height < 1.8 and (abs(ang) < .4))
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
 
+        if self.learn_diff_style:
+            if self.state_index == 0: # avoid contact
+                if height > self.height_threshold_low + 0.15:
+                    done = True
+            elif self.state_index == 1: # encourage contact
+                if height < self.height_threshold_low - 0.1 or height > 1.65:
+                    done = True 
+ 
         ob = self._get_obs()
 
         if self.perturb_MP:
