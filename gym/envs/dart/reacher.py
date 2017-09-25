@@ -99,8 +99,8 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
                 self.robot_skeleton = self.dart_world.skeletons[-1]
-                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
                 self.set_state(qpos, qvel)
                 if not self.disableViewer:
                     self._get_viewer().sim = self.dart_world

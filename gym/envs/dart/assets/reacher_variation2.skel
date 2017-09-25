@@ -94,8 +94,8 @@
             </body>
 
             <joint type="universal" name="joint 1">
-                <parent>world</parent>
-                <child>link 1</child>
+                <parent>link 1</parent>
+                <child>link 2</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
@@ -120,8 +120,8 @@
                 </axis2>
             </joint>
             <joint type="revolute" name="joint 2">
-                <parent>link 2</parent>
-                <child>link 3</child>
+                <parent>world</parent>
+                <child>link 1</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
