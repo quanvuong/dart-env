@@ -34,12 +34,16 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         self.split_task_test = True
-        self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0, 1, 2])
-        #self.tasks.add_fix_param_tasks([0, [1.0, 1.0, 1.0]])
+        self.learn_diff_style = False
+        self.learn_forwardbackward = False
+        self.tasks = TaskList(2)
+        self.tasks.add_world_choice_tasks([1,1])
+        #self.tasks.add_fix_param_tasks([0, [0.1, 1.0]])
+        #self.tasks.add_fix_param_tasks([1, [0.3, 0.0]])
         #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
         #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
-        #self.tasks.add_range_param_tasks([0, [[0.0,0.1], [0.9,1.0]]], expand=0.0)
+
+        self.tasks.add_range_param_tasks([1, [[0.0,0.2], [0.8,1.0]]], expand=0.0)
         #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
         self.task_expand_flag = False
@@ -104,6 +108,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 world.skeletons[-1].joints[-1].set_position_lower_limit(0, -4.13)
                 world.skeletons[-1].joints[-1].set_position_upper_limit(0, 1.2)
                 world.skeletons[-1].joints[-1].set_position_lower_limit(0, -1.2)
+
 
         utils.EzPickle.__init__(self)
 
@@ -206,10 +211,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
-        #print(abs(ang))
+
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
                     (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .4 or self.learn_acro))
+
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
         if self.learn_acro and fall_on_ground:
@@ -221,6 +227,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             elif self.state_index == 1:  # encourage contact
                 done = done or not (height < 1.2)
 
+        if self.learn_diff_style:
+            if self.state_index == 0: # avoid contact
+                if height > self.height_threshold_low + 0.15:
+                    done = True
+            elif self.state_index == 1: # encourage contact
+                if height < self.height_threshold_low - 0.1 or height > 1.65:
+                    done = True 
+ 
         ob = self._get_obs()
 
         if self.perturb_MP:

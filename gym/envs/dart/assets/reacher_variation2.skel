@@ -99,8 +99,8 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-1.57</lower>
-                    	<upper>1.57</upper>
+                    	<lower>-3.14</lower>
+                    	<upper>3.14</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
@@ -110,8 +110,8 @@
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
  		     <limit>
-                    	<lower>-1.57</lower>
-                    	<upper>1.57</upper>
+                    	<lower>-3.14</lower>
+                    	<upper>3.14</upper>
                     </limit> 
                     <dynamics>
                         <damping>2.0</damping>
@@ -135,13 +135,13 @@
                  </axis>
             </joint>
             <joint type="universal" name="joint 3">
-                <parent>link 2</parent>
-                <child>link 3</child>
+                <parent>link 1</parent>
+                <child>link 2</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
  		            <limit>
-                    	<lower>-1.57</lower>
-                    	<upper>1.57</upper>
+                    	<lower>-3.14</lower>
+                    	<upper>3.14</upper>
                     </limit> 
                     <dynamics>
                         <damping>3.0</damping>
@@ -151,8 +151,8 @@
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
  		     <limit>
-                    	<lower>-1.57</lower>
-                    	<upper>1.57</upper>
+                    	<lower>-3.14</lower>
+                    	<upper>3.14</upper>
                     </limit> 
                     <dynamics>
                         <damping>3.0</damping>

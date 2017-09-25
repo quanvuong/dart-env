@@ -4,11 +4,12 @@ import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
 from gym.envs.dart.sub_tasks import *
+from scipy.optimize import fmin
 
 class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([20, 20, 20, 20, 20])
+        self.action_scale = np.array([10, 10, 10, 10, 10])*2
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
@@ -19,6 +20,10 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         self.split_task_test = True
         self.tasks = TaskList(3)
         self.tasks.add_world_choice_tasks([0, 1, 2])
+        #self.tasks.add_world_choice_tasks([0, 0, 1, 1])
+        #self.tasks.add_range_param_tasks([0, [[0, 0.7], [0.0, 0.7]]])
+        #self.tasks.add_range_param_tasks([1, [[0.0, 0.7],[-0.7, 0.0]]])
+
         if self.split_task_test:
             obs_dim += self.tasks.task_input_dim()
 
@@ -28,9 +33,9 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         for world in self.dart_worlds:
             for i, joint in enumerate(world.skeletons[-1].joints):
                 if i == 0:
-                    limit = 3.2
+                    limit = 6.20
                 else:
-                    limit = 3.14
+                    limit = 6.14
                 for dof in range(joint.num_dofs()):
                     joint.set_position_upper_limit(dof, limit)
                     joint.set_position_lower_limit(dof, -limit)
@@ -52,7 +57,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         vec = self.robot_skeleton.bodynodes[-1].C - self.target
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.square(tau).sum() * 0.001
-        alive_bonus = 0
+        alive_bonus = -0.4
         reward = reward_dist + reward_ctrl + alive_bonus
 
         self.do_simulation(tau, self.frame_skip)
@@ -116,9 +121,16 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         self.target = fixed_targets[np.random.randint(6)]
 
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
-
+        
         return self._get_obs()
 
+    def ik_obj(self, x):
+        self.robot_skeleton.q = x
+        return np.linalg.norm(self.robot_skeleton.bodynodes[-1].C - self.target)
+
+    def ik(self):
+        xopt = fmin(self.ik_obj, self.robot_skeleton.q, xtol=1e-8)
+        return xopt
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -3.5
