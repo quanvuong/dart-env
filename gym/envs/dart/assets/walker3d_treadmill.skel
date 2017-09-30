@@ -8,9 +8,12 @@
         </physics>
 
         <skeleton name="ground skeleton">
-            <mobile>false</mobile>
             <body name="ground">
                 <transformation>0 -0.025 0 0 0 0</transformation>
+                <inertia>
+                    <mass>100000.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
@@ -30,11 +33,13 @@
                 </collision_shape>
             </body>
 
-            <joint type="free" name="joint 1">
+            <joint type="prismatic" name="joint 1">
                 <parent>world</parent>
                 <child>ground</child>
+                <axis>
+                      <xyz>1.0 0.0 0.0</xyz>
+                </axis>
             </joint>
-
         </skeleton>
 
         <skeleton name="walker">
@@ -50,7 +55,7 @@
             <body name="h_torso">
                 <transformation> 0.0 1.425 0 0 0 0</transformation>
                 <inertia>
-                    <mass>37.88</mass>
+                    <mass>7.88</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>

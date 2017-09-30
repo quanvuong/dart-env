@@ -16,10 +16,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager = hopperContactMassManager(self)
 
         self.avg_div = 0
+        self.target_vel = 0.9
         self.split_task_test = False
         self.tasks = TaskList(2)
         self.tasks.add_world_choice_tasks([0, 0])
-        self.learn_forwardbackward = True
+        self.learn_forwardbackward = False
         self.task_expand_flag = False
         self.state_index = 0
 
@@ -67,16 +68,14 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             total_force_mag += np.square(contact.force).sum()
 
         alive_bonus = 1.0
-        vel = -(posafter - posbefore) / self.dt
+        vel = (posafter - posbefore) / self.dt
         #if self.state_index == 1 and self.learn_forwardbackward:
         #    vel *= -1
-        reward = vel#-(vel-1.0)**2
+        vel_rew = 1 * (self.target_vel - np.abs(self.target_vel - vel))
+        reward = vel_rew#-(vel-1.0)**2
         reward += alive_bonus
-        reward -= 1e-4 * np.square(a).sum()
+        reward -= 1e-1 * np.square(a).sum()
 
-        action_vio = np.sum(np.exp(np.max([(a-self.control_bounds[0]*1.5), [0]*6], axis=0)) - [1]*6)
-        action_vio += np.sum(np.exp(np.max([(self.control_bounds[1]*1.5-a), [0]*6], axis=0)) - [1]*6)
-        reward -= 0.1*action_vio
 
         # uncomment to enable knee joint limit penalty
         joint_limit_penalty = 0
@@ -86,7 +85,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
 
-        reward -= 5e-1 * joint_limit_penalty
+        #reward -= 5e-1 * joint_limit_penalty
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and

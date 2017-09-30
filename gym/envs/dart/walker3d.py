@@ -13,14 +13,16 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([150.0]*15)
         self.action_scale[[-1,-2,-7,-8]] = 60
         self.action_scale[[0, 1, 2]] = 100
-        self.action_scale = np.array([40,80,150, 150,60,80,120,60,60, 150,60,80,120,60,60])
+        #self.action_scale = np.array([40,80,150, 150,60,80,120,60,60, 150,60,80,120,60,60])
+        self.action_scale = np.array([200, 200, 200, 150, 60, 80, 150, 60, 60, 150, 60, 80, 150, 60, 60])
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 0.8
-        self.init_push = True
+        self.target_vel = 0.9
+        self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = True
+        self.treadmill = False
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
@@ -37,10 +39,13 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.delta_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]'''
 
             dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.deltacontrol_bounds, disableViewer=False)
+        elif self.treadmill:
+            dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 10, obs_dim, self.control_bounds, disableViewer=True)
         else:
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.control_bounds, disableViewer=True)
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.control_bounds,
+                                      disableViewer=True)
 
-
+        #self.dart_world.set_collision_detector(3)
         self.robot_skeleton.set_self_collision_check(True)
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
@@ -68,7 +73,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if not self.hard_enforce:
                 if np.abs(self.robot_skeleton.dq[0] - self.target_vel) > 0.1:
                     tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
-            if self.hard_enforce:
+            if self.hard_enforce and self.treadmill:
+                current_dq_tread = self.dart_world.skeletons[0].dq
+                current_dq_tread[0] = -self.target_vel
+                self.dart_world.skeletons[0].dq = current_dq_tread
+            elif self.hard_enforce:
                 current_dq = self.robot_skeleton.dq
                 current_dq[0] = self.target_vel
                 self.robot_skeleton.dq = current_dq
@@ -118,14 +127,17 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 actuator_pen_multiplier[-j] = 100'''
 
         if self.base_policy is None:
-            alive_bonus = 2.0
+            alive_bonus = 3.0
             vel = (posafter - posbefore) / self.dt
-            vel_rew = 2*(self.target_vel-np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
-            action_pen = 2e-2 * (np.square(a)* actuator_pen_multiplier).sum()
+            if not self.treadmill:
+                vel_rew = 2*(self.target_vel-np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+            else:
+                vel_rew = 2 * (self.target_vel-np.abs(vel))
+            #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
+            action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
-            joint_pen = 2e-1 * joint_limit_penalty
             deviation_pen = 1e-3 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+            reward = vel_rew + alive_bonus - action_pen - deviation_pen
         else:
             alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
@@ -157,7 +169,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         com_foot_offset1 = robot_com - foot1_com
         com_foot_offset2 = robot_com - foot2_com
  
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done, 'dyn_model_id':0, 'state_index':0}
+        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done, 'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([
