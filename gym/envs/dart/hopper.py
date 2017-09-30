@@ -12,11 +12,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0])
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -33,17 +33,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.action_scale /= 2.0
 
 
-        self.split_task_test = True
+        self.split_task_test = False
         self.learn_diff_style = False
         self.learn_forwardbackward = False
-        self.tasks = TaskList(2)
-        self.tasks.add_world_choice_tasks([1,1])
+        self.tasks = TaskList(1)
+        #self.tasks.add_world_choice_tasks([1,1])
         #self.tasks.add_fix_param_tasks([0, [0.1, 1.0]])
         #self.tasks.add_fix_param_tasks([1, [0.3, 0.0]])
         #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
         #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
 
-        self.tasks.add_range_param_tasks([1, [[0.0,0.2], [0.8,1.0]]], expand=0.0)
+        self.tasks.add_range_param_tasks([2, [[0.0, 1.0]]], expand=0.0)
         #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
         self.task_expand_flag = False
@@ -74,11 +74,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_box.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
-        self.dart_worlds[0].set_collision_detector(0)
+        self.dart_worlds[0].set_collision_detector(3)
         self.dart_worlds[1].set_collision_detector(0)
         self.dart_worlds[2].set_collision_detector(1)
         self.dart_worlds[3].set_collision_detector(1)
@@ -370,7 +370,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.height_threshold_low = 0.56*self.robot_skeleton.bodynodes[2].com()[1]
         self.t = 0
-
         return state
 
     def viewer_setup(self):
