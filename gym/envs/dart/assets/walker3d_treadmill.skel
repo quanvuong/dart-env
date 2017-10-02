@@ -53,7 +53,7 @@
             <body name="h_torso">
                 <transformation> 0.0 1.425 0 0 0 0</transformation>
                 <inertia>
-                    <mass>7.88</mass>
+                    <mass>17.88</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -155,14 +155,14 @@
             <body name="h_foot">
                 <transformation>0.0 0.1 0.07 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>5.616</mass>
+                    <mass>1.616</mass>
                     <offset>0.065 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.35 0.09 0.15</size>
+                            <size>0.177 0.09 0.15</size>
                         </box>
                     </geometry>
                     <color>1.0 0.5 0.0</color>
@@ -171,7 +171,7 @@
                     <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.35 0.09 0.15</size>
+                            <size>0.177 0.09 0.15</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -231,23 +231,23 @@
             <body name="h_foot_left">
                 <transformation>0.0 0.1 -0.07 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>5.616</mass>
+                    <mass>1.616</mass>
                     <offset>0.065 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size> 0.35 0.09 0.15</size>
+                            <size>0.177 0.09 0.15</size>
                         </box>
                     </geometry>
                     <color>0.7 0.3 0.6</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation>0.065 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size> 0.35 0.09 0.15</size>
+                            <size>0.177 0.09 0.15</size>
                         </box>
                     </geometry>
                 </collision_shape>

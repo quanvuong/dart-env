@@ -77,7 +77,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
             if self.hard_enforce and self.treadmill:
                 current_dq_tread = self.dart_world.skeletons[0].dq
-                current_dq_tread[0] = -self.target_vel
+                current_dq_tread[0] = -self.target_vel * np.min([self.dt/1.0, 1.0])
                 self.dart_world.skeletons[0].dq = current_dq_tread
             elif self.hard_enforce:
                 current_dq = self.robot_skeleton.dq
@@ -129,10 +129,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 actuator_pen_multiplier[-j] = 100'''
 
         if self.base_policy is None:
-            alive_bonus = 3.0
+            alive_bonus = 2.0
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = -2*(np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
                 vel_rew = 0.0 
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
