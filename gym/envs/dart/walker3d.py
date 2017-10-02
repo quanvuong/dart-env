@@ -166,6 +166,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.treadmill:
             if np.abs(self.robot_skeleton.q[0]) > 0.3:
                 done = True
+        if done:
+            reward = 0
 
         ob = self._get_obs()
 
