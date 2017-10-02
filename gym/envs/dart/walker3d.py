@@ -77,7 +77,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
             if self.hard_enforce and self.treadmill:
                 current_dq_tread = self.dart_world.skeletons[0].dq
-                current_dq_tread[0] = -self.target_vel * np.min([self.dt/1.0, 1.0])
+                current_dq_tread[0] = -self.target_vel * np.min([self.t/1.0, 1.0])
                 self.dart_world.skeletons[0].dq = current_dq_tread
             elif self.hard_enforce:
                 current_dq = self.robot_skeleton.dq
