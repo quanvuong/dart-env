@@ -38,11 +38,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.deltacontrol_bounds = np.array([[1.0]*15,[-1.0]*15])
             self.delta_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]'''
 
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.deltacontrol_bounds, disableViewer=False)
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.deltacontrol_bounds, disableViewer=False)
         elif self.treadmill:
-            dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 10, obs_dim, self.control_bounds, disableViewer=True)
+            dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 15, obs_dim, self.control_bounds, disableViewer=True)
         else:
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.control_bounds,
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True)
 
         #self.dart_world.set_collision_detector(3)
