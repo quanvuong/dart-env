@@ -22,9 +22,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = True
-        self.treadmill = False
+        self.treadmill = True
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
+        self.cur_step = 0
+        self.stepwise_rewards = []
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
 
         if self.base_policy is not None:
@@ -42,7 +44,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         elif self.treadmill:
             dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 10, obs_dim, self.control_bounds, disableViewer=True)
         else:
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 10, obs_dim, self.control_bounds,
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True)
 
         #self.dart_world.set_collision_detector(3)
@@ -130,9 +132,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             alive_bonus = 3.0
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = 2*(self.target_vel-np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = -2*(np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
-                vel_rew = 2 * (self.target_vel-np.abs(vel))
+                vel_rew = 0.0 
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
@@ -152,14 +154,18 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         #reward -= 1e-1 * np.min([(div**2), 10])
 
         self.t += self.dt
+        self.cur_step += 1
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.0)
                     and np.abs(angle) < 0.8 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
-        if done:
-            reward = 0
+        self.stepwise_rewards.append(reward)
+
+        if self.treadmill:
+            if np.abs(self.robot_skeleton.q[0]) > 0.3:
+                done = True
 
         ob = self._get_obs()
 
@@ -193,6 +199,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             qpos[0] = self.target_vel
         self.set_state(qpos, qvel)
         self.t = 0
+        self.cur_step = 0
+        self.stepwise_rewards = []
 
         return self._get_obs()
 
