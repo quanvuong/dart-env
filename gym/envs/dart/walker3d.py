@@ -22,7 +22,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = True
-        self.treadmill = False
+        self.treadmill = True
+        self.treadmill_vel = -0.9
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.cur_step = 0
@@ -77,7 +78,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
             if self.hard_enforce and self.treadmill:
                 current_dq_tread = self.dart_world.skeletons[0].dq
-                current_dq_tread[0] = -self.target_vel * np.min([self.t/4.0, 1.0])
+                current_dq_tread[0] = self.treadmill_vel# * np.min([self.t/4.0, 1.0])
                 self.dart_world.skeletons[0].dq = current_dq_tread
             elif self.hard_enforce:
                 current_dq = self.robot_skeleton.dq
@@ -137,7 +138,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if not self.treadmill:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
-                vel_rew = 1.5 - np.abs(vel)
+                vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
@@ -167,9 +168,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.stepwise_rewards.append(reward)
 
-        if self.treadmill:
+        '''if self.treadmill:
             if np.abs(self.robot_skeleton.q[0]) > 0.4:
-                done = True
+                done = True'''
         if done:
             reward = 0
 
