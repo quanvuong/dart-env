@@ -137,7 +137,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if not self.treadmill:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
-                vel_rew = 2.0
+                vel_rew = 1.5 - np.abs(vel)
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
@@ -168,7 +168,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards.append(reward)
 
         if self.treadmill:
-            if np.abs(self.robot_skeleton.q[0]) > 0.3:
+            if np.abs(self.robot_skeleton.q[0]) > 0.4:
                 done = True
         if done:
             reward = 0
