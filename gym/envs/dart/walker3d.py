@@ -22,7 +22,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = True
-        self.treadmill = True
+        self.treadmill = False
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.cur_step = 0
@@ -77,7 +77,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
             if self.hard_enforce and self.treadmill:
                 current_dq_tread = self.dart_world.skeletons[0].dq
-                current_dq_tread[0] = -self.target_vel * np.min([self.t/1.0, 1.0])
+                current_dq_tread[0] = -self.target_vel * np.min([self.t/4.0, 1.0])
                 self.dart_world.skeletons[0].dq = current_dq_tread
             elif self.hard_enforce:
                 current_dq = self.robot_skeleton.dq
@@ -110,8 +110,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
+        self_colliding = False
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
+            if contact.skel_id1 == contact.skel_id2:
+                self_colliding = True
 
         joint_limit_penalty = 0
         for j in [-3, -9]:
@@ -134,7 +137,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if not self.treadmill:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
-                vel_rew = 0.0 
+                vel_rew = 2.0
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
@@ -147,6 +150,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             joint_pen = 2e-1 * joint_limit_penalty
             deviation_pen = 1e-3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+
 
         #reward -= 1e-7 * total_force_mag
 
