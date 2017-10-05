@@ -18,17 +18,29 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 0.9
+        self.target_vel = 1.5
         self.init_push = False
         self.enforce_target_vel = True
-        self.hard_enforce = True
-        self.treadmill = True
-        self.treadmill_vel = -0.9
+        self.hard_enforce = False
+        self.treadmill = False
+        self.treadmill_vel = -1.5
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.cur_step = 0
         self.stepwise_rewards = []
+        self.conseq_limit_pen = 0 # number of steps lying on the wall
+        self.constrain_2d = True
+        self.init_pd = 1000
+        self.pd_expbase = 0.5
+        self.current_pd = self.init_pd
+        self.vel_enforce_kp = self.init_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
+
+        # state related
+        self.contact_info = np.array([0, 0])
+        self.include_additional_info = False
+        if self.include_additional_info:
+            obs_dim += len(self.contact_info)
 
         if self.base_policy is not None:
             # when training balance delta function
@@ -56,6 +68,35 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         utils.EzPickle.__init__(self)
 
+    def _spd(self, target_q, id, kp):
+        kp_diag = np.array([kp])
+        self.Kp = np.diagflat(kp_diag)
+        self.Kd = np.diagflat(kp_diag*self.dt/self.frame_skip)
+        invM = np.linalg.inv([self.robot_skeleton.M[id][id]] + self.Kd * self.dt)
+        p = -self.Kp.dot(self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt - target_q[id])
+        d = -self.Kd.dot(self.robot_skeleton.dq[id])
+        qddot = invM.dot(-self.robot_skeleton.c[id] + p + d)
+        tau = p + d - self.Kd.dot(qddot) * self.dt
+        return tau
+
+    def do_simulation(self, tau, n_frames):
+        for _ in range(n_frames):
+            if self.constrain_2d:
+                tq = self.robot_skeleton.q
+                tq[2] = 0
+                spdtau = self._spd(tq, 2, self.current_pd)
+                tau[2] = spdtau
+
+                if self.enforce_target_vel and not self.hard_enforce:
+                    tq2 = self.robot_skeleton.q
+                    tq2[0] = self.init_pos + self.t * self.target_vel
+                    spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp)
+                    tau[0] = spdtau2
+
+
+            self.robot_skeleton.set_forces(tau)
+            self.dart_world.step()
+
     def advance(self, a):
         if self.base_policy is not None:
             full_a = np.zeros(np.max([len(self.base_action_indices), len(self.delta_action_indices)]))
@@ -73,9 +114,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         tau[6:] = clamped_control * self.action_scale
 
         if self.enforce_target_vel:
-            if not self.hard_enforce:
-                if np.abs(self.robot_skeleton.dq[0] - self.target_vel) > 0.1:
-                    tau[0] = 50*(self.target_vel - self.robot_skeleton.dq[0])
             if self.hard_enforce and self.treadmill:
                 current_dq_tread = self.dart_world.skeletons[0].dq
                 current_dq_tread[0] = self.treadmill_vel# * np.min([self.t/4.0, 1.0])
@@ -97,6 +135,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynodes[1].com()[2]
         angle = self.robot_skeleton.q[3]
 
+        self.current_pd = self.init_pd * (self.pd_expbase ** np.max([0, posafter]))
+        self.vel_enforce_kp = self.init_pd * (self.pd_expbase ** np.max([0, posafter]))
+        #print(self.current_pd)
+
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
         upward_world /= np.linalg.norm(upward_world)
@@ -112,18 +154,32 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
         self_colliding = False
+        self.contact_info = np.array([0, 0])
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
             if contact.skel_id1 == contact.skel_id2:
                 self_colliding = True
+            if contact.skel_id1 + contact.skel_id2 == 1:
+                if contact.bodynode1 == self.robot_skeleton.bodynodes[-1] or contact.bodynode2 == self.robot_skeleton.bodynodes[-1]:
+                    self.contact_info[0] = 1
+                if contact.bodynode1 == self.robot_skeleton.bodynodes[-4] or contact.bodynode2 == self.robot_skeleton.bodynodes[-4]:
+                    self.contact_info[1] = 1
 
         joint_limit_penalty = 0
-        for j in [-3, -9]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05 and a[j] < 0:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05 and a[j] > 0:
-                joint_limit_penalty += abs(1.5)
-        joint_limit_penalty *= 0
+        for j in [2]:
+            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.01:
+                self.conseq_limit_pen += 1
+                #joint_limit_penalty += abs(1.0)
+            elif (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.01:
+                self.conseq_limit_pen += 1
+            else:
+                self.conseq_limit_pen = 0
+        if self.conseq_limit_pen > 0:
+            self.conseq_limit_pen = np.min([self.conseq_limit_pen, 21])
+            #joint_limit_penalty = 0.2 * 1.1 ** self.conseq_limit_pen
+                #joint_limit_penalty += abs(1.0)
+        #joint_limit_penalty*=0
+        #print(self.conseq_limit_pen, joint_limit_penalty)
 
         actuator_pen_multiplier = np.ones(len(a)) # penalize actuation more if it is trying to push against limit
         '''for j in range(1,len(a)+1):
@@ -133,7 +189,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 actuator_pen_multiplier[-j] = 100'''
 
         if self.base_policy is None:
-            alive_bonus = 2.0
+            alive_bonus = 1.0
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
@@ -143,7 +199,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
             deviation_pen = 1e-3 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - deviation_pen
+            reward = vel_rew + alive_bonus - action_pen - joint_limit_penalty - deviation_pen
         else:
             alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
@@ -171,6 +227,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         '''if self.treadmill:
             if np.abs(self.robot_skeleton.q[0]) > 0.4:
                 done = True'''
+
+        #if self.conseq_limit_pen > 20:
+        #    done = True
+
         if done:
             reward = 0
 
@@ -188,8 +248,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
             np.clip(self.robot_skeleton.dq,-10,10),
-            #[self.t]
         ])
+
+        if self.include_additional_info:
+            state = np.concatenate([state, self.contact_info])
 
         return state
 
@@ -208,6 +270,13 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.cur_step = 0
         self.stepwise_rewards = []
+
+        self.init_pos = self.robot_skeleton.q[0]
+
+        self.conseq_limit_pen = 0
+        self.current_pd = self.init_pd
+
+        self.contact_info = np.array([0, 0])
 
         return self._get_obs()
 

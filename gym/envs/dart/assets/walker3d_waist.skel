@@ -258,8 +258,8 @@
                 <child>h_torso_aux</child>
                 <axis3>
  		            <limit>
-                    	<lower>-0.0001</lower>
-                    	<upper>0.0001</upper>
+                    	<lower>-10.5</lower>
+                    	<upper>10.5</upper>
                     </limit>
                 </axis3>
             </joint>
