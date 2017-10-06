@@ -74,7 +74,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
@@ -284,27 +284,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             return return_state
 
         return state
-
-    def get_reward(self, statevec_before, act, statevec_after, multiplier):
-        self.set_state_vector(statevec_before)
-        posbefore = self.robot_skeleton.q[0]
-        self.set_state_vector(statevec_after)
-        posafter,ang = self.robot_skeleton.q[0,2]
-
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
-
-        alive_bonus = 1.0
-        reward = 0.6*(posafter - posbefore) / self.dt
-        reward += alive_bonus
-        reward -= 1e-3 * np.square(act).sum()
-        reward -= 5e-1 * joint_limit_penalty
-
-        return reward * multiplier
 
     def reset_model(self):
         for world in self.dart_worlds:

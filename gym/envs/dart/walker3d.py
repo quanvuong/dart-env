@@ -6,6 +6,7 @@ from gym.envs.dart import dart_env
 import joblib
 import os
 
+from gym.envs.dart.parameter_managers import *
 
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
@@ -18,7 +19,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 1.5
+        self.target_vel = 0.9
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = False
@@ -30,17 +31,20 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
         self.constrain_2d = True
-        self.init_pd = 1000
-        self.pd_expbase = 0.5
-        self.current_pd = self.init_pd
-        self.vel_enforce_kp = self.init_pd
+        self.init_balance_pd = 300
+        self.init_vel_pd = 300
+        self.pd_expbase = 1.0
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
 
         # state related
         self.contact_info = np.array([0, 0])
-        self.include_additional_info = False
+        self.include_additional_info = True
         if self.include_additional_info:
             obs_dim += len(self.contact_info)
+
+        self.param_manager = walker3dManager(self)
 
         if self.base_policy is not None:
             # when training balance delta function
@@ -68,31 +72,34 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         utils.EzPickle.__init__(self)
 
-    def _spd(self, target_q, id, kp):
+    def _spd(self, target_q, id, kp, target_dq = 0.0):
         kp_diag = np.array([kp])
         self.Kp = np.diagflat(kp_diag)
         self.Kd = np.diagflat(kp_diag*self.dt/self.frame_skip)
-        invM = np.linalg.inv([self.robot_skeleton.M[id][id]] + self.Kd * self.dt)
-        p = -self.Kp.dot(self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt - target_q[id])
+        if target_dq > 0:
+            self.Kd[0] = self.Kp[0]
+            self.Kp *= 0
+        invM = np.linalg.inv([self.robot_skeleton.M[id][id]] + self.Kd * self.dt/self.frame_skip)
+        p = -self.Kp.dot(self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt/self.frame_skip - target_q[id])
         d = -self.Kd.dot(self.robot_skeleton.dq[id])
         qddot = invM.dot(-self.robot_skeleton.c[id] + p + d)
-        tau = p + d - self.Kd.dot(qddot) * self.dt
+        tau = p + d - self.Kd.dot(qddot) * self.dt/self.frame_skip + self.Kd * target_dq
         return tau
 
     def do_simulation(self, tau, n_frames):
+        pos_before = self.robot_skeleton.q[0]
         for _ in range(n_frames):
             if self.constrain_2d:
                 tq = self.robot_skeleton.q
                 tq[2] = 0
                 spdtau = self._spd(tq, 2, self.current_pd)
-                tau[2] = spdtau
+                tau[2] = spdtau[0]
 
                 if self.enforce_target_vel and not self.hard_enforce:
                     tq2 = self.robot_skeleton.q
-                    tq2[0] = self.init_pos + self.t * self.target_vel
-                    spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp)
-                    tau[0] = spdtau2
-
+                    tq2[0] = pos_before + self.dt * self.target_vel
+                    spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
+                    tau[0] = spdtau2[0]
 
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -135,8 +142,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynodes[1].com()[2]
         angle = self.robot_skeleton.q[3]
 
-        self.current_pd = self.init_pd * (self.pd_expbase ** np.max([0, posafter]))
-        self.vel_enforce_kp = self.init_pd * (self.pd_expbase ** np.max([0, posafter]))
+        self.current_pd = self.init_balance_pd * (self.pd_expbase ** np.max([0, posafter]))
+        self.vel_enforce_kp = self.init_vel_pd * (self.pd_expbase ** np.max([0, posafter]))
         #print(self.current_pd)
 
         upward = np.array([0, 1, 0])
@@ -274,7 +281,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_pos = self.robot_skeleton.q[0]
 
         self.conseq_limit_pen = 0
-        self.current_pd = self.init_pd
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
 
         self.contact_info = np.array([0, 0])
 

@@ -90,6 +90,39 @@ class hopperContactMassManager:
                 x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)
 
+
+class walker3dManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.range = [300, 1200]  # lateral kp
+        self.velkp_range = [0, 1200] # forward kp
+        self.activated_param = [0]
+        self.controllable_param = [0]
+
+        self.param_dim = len(self.activated_param)
+
+    def get_simulator_parameters(self):
+        cur_kp = self.simulator.init_balance_pd
+        kp_param = (cur_kp - self.range[0]) / (self.range[1] - self.range[0])
+
+        cur_vel_kp = self.simulator.init_vel_pd
+        vel_kp_param = (cur_vel_kp - self.velkp_range[0]) / (self.velkp_range[1] - self.velkp_range[0])
+
+        params = np.array([kp_param, vel_kp_param])[self.activated_param]
+        return params
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+        if 0 in self.controllable_param:
+            kp = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
+            self.simulator.init_balance_pd = kp
+            cur_id += 1
+        if 1 in self.controllable_param:
+            kp = x[cur_id] * (self.velkp_range[1] - self.velkp_range[0]) + self.velkp_range[0]
+            self.simulator.init_vel_pd = kp
+            cur_id += 1
+
+
 class hopperBackPackManager:
     def __init__(self, simulator):
         self.simulator = simulator
