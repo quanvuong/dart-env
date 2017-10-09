@@ -94,8 +94,8 @@ class hopperContactMassManager:
 class walker3dManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [300, 1200]  # lateral kp
-        self.velkp_range = [0, 1200] # forward kp
+        self.range = [0, 60]  # lateral kp
+        self.velkp_range = [0, 10] # forward kp
         self.activated_param = [0]
         self.controllable_param = [0]
 

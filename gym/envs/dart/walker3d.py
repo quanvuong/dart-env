@@ -19,7 +19,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 0.9
+        self.target_vel = 2.0
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = False
@@ -31,9 +31,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
         self.constrain_2d = True
-        self.init_balance_pd = 300
-        self.init_vel_pd = 300
-        self.pd_expbase = 1.0
+        self.init_balance_pd = 1500
+        self.init_vel_pd = 1500
+        self.end_balance_pd = 0.0
+        self.end_vel_pd = 0.0
+        self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
@@ -94,13 +96,13 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 tq[2] = 0
                 spdtau = self._spd(tq, 2, self.current_pd)
                 tau[2] = spdtau[0]
+                #print(self.robot_skeleton.q[1], spdtau)
 
                 if self.enforce_target_vel and not self.hard_enforce:
                     tq2 = self.robot_skeleton.q
                     tq2[0] = pos_before + self.dt * self.target_vel
                     spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
                     tau[0] = spdtau2[0]
-
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
@@ -142,8 +144,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynodes[1].com()[2]
         angle = self.robot_skeleton.q[3]
 
-        self.current_pd = self.init_balance_pd * (self.pd_expbase ** np.max([0, posafter]))
-        self.vel_enforce_kp = self.init_vel_pd * (self.pd_expbase ** np.max([0, posafter]))
+        pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
+        self.current_pd = self.init_balance_pd + (self.end_balance_pd - self.init_balance_pd)/self.pd_vary_end*pos_val
+        self.vel_enforce_kp = self.init_vel_pd + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end*pos_val
         #print(self.current_pd)
 
         upward = np.array([0, 1, 0])
@@ -205,14 +208,14 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
-            deviation_pen = 1e-3 * abs(side_deviation)
+            deviation_pen = 3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_limit_penalty - deviation_pen
         else:
             alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 1e-2 * np.square(a).sum()
             joint_pen = 2e-1 * joint_limit_penalty
-            deviation_pen = 1e-3 * abs(side_deviation)
+            deviation_pen = 1 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
 
 
