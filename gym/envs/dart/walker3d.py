@@ -19,7 +19,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 2.0
+        self.target_vel = 1.0
         self.init_push = False
         self.enforce_target_vel = True
         self.hard_enforce = False
@@ -31,10 +31,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
         self.constrain_2d = True
-        self.init_balance_pd = 1500
-        self.init_vel_pd = 1500
-        self.end_balance_pd = 0.0
-        self.end_vel_pd = 0.0
+        self.init_balance_pd = 1500.0
+        self.init_vel_pd = 1500.0
+        self.end_balance_pd = 1500.0
+        self.end_vel_pd = 1500.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -229,8 +229,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.0)
-                    and np.abs(angle) < 0.8 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
+                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
+                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
 
