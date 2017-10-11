@@ -375,6 +375,18 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothEndEffectorDisplacer-v1',
+    entry_point='gym.envs.dart:DartClothEndEffectorDisplacerEnv',
+    #max_episode_steps=250,
+)
+
+#Multi-agent
+register(
+    id='DartMultiAgent-v1',
+    entry_point='gym.envs.dart:DartMultiAgentEnv',
+    #max_episode_steps=250,
+)
 
 # Mujoco
 # ----------------------------------------

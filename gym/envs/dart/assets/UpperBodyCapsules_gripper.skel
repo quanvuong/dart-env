@@ -166,7 +166,23 @@
 						</multi_sphere>
                     </geometry>
                     <color>0.7 0.4 0.2</color>
-                </visualization_shape>                                
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 0 0 0 0 0</transformation>
+                    <geometry>
+                        <multi_sphere>
+							<sphere>
+								<radius>0.1</radius>
+								<position>0 0 0</position>
+							</sphere>
+							<sphere>
+								<radius>0.1</radius>
+								<position>0.0 0.175 0.0</position>
+							</sphere>
+						</multi_sphere>
+                    </geometry>
+                </collision_shape>
+                                                
             </body>
             
             <body name="eyes">

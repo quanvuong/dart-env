@@ -23,16 +23,18 @@ import OpenGL.GLUT as GLUT
 class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
+        self.screenSize = (540, 720)
         self.renderDARTWorld = False
         self.renderUI = False
+        self.drawDebuggingBoxes = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
         self.geoVecInObs = True
         self.contactIDInObs = True
         self.hapticsInObs = True
         self.hapticsAware = True #if false, 0's for haptic input
-        self.pureProprioceptionObs = True
+        self.pureProprioceptionObs = False
         self.arm = 2
 
         self.renderObs = False
@@ -44,25 +46,30 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
         self.gripperCover = True
         self.renderCover = True
-        self.renderGripPath = True
+        self.renderGripPath = False
 
         self.reward = 0
         self.prevAction = None
 
+        self.graphDataOutputPrefix = "/home/alexander/Documents/graphoutput/"
         self.graphArmProgress = False
         self.graphDeformation = False
+        self.graphArmHaptics = False
+        self.armHapticsGraphs = []
+        self.armHapticsIndices = [13,14,15,16,17,18,19,20,21] #only haptic sensors ID'd here will be graphed
         self.armProgressGraph = None
         self.deformationGraph = None
+        self.regraphPeriod = 399
         self.colorFromDistribution = True #if true, draw graph color based on distribution point
         self.renderZoneColorFromDistribution = False #if true, sample the linear target range and color spheres as map
         self.domainTesting = False #if true, sample gown locations from a grid instead of random
         self.jitteredSamples = True #True if using jittered sampling inside the grid instead of grid corners
-        self.twoDistributions = False #True if domain testing on initial and end distributions
+        self.twoDistributions = True #True if domain testing on initial and end distributions
         #self.domainTestingDim = np.array([4, 4, 1])
         #self.domainTestingDim = np.array([2, 2, 1])
         self.domainTestingDim = np.array([1, 2, 2]) #side linear range
 
-        self.numRollouts = 16 #terminate after this many resets and save the graphs (if -1, don't terminate)
+        self.numRollouts = 100 #terminate after this many resets and save the graphs (if -1, don't terminate)
         #if self.domainTesting:
         #    self.numRollouts = self.domainTestingDim[0]*self.domainTestingDim[1]*self.domainTestingDim[2]
         self.numRollouts = -1
@@ -134,13 +141,18 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         #self.handleTargetSplineGlobalRotationBounds
 
         #linear spline target mode
-        self.handleTargetLinearMode = 7  # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
+        self.handleTargetLinearMode = 7 # 1 is linear, 2 is small range, 3 is larger range, 4 is new static, 5 is new small linear, 6 is beside, 7 large static range with increase min y
         self.randomHandleTargetLinear = True
         self.linearTargetFixed = True #if true, end point is start point
         self.orientationFromSpline = False #if true, the gripper orientation is changed to match the spline direction (y rotation only)
         self.handleTargetLinearWindow = 10.0
         self.handleTargetLinearInitialRange = None
         self.handleTargetLinearEndRange = None
+        self.targetSeeds = []
+        #self.targetSeeds = [0, 15, 20, 21, 22, 23, 24] #3
+        #self.targetSeeds = [0, 2, 3, 4, 9] #2
+        #self.targetSeeds = [0, 5, 6, 8, 12, 17, 19] #1
+        #self.targetSeeds = np.arange(30,60)
 
         self.debuggingBoxes = []
 
@@ -212,7 +224,6 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleTargetLinearEndRange = self.handleTargetLinearInitialRange
 
         #debugging boxes for visualizing distributions
-        self.drawDebuggingBoxes = True
         self.debuggingBoxes.append(self.handleTargetLinearInitialRange)
         self.debuggingBoxes.append(self.handleTargetLinearEndRange)
         self.debuggingColors = [[0., 1, 0], [0, 0, 1.], [1., 0, 0], [1., 1., 0], [1., 0., 1.], [0, 1., 1.]]
@@ -262,7 +273,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             model_path = 'UpperBodyCapsules_gripper.skel'
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
-                                  observation_size=observation_size, action_bounds=self.control_bounds)
+                                  observation_size=observation_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size,
@@ -326,6 +337,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.armProgressGraph = pyutils.LineGrapher(title="Arm Progress")
         if self.graphDeformation:
             self.deformationGraph = pyutils.LineGrapher(title="Deformation")
+        if self.graphArmHaptics:
+            for ix in self.armHapticsIndices:
+                self.armHapticsGraphs.append(pyutils.LineGrapher(title="Haptic Sensor " + str(ix)))
 
 
         print("done init")
@@ -456,16 +470,21 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.graphArmProgress and self.armProgressGraph is not None:
             #self.armProgressGraph.addToLinePlot(data=[[self.arm_progress]])
             self.armProgressGraph.yData[self.reset_number-1][self.numSteps-1] = self.arm_progress
-            if self.numSteps % 20 == 0:
+            if self.numSteps % self.regraphPeriod == 0:
                 self.armProgressGraph.update()
         if self.graphDeformation and self.deformationGraph is not None:
-            if clothDeformation > 50:
-                clothDeformation = 50
+            #if clothDeformation > 50:
+            #    clothDeformation = 50
             self.deformationGraph.yData[self.reset_number - 1][self.numSteps - 1] = clothDeformation
-            if self.numSteps % 20 == 0:
+            if self.numSteps % self.regraphPeriod == 0:
                 self.deformationGraph.update()
             #self.deformationGraph.addToLinePlot(data=[[clothDeformation]])
-
+        if self.graphArmHaptics and len(self.armHapticsGraphs) > 0:
+            f = self.clothScene.getHapticSensorObs()
+            for i,ix in enumerate(self.armHapticsIndices):
+                self.armHapticsGraphs[i].yData[self.reset_number - 1][self.numSteps - 1] = np.linalg.norm(f[ix*3:ix*3+3])
+                if self.numSteps % self.regraphPeriod == 0:
+                    self.armHapticsGraphs[i].update()
 
         #if self.numSteps >= 400 or done is True:
         #    print("arm_progress = " + str(self.arm_progress) + " | maxDeformation = " + str(self.maxDeformation))
@@ -549,9 +568,12 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.numRollouts >= 0:
             if self.numRollouts <= self.reset_number:
                 if self.graphArmProgress:
-                    self.armProgressGraph.save(filename="/home/alexander/armprogress.png", datafile="/home/alexander/armprogress.txt")
+                    self.armProgressGraph.save(filename=self.graphDataOutputPrefix+"armprogress.png", datafile=self.graphDataOutputPrefix+"armprogress.txt")
                 if self.graphDeformation:
-                    self.deformationGraph.save(filename="/home/alexander/deformation.png", datafile="/home/alexander/deformation.txt")
+                    self.deformationGraph.save(filename=self.graphDataOutputPrefix+"deformation.png", datafile=self.graphDataOutputPrefix+"deformation.txt")
+                if self.graphArmHaptics:
+                    for i,ix in enumerate(self.armHapticsIndices):
+                        self.armHapticsGraphs[i].save(filename=self.graphDataOutputPrefix+"haptics"+str(ix)+".png", datafile=self.graphDataOutputPrefix+"haptics"+str(ix)+".txt")
                 '''dataTest = pyutils.loadData2D(filename="/home/alexander/armprogress.txt")
                 print("dataTest = " + str(dataTest))
                 print("||dataTest|| = " + str(len(dataTest)))
@@ -637,7 +659,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.handleNode.usingTargets = True
             #draw initial pos
             oldOrg = np.array(self.handleNode.org)
+            if len(self.targetSeeds) > self.reset_number:
+                random.seed(self.targetSeeds[self.reset_number])
             self.handleNode.org = self.handleTargetLinearInitialRange.sample(1)[0]
+            print("target = " + str(self.handleNode.org))
             if self.domainTesting:
                 dim = self.domainTestingDim
                 lpos = np.array([float(self.reset_number%dim[0]), math.floor(self.reset_number/dim[0])%dim[1],  math.floor(self.reset_number/(dim[0]*dim[1]))%dim[2]])
@@ -740,6 +765,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             initialYData = np.zeros(400)
             self.deformationGraph.plotData(ydata=initialYData, color=color)
 
+        if self.graphArmHaptics:
+            for i, ix in enumerate(self.armHapticsIndices):
+                if self.reset_number == 0:
+                    xdata = np.arange(400)
+                    self.armHapticsGraphs[i].xdata = xdata
+                initialYData = np.zeros(400)
+                self.armHapticsGraphs[i].plotData(ydata=initialYData, color=color)
 
         self.reset_number += 1
 
@@ -1080,9 +1112,34 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self._get_viewer().scene is not None:
             if self.gripperCover:
                 self.viewer.interactors[4].skelix = 2
-            self._get_viewer().scene.tb.trans[2] = -3.5
-            self._get_viewer().scene.tb._set_theta(180)
-            self._get_viewer().scene.tb._set_phi(180)
+            #self._get_viewer().scene.tb.trans[2] = -3.5
+            #self._get_viewer().scene.tb._set_theta(180)
+            #self._get_viewer().scene.tb._set_phi(180)
+            #self._get_viewer().scene.tb._set_orientation(180-16.7, 180+5.4)
+            #self._get_viewer().scene.tb.trans[2] = -1.9
+
+            #camera settings for forward fixed gown
+            self._get_viewer().scene.tb.trans[:3] = [-0.33, 0.11, -1.9]
+            self._get_viewer().scene.tb._rotation = [-0.051643844511207959, 0.80910393196194152, 0.080374382346619963, 0.57984799669415554]
+
+            #camera settings for side linear gown
+            #self._get_viewer().scene.tb.trans[:3] = [0.45, 0.07, -1.9]
+            #self._get_viewer().scene.tb._rotation = [-0.024850523841696202, 0.98784543610802078, 0.0013834212176602832, -0.15343380322172276]
+
+            #camera settings for front linear gown
+            #self._get_viewer().scene.tb.trans[:3] = [-0.42000000000000015, 0.029999999999999999, -1.5000000000000002]
+            #self._get_viewer().scene.tb._rotation = [-0.061093026927481663, 0.4956926655636571, -0.031464958589811055, 0.86577501681913671]
+
+            #camera settigs for frontal character close-up
+            #self._get_viewer().scene.tb.trans[:3] = [3.4694469519536142e-18, 0.19000000000000003, -1.5999999999999983]
+            #self._get_viewer().scene.tb._rotation = [6.123233995736766e-17, 1.0, 6.123233995736766e-17, 3.749399456654644e-33]
+
+
+            self._get_viewer().scene.tb.drag_to(0.01, 0.01, 0.01, 0.01)
+            #theta,phi = self._get_viewer().scene.tb._get_orientation()
+            #self._get_viewer().scene.tb._set_orientation(theta, phi)
+            #m = self._get_viewer().scene.tb._q_rotmatrix(self._get_viewer().scene.tb._rotation)
+            #self._get_viewer().scene.tb._matrix =
             self.track_skeleton_id = 0
         if not self.renderDARTWorld:
             self.viewer.renderWorld = False

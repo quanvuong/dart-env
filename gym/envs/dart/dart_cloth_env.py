@@ -26,7 +26,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
 
     def __init__(self, cloth_scene, model_paths, frame_skip, observation_size, action_bounds, \
                  dt=0.002, obs_type="parameter", action_type="continuous", visualize=True, disableViewer=False,\
-                 screen_width=80, screen_height=45):
+                 screen_width=720, screen_height=720):
         
         #pyPhysX initialization (do this in subclasses)
         #print("Initialize clothScene...")
@@ -96,7 +96,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         if self._obs_type == 'image':
             win.run(self.screen_width, self.screen_height, _show_window=self.visualize)
         else:
-            win.run(_show_window=self.visualize)
+            win.run(_width=self.screen_width, _height=self.screen_height,_show_window=self.visualize)
         return win
         
     def updateCollisionSpherePos(self, sid, csid):

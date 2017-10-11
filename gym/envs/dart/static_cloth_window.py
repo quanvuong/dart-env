@@ -37,6 +37,9 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.interactors.append(BaseInteractor(self))
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
+        self.captureIndex = 0 #increments when captureToFile is called
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output"
+        self.capturing = True
 
     def run(self, _width=None, _height=None, _show_window=True ):
         # Init glut
@@ -67,6 +70,20 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         GLUT.glutMotionFunc(self.motionFunc)
         GLUT.glutPassiveMotionFunc(self.passiveMotionFunc)
         self.initGL(*self.window_size)
+
+    def captureToFile(self, directory):
+        #print("capture! index = %d" % self.captureIndex)
+        from PIL import Image
+        GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
+        w = self.viewport[2]
+        h = self.viewport[3]
+        #w, h = 1280, 720
+        data = GL.glReadPixels(0, 0, w, h, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+        img = Image.frombytes("RGB", (w, h), data)
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        filename = directory + "/capture%04d.png" % self.captureIndex
+        img.save(filename, 'png')
+        self.captureIndex += 1
 
         
     def extraRender(self):
@@ -125,6 +142,9 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
 
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].contextRender()
+
+        if self.capturing:
+            self.captureToFile(directory=self.captureDirectory)
 
         self.lastContextSwitch += 1
 
@@ -198,6 +218,20 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].keyboard(key, x, y)
             return
+        if keycode == 99: #'c' hijack capture
+            self.capturing = not self.capturing
+            print("self.capturing: " + str(self.capturing))
+            #self.captureToFile(directory="/home/alexander/Documents/frame_capture_output")
+            return
+        if keycode == 112: #'p'
+            print("Camera data:")
+            print("trans: " + str(self.scene.tb.trans))
+            print("orientation: " + str(self.scene.tb._get_orientation()))
+            print("rotation: " + str(self.scene.tb._rotation))
+            print("zoom: " + str(self.scene.tb.zoom))
+            print("distance: " + str(self.scene.tb.distance))
+            #print("trans: " + str(self.scene.tb.trans))
+            #print("trans: " + str(self.scene.tb.trans))
 
         #if no interactor context, do the following
         if keycode == 114: #'r'
