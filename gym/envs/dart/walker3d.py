@@ -19,22 +19,23 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 1.0
+        self.target_vel = 1.5
+        self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = True
+        self.enforce_target_vel = False
         self.hard_enforce = False
         self.treadmill = False
-        self.treadmill_vel = -1.5
+        self.treadmill_vel = -1.0
         self.base_policy = None
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
-        self.constrain_2d = True
-        self.init_balance_pd = 1500.0
-        self.init_vel_pd = 1500.0
-        self.end_balance_pd = 1500.0
-        self.end_vel_pd = 1500.0
+        self.constrain_2d = False
+        self.init_balance_pd = 2000.0
+        self.init_vel_pd = 2000.0
+        self.end_balance_pd = 2000.0
+        self.end_vel_pd = 2000.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -45,6 +46,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_additional_info = True
         if self.include_additional_info:
             obs_dim += len(self.contact_info)
+        if self.rand_target_vel:
+            obs_dim += 1
 
         self.param_manager = walker3dManager(self)
 
@@ -74,18 +77,18 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         utils.EzPickle.__init__(self)
 
+    # only 1d
     def _spd(self, target_q, id, kp, target_dq = 0.0):
-        kp_diag = np.array([kp])
-        self.Kp = np.diagflat(kp_diag)
-        self.Kd = np.diagflat(kp_diag*self.dt/self.frame_skip)
+        self.Kp = kp
+        self.Kd = kp*self.dt/self.frame_skip
         if target_dq > 0:
-            self.Kd[0] = self.Kp[0]
+            self.Kd = self.Kp
             self.Kp *= 0
-        invM = np.linalg.inv([self.robot_skeleton.M[id][id]] + self.Kd * self.dt/self.frame_skip)
-        p = -self.Kp.dot(self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt/self.frame_skip - target_q[id])
-        d = -self.Kd.dot(self.robot_skeleton.dq[id])
-        qddot = invM.dot(-self.robot_skeleton.c[id] + p + d)
-        tau = p + d - self.Kd.dot(qddot) * self.dt/self.frame_skip + self.Kd * target_dq
+        invM = 1.0/(self.robot_skeleton.M[id][id] + self.Kd * self.dt/self.frame_skip)
+        p = -self.Kp * (self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt/self.frame_skip - target_q[id])
+        d = -self.Kd * (self.robot_skeleton.dq[id] - target_dq)
+        qddot = invM * (-self.robot_skeleton.c[id] + p + d)
+        tau = p + d - self.Kd*(qddot) * self.dt/self.frame_skip
         return tau
 
     def do_simulation(self, tau, n_frames):
@@ -95,14 +98,14 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 tq = self.robot_skeleton.q
                 tq[2] = 0
                 spdtau = self._spd(tq, 2, self.current_pd)
-                tau[2] = spdtau[0]
+                tau[2] = spdtau
                 #print(self.robot_skeleton.q[1], spdtau)
 
                 if self.enforce_target_vel and not self.hard_enforce:
                     tq2 = self.robot_skeleton.q
                     tq2[0] = pos_before + self.dt * self.target_vel
                     spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
-                    tau[0] = spdtau2[0]
+                    tau[0] = spdtau2
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
@@ -263,6 +266,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.include_additional_info:
             state = np.concatenate([state, self.contact_info])
 
+        if self.rand_target_vel:
+            state = np.concatenate([state, [self.target_vel]])
+
         return state
 
     def reset_model(self):
@@ -274,6 +280,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         #qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
         qpos[11] = sign * self.np_random.uniform(low=-0.1, high=-0.05, size=1)
         qpos[17] = -sign * self.np_random.uniform(low=0.05, high=0.1, size=1)
+
+        if self.rand_target_vel:
+            self.target_vel = np.random.uniform(0.8, 2.5)
+
         if self.init_push:
             qpos[0] = self.target_vel
         self.set_state(qpos, qvel)
