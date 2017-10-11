@@ -23,6 +23,22 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.renderDARTWorld = False
         self.renderUI = True
 
+        #task modes
+        self.upright_active = False
+        self.rightDisplacer_active = True
+        self.leftDisplacer_active = True
+        self.upReacher_active = True
+
+        self.rightDisplacement = np.zeros(3) #should be unit vector or 0
+        self.leftDisplacement = np.zeros(3) #should be unit vector or 0
+        self.displacementParameters = [
+            0.3,    #probability of 0 vector on reset
+            0.01,   #probability of displacement vector reset (each step)
+            0.25,   #probability of displacement vector shift (add noise to vector and re-normalize)
+            0.05,   #minimum noise magnitude
+            0.1     #maximum noise magnitude
+        ]
+
         #22 dof upper body
         self.action_scale = np.ones(22)*10
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
@@ -128,11 +144,56 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         reward_ctrl = -np.square(tau).sum()
 
         #reward for maintaining posture
-        reward_upright = -abs(self.robot_skeleton.q[0])-abs(self.robot_skeleton.q[1])
+        reward_upright = 0
+        if self.upright_active:
+            reward_upright = -abs(self.robot_skeleton.q[0])-abs(self.robot_skeleton.q[1])
 
-        
-        #total reward        
-        reward = reward_ctrl*0.1 + reward_upright
+        #reward for reaching up with both arms.
+        reward_upreach = 0
+        if self.upReacher_active:
+            reward_upreach = wRFingertip2[1] + wLFingertip2[1]
+
+        #reward for following displacement goals
+        reward_displacement = 0
+        if self.rightDisplacer_active:
+            actual_displacement = wRFingertip2 - wRFingertip1
+            if np.linalg.norm(self.rightDisplacement) == 0:
+                reward_displacement += -np.linalg.norm(actual_displacement)
+            else:
+                reward_displacement += actual_displacement.dot(self.rightDisplacement)
+        if self.leftDisplacer_active:
+            actual_displacement = wLFingertip2 - wLFingertip1
+            if np.linalg.norm(self.leftDisplacement) == 0:
+                reward_displacement += -np.linalg.norm(actual_displacement)
+            else:
+                reward_displacement += actual_displacement.dot(self.leftDisplacement)
+
+        #total reward
+        reward = reward_ctrl*0.1 + reward_upright + reward_upreach + reward_displacement
+
+        #compute changes in displacements before the next observation phase
+        if self.rightDisplacer_active:
+            if random.random() < self.displacementParameters[1]: #reset vector
+                if random.random() < self.displacementParameters[0]:
+                    self.rightDisplacement = np.zeros(3)
+                else:
+                    self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
+            elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.rightDisplacement) > 0: #add noise to vector
+                noise = pyutils.sampleDirections(num=1)[0]
+                noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
+                self.rightDisplacement += noise
+                self.rightDisplacement /= np.linalg.norm(self.rightDisplacement)
+        if self.leftDisplacer_active:
+            if random.random() < self.displacementParameters[1]: #reset vector
+                if random.random() < self.displacementParameters[0]:
+                    self.leftDisplacement = np.zeros(3)
+                else:
+                    self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
+            elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.leftDisplacement) > 0: #add noise to vector
+                noise = pyutils.sampleDirections(num=1)[0]
+                noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
+                self.leftDisplacement += noise
+                self.leftDisplacement /= np.linalg.norm(self.leftDisplacement)
 
         ob = self._get_obs()
         s = self.state_vector()
@@ -188,6 +249,16 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        if random.random() < self.displacementParameters[0]:
+            self.rightDisplacement = np.zeros(3)
+        else:
+            self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
+        if random.random() < self.displacementParameters[0]:
+            self.leftDisplacement = np.zeros(3)
+        else:
+            self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
+
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -272,6 +343,22 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        if self.rightDisplacer_active:
+            renderUtils.setColor(color=[0.0,0.0,1.0])
+            ef = self.robot_skeleton.bodynodes[8].to_world(np.array([0.0, -0.06, 0.0]))
+            if np.linalg.norm(self.rightDisplacement) == 0:
+                renderUtils.drawBox(cen=ef,dim=[0.2,0.2,0.2], fill=False)
+            else:
+                renderUtils.drawArrow(p0=ef, p1=ef+self.rightDisplacement*0.15, hwRatio=0.15)
+        if self.leftDisplacer_active:
+            renderUtils.setColor(color=[0.0, 0.0, 1.0])
+            ef = self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, -0.06, 0.0]))
+            if np.linalg.norm(self.leftDisplacement) == 0:
+                renderUtils.drawBox(cen=ef, dim=[0.2, 0.2, 0.2], fill=False)
+            else:
+                renderUtils.drawArrow(p0=ef, p1=ef+self.leftDisplacement*0.15, hwRatio=0.15)
+
 
         if self.renderUI:
             self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
