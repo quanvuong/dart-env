@@ -50,6 +50,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         observation_size = 66 #q(sin,cos), dq
         if self.hapticObs:
             observation_size += 66
+        if self.rightDisplacer_active:
+            observation_size += 3
+        if self.leftDisplacer_active:
+            observation_size += 3
 
         model_path = 'UpperBodyCapsules_v3.skel'
 
