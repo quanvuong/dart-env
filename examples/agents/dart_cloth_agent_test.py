@@ -19,6 +19,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2017_10_11_upright_gravity"
+    #trial = "experiment_2017_10_11_displacer_gravity"
+    #trial = "experiment_2017_10_11_displacer_nogravity"
+    #trial = "experiment_2017_10_11_upreacher_gravity"
+
     #trial = "experiment_2017_09_10_mode7_gripcover"
     #trial = "experiment_2017_09_06_lineargownclose"
     #trial = "experiment_2017_09_12_linearside_warmstart"
@@ -70,7 +75,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 4000
+        rolloutHorizon = 400
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000

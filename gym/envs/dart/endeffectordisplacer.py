@@ -27,7 +27,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.upright_active = False
         self.rightDisplacer_active = True
         self.leftDisplacer_active = True
-        self.upReacher_active = True
+        self.upReacher_active = False
 
         self.rightDisplacement = np.zeros(3) #should be unit vector or 0
         self.leftDisplacement = np.zeros(3) #should be unit vector or 0
@@ -110,6 +110,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[6])  # right shoulder to right upperarm
 
+        self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
+
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
             
@@ -125,6 +127,11 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
+
+        if self.reset_number > 0 and self.torqueGraph is not None:
+            self.torqueGraph.yData[0][self.numSteps - 1] = tau[0]
+            self.torqueGraph.yData[1][self.numSteps - 1] = tau[1]
+            self.torqueGraph.update()
 
         fingertip = np.array([0.0, -0.06, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
@@ -169,7 +176,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 reward_displacement += actual_displacement.dot(self.leftDisplacement)
 
         #total reward
-        reward = reward_ctrl*0.1 + reward_upright + reward_upreach + reward_displacement
+        reward = reward_ctrl*0.0005 + reward_upright + reward_upreach + reward_displacement
 
         #compute changes in displacements before the next observation phase
         if self.rightDisplacer_active:
@@ -238,6 +245,11 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 f = np.zeros(f_size)
             obs = np.concatenate([obs, f]).ravel()
 
+        if self.rightDisplacer_active:
+            obs = np.concatenate([obs, self.rightDisplacement]).ravel()
+        if self.leftDisplacer_active:
+            obs = np.concatenate([obs, self.leftDisplacement]).ravel()
+
         return obs
 
     def reset_model(self):
@@ -267,6 +279,14 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         #debugging
         self.reset_number += 1
         self.numSteps = 0
+
+        if self.torqueGraph is not None:
+            xdata = np.arange(400)
+            self.torqueGraph.xdata = xdata
+            initialYData0 = np.zeros(400)
+            initialYData1 = np.zeros(400)
+            self.torqueGraph.plotData(ydata=initialYData0)
+            self.torqueGraph.plotData(ydata=initialYData1)
 
         return self._get_obs()
 
