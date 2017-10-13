@@ -40,7 +40,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         ]
 
         #22 dof upper body
-        self.action_scale = np.ones(22)*10
+        self.action_scale = np.ones(22)*12
+        self.action_scale[0] = 50
+        self.action_scale[1] = 50
+
         self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
         
         self.reset_number = 0 #debugging
@@ -180,7 +183,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 reward_displacement += actual_displacement.dot(self.leftDisplacement)
 
         #total reward
-        reward = reward_ctrl*0.0005 + reward_upright + reward_upreach + reward_displacement
+        reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement
 
         #compute changes in displacements before the next observation phase
         if self.rightDisplacer_active:

@@ -19,10 +19,10 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2017_10_11_upright_gravity"
-    #trial = "experiment_2017_10_11_displacer_gravity"
-    #trial = "experiment_2017_10_11_displacer_nogravity"
-    #trial = "experiment_2017_10_11_upreacher_gravity"
+    #trial = "experiment_2017_10_12_upright_gravity"
+    #trial = "experiment_2017_10_12_displacer_gravity"
+    trial = "experiment_2017_10_12_displacer_nogravity"
+    #trial = "experiment_2017_10_12_upreacher_gravity"
 
     #trial = "experiment_2017_09_10_mode7_gripcover"
     #trial = "experiment_2017_09_06_lineargownclose"
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         for j in range(rolloutHorizon):
             a = np.zeros(22) #22 dof upper body
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,22)
+            #a += np.random.uniform(-1,1,22)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
