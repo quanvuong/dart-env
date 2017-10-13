@@ -75,7 +75,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 400
+        rolloutHorizon = 40
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000

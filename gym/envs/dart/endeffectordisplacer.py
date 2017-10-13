@@ -18,10 +18,12 @@ import OpenGL.GLUT as GLUT
 class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.screenSize = (1080, 720)
         self.renderDARTWorld = False
         self.renderUI = True
+
+        self.resetRandomPose = True
 
         #task modes
         self.upright_active = False
@@ -266,8 +268,18 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.reset()
         self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        if self.resetRandomPose:
+            qpos = pyutils.getRandomPose(self.robot_skeleton)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        if self.resetRandomPose:
+            self.dart_world.check_collision()
+            while self.dart_world.collision_result.num_contacts() > 0:
+                qpos = pyutils.getRandomPose(self.robot_skeleton)
+                self.set_state(qpos, qvel)
+                self.dart_world.check_collision()
+        #print(self.dart_world.collision_result.num_contacts())
 
         if random.random() < self.displacementParameters[0]:
             self.rightDisplacement = np.zeros(3)
