@@ -7,6 +7,7 @@ import joblib
 import os
 
 from gym.envs.dart.parameter_managers import *
+import time
 
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
@@ -19,10 +20,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 1.5
+        self.target_vel = 1.0
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = False
+        self.enforce_target_vel = True
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -31,15 +32,20 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
-        self.constrain_2d = False
+        self.constrain_2d = True
         self.init_balance_pd = 2000.0
-        self.init_vel_pd = 2000.0
+        self.init_vel_pd = 100.0
         self.end_balance_pd = 2000.0
-        self.end_vel_pd = 2000.0
+        self.end_vel_pd = 100.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
+
+        self.local_spd_curriculum = True
+        self.anchor_kp = np.array([2000, 2000])
+        self.curriculum_step_size = 0.1 # 10%
+        self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
 
         # state related
         self.contact_info = np.array([0, 0])
@@ -49,6 +55,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.rand_target_vel:
             obs_dim += 1
 
+        self.curriculum_id = 0
+        self.spd_kp_candidates = None
         self.param_manager = walker3dManager(self)
 
         if self.base_policy is not None:
@@ -75,37 +83,48 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
 
+        self.sim_dt = self.dt / self.frame_skip
+
         utils.EzPickle.__init__(self)
 
     # only 1d
     def _spd(self, target_q, id, kp, target_dq = 0.0):
         self.Kp = kp
-        self.Kd = kp*self.dt/self.frame_skip
+        self.Kd = kp*self.sim_dt
         if target_dq > 0:
             self.Kd = self.Kp
             self.Kp *= 0
-        invM = 1.0/(self.robot_skeleton.M[id][id] + self.Kd * self.dt/self.frame_skip)
-        p = -self.Kp * (self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.dt/self.frame_skip - target_q[id])
+
+        invM = 1.0/(self.robot_skeleton.M[id][id] + self.Kd * self.sim_dt)
+        if target_dq == 0:
+            p = -self.Kp * (self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.sim_dt - target_q[id])
+        else:
+            p = 0
         d = -self.Kd * (self.robot_skeleton.dq[id] - target_dq)
         qddot = invM * (-self.robot_skeleton.c[id] + p + d)
-        tau = p + d - self.Kd*(qddot) * self.dt/self.frame_skip
+        tau = p + d - self.Kd*(qddot) * self.sim_dt
+
         return tau
 
     def do_simulation(self, tau, n_frames):
         pos_before = self.robot_skeleton.q[0]
+        spdtau = 0
+        spdtau2 = 0
         for _ in range(n_frames):
             if self.constrain_2d:
                 tq = self.robot_skeleton.q
                 tq[2] = 0
-                spdtau = self._spd(tq, 2, self.current_pd)
+                if _ % 5 == 0:
+                    spdtau = self._spd(tq, 2, self.current_pd)
                 tau[2] = spdtau
                 #print(self.robot_skeleton.q[1], spdtau)
 
-                if self.enforce_target_vel and not self.hard_enforce:
-                    tq2 = self.robot_skeleton.q
-                    tq2[0] = pos_before + self.dt * self.target_vel
+            if self.enforce_target_vel and not self.hard_enforce:
+                tq2 = self.robot_skeleton.q
+                tq2[0] = pos_before + self.dt * self.target_vel
+                if _ % 5 == 0:
                     spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
-                    tau[0] = spdtau2
+                tau[0] = spdtau2
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
@@ -255,7 +274,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         com_foot_offset1 = robot_com - foot1_com
         com_foot_offset2 = robot_com - foot2_com
  
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done, 'dyn_model_id':0, 'state_index':0}
+        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates, 'done_return':done, 'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -283,6 +302,22 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.rand_target_vel:
             self.target_vel = np.random.uniform(0.8, 2.5)
+
+        if self.local_spd_curriculum:
+            self.spd_kp_candidates = [self.anchor_kp]
+            #axis1_cand = np.max([0, self.anchor_kp[0] - self.min_curriculum_step + np.random.uniform(-5, 5)])#self.anchor_kp[0] - np.min([self.min_curriculum_step, self.anchor_kp[0] * (self.curriculum_step_size+np.random.uniform(-0.01, 0.01))])
+            #axis2_cand = np.max([0, self.anchor_kp[1] - self.min_curriculum_step + np.random.uniform(-5, 5)])#self.anchor_kp[1] - np.min([self.min_curriculum_step, self.anchor_kp[1] * (self.curriculum_step_size + np.random.uniform(-0.01, 0.01))])
+            #self.spd_kp_candidates.append(np.array([self.anchor_kp[0], axis2_cand]))
+            #self.spd_kp_candidates.append(np.array([axis1_cand, self.anchor_kp[1]]))
+            #self.spd_kp_candidates.append(np.array([axis1_cand, axis2_cand]))
+            #if np.linalg.norm(self.anchor_kp) < self.min_curriculum_step:
+            #    self.spd_kp_candidates.append(np.array([0, 0]))
+            self.curriculum_id = np.random.randint(len(self.spd_kp_candidates))
+            chosen_curriculum = self.spd_kp_candidates[self.curriculum_id]
+            self.init_balance_pd = chosen_curriculum[0]
+            self.end_balance_pd = chosen_curriculum[0]
+            self.init_vel_pd = chosen_curriculum[1]
+            self.end_vel_pd = chosen_curriculum[1]
 
         if self.init_push:
             qpos[0] = self.target_vel
