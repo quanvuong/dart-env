@@ -23,7 +23,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_vel = 1.0
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = True
+        self.enforce_target_vel = False
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -32,7 +32,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
-        self.constrain_2d = True
+        self.constrain_2d = False
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 100.0
         self.end_balance_pd = 2000.0
@@ -42,7 +42,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
 
-        self.local_spd_curriculum = True
+        self.local_spd_curriculum = False
         self.anchor_kp = np.array([2000, 2000])
         self.curriculum_step_size = 0.1 # 10%
         self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
