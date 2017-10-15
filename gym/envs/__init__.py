@@ -202,6 +202,13 @@ register(
     max_episode_steps=1000,
 )
 
+register(
+    id='DartHopperAssist-v1',
+    entry_point='gym.envs.dart:DartHopperAssistEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',
