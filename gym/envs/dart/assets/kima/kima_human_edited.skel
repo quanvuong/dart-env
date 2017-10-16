@@ -4,18 +4,18 @@
         <physics>
             <time_step>0.001</time_step>
             <gravity>0 -9.8 0</gravity>
-            <collision_detector>bullet</collision_detector>
+            <collision_detector>dart</collision_detector>
         </physics>
 
         <skeleton name="ground skeleton">
             <mobile>false</mobile>
             <body name="ground">
-                <transformation>0 -1.3825 0 0 0 0</transformation>
+                <transformation>0 -0.9825 0 0 0 0</transformation>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>2.0 0.04 2.0</size>
+                            <size>500.0 0.04 2.0</size>
                         </box>
                     </geometry>
                     <color>0.8 0.8 0.8</color>
@@ -24,7 +24,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>10.0 0.04 10.0</size>
+                            <size>500.0 0.04 10.0</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -36,7 +36,15 @@
         </skeleton>
 
         <skeleton name="human">
-            <transformation>0 0 0 0 0 0</transformation>
+            <transformation>0 0 0 0 -1.570796 0</transformation>
+            <body name="pelvis_aux">
+                <transformation>0.0 0.0 0.0 0 1.570796 0</transformation>
+                <inertia>
+                    <mass>0.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+            </body>
+
             <body name="pelvis">
                 <transformation>0.0 0.0 0.0 0 1.570796 0</transformation>
                 <inertia>
@@ -71,31 +79,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.077</radius>
-                                <position>0 0.214375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.07</radius>
-                                <position>0 -0.214375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.124 0.42875 0.124</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.077</radius>
-                                <position>0 0.214375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.07</radius>
-                                <position>0 -0.214375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.124 0.42875 0.124</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -108,31 +102,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.200375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.200375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.0955 0.400875 0.0955</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.200375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.200375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.0955 0.400875 0.0955</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -146,7 +126,7 @@
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.09625 0.098 -0.21</size>
+                            <size>0.09625 0.098 0.21</size>
                         </box>
                     </geometry>
                 </visualization_shape>
@@ -154,30 +134,7 @@
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.09625 0.098 -0.21</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
-            </body>
-            <body name="l-toe">
-                <transformation>-0.1225 -0.8645 -0.1575 0 0 0</transformation>
-                <inertia>
-                    <mass>0.418</mass>
-                    <offset>0 0.0 0</offset>
-                </inertia>
-                <visualization_shape>
-                    <transformation>0.0 0.0 -0.028 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.0875 0.098 0.056</size>
-                        </box>
-                    </geometry>
-                </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 -0.028 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.0875 0.098 0.056</size>
+                            <size>0.09625 0.098 0.21</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -192,31 +149,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.077</radius>
-                                <position>0 0.214375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.07</radius>
-                                <position>0 -0.214375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.124 0.42875 0.124</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.077</radius>
-                                <position>0 0.214375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.07</radius>
-                                <position>0 -0.214375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.124 0.42875 0.124</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -229,31 +172,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.200375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.200375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.0955 0.400875 0.0955</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.200375 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.200375 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                        <size>0.0955 0.400875 0.0955</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -267,7 +196,7 @@
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.09625 0.098 -0.21</size>
+                            <size>0.09625 0.098 0.21</size>
                         </box>
                     </geometry>
                 </visualization_shape>
@@ -275,30 +204,7 @@
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.09625 0.098 -0.21</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
-            </body>
-            <body name="r-toe">
-                <transformation>0.1225 -0.8645 -0.1575 0 0 0</transformation>
-                <inertia>
-                    <mass>0.418</mass>
-                    <offset>0 0.0 0</offset>
-                </inertia>
-                <visualization_shape>
-                    <transformation>0.0 0.0 -0.028 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.0875 0.098 0.056</size>
-                        </box>
-                    </geometry>
-                </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 -0.028 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.0875 0.098 0.056</size>
+                            <size>0.09625 0.098 0.21</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -410,31 +316,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.1575 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.1575 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.315 0.1</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.1575 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.1575 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.315 0.1</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -447,31 +339,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.048125</radius>
-                                <position>0 0.126875 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.04375</radius>
-                                <position>0 -0.126875 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.25375 0.1</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.048125</radius>
-                                <position>0 0.126875 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.04375</radius>
-                                <position>0 -0.126875 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.25375 0.1</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -509,31 +387,17 @@
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.1575 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.1575 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.315 0.1</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.05775</radius>
-                                <position>0 0.1575 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.0525</radius>
-                                <position>0 -0.1575 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.315 0.1</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
@@ -546,42 +410,33 @@
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.048125</radius>
-                                <position>0 0.126875 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.04375</radius>
-                                <position>0 -0.126875 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.25375 0.1</size>
+                        </box>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <multi_sphere>
-                            <sphere>
-                                <radius>0.048125</radius>
-                                <position>0 0.126875 0</position>
-                            </sphere>
-                            <sphere>
-                                <radius>0.04375</radius>
-                                <position>0 -0.126875 0</position>
-                            </sphere>
-                        </multi_sphere>
+                        <box>
+                            <size>0.1 0.25375 0.1</size>
+                        </box>
                     </geometry>
                 </collision_shape>
             </body>
 
             <!-- JOINT: Pelvis -->
-            <joint name="j_pelvis" type="free">
+            <joint type="translational" name="j_pelvis">
                 <parent>world</parent>
-                <child>pelvis</child>
-                <init_pos>0 0 0 0 0 0</init_pos>
-                <init_vel>0 0 0 0 0 0</init_vel>
+                <child>pelvis_aux</child>
             </joint>
+
+            <joint type="euler" name="j_pelvis2">
+                <parent>pelvis_aux</parent>
+                <child>pelvis</child>
+                <axis_order>zyx</axis_order>
+            </joint>
+
             <joint name="j_thigh_left" type="euler">
                 <transformation>0.0 0.0 0.0 0.0 0.0 1.570796</transformation>
                 <!-- the above is a workaround since DART don't have Euler in zxy order -->
@@ -592,28 +447,31 @@
                 <axis>
                     <limit>
                         <lower>-1.570796</lower>
-                        <upper>1.570796</upper>
+                        <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.570796</lower>
-                        <upper>1.570796</upper>
+                        <lower>-1.8</lower>
+                        <upper>0.3</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
-                        <lower>-1.570796</lower>
-                        <upper>1.570796</upper>
+                        <lower>0.0</lower>
+                        <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis3>
                 <init_pos>0.0 0.0 0.0</init_pos>
@@ -627,10 +485,11 @@
                     <xyz>-1.0 0.0 0.0</xyz>
                     <limit>
                         <lower>0.0</lower>
-                        <upper>3.14</upper>
+                        <upper>3.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -643,30 +502,27 @@
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.7</lower>
+                        <upper>0.7</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <xyz>0.0 1.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.6</lower>
+                        <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <init_pos>0.0 0.0</init_pos>
                 <init_vel>0 0</init_vel>
-            </joint>
-            <joint name="j_toe_left" type="weld">
-                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>l-foot</parent>
-                <child>l-toe</child>
             </joint>
 
             <joint name="j_thigh_right" type="euler">
@@ -676,29 +532,32 @@
                 <axis_order>zyx</axis_order>
                 <axis>
                     <limit>
-                        <lower>-1.570796</lower>
+                        <lower>0.0</lower>
                         <upper>1.570796</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.570796</lower>
-                        <upper>1.570796</upper>
+                        <lower>-1.8</lower>
+                        <upper>0.3</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
-                        <lower>-1.570796</lower>
-                        <upper>1.570796</upper>
+                        <lower>-0.6</lower>
+                        <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis3>
                 <init_pos>0.0 0.0 0.0</init_pos>
@@ -712,10 +571,11 @@
                     <xyz>-1.0 0.0 0.0</xyz>
                     <limit>
                         <lower>0.0</lower>
-                        <upper>3.14</upper>
+                        <upper>3.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -728,30 +588,27 @@
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.6</lower>
+                        <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <xyz>0.0 -1.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.7</lower>
+                        <upper>0.7</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <init_pos>0.0 0.0</init_pos>
                 <init_vel>0 0</init_vel>
-            </joint>
-            <joint name="j_toe_right" type="weld">
-                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>r-foot</parent>
-                <child>r-toe</child>
             </joint>
 
             <joint name="j_abdomen" type="universal">
@@ -765,7 +622,8 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
@@ -775,7 +633,8 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <init_pos>0 0</init_pos>
@@ -792,38 +651,17 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
-            <joint name="j_head" type="universal">
+            <joint name="j_head" type="weld">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>thorax</parent>
                 <child>head</child>
-                <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
-                    <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>0.1</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <xyz>1.0 0.0 0.0</xyz>
-                    <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>0.1</damping>
-                    </dynamics>
-                </axis2>
-                <init_pos>0 0</init_pos>
-                <init_vel>0 0</init_vel>
             </joint>
 
             <joint name="j_scapula_left" type="weld">
@@ -838,13 +676,23 @@
                 <axis_order>zyx</axis_order>
                 <!-- de facto zxy -->
                 <axis>
+                    <limit>
+                        <lower>-2.09</lower>
+                        <upper>0.0</upper>
+                    </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
+                    <limit>
+                        <lower>-1.4</lower>
+                        <upper>0.4</upper>
+                    </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <axis3>
@@ -854,7 +702,8 @@
                         <upper>1.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis3>
                 <init_pos>0.0 0.0 0.0</init_pos>
@@ -871,7 +720,8 @@
                         <upper>3.14</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -889,23 +739,33 @@
                 <child>r-upperarm</child>
                 <axis_order>zyx</axis_order>
                 <axis>
+                    <limit>
+                        <lower>0.0</lower>
+                        <upper>2.09</upper>
+                    </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
+                    <limit>
+                        <lower>-1.4</lower>
+                        <upper>0.4</upper>
+                    </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
-                        <!-- -60~120 deg -->
                         <lower>-1.0</lower>
                         <upper>2.09</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis3>
                 <init_pos>0.0 0.0 0.0</init_pos>
@@ -922,7 +782,8 @@
                         <upper>3.14</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.1</damping>
+                        <damping>5.0</damping>
+                        <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>

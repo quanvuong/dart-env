@@ -314,6 +314,12 @@ register(
 )
 
 register(
+    id='DartHumanWalker-v1',
+    entry_point='gym.envs.dart:DartHumanWalkerEnv',
+    max_episode_steps=300,
+)
+
+register(
     id='DartWalker3dRestricted-v1',
     entry_point='gym.envs.dart:DartWalker3dRestrictedEnv',
     max_episode_steps=1000,
