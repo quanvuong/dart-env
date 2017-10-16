@@ -202,6 +202,13 @@ register(
     max_episode_steps=1000,
 )
 
+register(
+    id='DartHopperAssist-v1',
+    entry_point='gym.envs.dart:DartHopperAssistEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',
@@ -303,6 +310,12 @@ register(
 register(
     id='DartWalker3d-v1',
     entry_point='gym.envs.dart:DartWalker3dEnv',
+    max_episode_steps=300,
+)
+
+register(
+    id='DartHumanWalker-v1',
+    entry_point='gym.envs.dart:DartHumanWalkerEnv',
     max_episode_steps=300,
 )
 
