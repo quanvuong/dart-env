@@ -22,6 +22,9 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.screenSize = (1080, 720)
         self.renderDARTWorld = False
         self.renderUI = True
+        self.renderDisplacerAccuracy = True
+        self.compoundAccuracy = True
+        self.gravity = True
 
         self.resetRandomPose = True
 
@@ -40,6 +43,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             0.05,   #minimum noise magnitude
             0.1     #maximum noise magnitude
         ]
+        self.cumulativeAccurateMotionR = 0
+        self.cumulativeMotionR = 0
+        self.cumulativeAccurateMotionL = 0
+        self.cumulativeMotionL = 0
 
         #22 dof upper body
         self.action_scale = np.ones(22)*12
@@ -64,7 +71,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
-        
+
+        self.displacerTargets = [[], []]
+        self.displacerActual = [[], []]
+
         #intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
@@ -74,6 +84,11 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         utils.EzPickle.__init__(self)
+
+        if not self.gravity:
+            self.dart_world.set_gravity(np.zeros(3))
+        else:
+            self.dart_world.set_gravity(np.array([0., -9.8, 0]))
         
         #self.clothScene.seedRandom(random.randint(1,1000))
         self.clothScene.setFriction(0, 0.5)
@@ -186,6 +201,28 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         #total reward
         reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement
+
+        #record accuracy
+        if self.renderDisplacerAccuracy and self.useOpenGL:
+            vecR = wRFingertip2 - wRFingertip1
+            dispMagR = np.linalg.norm(vecR)
+            if self.compoundAccuracy and len(self.displacerTargets[0]) > 0:
+                self.displacerTargets[0].append(self.displacerTargets[0][-1] + self.rightDisplacement * dispMagR)
+            else:
+                self.displacerTargets[0].append(wRFingertip1+self.rightDisplacement*dispMagR)
+            self.displacerActual[0].append(wRFingertip2)
+            self.cumulativeMotionR += dispMagR
+            self.cumulativeAccurateMotionR += vecR.dot(self.rightDisplacement)
+
+            vecL = wLFingertip2 - wLFingertip1
+            dispMagL = np.linalg.norm(vecL)
+            if self.compoundAccuracy and len(self.displacerTargets[1]) > 0:
+                self.displacerTargets[1].append(self.displacerTargets[1][-1] + self.leftDisplacement * dispMagL)
+            else:
+                self.displacerTargets[1].append(wLFingertip1 + self.leftDisplacement * dispMagL)
+            self.displacerActual[1].append(wLFingertip2)
+            self.cumulativeMotionL += dispMagL
+            self.cumulativeAccurateMotionL += vecL.dot(self.leftDisplacement)
 
         #compute changes in displacements before the next observation phase
         if self.rightDisplacer_active:
@@ -307,6 +344,13 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             self.torqueGraph.plotData(ydata=initialYData0)
             self.torqueGraph.plotData(ydata=initialYData1)
 
+        self.displacerTargets = [[], []]
+        self.displacerActual = [[], []]
+        self.cumulativeMotionR = 0.00001
+        self.cumulativeAccurateMotionR = 0
+        self.cumulativeMotionL = 0.00001
+        self.cumulativeAccurateMotionL = 0
+
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
@@ -390,6 +434,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawBox(cen=ef,dim=[0.2,0.2,0.2], fill=False)
             else:
                 renderUtils.drawArrow(p0=ef, p1=ef+self.rightDisplacement*0.15, hwRatio=0.15)
+            if self.renderDisplacerAccuracy:
+                renderUtils.setColor(color=[1.0,0,0])
+                renderUtils.drawLineStrip(self.displacerTargets[0])
+                renderUtils.setColor(color=[0.0, 0, 1.0])
+                renderUtils.drawLineStrip(self.displacerActual[0])
+                self.clothScene.drawText(x=15., y=45., text="Disp. Acc. R = " + str(self.cumulativeAccurateMotionR/self.cumulativeMotionR), color=(0., 0, 0))
         if self.leftDisplacer_active:
             renderUtils.setColor(color=[0.0, 0.0, 1.0])
             ef = self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, -0.06, 0.0]))
@@ -397,7 +447,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawBox(cen=ef, dim=[0.2, 0.2, 0.2], fill=False)
             else:
                 renderUtils.drawArrow(p0=ef, p1=ef+self.leftDisplacement*0.15, hwRatio=0.15)
-
+            if self.renderDisplacerAccuracy:
+                renderUtils.setColor(color=[1.0,1.0,0])
+                renderUtils.drawLineStrip(self.displacerTargets[1])
+                renderUtils.setColor(color=[0.0, 1.0, 1.0])
+                renderUtils.drawLineStrip(self.displacerActual[1])
+                self.clothScene.drawText(x=15., y=60., text="Disp. Acc. L = " + str(self.cumulativeAccurateMotionL / self.cumulativeMotionL), color=(0., 0, 0))
 
         if self.renderUI:
             self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))

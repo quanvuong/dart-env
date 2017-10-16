@@ -19,9 +19,13 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2017_10_13_displacer_gravity_noT_randpose"
+    #trial = "experiment_2017_10_13_displacer_nogravity_noT"
+    #trial = "experiment_2017_10_13_displacer_gravity_noT"
+
     #trial = "experiment_2017_10_12_upright_gravity"
     #trial = "experiment_2017_10_12_displacer_gravity"
-    trial = "experiment_2017_10_12_displacer_nogravity"
+    #trial = "experiment_2017_10_12_displacer_nogravity"
     #trial = "experiment_2017_10_12_upreacher_gravity"
 
     #trial = "experiment_2017_09_10_mode7_gripcover"
@@ -75,7 +79,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 40
+        rolloutHorizon = 400
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
