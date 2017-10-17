@@ -103,30 +103,36 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         d = -self.Kd * (self.robot_skeleton.dq[id] - target_dq)
         qddot = invM * (-self.robot_skeleton.c[id] + p + d)
         tau = p + d - self.Kd*(qddot) * self.sim_dt
+        return tau
 
+    def _bodynode_spd(self, bn, kp, dof, target_vel=0.0):
+        self.Kp = kp
+        self.Kd = kp * self.sim_dt
+        if target_vel > 0:
+            self.Kd = self.Kp
+            self.Kp *= 0
+
+        invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        d = -self.Kd * (bn.dC[dof] - target_vel)
+        qddot = invM * (-bn.C[dof] + p + d)
+        tau = p + d - self.Kd * (qddot) * self.sim_dt
         return tau
 
     def do_simulation(self, tau, n_frames):
-        pos_before = self.robot_skeleton.q[0]
-        spdtau = 0
-        spdtau2 = 0
         for _ in range(n_frames):
             if self.constrain_2d:
-                tq = self.robot_skeleton.q
-                tq[2] = 0
-                if _ % 5 == 0:
-                    spdtau = self._spd(tq, 2, self.current_pd)
-                tau[2] = spdtau
-                #print(self.robot_skeleton.q[1], spdtau)
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and not self.hard_enforce:
-                tq2 = self.robot_skeleton.q
-                tq2[0] = pos_before + self.dt * self.target_vel
-                if _ % 5 == 0:
-                    spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
-                    #if np.abs(spdtau2) > self.robot_skeleton.mass() * 9.81 * 5: # limit force to be in 5G
-                    #    spdtau2 = np.sign(spdtau2) * self.robot_skeleton.mass() * 9.81 * 1
-                tau[0] = spdtau2
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 0, self.target_vel)
+                self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 0, self.target_vel)
+                self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
+
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
