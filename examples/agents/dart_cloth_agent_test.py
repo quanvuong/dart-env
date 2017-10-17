@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_10_13_displacer_gravity_noT_randpose"
+    #trial = "experiment_2017_10_13_displacer_gravity_noT_randpose"
     #trial = "experiment_2017_10_13_displacer_nogravity_noT"
     #trial = "experiment_2017_10_13_displacer_gravity_noT"
 
@@ -84,9 +84,9 @@ if __name__ == '__main__':
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(22) #22 dof upper body
+            a = np.zeros(8) #22 dof upper body
             #a = np.ones(22)
-            #a += np.random.uniform(-1,1,22)
+            a += np.random.uniform(-1,1,len(a))
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False

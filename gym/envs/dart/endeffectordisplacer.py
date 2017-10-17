@@ -18,21 +18,38 @@ import OpenGL.GLUT as GLUT
 class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
+
+        #rendering variables
         self.useOpenGL = True
         self.screenSize = (1080, 720)
         self.renderDARTWorld = False
         self.renderUI = True
-        self.renderDisplacerAccuracy = True
+        self.renderDisplacerAccuracy = False
         self.compoundAccuracy = True
-        self.gravity = True
 
+        #sim variables
+        self.gravity = True
         self.resetRandomPose = True
+
+        self.arm = 1 # 0->both, 1->right, 2->left
+        self.actuatedDofs = np.arange(22) # full upper body
+        self.lockedDofs = []
+
+        if self.arm == 1:
+            self.actuatedDofs = np.arange(3, 11) # right arm
+            self.lockedDofs = np.concatenate([np.arange(3), np.arange(11, 22)])
+        elif self.arm == 2:
+            self.actuatedDofs = np.arange(11, 19) # left arm
+            self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
+        #print(self.actuatedDofs)
 
         #task modes
         self.upright_active = False
-        self.rightDisplacer_active = True
-        self.leftDisplacer_active = True
+        self.rightDisplacer_active = False
+        self.leftDisplacer_active = False
         self.upReacher_active = False
+        self.rightTarget_active = True
+        self.leftTarget_active = False
 
         self.rightDisplacement = np.zeros(3) #should be unit vector or 0
         self.leftDisplacement = np.zeros(3) #should be unit vector or 0
@@ -48,24 +65,33 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeAccurateMotionL = 0
         self.cumulativeMotionL = 0
 
-        #22 dof upper body
-        self.action_scale = np.ones(22)*12
-        self.action_scale[0] = 50
-        self.action_scale[1] = 50
+        self.rightTarget = np.zeros(3)
+        self.leftTarget = np.zeros(3)
 
-        self.control_bounds = np.array([np.ones(22), np.ones(22)*-1])
+        #22 dof upper body
+        self.action_scale = np.ones(len(self.actuatedDofs))*12
+        if 0 in self.actuatedDofs:
+            self.action_scale[self.actuatedDofs.tolist().index(0)] = 50
+        if 1 in self.actuatedDofs:
+            self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
+
+        self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
         
         self.reset_number = 0 #debugging
         self.numSteps = 0
 
         self.hapticObs = False
-        observation_size = 66 #q(sin,cos), dq
+        observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
         if self.hapticObs:
-            observation_size += 66
+            observation_size += 66 #TODO: downsize this as necessary
         if self.rightDisplacer_active:
             observation_size += 3
         if self.leftDisplacer_active:
             observation_size += 3
+        if self.rightTarget_active:
+            observation_size += 6
+        if self.leftTarget_active:
+            observation_size += 6
 
         model_path = 'UpperBodyCapsules_v3.skel'
 
@@ -74,6 +100,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         self.displacerTargets = [[], []]
         self.displacerActual = [[], []]
+
+        self.reward=0
 
         #intialize the parent env
         if self.useOpenGL is True:
@@ -134,6 +162,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[6])  # right shoulder to right upperarm
 
+        #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
 
         for i in range(len(self.robot_skeleton.bodynodes)):
@@ -164,8 +193,21 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         #vecL1 = self.target2-wLFingertip1
         
         #apply action and simulate
+        if len(tau) < len(self.robot_skeleton.q):
+            newtau = np.array(tau)
+            tau = np.zeros(len(self.robot_skeleton.q))
+            for ix,dof in enumerate(self.actuatedDofs):
+                tau[dof] = newtau[ix]
         self.do_simulation(tau, self.frame_skip)
-        
+
+        #set position and 0 velocity of locked dofs
+        qpos = self.robot_skeleton.q
+        qvel = self.robot_skeleton.dq
+        for dof in self.lockedDofs:
+            qpos[dof] = 0
+            qvel[dof] = 0
+        self.set_state(qpos, qvel)
+
         wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         #vecR2 = self.target-wRFingertip2
@@ -199,8 +241,20 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             else:
                 reward_displacement += actual_displacement.dot(self.leftDisplacement)
 
+        reward_target = 0
+        if self.rightTarget_active:
+            targetDistR = np.linalg.norm(self.rightTarget-wRFingertip2)
+            reward_target -= targetDistR
+            if targetDistR < 0.01:
+                reward_target += 0.5
+        if self.leftTarget_active:
+            targetDistL = np.linalg.norm(self.leftTarget-wLFingertip2)
+            reward_target -= targetDistL
+            if targetDistL < 0.01:
+                reward_target += 0.5
+
         #total reward
-        reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement
+        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target
 
         #record accuracy
         if self.renderDisplacerAccuracy and self.useOpenGL:
@@ -264,14 +318,14 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         if not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             done = True
-            reward -= 500
+            self.reward -= 500
         elif (clothDeformation > 20):
             done = True
-            reward -= 500
+            self.reward -= 500
         #increment the step counter
         self.numSteps += 1
         
-        return ob, reward, done, {}
+        return ob, self.reward, done, {}
 
     def _get_obs(self):
         f_size = 66
@@ -295,7 +349,14 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             obs = np.concatenate([obs, self.rightDisplacement]).ravel()
         if self.leftDisplacer_active:
             obs = np.concatenate([obs, self.leftDisplacement]).ravel()
-
+        if self.rightTarget_active:
+            shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+            efR = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+            obs = np.concatenate([obs, shoulderR-self.rightTarget, efR-self.rightTarget]).ravel()
+        if self.leftTarget_active:
+            shoulderL = self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))
+            efL = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+            obs = np.concatenate([obs, shoulderL-self.leftTarget, efL-self.leftTarget]).ravel()
         return obs
 
     def reset_model(self):
@@ -327,6 +388,11 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         else:
             self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
 
+        armLength = 0.75
+        if self.rightTarget_active:
+            self.rightTarget = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
+        if self.leftTarget_active:
+            self.leftTarget = self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -427,6 +493,19 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        #render sample range
+        #renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)), rad=0.75, solid=False)
+
+        #render targets
+        if self.rightTarget_active:
+            renderUtils.setColor(color=[1.0,1.0,0])
+            renderUtils.drawSphere(pos=self.rightTarget, rad=0.05)
+            renderUtils.drawLineStrip(points=[self.rightTarget, self.robot_skeleton.bodynodes[8].to_world(np.array([0,-0.06,0]))])
+        if self.leftTarget_active:
+            renderUtils.setColor(color=[0.0, 1.0, 1.0])
+            renderUtils.drawSphere(pos=self.leftTarget, rad=0.05)
+            renderUtils.drawLineStrip(points=[self.leftTarget, self.robot_skeleton.bodynodes[14].to_world(np.array([0, -0.06, 0]))])
+
         if self.rightDisplacer_active:
             renderUtils.setColor(color=[0.0,0.0,1.0])
             ef = self.robot_skeleton.bodynodes[8].to_world(np.array([0.0, -0.06, 0.0]))
@@ -439,7 +518,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawLineStrip(self.displacerTargets[0])
                 renderUtils.setColor(color=[0.0, 0, 1.0])
                 renderUtils.drawLineStrip(self.displacerActual[0])
-                self.clothScene.drawText(x=15., y=45., text="Disp. Acc. R = " + str(self.cumulativeAccurateMotionR/self.cumulativeMotionR), color=(0., 0, 0))
+                self.clothScene.drawText(x=15., y=75., text="Disp. Acc. R = " + str(self.cumulativeAccurateMotionR/self.cumulativeMotionR), color=(0., 0, 0))
         if self.leftDisplacer_active:
             renderUtils.setColor(color=[0.0, 0.0, 1.0])
             ef = self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, -0.06, 0.0]))
@@ -455,7 +534,9 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=15., y=60., text="Disp. Acc. L = " + str(self.cumulativeAccurateMotionL / self.cumulativeMotionL), color=(0., 0, 0))
 
         if self.renderUI:
+            renderUtils.setColor(color=[0.,0,0])
             self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+            self.clothScene.drawText(x=15., y=45., text="Reward = " + str(self.reward), color=(0., 0, 0))
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
