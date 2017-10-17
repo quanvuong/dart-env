@@ -23,7 +23,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
-        self.hard_enforce = False
+        self.hard_enforce = True
         self.treadmill = False
         self.treadmill_vel = -1.0
         self.base_policy = None
@@ -80,6 +80,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         rightlegConstraint.add_to_world(world)'''
 
         self.robot_skeleton.set_self_collision_check(False)
+
+        for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(1)
+        for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(1)
 
         # self.dart_world.set_collision_detector(3)
 
@@ -195,7 +200,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[1] = 1
 
 
-        alive_bonus = 2.0
+        alive_bonus = 2.5
         vel = (posafter - posbefore) / self.dt
         if not self.treadmill:
             vel_rew = 2 * (
@@ -203,7 +208,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = 4e-1 * np.abs(a).sum()
+        action_pen = 3e-1 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - deviation_pen
@@ -215,7 +220,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > -0.3) and (height < 1.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
+                    (height > -0.25) and (height < 1.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
