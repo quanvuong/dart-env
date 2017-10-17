@@ -20,7 +20,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.screenSize = (1080, 720)
         self.renderDARTWorld = False
         self.renderUI = True
@@ -28,7 +28,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.compoundAccuracy = True
 
         #sim variables
-        self.gravity = True
+        self.gravity = False
         self.resetRandomPose = True
 
         self.arm = 1 # 0->both, 1->right, 2->left
@@ -330,12 +330,17 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
     def _get_obs(self):
         f_size = 66
         '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
-        theta = self.robot_skeleton.q
+        theta = np.zeros(len(self.actuatedDofs))
+        dtheta = np.zeros(len(self.actuatedDofs))
+        for ix,dof in enumerate(self.actuatedDofs):
+            theta[ix] = self.robot_skeleton.q[dof]
+            dtheta[ix] = self.robot_skeleton.dq[dof]
+
         fingertip = np.array([0.0, -0.06, 0.0])
         #vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
         #vec2 = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target2
 
-        obs = np.concatenate([np.cos(theta), np.sin(theta), self.robot_skeleton.dq]).ravel()
+        obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
         if self.hapticObs:
             f = None
