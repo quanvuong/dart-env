@@ -23,7 +23,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_vel = 1.0
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = False
+        self.enforce_target_vel = True
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -32,11 +32,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
-        self.constrain_2d = False
+        self.constrain_2d = True
         self.init_balance_pd = 2000.0
-        self.init_vel_pd = 100.0
+        self.init_vel_pd = 200.0
         self.end_balance_pd = 2000.0
-        self.end_vel_pd = 100.0
+        self.end_vel_pd = 200.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -75,7 +75,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 15, obs_dim, self.control_bounds, disableViewer=True)
         else:
             dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
-                                      disableViewer=True)
+                                      disableViewer=True, dt=0.002)
 
         #self.dart_world.set_collision_detector(3)
         self.robot_skeleton.set_self_collision_check(True)
@@ -124,6 +124,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 tq2[0] = pos_before + self.dt * self.target_vel
                 if _ % 5 == 0:
                     spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
+                    #if np.abs(spdtau2) > self.robot_skeleton.mass() * 9.81 * 5: # limit force to be in 5G
+                    #    spdtau2 = np.sign(spdtau2) * self.robot_skeleton.mass() * 9.81 * 1
                 tau[0] = spdtau2
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -224,14 +226,14 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             alive_bonus = 1.0
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = 2*(self.target_vel - np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = 2*(self.target_vel - 1.5*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
             deviation_pen = 3 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - joint_limit_penalty - deviation_pen
+            reward = vel_rew + alive_bonus - action_pen - deviation_pen
         else:
             alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
@@ -263,18 +265,16 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         #if self.conseq_limit_pen > 20:
         #    done = True
 
-        if done:
-            reward = 0
+        #if done:
+        #    reward = 0
+
+        broke_sim = False
+        if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
+            broke_sim = True
 
         ob = self._get_obs()
-
-        foot1_com = self.robot_skeleton.bodynode('h_foot').com()
-        foot2_com = self.robot_skeleton.bodynode('h_foot_left').com()
-        robot_com = self.robot_skeleton.com()
-        com_foot_offset1 = robot_com - foot1_com
-        com_foot_offset2 = robot_com - foot2_com
  
-        return ob, reward, done, {'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates, 'done_return':done, 'dyn_model_id':0, 'state_index':0}
+        return ob, reward, done, {'broke_sim':broke_sim, 'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates, 'done_return':done, 'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([
