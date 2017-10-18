@@ -2,7 +2,7 @@
 <skel version="1.0">
     <world name="world 1">
         <physics>
-            <time_step>0.001</time_step>
+            <time_step>0.002</time_step>
             <gravity>0 -9.8 0</gravity>
             <collision_detector>dart</collision_detector>
         </physics>
@@ -119,7 +119,7 @@
             <body name="l-foot">
                 <transformation>-0.1225 -0.8645 0.0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.684</mass>
+                    <mass>1.684</mass>
                     <offset>0 0.0 0</offset>
                 </inertia>
                 <visualization_shape>
@@ -189,7 +189,7 @@
             <body name="r-foot">
                 <transformation>0.1225 -0.8645 0.0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.684</mass>
+                    <mass>1.684</mass>
                     <offset>0 0.0 0</offset>
                 </inertia>
                 <visualization_shape>
