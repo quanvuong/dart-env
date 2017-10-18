@@ -28,7 +28,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.compoundAccuracy = True
 
         #sim variables
-        self.gravity = False
+        self.gravity = True
         self.resetRandomPose = True
 
         self.arm = 1 # 0->both, 1->right, 2->left
@@ -45,11 +45,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         #task modes
         self.upright_active = False
-        self.rightDisplacer_active = False
+        self.rightDisplacer_active = True
         self.leftDisplacer_active = False
         self.upReacher_active = False
-        self.rightTarget_active = True
+        self.rightTarget_active = False
         self.leftTarget_active = False
+        self.prevTauObs = True #if True, T(t-1) is included in the obs
 
         self.rightDisplacement = np.zeros(3) #should be unit vector or 0
         self.leftDisplacement = np.zeros(3) #should be unit vector or 0
@@ -76,12 +77,15 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
 
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
-        
+        self.prevTau = np.zeros(len(self.actuatedDofs))
+
         self.reset_number = 0 #debugging
         self.numSteps = 0
 
         self.hapticObs = False
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
+        if self.prevTauObs:
+            observation_size += len(self.actuatedDofs)
         if self.hapticObs:
             observation_size += 66 #TODO: downsize this as necessary
         if self.rightDisplacer_active:
@@ -92,6 +96,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6
         if self.leftTarget_active:
             observation_size += 6
+
 
         model_path = 'UpperBodyCapsules_v3.skel'
 
@@ -174,6 +179,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
     def _step(self, a):
         #print("a: " + str(a))
         clamped_control = np.array(a)
+        self.prevTau = np.array(clamped_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -257,7 +263,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target
 
         #record accuracy
-        if self.renderDisplacerAccuracy and self.useOpenGL:
+        if self.renderDisplacerAccuracy and self.useOpenGL and self.numSteps>0:
             vecR = wRFingertip2 - wRFingertip1
             dispMagR = np.linalg.norm(vecR)
             if self.compoundAccuracy and len(self.displacerTargets[0]) > 0:
@@ -341,6 +347,9 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         #vec2 = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target2
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
+
+        if self.prevTauObs:
+            obs = np.concatenate([obs, ])
 
         if self.hapticObs:
             f = None

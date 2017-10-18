@@ -19,6 +19,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2017_10_17_nogravity_reacherR"
+    #trial = "experiment_2017_10_17_gravity_reacherR"
+    #trial = "experiment_2017_10_17_nogravity_displacerR"
+    #trial = "experiment_2017_10_17_gravity_displacerR"
+
     #trial = "experiment_2017_10_13_displacer_gravity_noT_randpose"
     #trial = "experiment_2017_10_13_displacer_nogravity_noT"
     #trial = "experiment_2017_10_13_displacer_gravity_noT"
