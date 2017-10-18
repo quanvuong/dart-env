@@ -47,6 +47,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.upright_active = False
         self.rightDisplacer_active = True
         self.leftDisplacer_active = False
+        self.displacerMod1 = True #temporary switch to modified reward scheme
         self.upReacher_active = False
         self.rightTarget_active = False
         self.leftTarget_active = False
@@ -65,6 +66,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeMotionR = 0
         self.cumulativeAccurateMotionL = 0
         self.cumulativeMotionL = 0
+        self.displacer0TargetR = np.zeros(3) #location of the ef when (0,0,0) task is activated
 
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
@@ -237,7 +239,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         if self.rightDisplacer_active:
             actual_displacement = wRFingertip2 - wRFingertip1
             if np.linalg.norm(self.rightDisplacement) == 0:
-                reward_displacement += -np.linalg.norm(actual_displacement)
+                if self.displacerMod1:
+                    reward_displacement += -np.linalg.norm(wRFingertip2-self.displacer0TargetR)
+                else:
+                    reward_displacement += -np.linalg.norm(actual_displacement)
             else:
                 reward_displacement += actual_displacement.dot(self.rightDisplacement)
         if self.leftDisplacer_active:
@@ -289,6 +294,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             if random.random() < self.displacementParameters[1]: #reset vector
                 if random.random() < self.displacementParameters[0]:
                     self.rightDisplacement = np.zeros(3)
+                    self.displacer0TargetR = np.array(wRFingertip2)
                 else:
                     self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
             elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.rightDisplacement) > 0: #add noise to vector
@@ -395,6 +401,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         if random.random() < self.displacementParameters[0]:
             self.rightDisplacement = np.zeros(3)
+            wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(np.array([0,-0.06,0]))
+            self.displacer0TargetR = np.array(wRFingertip2)
         else:
             self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
         if random.random() < self.displacementParameters[0]:
