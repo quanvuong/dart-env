@@ -179,12 +179,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
     def _step(self, a):
         #print("a: " + str(a))
         clamped_control = np.array(a)
-        self.prevTau = np.array(clamped_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+        self.prevTau = np.array(clamped_control)
         tau = np.multiply(clamped_control, self.action_scale)
 
         if self.reset_number > 0 and self.torqueGraph is not None:
@@ -349,7 +349,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
         if self.prevTauObs:
-            obs = np.concatenate([obs, ])
+            obs = np.concatenate([obs, self.prevTau])
 
         if self.hapticObs:
             f = None
