@@ -20,7 +20,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 41
 
         self.t = 0
-        self.target_vel = 1.0
+        self.target_vel = 4.0
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
@@ -43,7 +43,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
 
         self.local_spd_curriculum = False
-        self.anchor_kp = np.array([2000, 2000])
+        self.anchor_kp = np.array([2000, 200])
         self.curriculum_step_size = 0.1 # 10%
         self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
 
