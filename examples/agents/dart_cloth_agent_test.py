@@ -74,7 +74,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
     #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
     #env = gym.make('DartClothEndEffectorDisplacer-v1') #both arms
-    env = gym.make('DartClothJointLimitsTest-v1')
+    #env = gym.make('DartClothJointLimitsTest-v1')
+    env = gym.make('DartClothUpperBodyDataDriven-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -94,7 +95,8 @@ if __name__ == '__main__':
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(8) #22 dof upper body
+            a = np.zeros(22) #22 dof upper body
+
             #a = np.ones(22)
             a += np.random.uniform(-1,1,len(a))
             if policy is not None:

@@ -15,23 +15,23 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.screenSize = (1080, 720)
-        self.renderDARTWorld = False
+        self.renderDARTWorld = True
         self.renderUI = True
-        self.renderDisplacerAccuracy = True
+        self.renderDisplacerAccuracy = False
         self.compoundAccuracy = True
 
         #sim variables
         self.gravity = True
-        self.resetRandomPose = True
+        self.resetRandomPose = False
 
-        self.arm = 1 # 0->both, 1->right, 2->left
+        self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
         self.lockedDofs = []
 
@@ -104,7 +104,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6
 
 
-        model_path = 'UpperBodyCapsules_v3.skel'
+        #model_path = 'UpperBodyCapsules_v3.skel'
+        model_path = 'UpperBodyCapsules_datadriven.skel'
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
@@ -122,6 +123,17 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
+        skel = self.robot_skeleton
+
+        '''leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
+                                                                            skel.joint('elbowjL'), False)
+        rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_right'),
+                                                                             skel.joint('elbowjR'), True)
+
+        leftarmConstraint.add_to_world(self.dart_world)
+        rightarmConstraint.add_to_world(self.dart_world)'''
+
+
         utils.EzPickle.__init__(self)
 
         if not self.gravity:
@@ -137,8 +149,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.simulateCloth = False
 
         #enable DART collision testing
-        self.robot_skeleton.set_self_collision_check(True)
-        self.robot_skeleton.set_adjacent_body_check(False)
+        #self.robot_skeleton.set_self_collision_check(True)
+        '''self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
         collision_filter = self.dart_world.create_collision_filter()
@@ -172,7 +184,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[12])  # left shoulder to left upperarm
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[6])  # right shoulder to right upperarm
-
+        '''
         #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
 
@@ -181,6 +193,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
+
+        #enable joint limits
+        for i in range(len(self.robot_skeleton.joints)):
+            print(self.robot_skeleton.joints[i])
+        self.robot_skeleton.joints[4].set_position_limit_enforced(True)
+        self.robot_skeleton.joints[9].set_position_limit_enforced(True)
 
     def _getFile(self):
         return __file__
@@ -202,8 +220,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             self.torqueGraph.update()
 
         fingertip = np.array([0.0, -0.06, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         #vecR1 = self.target-wRFingertip1
         #vecL1 = self.target2-wLFingertip1
         
@@ -223,8 +241,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             qvel[dof] = 0
         self.set_state(qpos, qvel)
 
-        wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
         
@@ -385,11 +403,11 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             obs = np.concatenate([obs, self.leftDisplacement]).ravel()
         if self.rightTarget_active:
             shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
-            efR = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             obs = np.concatenate([obs, shoulderR-self.rightTarget, efR-self.rightTarget]).ravel()
         if self.leftTarget_active:
-            shoulderL = self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))
-            efL = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+            shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
             obs = np.concatenate([obs, shoulderL-self.leftTarget, efL-self.leftTarget]).ravel()
         return obs
 
@@ -402,7 +420,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.resetRandomPose:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-2.01, high=2.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
         if self.resetRandomPose:
@@ -415,7 +433,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         if random.random() < self.displacementParameters[0]:
             self.rightDisplacement = np.zeros(3)
-            wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(np.array([0,-0.06,0]))
+            wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.06,0]))
             self.displacer0TargetR = np.array(wRFingertip2)
         else:
             self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
@@ -428,7 +446,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         if self.rightTarget_active:
             self.rightTarget = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
         if self.leftTarget_active:
-            self.leftTarget = self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
+            self.leftTarget = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -462,18 +480,18 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         z = np.array([0.,0,0])
         cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
         cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
-        cs2 = self.robot_skeleton.bodynodes[16].to_world(z)
-        cs3 = self.robot_skeleton.bodynodes[16].to_world(np.array([0,0.175,0]))
+        cs2 = self.robot_skeleton.bodynodes[14].to_world(z)
+        cs3 = self.robot_skeleton.bodynodes[14].to_world(np.array([0,0.175,0]))
         cs4 = self.robot_skeleton.bodynodes[4].to_world(z)
-        cs5 = self.robot_skeleton.bodynodes[6].to_world(z)
-        cs6 = self.robot_skeleton.bodynodes[7].to_world(z)
-        cs7 = self.robot_skeleton.bodynodes[8].to_world(z)
-        cs8 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
-        cs9 = self.robot_skeleton.bodynodes[10].to_world(z)
-        cs10 = self.robot_skeleton.bodynodes[12].to_world(z)
-        cs11 = self.robot_skeleton.bodynodes[13].to_world(z)
-        cs12 = self.robot_skeleton.bodynodes[14].to_world(z)
-        cs13 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
+        cs5 = self.robot_skeleton.bodynodes[5].to_world(z)
+        cs6 = self.robot_skeleton.bodynodes[6].to_world(z)
+        cs7 = self.robot_skeleton.bodynodes[7].to_world(z)
+        cs8 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        cs9 = self.robot_skeleton.bodynodes[9].to_world(z)
+        cs10 = self.robot_skeleton.bodynodes[10].to_world(z)
+        cs11 = self.robot_skeleton.bodynodes[11].to_world(z)
+        cs12 = self.robot_skeleton.bodynodes[12].to_world(z)
+        cs13 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         csVars0 = np.array([0.15, -1, -1, 0,0,0])
         csVars1 = np.array([0.07, -1, -1, 0,0,0])
         csVars2 = np.array([0.1, -1, -1, 0,0,0])
@@ -529,6 +547,10 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        renderUtils.setColor(color=[0.0,0.0,0])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
         #render sample range
         #renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)), rad=0.75, solid=False)
 
@@ -544,7 +566,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
 
         if self.rightDisplacer_active:
             renderUtils.setColor(color=[0.0,0.0,1.0])
-            ef = self.robot_skeleton.bodynodes[8].to_world(np.array([0.0, -0.06, 0.0]))
+            ef = self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.06, 0.0]))
             if np.linalg.norm(self.rightDisplacement) == 0:
                 renderUtils.drawBox(cen=ef,dim=[0.2,0.2,0.2], fill=False)
             else:
@@ -559,7 +581,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
                     self.clothScene.drawText(x=15., y=105., text="Fixed Motion R = " + str(self.cumulativeFixedMotionR/self.cumulativeFixedTimeR), color=(0., 0, 0))
         if self.leftDisplacer_active:
             renderUtils.setColor(color=[0.0, 0.0, 1.0])
-            ef = self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, -0.06, 0.0]))
+            ef = self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.06, 0.0]))
             if np.linalg.norm(self.leftDisplacement) == 0:
                 renderUtils.drawBox(cen=ef, dim=[0.2, 0.2, 0.2], fill=False)
             else:
