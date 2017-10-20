@@ -228,10 +228,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 actuator_pen_multiplier[-j] = 100'''
 
         if self.base_policy is None:
-            alive_bonus = 1.0
+            alive_bonus = 1.5
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = 2*(self.target_vel - 1.5*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = 2*(1.0 - 1.0*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
