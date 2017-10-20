@@ -96,6 +96,7 @@ if __name__ == '__main__':
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
             a = np.zeros(22) #22 dof upper body
+
             #a = np.ones(22)
             a += np.random.uniform(-1,1,len(a))
             if policy is not None:

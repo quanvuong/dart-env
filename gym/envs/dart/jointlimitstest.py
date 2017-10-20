@@ -31,16 +31,19 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
         self.gravity = True
         self.resetRandomPose = False
 
-        self.arm = 0 # 0->both, 1->right, 2->left
+        self.arm = 3 # 0->all, 1->right, 2->left, 3->both
         self.actuatedDofs = np.arange(31) # full upper body
         self.lockedDofs = []
 
-        if self.arm == 1:
-            self.actuatedDofs = np.arange(3, 11) # right arm
-            self.lockedDofs = np.concatenate([np.arange(3), np.arange(11, 22)])
-        elif self.arm == 2:
-            self.actuatedDofs = np.arange(11, 19) # left arm
-            self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
+        if self.arm == 2:
+            self.actuatedDofs = np.arange(23, 27) # left arm
+            self.lockedDofs = np.concatenate([np.arange(23), np.arange(27, 31)])
+        elif self.arm == 1:
+            self.actuatedDofs = np.arange(27, 31) # right arm
+            self.lockedDofs = np.concatenate([np.arange(27)])
+        elif self.arm == 3:
+            self.actuatedDofs = np.arange(23, 31) # both arms only
+            self.lockedDofs = np.concatenate([np.arange(23)])
         #print(self.actuatedDofs)
 
         #task modes
@@ -199,6 +202,12 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
 
+        print("joint limits enforced?")
+        for i in range(len(self.robot_skeleton.joints)):
+            print(str(self.robot_skeleton.joints[i]) + ": " + str(self.robot_skeleton.joints[i].is_position_limit_enforced()) )
+        self.robot_skeleton.joints[16].set_position_limit_enforced(True)
+        self.robot_skeleton.joints[13].set_position_limit_enforced(True)
+
     def _getFile(self):
         return __file__
 
@@ -218,8 +227,8 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
             self.torqueGraph.yData[1][self.numSteps - 1] = tau[1]
             self.torqueGraph.update()
 
-        fingertip = np.array([0.0, -0.06, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        fingertip = np.array([0.0, -0.2, 0.0])
+        wRFingertip1 = self.robot_skeleton.bodynodes[17].to_world(fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         #vecR1 = self.target-wRFingertip1
         #vecL1 = self.target2-wLFingertip1
@@ -240,7 +249,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
             qvel[dof] = 0
         self.set_state(qpos, qvel)
 
-        wRFingertip2 = self.robot_skeleton.bodynodes[8].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[17].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[14].to_world(fingertip)
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
@@ -379,7 +388,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.06, 0.0])
+        fingertip = np.array([0.0, -0.2, 0.0])
         #vec = self.robot_skeleton.bodynodes[8].to_world(fingertip) - self.target
         #vec2 = self.robot_skeleton.bodynodes[14].to_world(fingertip) - self.target2
 
@@ -545,6 +554,11 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #render inner arm indicators
+        renderUtils.setColor(color=[0.0,0.0,0])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[16].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[16].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[13].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[13].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render sample range
         #renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)), rad=0.75, solid=False)
