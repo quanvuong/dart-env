@@ -34,9 +34,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.conseq_limit_pen = 0 # number of steps lying on the wall
         self.constrain_2d = True
         self.init_balance_pd = 2000.0
-        self.init_vel_pd = 200.0
+        self.init_vel_pd = 2000.0
         self.end_balance_pd = 2000.0
-        self.end_vel_pd = 200.0
+        self.end_vel_pd = 2000.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -124,14 +124,14 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
-                self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and not self.hard_enforce:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 0, self.target_vel)
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 0, self.target_vel)
-                self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.vel_enforce_kp, 0, self.target_vel)
+                #self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
 
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -178,6 +178,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd + (self.end_balance_pd - self.init_balance_pd)/self.pd_vary_end*pos_val
         self.vel_enforce_kp = self.init_vel_pd + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end*pos_val
         #print(self.current_pd)
+        #if int(self.t/0.5)%2==1:
+        #    self.vel_enforce_kp = 0
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
@@ -229,10 +231,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 actuator_pen_multiplier[-j] = 100'''
 
         if self.base_policy is None:
-            alive_bonus = 1.0
+            alive_bonus = 1.5
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = 2*(self.target_vel - 1.5*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = 2*(1.0 - 1.0*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
             else:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()

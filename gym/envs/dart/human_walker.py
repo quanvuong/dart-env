@@ -33,9 +33,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.conseq_limit_pen = 0  # number of steps lying on the wall
         self.constrain_2d = True
         self.init_balance_pd = 2000.0
-        self.init_vel_pd = 200.0
+        self.init_vel_pd = 2000.0
         self.end_balance_pd = 2000.0
-        self.end_vel_pd = 200.0
+        self.end_vel_pd = 2000.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -129,19 +129,19 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
-                self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
-                '''tq = self.robot_skeleton.q
-                tq[2] = 0
-                if _ % 5 == 0:
-                    spdtau = self._spd(tq, 2, self.current_pd)
-                tau[2] = spdtau'''
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
+                #tq = self.robot_skeleton.q
+                #tq[2] = 0
+                #if _ % 5 == 0:
+                #    spdtau = self._spd(tq, 2, self.current_pd)
+                #tau[2] = spdtau
 
             if self.enforce_target_vel and not self.hard_enforce:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 0, self.target_vel)
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([force, 0, 0]))
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 0, self.target_vel)
-                self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0, self.target_vel)
+                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
                 '''tq2 = self.robot_skeleton.q
                 tq2[0] = pos_before + self.dt * self.target_vel
                 if _ % 5 == 0:
@@ -215,15 +215,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[1] = 1
 
 
-        alive_bonus = 1.0
+        alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
         if not self.treadmill:
-            vel_rew = 2 * (
-            self.target_vel - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
+            vel_rew = 2 * ( - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = 0.5 * np.abs(a).sum()
+        action_pen = 0.3 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - deviation_pen
@@ -235,7 +234,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height-self.init_height > -0.25) and (height - self.init_height < 1.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
+                    (height-self.init_height > -0.2) and (height - self.init_height < 1.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
