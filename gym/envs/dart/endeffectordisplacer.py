@@ -20,7 +20,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.screenSize = (1080, 720)
         self.renderDARTWorld = False
         self.renderUI = True
@@ -402,7 +402,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.resetRandomPose:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-2.01, high=2.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
 
         if self.resetRandomPose:
