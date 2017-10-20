@@ -267,6 +267,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         if self.geoVecInObs:
             observation_size += 3
 
+        self.hapticSensorNodes = []
+        self.hapticSensorOffsets = []
+
         #intialize the parent env
         model_path = 'UpperBodyCapsules_collisiontest.skel'
         if self.gripperCover:
@@ -836,6 +839,22 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo)
             
         if hapticSensors is True:
+            if len(self.hapticSensorNodes) == 0: #if this is the first call, setup dual coupling data-structures
+                self.hapticSensorNodes = [1,2,16,16,4,4,4,6,6,6,7,8,10,10,10,12,12,12,13,14,14]
+                self.hapticSensorOffsets = [z,z,z,np.array([0,0.175,0]),z,
+                                            self.robot_skeleton.bodynodes[4].to_local(LERP(cs4, cs5, 0.33)),
+                                            self.robot_skeleton.bodynodes[4].to_local(LERP(cs4, cs5, 0.66)),
+                                            z,
+                                            self.robot_skeleton.bodynodes[6].to_local(LERP(cs5, cs6, 0.33)),
+                                            self.robot_skeleton.bodynodes[6].to_local(LERP(cs5, cs6, 0.66)),
+                                            z,z,fingertip,z,
+                                            self.robot_skeleton.bodynodes[10].to_local(LERP(cs9, cs10, 0.33)),
+                                            self.robot_skeleton.bodynodes[10].to_local(LERP(cs9, cs10, 0.66)),
+                                            z,
+                                            self.robot_skeleton.bodynodes[12].to_local(LERP(cs10, cs11, 0.33)),
+                                            self.robot_skeleton.bodynodes[12].to_local(LERP(cs10, cs11, 0.66)),
+                                            z,z,fingertip
+                                            ]
             hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
 
@@ -1208,6 +1227,17 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=1)
 
         print("done")
+
+    def applyClothForcesToSkel(self):
+        #apply all cumulative force sensor values to the DART skeleton
+        if len(self.hapticSensorNodes) == 0:
+            return
+        HSF = self.clothScene.getHapticSensorObs()
+        for i in range(int(len(HSF)/3)):
+            f = HSF[i * 3: i * 3 + 3]
+            node = self.robot_skeleton.bodynodes[self.hapticSensorNodes[i]]
+            offset = self.hapticSensorOffsets[i]
+
 
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

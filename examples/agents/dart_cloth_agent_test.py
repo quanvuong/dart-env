@@ -73,8 +73,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGrippedTshirt-v1') #no spline
     #env = gym.make('DartClothGrippedTshirt-v2') #1st arm
     #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
-    env = gym.make('DartClothEndEffectorDisplacer-v1') #both arms
+    #env = gym.make('DartClothEndEffectorDisplacer-v1') #both arms
     #env = gym.make('DartClothJointLimitsTest-v1')
+    env = gym.make('DartClothUpperBodyDataDriven-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -89,14 +90,14 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 50
+        rolloutHorizon = 400
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(8) #22 dof upper body
+            a = np.zeros(22) #22 dof upper body
             #a = np.ones(22)
-            #a += np.random.uniform(-1,1,len(a))
+            a += np.random.uniform(-1,1,len(a))
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
