@@ -125,13 +125,13 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
 
         skel = self.robot_skeleton
 
-        '''leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
+        leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
                                                                             skel.joint('elbowjL'), False)
         rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_right'),
                                                                              skel.joint('elbowjR'), True)
 
         leftarmConstraint.add_to_world(self.dart_world)
-        rightarmConstraint.add_to_world(self.dart_world)'''
+        rightarmConstraint.add_to_world(self.dart_world)
 
 
         utils.EzPickle.__init__(self)

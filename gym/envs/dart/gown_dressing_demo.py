@@ -1237,7 +1237,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             f = HSF[i * 3: i * 3 + 3]
             node = self.robot_skeleton.bodynodes[self.hapticSensorNodes[i]]
             offset = self.hapticSensorOffsets[i]
-            
+
 
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t
