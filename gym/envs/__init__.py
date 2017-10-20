@@ -381,6 +381,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothJointLimitsTest-v1',
+    entry_point='gym.envs.dart:DartClothJointLimitsTestEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

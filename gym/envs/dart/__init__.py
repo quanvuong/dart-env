@@ -26,6 +26,8 @@ from gym.envs.dart.gripped_tshirt_demo import DartClothGrippedTshirtEnv
 from gym.envs.dart.gripped_tshirt_targetspline import DartClothGrippedTshirtSplineEnv
 from gym.envs.dart.gripped_tshirt_targetspline_2ndarm import DartClothGrippedTshirtSpline2ndArmEnv
 from gym.envs.dart.endeffectordisplacer import DartClothEndEffectorDisplacerEnv
+from gym.envs.dart.jointlimitstest import DartClothJointLimitsTestEnv
+
 
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv

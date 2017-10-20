@@ -15,24 +15,24 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
+class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
         self.useOpenGL = True
         self.screenSize = (1080, 720)
-        self.renderDARTWorld = False
+        self.renderDARTWorld = True
         self.renderUI = True
-        self.renderDisplacerAccuracy = True
+        self.renderDisplacerAccuracy = False
         self.compoundAccuracy = True
 
         #sim variables
         self.gravity = True
-        self.resetRandomPose = True
+        self.resetRandomPose = False
 
-        self.arm = 1 # 0->both, 1->right, 2->left
-        self.actuatedDofs = np.arange(22) # full upper body
+        self.arm = 0 # 0->both, 1->right, 2->left
+        self.actuatedDofs = np.arange(31) # full upper body
         self.lockedDofs = []
 
         if self.arm == 1:
@@ -104,7 +104,8 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6
 
 
-        model_path = 'UpperBodyCapsules_v3.skel'
+        #model_path = 'UpperBodyCapsules_v3.skel'
+        model_path = 'kima/kima_human_edited.skel'
 
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
@@ -122,6 +123,22 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
+        skel = self.robot_skeleton
+        '''leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
+                                                                            skel.joint('j_forearm_left'), False)
+        rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_right'),
+                                                                             skel.joint('j_forearm_right'), True)
+        leftlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(skel.joint('j_thigh_left'),
+                                                                            skel.joint('j_shin_left'),
+                                                                            skel.joint('j_heel_left'), False)
+        rightlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(skel.joint('j_thigh_right'),
+                                                                             skel.joint('j_shin_right'),
+                                                                             skel.joint('j_heel_right'), True)
+        leftarmConstraint.add_to_world(self.dart_world)
+        rightarmConstraint.add_to_world(self.dart_world)
+        leftlegConstraint.add_to_world(self.dart_world)
+        rightlegConstraint.add_to_world(self.dart_world)'''
+
         utils.EzPickle.__init__(self)
 
         if not self.gravity:
@@ -132,12 +149,12 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         #self.clothScene.seedRandom(random.randint(1,1000))
         self.clothScene.setFriction(0, 0.5)
         
-        self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
+        #self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
         self.simulateCloth = False
 
         #enable DART collision testing
-        self.robot_skeleton.set_self_collision_check(True)
+        #self.robot_skeleton.set_self_collision_check(True)
         self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
@@ -332,7 +349,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
         s = self.state_vector()
         
         #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
+        #self.updateClothCollisionStructures(hapticSensors=True)
         
         #check cloth deformation for termination
         clothDeformation = 0
@@ -431,7 +448,7 @@ class DartClothEndEffectorDisplacerEnv(DartClothEnv, utils.EzPickle):
             self.leftTarget = self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
 
         #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
+        #self.updateClothCollisionStructures(hapticSensors=True)
         self.clothScene.clearInterpolation()
 
         #debugging
