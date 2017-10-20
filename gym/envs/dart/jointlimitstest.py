@@ -155,7 +155,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
 
         #enable DART collision testing
         #self.robot_skeleton.set_self_collision_check(True)
-        self.robot_skeleton.set_adjacent_body_check(False)
+        '''self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
         collision_filter = self.dart_world.create_collision_filter()
@@ -189,7 +189,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[12])  # left shoulder to left upperarm
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[6])  # right shoulder to right upperarm
-
+        '''
         #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
 
