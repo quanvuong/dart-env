@@ -32,10 +32,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0  # number of steps lying on the wall
         self.constrain_2d = True
-        self.init_balance_pd = 2000.0
-        self.init_vel_pd = 2000.0
-        self.end_balance_pd = 2000.0
-        self.end_vel_pd = 2000.0
+        self.init_balance_pd = 6000.0
+        self.init_vel_pd = 3000.0
+        self.end_balance_pd = 6000.0
+        self.end_vel_pd = 3000.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -129,8 +129,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
-                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
                 # tq = self.robot_skeleton.q
                 # tq[2] = 0
                 # if _ % 5 == 0:
@@ -173,12 +173,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
-        pre_state = [self.state_vector()]
-
-        posbefore = self.robot_skeleton.bodynodes[1].com()[0]
+        posbefore = self.robot_skeleton.bodynode('thorax').com()[0]
         self.advance(np.copy(a))
 
-        posafter = self.robot_skeleton.bodynodes[1].com()[0]
+        posafter = self.robot_skeleton.bodynode('thorax').com()[0]
         height = self.robot_skeleton.bodynode('head').com()[1]
         side_deviation = self.robot_skeleton.bodynode('head').com()[2]
         angle = self.robot_skeleton.q[3]
@@ -203,7 +201,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
-        self_colliding = False
         self.contact_info = np.array([0, 0])
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
@@ -235,7 +232,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height-self.init_height > -0.2) and (height - self.init_height < 1.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
+                    (height-self.init_height > -0.2) and (height - self.init_height < 1.0) and (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
@@ -243,8 +240,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # if self.conseq_limit_pen > 20:
         #    done = True
 
-        if done:
-            reward = 0
+        #if done:
+        #    reward = 0
 
         ob = self._get_obs()
 
