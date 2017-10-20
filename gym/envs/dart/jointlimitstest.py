@@ -124,7 +124,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         skel = self.robot_skeleton
-        '''leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
+        leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
                                                                             skel.joint('j_forearm_left'), False)
         rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_right'),
                                                                              skel.joint('j_forearm_right'), True)
@@ -137,7 +137,7 @@ class DartClothJointLimitsTestEnv(DartClothEnv, utils.EzPickle):
         leftarmConstraint.add_to_world(self.dart_world)
         rightarmConstraint.add_to_world(self.dart_world)
         leftlegConstraint.add_to_world(self.dart_world)
-        rightlegConstraint.add_to_world(self.dart_world)'''
+        rightlegConstraint.add_to_world(self.dart_world)
 
         utils.EzPickle.__init__(self)
 
