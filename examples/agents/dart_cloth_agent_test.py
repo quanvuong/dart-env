@@ -94,7 +94,7 @@ if __name__ == '__main__':
         if paused is True:
             rolloutHorizon = 10000
         for j in range(rolloutHorizon):
-            a = np.zeros(31) #22 dof upper body
+            a = np.zeros(8) #22 dof upper body
             #a = np.ones(22)
             a += np.random.uniform(-1,1,len(a))
             if policy is not None:
