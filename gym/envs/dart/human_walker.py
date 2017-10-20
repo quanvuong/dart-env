@@ -33,9 +33,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.conseq_limit_pen = 0  # number of steps lying on the wall
         self.constrain_2d = True
         self.init_balance_pd = 2000.0
-        self.init_vel_pd = 200.0
+        self.init_vel_pd = 2000.0
         self.end_balance_pd = 2000.0
-        self.end_vel_pd = 200.0
+        self.end_vel_pd = 2000.0
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -106,25 +106,46 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         return tau
 
+    def _bodynode_spd(self, bn, kp, dof, target_vel=0.0):
+        self.Kp = kp
+        self.Kd = kp * self.sim_dt
+        if target_vel > 0:
+            self.Kd = self.Kp
+            self.Kp *= 0
+
+        invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        d = -self.Kd * (bn.dC[dof] - target_vel)
+        qddot = invM * (-bn.C[dof] + p + d)
+        tau = p + d - self.Kd * (qddot) * self.sim_dt
+
+        return tau
+
     def do_simulation(self, tau, n_frames):
-        pos_before = self.robot_skeleton.q[0]
-        spdtau = 0
-        spdtau2 = 0
         for _ in range(n_frames):
             if self.constrain_2d:
-                tq = self.robot_skeleton.q
-                tq[2] = 0
-                if _ % 5 == 0:
-                    spdtau = self._spd(tq, 2, self.current_pd)
-                tau[2] = spdtau
-                # print(self.robot_skeleton.q[1], spdtau)
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
+                # tq = self.robot_skeleton.q
+                # tq[2] = 0
+                # if _ % 5 == 0:
+                #    spdtau = self._spd(tq, 2, self.current_pd)
+                # tau[2] = spdtau
 
             if self.enforce_target_vel and not self.hard_enforce:
-                tq2 = self.robot_skeleton.q
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.vel_enforce_kp, 0,
+                                           self.target_vel)
+                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([force, 0, 0]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0,
+                 #                          self.target_vel)
+                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
+                '''tq2 = self.robot_skeleton.q
                 tq2[0] = pos_before + self.dt * self.target_vel
                 if _ % 5 == 0:
                     spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
-                tau[0] = spdtau2
+                tau[0] = spdtau2'''
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
