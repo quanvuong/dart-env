@@ -19,7 +19,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.0
+        self.target_vel = 1.5
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
@@ -220,7 +220,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = 0.3 * np.abs(a).sum()
+        action_pen = 0.4 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
         reward = vel_rew + alive_bonus - action_pen - deviation_pen
