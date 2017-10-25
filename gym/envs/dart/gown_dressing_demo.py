@@ -24,9 +24,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
         self.useOpenGL = True
-        self.screenSize = (540, 720)
+        #self.screenSize = (540, 720)
+        self.screenSize = (1080,720)
         self.renderDARTWorld = False
-        self.renderUI = False
+        self.renderUI = True
         self.drawDebuggingBoxes = False
         self.target = np.array([0.8, -0.6, 0.6])
         self.targetInObs = True
@@ -270,6 +271,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.hapticSensorNodes = []
         self.hapticSensorOffsets = []
 
+        self.prevTime = time.time()
+        self.totalTime = 0
+
         #intialize the parent env
         model_path = 'UpperBodyCapsules_collisiontest.skel'
         if self.gripperCover:
@@ -363,6 +367,10 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.loadObjState("objState", 0)
 
     def _step(self, a):
+        if self.numSteps > 1:
+            self.totalTime += (time.time() - self.prevTime)
+            #print(self.totalTime)
+        self.prevTime = time.time()
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -560,6 +568,7 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         '''reset_model'''
+        self.totalTime = 0
         self.numSteps = 0
         self.maxDeformation = 0.0
         self.dart_world.reset()
@@ -928,7 +937,9 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             renderUtils.drawBox(cen=self.handleNode.org, dim=np.array([0.125,0.025,0.1]))
 
         if self.renderUI:
-            self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+            if self.totalTime > 0:
+                self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps / self.totalTime), color=(0., 0, 0))
+            #self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps), color=(0., 0, 0))
 
         if self.renderObs:
             self.renderObservation()
@@ -1063,8 +1074,8 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.drawText(x=360, y=self.viewer.viewport[3] - 25,
                                     text="Arm progress = " + str(self.arm_progress),
                                     color=(0., 0, 0))
-            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60,
-                                        progress=self.arm_progress, color=[0.0, 3.0, 0])
+            #renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.arm_progress, color=[0.0, 3.0, 0])
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.armSleeveProgress(), color=[0.0, 3.0, 0])
 
         #self.CP0Feature.drawProjectionPoly(renderPoints=True, renderNormal=False, fillColor=[0.75, 0.2, 0.2])
 
@@ -1216,6 +1227,13 @@ class DartClothGownDemoEnv(DartClothEnv, utils.EzPickle):
             armProgress = -intersection_depth
             for i in range(intersection_ix + 1):
                 armProgress += np.linalg.norm(limblines[i][1] - limblines[i][0])
+
+        limb = []
+        for ix in range(len(limblines)):
+            limb.append(limblines[-(ix+1)][1])
+        armProgress2 = pyutils.limbFeatureProgress(limb, self.CP0Feature)
+
+        print("New metric: " + str(armProgress2) + " | Old Metric " + str(armProgress))
 
         return armProgress
 

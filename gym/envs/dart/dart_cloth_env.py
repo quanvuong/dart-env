@@ -8,6 +8,7 @@ import numpy as np
 from os import path
 import gym
 import six
+import time
 from gym import utils
 
 from gym.envs.dart.dart_env import *

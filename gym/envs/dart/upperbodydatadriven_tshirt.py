@@ -10,17 +10,19 @@ import math
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
 import pyPhysX.renderUtils
+import pyPhysX.meshgraph as meshgraph
+from pyPhysX.clothfeature import *
 
 import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.screenSize = (1080, 720)
         self.renderDARTWorld = True
         self.renderUI = True
@@ -34,14 +36,17 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
         self.lockedDofs = []
+        self.limbNodesR = [3, 4, 5, 6, 7]
+        self.limbNodesL = [8, 9, 10, 11, 12]
+        self.efOffset = np.array([0,-0.06,0])
 
         if self.arm == 1:
             self.actuatedDofs = np.arange(3, 11) # right arm
             self.lockedDofs = np.concatenate([np.arange(3), np.arange(11, 22)])
+
         elif self.arm == 2:
             self.actuatedDofs = np.arange(11, 19) # left arm
             self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
-        #print(self.actuatedDofs)
 
         #task modes
         self.upright_active = False
@@ -108,16 +113,19 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
         model_path = 'UpperBodyCapsules_datadriven.skel'
 
         #create cloth scene
-        clothScene = pyphysx.ClothScene(step=0.01, sheet=True, sheetW=60, sheetH=15, sheetSpacing=0.025)
+        clothScene = pyphysx.ClothScene(step=0.01,
+                                        mesh_path=self.prefix + "/assets/tshirt_m.obj",
+                                        state_path=self.prefix + "/../../../../tshirt_regrip3.obj",
+                                        scale=1.4)
 
-        '''clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path=self.prefix + "/assets/fullgown1.obj",
-                                        # mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/fullgown1.obj",
-                                        # mesh_path="/home/alexander/Documents/dev/dart-env/gym/envs/dart/assets/tshirt_m.obj",
-                                        # state_path="/home/alexander/Documents/dev/1stSleeveState.obj",
-                                        state_path=self.prefix + "/../../../../hanginggown.obj",
-                                        scale=1.3)'''
+        #clothScene.togglePinned(0, 0)  # turn off auto-pin
 
+        self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+
+        #TODO: add other sleeve and check/rename this
+        self.CP0Feature = ClothFeature(
+            verts=[413, 1932, 1674, 1967, 475, 1517, 828, 881, 1605, 804, 1412, 1970, 682, 469, 155, 612, 1837, 531],
+            clothScene=clothScene)
 
         self.displacerTargets = [[], []]
         self.displacerActual = [[], []]
@@ -135,16 +143,11 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
-        skel = self.robot_skeleton
-
-        leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
-                                                                            skel.joint('elbowjL'), False)
-        rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_right'),
-                                                                             skel.joint('elbowjR'), True)
-
+        #setup data-driven joint limits
+        leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), False)
+        rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), True)
         leftarmConstraint.add_to_world(self.dart_world)
         rightarmConstraint.add_to_world(self.dart_world)
-
 
         utils.EzPickle.__init__(self)
 
@@ -158,7 +161,7 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
-        self.simulateCloth = False
+        self.simulateCloth = True
 
         #enable DART collision testing
         self.robot_skeleton.set_self_collision_check(True)
@@ -166,10 +169,6 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
 
         #setup collision filtering
         collision_filter = self.dart_world.create_collision_filter()
-        '''collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[4],
-                                           self.robot_skeleton.bodynodes[6])  # right forearm to upper-arm
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
-                                           self.robot_skeleton.bodynodes[12])  # left forearm to upper-arm'''
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
                                            self.robot_skeleton.bodynodes[12])  # left forearm to fingers
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
@@ -192,10 +191,6 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[8])  # head to left shoulder
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
-        '''collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[9],
-                                           self.robot_skeleton.bodynodes[12])  # left shoulder to left upperarm
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
-                                           self.robot_skeleton.bodynodes[6])  # right shoulder to right upperarm'''
 
         #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
@@ -209,6 +204,8 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
         #enable joint limits
         for i in range(len(self.robot_skeleton.joints)):
             print(self.robot_skeleton.joints[i])
+
+        #DART does not automatically limit joints with any unlimited dofs
         self.robot_skeleton.joints[4].set_position_limit_enforced(True)
         self.robot_skeleton.joints[9].set_position_limit_enforced(True)
 
@@ -433,8 +430,8 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeReward = 0
         self.dart_world.reset()
         self.clothScene.reset()
-        #self.clothScene.translateCloth(0, np.array([-0, 1.0, 0]))
-        self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
+        self.clothScene.translateCloth(0, np.array([-0, 1.0, 0]))
+        #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.resetRandomPose:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
@@ -615,7 +612,7 @@ class DartClothUpperBodyDataDrivenEnv(DartClothEnv, utils.EzPickle):
 
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
-            if self.numSteps > 0:
+            if self.totalTime > 0:
                 self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps/self.totalTime), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=45., text="Reward = " + str(self.reward), color=(0., 0, 0))
             if self.numSteps > 0:

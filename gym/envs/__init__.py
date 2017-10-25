@@ -393,6 +393,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenTshirt-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenTshirtEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

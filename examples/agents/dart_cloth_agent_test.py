@@ -75,7 +75,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGrippedTshirt-v3') #2nd arm
     #env = gym.make('DartClothEndEffectorDisplacer-v1') #both arms
     #env = gym.make('DartClothJointLimitsTest-v1')
-    env = gym.make('DartClothUpperBodyDataDriven-v1')
+    #env = gym.make('DartClothGownDemo-v1')
+    #env = gym.make('DartClothUpperBodyDataDriven-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -94,15 +96,16 @@ if __name__ == '__main__':
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
+        startTime = time.time()
         for j in range(rolloutHorizon):
             a = np.zeros(22) #22 dof upper body
 
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,len(a))
+            #a += np.random.uniform(-1,1,len(a))
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
-            if not paused:
+            if not paused or j==0:
                 s_info = env.step(a)
                 o = s_info[0]
                 done = s_info[2]
@@ -111,7 +114,11 @@ if __name__ == '__main__':
             if done is True:
                 time.sleep(0.5)
                 break
-            #if j == rolloutHorizon-1:
+            if j == rolloutHorizon-1:
+                #print("startTime = " + str(startTime))
+                #print("endTime = " + str(time.time()))
+                #print("totalTime = " + str(time.time()-startTime))
+                print("framerate = " + str(rolloutHorizon/(time.time()-startTime)))
             #    print("Time terminate")
             #paused = True
     env.render(close=True)
