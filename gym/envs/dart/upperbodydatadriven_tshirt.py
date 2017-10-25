@@ -32,7 +32,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = False
         self.resetRandomPose = False
-        self.dataDrivenJointLimts = False
+        self.dataDrivenJointLimts = True
         simulateCloth = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
@@ -91,6 +91,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
         self.prevTau = np.zeros(len(self.actuatedDofs))
+        self.prevPose = np.zeros(len(self.actuatedDofs))
 
         self.reset_number = 0 #debugging
         self.numSteps = 0
@@ -228,6 +229,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
         self.prevTau = np.array(clamped_control)
+        self.prevPose = np.array(self.robot_skeleton.q)
         tau = np.multiply(clamped_control, self.action_scale)
 
         if self.reset_number > 0 and self.torqueGraph is not None:
@@ -377,14 +379,19 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         done = False
         if not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
+            print("reward: " + str(self.reward))
+            print("prevT: " + str(self.prevTau))
+            print("prevQ: " + str(self.prevPose))
+            print("obs: " + str(ob))
             done = True
-            self.reward -= 500
+            self.reward = -500
+            ob = np.zeros(len(ob))
         elif (clothDeformation > 20):
             done = True
             self.reward -= 500
         #increment the step counter
         self.numSteps += 1
-        
+
         return ob, self.reward, done, {}
 
     def _get_obs(self):
