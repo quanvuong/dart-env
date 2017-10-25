@@ -102,7 +102,7 @@ if __name__ == '__main__':
             a = np.zeros(22) #22 dof upper body
 
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,len(a))
+            #a += np.random.uniform(-1,1,len(a))
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
@@ -113,6 +113,7 @@ if __name__ == '__main__':
                 #print(o)
             env.render()
             if done is True:
+                print("killed at step " + str(j))
                 time.sleep(0.5)
                 break
             if j == rolloutHorizon-1:
