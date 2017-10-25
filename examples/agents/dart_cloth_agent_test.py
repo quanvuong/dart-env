@@ -86,6 +86,7 @@ if __name__ == '__main__':
     print("about to run")
     paused = False
     time.sleep(0.5)
+    cumulativeFPS = 0
     for i in range(10000):
         o = env.reset()
         #envFilename = env.getFile()
@@ -118,7 +119,9 @@ if __name__ == '__main__':
                 #print("startTime = " + str(startTime))
                 #print("endTime = " + str(time.time()))
                 #print("totalTime = " + str(time.time()-startTime))
+                cumulativeFPS += rolloutHorizon/(time.time()-startTime)
                 print("framerate = " + str(rolloutHorizon/(time.time()-startTime)))
+                print("average FPS: " + str(cumulativeFPS/(i+1)))
                 print("total rollout time: " + str(time.time()-startTime))
             #    print("Time terminate")
             #paused = True
