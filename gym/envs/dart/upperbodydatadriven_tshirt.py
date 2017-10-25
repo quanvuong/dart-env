@@ -32,8 +32,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = False
         self.resetRandomPose = False
-        self.dataDrivenJointLimts = True
-        simulateCloth = True
+        self.dataDrivenJointLimts = False
+        simulateCloth = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
