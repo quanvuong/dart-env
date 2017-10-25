@@ -87,6 +87,7 @@ if __name__ == '__main__':
     paused = False
     time.sleep(0.5)
     cumulativeFPS = 0
+    completedRollouts = 0 #counts rollouts which were not terminated early
     for i in range(10000):
         o = env.reset()
         #envFilename = env.getFile()
@@ -114,6 +115,9 @@ if __name__ == '__main__':
             env.render()
             if done is True:
                 print("killed at step " + str(j))
+                cumulativeFPS += (j+1)/(time.time()-startTime)
+                print("framerate = " + str((j+1) / (time.time() - startTime)))
+                print("average FPS: " + str(cumulativeFPS / (i + 1)))
                 time.sleep(0.5)
                 break
             if j == rolloutHorizon-1:
