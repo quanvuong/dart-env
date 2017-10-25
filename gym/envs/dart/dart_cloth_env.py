@@ -47,9 +47,11 @@ class DartClothEnv(DartEnv, utils.EzPickle):
 
     def _reset(self):
         'Overwrite of DartEnv._reset to add cloth reset'
+        #print("here?")
         #pyPhysX reset
         self.clothScene.reset()
         #done pyPhysX reset
+        #print("done w/ cloth")
         
         return DartEnv._reset(self)
 

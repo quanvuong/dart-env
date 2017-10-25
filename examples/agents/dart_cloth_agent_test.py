@@ -89,12 +89,13 @@ if __name__ == '__main__':
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
     for i in range(10000):
+        #print("here")
         o = env.reset()
         #envFilename = env.getFile()
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 500
+        rolloutHorizon = 15
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
@@ -104,6 +105,16 @@ if __name__ == '__main__':
 
             #a = np.ones(22)
             #a += np.random.uniform(-1,1,len(a))
+            a += np.random.randint(3, size=len(a))-np.ones(len(a))
+            if j==0:
+                a = np.array([-1,-0.5935519015,-0.6243126472,-1,-0.3540411152,-0.8545956428,-0.1052807823,-0.6650868959,1,-1,-0.4370771514,-1,-0.2656309561,-0.7392283111,1,-0.4849024561,-0.4222881197,-1,-1,-0.1260703,1,0.3853144958,])
+            elif j==1:
+                a = np.array([1,0.08203909,-0.4428489711,0.3709899779,-0.1139084987,0.8878356518,-0.3833406323,0.9175109866,-1,-0.7288833698,-0.3778503588,-0.0617086992,-1,0.5471811498,1,-1,-0.4266441964,-1,0.2783551927,0.0862617301,0.5444295707,0.7144071905])
+            elif j==2:
+                a = np.array([-1,1,-0.6846910321,0.5774784709,-0.7145496691,-0.7416754164,-1,0.9724756555,-1,1,-1,-0.9628565439,-1,1,-0.9544127885,1,0.5642344238,-0.1455457015,-0.3926989475,-1,1,-0.0842431477])
+            elif j==3:
+                a = np.array([1,0.6312312283,-0.6876604936,0.5467897784,-0.9867554189,-1,-1,0.314068975,0.2136389088,-1,1,-1,-0.1857029911,0.933112181,-1,-0.9219502237,0.7421179613,1,-1,0.0583067668,1,-0.3022806922])
+            #print(a)
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
@@ -113,6 +124,7 @@ if __name__ == '__main__':
                 done = s_info[2]
                 #print(o)
             env.render()
+            time.sleep(1.0)
             if done is True:
                 print("killed at step " + str(j))
                 cumulativeFPS += (j+1)/(time.time()-startTime)

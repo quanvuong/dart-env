@@ -28,6 +28,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.renderUI = True
         self.renderDisplacerAccuracy = False
         self.compoundAccuracy = True
+        self.recordHistory = False
 
         #sim variables
         self.gravity = False
@@ -92,6 +93,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
         self.prevTau = np.zeros(len(self.actuatedDofs))
         self.prevPose = np.zeros(len(self.actuatedDofs))
+        self.rewardHistory = []
+        self.qHistory = []
+        self.dqHistory = []
+        self.tHistory = []
 
         self.reset_number = 0 #debugging
         self.numSteps = 0
@@ -230,6 +235,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         self.prevTau = np.array(clamped_control)
         self.prevPose = np.array(self.robot_skeleton.q)
+        if self.recordHistory:
+            self.qHistory.append(np.array(self.robot_skeleton.q))
+            self.dqHistory.append(np.array(self.robot_skeleton.dq))
+            self.tHistory.append(np.array(self.prevTau))
+            self.rewardHistory.append(self.reward)
         tau = np.multiply(clamped_control, self.action_scale)
 
         if self.reset_number > 0 and self.torqueGraph is not None:
@@ -383,9 +393,13 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             print("prevT: " + str(self.prevTau))
             print("prevQ: " + str(self.prevPose))
             print("obs: " + str(ob))
+            pyutils.saveList(self.qHistory,filename="qhistory", listoflists=True)
+            pyutils.saveList(self.dqHistory, filename="dqhistory", listoflists=True)
+            pyutils.saveList(self.tHistory, filename="thistory", listoflists=True)
+            pyutils.saveList(self.rewardHistory, filename="rewardhistory", listoflists=False)
             done = True
             self.reward = -500
-            ob = np.zeros(len(ob))
+            #ob = np.zeros(len(ob))
         elif (clothDeformation > 20):
             done = True
             self.reward -= 500
@@ -436,6 +450,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         #print("reset")
+        self.qHistory = []
+        self.dqHistory = []
+        self.tHistory = []
+        self.rewardHistory = []
         self.totalTime = 0
         self.cumulativeReward = 0
         self.dart_world.reset()
@@ -446,6 +464,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.resetRandomPose:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+
+        qpos =np.array([0.2731471618,-0.3451429935,0.7688092455,-0.1597715944,0.1860187999,0.2504905961,0.042594533,1.0984740419,1.5495887065,-0.4358303746,-0.0589387622,0.2504341555,-0.2507510455,0.6146392381,-1.4901314838,-1.4741124414,1.1877315006,-0.6148575721,-0.2584124213,-0.0088981053,0.5894612576,0.7433916044])
+        qvel =np.array([0.0567240367,0.1688628579,1.2036850076,-1.7722794241,-1.7820411113,4.524206467,0.2259652913,3.8046292181,0.5771628785,5.825386422,2.767861514,3.28269589289E-009,-4.10147826813E-009,56.4937752114,-8.1748603334,-64.0955705123,-2.6189647867,-6.8044512247E-009,12.1735770456,-3.5029552058,-0.9008247279,0.6619836226])
         self.set_state(qpos, qvel)
 
         if self.resetRandomPose:
@@ -535,7 +556,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         csVars13 = np.array([0.036, -1, -1, 0,0,0])
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
         #collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
-        
+        if np.isnan(np.sum(collisionSpheresInfo)): #this will keep nans from propagating into PhysX resulting in segfault on reset()
+            return
         self.clothScene.setCollisionSpheresInfo(collisionSpheresInfo)
         
         if capsules is True:
