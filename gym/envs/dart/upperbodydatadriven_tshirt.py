@@ -387,7 +387,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         
         #check termination conditions
         done = False
-        if not np.isfinite(s).all():
+        if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
+            print("Detecting potential instability")
+            print(s)
+            done = True
+            self.reward -= 500
+        elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             print("reward: " + str(self.reward))
             print("prevT: " + str(self.prevTau))
@@ -399,7 +404,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             pyutils.saveList(self.rewardHistory, filename="rewardhistory", listoflists=False)
             done = True
             self.reward = -500
-            #ob = np.zeros(len(ob))
+            ob = np.zeros(len(ob))
         elif (clothDeformation > 20):
             done = True
             self.reward -= 500
