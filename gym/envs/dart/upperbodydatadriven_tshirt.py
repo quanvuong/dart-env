@@ -52,7 +52,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         #task modes
         self.upright_active = False
-        self.rightDisplacer_active = False
+        self.rightDisplacer_active = True
         self.leftDisplacer_active = False
         self.displacerMod1 = False #temporary switch to modified reward scheme
         self.upReacher_active = False
