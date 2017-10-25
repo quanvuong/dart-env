@@ -516,7 +516,6 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         if hapticSensors is True:
             hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
-
             
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
@@ -653,7 +652,6 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         
         renderUtils.renderDofs(self.robot_skeleton, restPose=None, renderRestPose=False)
 
-
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
@@ -745,8 +743,6 @@ class DartClothGrippedTshirtEnv(DartClothEnv, utils.EzPickle):
         self.ikLines = [pyutils.getRobotLinks(robot)]
         robot.set_positions(orgPose)
         return ikPose
-
-
         
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t

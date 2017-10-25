@@ -22,7 +22,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.screenSize = (1080, 720)
         self.renderDARTWorld = True
         self.renderUI = True
@@ -32,6 +32,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = False
         self.resetRandomPose = False
+        self.dataDrivenJointLimts = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -118,7 +119,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                                         state_path=self.prefix + "/../../../../tshirt_regrip3.obj",
                                         scale=1.4)
 
-        #clothScene.togglePinned(0, 0)  # turn off auto-pin
+        clothScene.togglePinned(0, 0)  # turn off auto-pin
 
         self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
 
@@ -144,10 +145,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                                   observation_size=observation_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         #setup data-driven joint limits
-        leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), False)
-        rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), True)
-        leftarmConstraint.add_to_world(self.dart_world)
-        rightarmConstraint.add_to_world(self.dart_world)
+        if self.dataDrivenJointLimts:
+            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), False)
+            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), True)
+            leftarmConstraint.add_to_world(self.dart_world)
+            rightarmConstraint.add_to_world(self.dart_world)
 
         utils.EzPickle.__init__(self)
 
@@ -161,7 +163,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
-        self.simulateCloth = True
+        self.simulateCloth = False
 
         #enable DART collision testing
         self.robot_skeleton.set_self_collision_check(True)
@@ -430,7 +432,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeReward = 0
         self.dart_world.reset()
         self.clothScene.reset()
-        self.clothScene.translateCloth(0, np.array([-0, 1.0, 0]))
+        #self.clothScene.translateCloth(0, np.array([-0, 1.0, 0]))
         #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.resetRandomPose:
@@ -462,6 +464,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             self.rightTarget = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
         if self.leftTarget_active:
             self.leftTarget = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
+
+        self.clothScene.setSelfCollisionDistance(0.025)
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)

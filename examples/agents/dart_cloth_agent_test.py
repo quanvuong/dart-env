@@ -92,7 +92,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 400
+        rolloutHorizon = 500
         #rolloutHorizon = 100000
         if paused is True:
             rolloutHorizon = 10000
@@ -101,7 +101,7 @@ if __name__ == '__main__':
             a = np.zeros(22) #22 dof upper body
 
             #a = np.ones(22)
-            #a += np.random.uniform(-1,1,len(a))
+            a += np.random.uniform(-1,1,len(a))
             if policy is not None:
                 a, a_info = policy.get_action(o)
             done = False
@@ -119,6 +119,7 @@ if __name__ == '__main__':
                 #print("endTime = " + str(time.time()))
                 #print("totalTime = " + str(time.time()-startTime))
                 print("framerate = " + str(rolloutHorizon/(time.time()-startTime)))
+                print("total rollout time: " + str(time.time()-startTime))
             #    print("Time terminate")
             #paused = True
     env.render(close=True)
