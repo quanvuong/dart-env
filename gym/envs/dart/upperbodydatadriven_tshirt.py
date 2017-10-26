@@ -35,10 +35,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         #sim variables
         self.gravity = True
-        self.resetRandomPose = False
+        self.resetRandomPose = True
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
-        simulateCloth = True
+        simulateCloth = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -61,21 +61,21 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.leftDisplacer_active = False
         self.displacerMod1 = False #temporary switch to modified reward scheme
         self.upReacher_active = False
-        self.rightTarget_active = False
+        self.rightTarget_active = True
         self.leftTarget_active = False
         self.prevTauObs = False #if True, T(t-1) is included in the obs
         #dressing terms
-        self.limbProgressReward = True #if true, the (-inf, 1] plimb progress metric is included in reward
-        self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
-        self.deformationTermination = True
-        self.deformationPenalty = True
+        self.limbProgressReward = False #if true, the (-inf, 1] plimb progress metric is included in reward
+        self.contactGeoReward = False #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.collarTermination = False #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
+        self.deformationTermination = False
+        self.deformationPenalty = False
         self.maxDeformation = 22.0
-        self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
-        self.oracleInObs = True #if true, oracle vector is in obs
-        self.contactIDInObs = True #if true, contact ids are in obs
-        self.hapticsInObs = True #if true, haptics are in observation
-        self.hapticsAware = True  # if false, 0's for haptic input
+        self.featureInObs = False #if true, feature centroid location and dispalcement form ef are observed
+        self.oracleInObs = False #if true, oracle vector is in obs
+        self.contactIDInObs = False #if true, contact ids are in obs
+        self.hapticsInObs = False #if true, haptics are in observation
+        self.hapticsAware = False  # if false, 0's for haptic input
 
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
@@ -170,7 +170,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.CP0Feature = ClothFeature(verts=self.sleeveRVerts, clothScene=clothScene)
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=clothScene)
 
-        self.handleNode = HandleNode(clothScene, org=np.array([0.05, 0.034, -0.975]))
+        self.handleNode = None#HandleNode(clothScene, org=np.array([0.05, 0.034, -0.975]))
 
         self.displacerTargets = [[], []]
         self.displacerActual = [[], []]
@@ -540,7 +540,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.rightTarget_active:
             shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-            obs = np.concatenate([obs, shoulderR-self.rightTarget, efR-self.rightTarget]).ravel()
+            obs = np.concatenate([obs, self.rightTarget-shoulderR, self.rightTarget-efR]).ravel()
         if self.leftTarget_active:
             shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
             efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
@@ -797,11 +797,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.rightTarget_active:
             renderUtils.setColor(color=[1.0,1.0,0])
             renderUtils.drawSphere(pos=self.rightTarget, rad=0.05)
-            renderUtils.drawLineStrip(points=[self.rightTarget, self.robot_skeleton.bodynodes[8].to_world(np.array([0,-0.06,0]))])
+            renderUtils.drawLineStrip(points=[self.rightTarget, self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.06,0]))])
+            renderUtils.drawLineStrip(points=[self.rightTarget, self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))])
         if self.leftTarget_active:
             renderUtils.setColor(color=[0.0, 1.0, 1.0])
             renderUtils.drawSphere(pos=self.leftTarget, rad=0.05)
-            renderUtils.drawLineStrip(points=[self.leftTarget, self.robot_skeleton.bodynodes[14].to_world(np.array([0, -0.06, 0]))])
+            renderUtils.drawLineStrip(points=[self.leftTarget, self.robot_skeleton.bodynodes[12].to_world(np.array([0, -0.06, 0]))])
 
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
