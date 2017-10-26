@@ -34,7 +34,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.ROMPointMinDistance = 1.0
 
         #sim variables
-        self.gravity = True
+        self.gravity = False
         self.resetRandomPose = True
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
@@ -625,6 +625,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 ix = random.randint(0,len(self.ROMPoints)-1)
                 qpos = self.ROMPoints[ix]
                 self.set_state(qpos, qvel)
+                self.dart_world.check_collision()
+                while self.dart_world.collision_result.num_contacts() > 0:
+                    ix = random.randint(0, len(self.ROMPoints) - 1)
+                    qpos = self.ROMPoints[ix]
+                    self.set_state(qpos, qvel)
+                    self.dart_world.check_collision()
                 #self.dart_world.check_collision()
             else:
                 self.dart_world.check_collision()
