@@ -34,7 +34,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.ROMPointMinDistance = 1.0
 
         #sim variables
-        self.gravity = False
+        self.gravity = True
         self.resetRandomPose = False
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
@@ -56,14 +56,30 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
 
         #task modes
-        self.upright_active = False
+        self.upright_active = True
         self.rightDisplacer_active = False
         self.leftDisplacer_active = False
         self.displacerMod1 = False #temporary switch to modified reward scheme
         self.upReacher_active = False
-        self.rightTarget_active = True
+        self.rightTarget_active = False
         self.leftTarget_active = False
         self.prevTauObs = False #if True, T(t-1) is included in the obs
+        #dressing terms
+        self.limbProgressReward = True #if true, the (-inf, 1] plimb progress metric is included in reward
+        self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
+        self.deformationTermination = True
+        self.deformationPenalty = True
+        self.maxDeformation = 22.0
+        self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
+        self.oracleInObs = True #if true, oracle vector is in obs
+        self.contactIDInObs = True #if true, contact ids are in obs
+        self.hapticsInObs = True #if true, haptics are in observation
+        self.hapticsAware = True  # if false, 0's for haptic input
+
+        self.limbProgress = 0
+        self.prevOracle = np.zeros(3)
+        self.minContactGeo = 0
 
         self.rightDisplacement = np.zeros(3) #should be unit vector or 0
         self.leftDisplacement = np.zeros(3) #should be unit vector or 0
@@ -87,6 +103,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
 
+        self.handleNode = None
+        self.updateHandleNodeFrom = 12 #left fingers
+
         #22 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))*12
         if 0 in self.actuatedDofs:
@@ -105,12 +124,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.reset_number = 0 #debugging
         self.numSteps = 0
 
-        self.hapticObs = False
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
         if self.prevTauObs:
             observation_size += len(self.actuatedDofs)
-        if self.hapticObs:
-            observation_size += 66 #TODO: downsize this as necessary
+        if self.hapticsInObs:
+            observation_size += 66
         if self.rightDisplacer_active:
             observation_size += 3
         if self.leftDisplacer_active:
@@ -119,6 +137,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             observation_size += 6
         if self.leftTarget_active:
             observation_size += 6
+        if self.featureInObs:
+            observation_size += 6
+        if self.oracleInObs:
+            observation_size += 3
+        if self.contactIDInObs:
+            observation_size += 22
 
 
         #model_path = 'UpperBodyCapsules_v3.skel'
@@ -135,14 +159,24 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
 
         #TODO: add other sleeve and check/rename this
-        self.CP0Feature = ClothFeature(
-            verts=[413, 1932, 1674, 1967, 475, 1517, 828, 881, 1605, 804, 1412, 1970, 682, 469, 155, 612, 1837, 531],
-            clothScene=clothScene)
+        #self.sleeveLVerts = [7, 140, 2255, 2247, 2322, 2409, 2319, 2427, 2240, 2320, 2241, 2326, 2334, 2288, 2289, 2373, 2264, 2419, 2444, 2345, 2408, 2375, 2234, 2399]
+        self.sleeveRVerts = [2580, 2495, 2508, 2586, 2518, 2560, 2621, 2529, 2559, 2593, 272, 2561, 2658, 2582, 2666, 2575, 2584, 2625, 2616, 2453, 2500, 2598, 2466]
+        #self.sleeveREndVerts = [255, 253, 250, 247, 266, 264, 262, 260, 258]
+        # self.splineCP0Verts = [7, 2339, 2398, 2343, 2384, 2405, 2421, 2275, 2250, 134, 136, 138]
+        #self.CP1Verts = [232, 230, 227, 225, 222, 218, 241, 239, 237, 235, 233]
+        self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
+
+
+        self.CP0Feature = ClothFeature(verts=self.sleeveRVerts, clothScene=clothScene)
+        self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=clothScene)
+
+        self.handleNode = HandleNode(clothScene, org=np.array([0.05, 0.034, -0.975]))
 
         self.displacerTargets = [[], []]
         self.displacerActual = [[], []]
 
-        self.reward=0
+        self.reward = 0
+        self.deformation = 0
 
         self.prevTime = time.time()
         self.totalTime = 0
@@ -272,6 +306,17 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         #vecR1 = self.target-wRFingertip1
         #vecL1 = self.target2-wLFingertip1
+
+        if self.CP0Feature is not None:
+            self.CP0Feature.fitPlane()
+        if self.collarFeature is not None:
+            self.collarFeature.fitPlane()
+
+
+        if self.handleNode is not None:
+            if self.updateHandleNodeFrom >= 0:
+                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+            self.handleNode.step()
         
         #apply action and simulate
         if len(tau) < len(self.robot_skeleton.q):
@@ -293,7 +338,34 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
-        
+
+        reward_limbprogress = 0
+        if self.limbProgressReward:
+            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
+            reward_limbprogress = self.limbProgress
+
+        minContactGeodesic = None
+        if self.numSteps > 0:
+            minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+            self.minContactGeo = minContactGeodesic
+
+        reward_contactGeo = 0
+        if self.contactGeoReward:
+            if self.limbProgress > 0:
+                reward_contactGeo = 1.0
+            elif minContactGeodesic is not None:
+                reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+
+        #check cloth deformation for termination
+        clothDeformation = 0
+        if self.simulateCloth is True:
+            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+            self.deformation = clothDeformation
+
+        reward_clothdeformation = 0
+        if clothDeformation > 15 and self.deformationPenalty is True:
+            reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+
         #force magnitude penalty    
         reward_ctrl = -np.square(tau).sum()
 
@@ -338,7 +410,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 reward_target += 0.5
 
         #total reward
-        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target
+        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target + reward_limbprogress\
+                      + reward_contactGeo + reward_clothdeformation
 
         #record accuracy
         if self.renderDisplacerAccuracy and self.useOpenGL and self.numSteps>0:
@@ -400,12 +473,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
         
-        #check cloth deformation for termination
-        clothDeformation = 0
-        if self.simulateCloth is True:
-            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
-        
         #check termination conditions
+        topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
+        bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+        bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
         done = False
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
@@ -425,7 +496,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             done = True
             self.reward = -500
             ob = np.zeros(len(ob))
-        elif (clothDeformation > 20):
+        elif self.deformationTermination and clothDeformation > self.maxDeformation:
+            done = True
+            self.reward -= 500
+        elif self.collarTermination and not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
             done = True
             self.reward -= 500
         #increment the step counter
@@ -451,7 +525,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.prevTauObs:
             obs = np.concatenate([obs, self.prevTau])
 
-        if self.hapticObs:
+        if self.hapticsInObs:
             f = None
             if self.simulateCloth is True:
                 f = self.clothScene.getHapticSensorObs()#get force from simulation
@@ -471,6 +545,41 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
             efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
             obs = np.concatenate([obs, shoulderL-self.leftTarget, efL-self.leftTarget]).ravel()
+        if self.featureInObs:
+            centroid = self.CP0Feature.plane.org
+            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            disp = centroid-efR
+            obs = np.concatenate([obs, centroid, disp]).ravel()
+        if self.oracleInObs:
+            oracle = np.zeros(3)
+            if self.reset_number == 0:
+                a=0 #nothing
+            elif self.limbProgress > 0:
+                oracle = self.CP0Feature.plane.normal
+            else:
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=12,
+                                                                                     clothscene=self.clothScene,
+                                                                                     meshgraph=self.separatedMesh,
+                                                                                     returnOnlyGeo=False)
+                if minGeoVix is None:
+                    #oracle points to the garment when ef not in contact
+                    efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+                    closeVert = self.clothScene.getCloseVertex(p=efR)
+                    #centroid = self.CP0Feature.plane.org
+                    target = self.clothScene.getVertexPos(vid=closeVert)
+                    vec = target - efR
+                    oracle = vec/np.linalg.norm(vec)
+                else:
+                    vixSide = 0
+                    if _side:
+                        vixSide = 1
+                    if minGeoVix >= 0:
+                        oracle = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+            self.prevOracle = oracle
+            obs = np.concatenate([obs, oracle]).ravel()
+        if self.contactIDInObs:
+            HSIDs = self.clothScene.getHapticSensorContactIDs()
+            obs = np.concatenate([obs, HSIDs]).ravel()
         return obs
 
     def reset_model(self):
@@ -483,12 +592,27 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeReward = 0
         self.dart_world.reset()
         self.clothScene.reset()
-        #self.clothScene.translateCloth(0, np.array([-0, 1.0, 0]))
+        self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.resetRandomPose:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-2.01, high=2.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-1.21, high=1.21, size=self.robot_skeleton.ndofs)
+
+        #qpos = np.array([0.00984645029962, -0.00599959056884, -0.00671256780872, 0.00964348234246, 0.00328979646153, -0.00837484539897, -0.00392902285366, 0.00853631720415, 0.00648306871506, 0.00987675799087, 0.00065973832776, 0.0010888166833, -0.00496454405722, 0.400025413727, -1.35451513127, 0.521185386519, 1.74393040052, 0.341179954072, 0.29062079937, 0.00471862920899, -0.00625057092677, 0.00977505517246])
+        #qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.193940077276, -0.0995533658543, -0.680941213889, -0.524547635822, 0.929809563123, 1.56740631418, 0.272488901324, 0.335129983119, 0.0, 0.0, 0.0])
+
+        count = 0
+        while self.dart_world.collision_result.num_contacts() > 0 or count == 0:
+            qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.195644348936, -0.098536397969, -0.681261731063, -0.553258926467, 0.869507748284, 1.82987701823, 0.442015199582, 0.395189219215, 0.0, 0.0, 0.0])
+            qpos[7:9] += self.np_random.uniform(low=-1.0, high=1.0, size=2)
+            qpos[9:11] += self.np_random.uniform(low=-0.6, high=0.6, size=2)
+            self.set_state(qpos, qvel)
+            self.dart_world.check_collision()
+            count += 1
+
+        #qpos = np.array([0.00789179104753, -0.00778707237558, -0.00575381599684, 0.0160314569834, -0.0215529394607, 0.00116310449511, 0.0141075139802, 0.0210178621179, -0.00535740130501, 0.0971533372584, -0.119663743335, -0.0831924264075, -0.107272709514, 0.343058669125, -0.929541335875, 0.572642382432, 1.96034075215, 0.0425568556954, 0.109450420964, -0.0104435230604, -0.0187997920078, -0.00127660576633])
+        #qpos = np.array([0.0133847298842, 0.00623134347354, 0.00901967139099, 0.0197357484081, -0.0147453364021, -0.00214595430132, 0.0267835260132, -0.0122496485753, -0.0012161563398, 0.0614366033843, -0.166508814892, -0.109839479566, -0.0906491452046, 0.386626055839, -1.34713152342, 0.556287307477, 1.68271950222, 0.0305543921666, 0.6, -0.0163504623659, -0.0306551917448, 0.0135542729712])
 
         #qpos =np.array([0.2731471618,-0.3451429935,0.7688092455,-0.1597715944,0.1860187999,0.2504905961,0.042594533,1.0984740419,1.5495887065,-0.4358303746,-0.0589387622,0.2504341555,-0.2507510455,0.6146392381,-1.4901314838,-1.4741124414,1.1877315006,-0.6148575721,-0.2584124213,-0.0088981053,0.5894612576,0.7433916044])
         #qvel =np.array([0.0567240367,0.1688628579,1.2036850076,-1.7722794241,-1.7820411113,4.524206467,0.2259652913,3.8046292181,0.5771628785,5.825386422,2.767861514,3.28269589289E-009,-4.10147826813E-009,56.4937752114,-8.1748603334,-64.0955705123,-2.6189647867,-6.8044512247E-009,12.1735770456,-3.5029552058,-0.9008247279,0.6619836226])
@@ -529,6 +653,21 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         self.clothScene.setSelfCollisionDistance(0.025)
 
+        if self.handleNode is not None:
+            self.handleNode.clearHandles()
+            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+            self.handleNode.setOrgToCentroid()
+            if self.updateHandleNodeFrom >= 0:
+                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+            self.handleNode.recomputeOffsets()
+
+        self.CP0Feature.fitPlane()
+        self.collarFeature.fitPlane()
+        if self.reset_number == 0:
+            self.separatedMesh.initSeparatedMeshGraph()
+            self.separatedMesh.updateWeights()
+            self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=1)
+
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
         self.clothScene.clearInterpolation()
@@ -536,6 +675,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #debugging
         self.reset_number += 1
         self.numSteps = 0
+
+        if self.limbProgressReward:
+            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
 
         if self.torqueGraph is not None:
             xdata = np.arange(400)
@@ -634,11 +776,22 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        #HSL = self.clothScene.getHapticSensorLocations()
+        #renderUtils.drawSphere(pos=HSL[12*3:13*3],rad=0.1)
+
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render sample range
         #renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)), rad=0.75, solid=False)
+
+        if self.CP0Feature is not None:
+            self.CP0Feature.drawProjectionPoly()
+        if self.collarFeature is not None:
+            self.collarFeature.drawProjectionPoly()
+
+        textHeight = 15
+        textLines = 2
 
         #render targets
         if self.rightTarget_active:
@@ -649,6 +802,23 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             renderUtils.setColor(color=[0.0, 1.0, 1.0])
             renderUtils.drawSphere(pos=self.leftTarget, rad=0.05)
             renderUtils.drawLineStrip(points=[self.leftTarget, self.robot_skeleton.bodynodes[14].to_world(np.array([0, -0.06, 0]))])
+
+        if self.renderUI:
+            renderUtils.setColor(color=[0.,0,0])
+            if self.totalTime > 0:
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps/self.totalTime), color=(0., 0, 0))
+                textLines += 1
+            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
+            textLines += 1
+            if self.simulateCloth:
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Deformation = " + str(self.deformation), color=(0., 0, 0))
+                textLines += 1
+            if self.contactGeoReward:
+                self.clothScene.drawText(x=15., y=textLines * textHeight, text="Min Contact Geo = " + str(self.minContactGeo), color=(0., 0, 0))
+                textLines += 1
+            if self.numSteps > 0:
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
 
         if self.rightDisplacer_active:
             renderUtils.setColor(color=[0.0,0.0,1.0])
@@ -662,9 +832,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawLineStrip(self.displacerTargets[0])
                 renderUtils.setColor(color=[0.0, 0, 1.0])
                 renderUtils.drawLineStrip(self.displacerActual[0])
-                self.clothScene.drawText(x=15., y=90., text="Disp. Acc. R = " + str(self.cumulativeAccurateMotionR/self.cumulativeMotionR), color=(0., 0, 0))
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Disp. Acc. R = " + str(self.cumulativeAccurateMotionR/self.cumulativeMotionR), color=(0., 0, 0))
+                textLines += 1
                 if self.cumulativeFixedTimeR > 0:
-                    self.clothScene.drawText(x=15., y=105., text="Fixed Motion R = " + str(self.cumulativeFixedMotionR/self.cumulativeFixedTimeR), color=(0., 0, 0))
+                    self.clothScene.drawText(x=15., y=textLines*textHeight, text="Fixed Motion R = " + str(self.cumulativeFixedMotionR/self.cumulativeFixedTimeR), color=(0., 0, 0))
+                    textLines += 1
         if self.leftDisplacer_active:
             renderUtils.setColor(color=[0.0, 0.0, 1.0])
             ef = self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.06, 0.0]))
@@ -677,17 +849,16 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 renderUtils.drawLineStrip(self.displacerTargets[1])
                 renderUtils.setColor(color=[0.0, 1.0, 1.0])
                 renderUtils.drawLineStrip(self.displacerActual[1])
-                self.clothScene.drawText(x=15., y=60., text="Disp. Acc. L = " + str(self.cumulativeAccurateMotionL / self.cumulativeMotionL), color=(0., 0, 0))
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Disp. Acc. L = " + str(self.cumulativeAccurateMotionL / self.cumulativeMotionL), color=(0., 0, 0))
+                textLines += 1
                 if self.cumulativeFixedTimeL > 0:
-                    self.clothScene.drawText(x=15., y=75., text="Fixed Motion L = " + str(self.cumulativeFixedMotionL / self.cumulativeFixedTimeL), color=(0., 0, 0))
+                    self.clothScene.drawText(x=15., y=textLines*textHeight, text="Fixed Motion L = " + str(self.cumulativeFixedMotionL / self.cumulativeFixedTimeL), color=(0., 0, 0))
+                    textLines += 1
 
-        if self.renderUI:
-            renderUtils.setColor(color=[0.,0,0])
-            if self.totalTime > 0:
-                self.clothScene.drawText(x=15., y=30., text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps/self.totalTime), color=(0., 0, 0))
-            self.clothScene.drawText(x=15., y=45., text="Reward = " + str(self.reward), color=(0., 0, 0))
-            if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+        if self.oracleInObs:
+            renderUtils.setColor(color=[1.0, 1.0, 0])
+            ef = self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.06, 0.0]))
+            renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle * 0.15, hwRatio=0.15)
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
@@ -702,3 +873,5 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
 def LERP(p0, p1, t):
     return p0 + (p1-p0)*t
+
+

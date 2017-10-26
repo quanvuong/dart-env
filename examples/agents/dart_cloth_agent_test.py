@@ -95,7 +95,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 400
+        rolloutHorizon = 100
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
@@ -107,6 +107,7 @@ if __name__ == '__main__':
 
             #a = np.ones(22)
             a += np.random.uniform(-1,1,len(a))
+            #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
             if j==0:

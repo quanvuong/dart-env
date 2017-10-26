@@ -99,6 +99,12 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.projectionM = GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)
         self.viewport = GL.glGetInteger(GL.GL_VIEWPORT)
 
+        if self.extraRenderFunc is not None:
+            self.extraRenderFunc()
+
+        if self.clothScene is not None:
+            self.clothScene.render()
+
         #unprojections:
         #mouse hover object
         z = GL.glReadPixels(self.mouseLastPos[0],self.viewport[3]-self.mouseLastPos[1], 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
@@ -133,12 +139,6 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             if self.curInteractorIX is not None:
                 context = self.interactors[self.curInteractorIX].label
             self.clothScene.drawText(x=self.viewport[2]/2, y=self.viewport[3]-30, text="Active Context = " + str(context), color=(0., 0, 0))
-
-        if self.extraRenderFunc is not None:
-            self.extraRenderFunc()
-
-        if self.clothScene is not None:
-            self.clothScene.render()
 
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].contextRender()
@@ -1016,7 +1016,8 @@ class PoseInteractor(BaseInteractor):
             skel = self.viewer.sim.skeletons[self.skelix]
             qpos = skel.q
             qpos[self.selectedBox] += inc
-            qpos[self.selectedBox] = min(max(qpos[self.selectedBox], skel.position_lower_limits()[self.selectedBox]), skel.position_upper_limits()[self.selectedBox])
+            if not math.isinf(skel.position_lower_limits()[self.selectedBox]) and not math.isinf(skel.position_upper_limits()[self.selectedBox]):
+                qpos[self.selectedBox] = min(max(qpos[self.selectedBox], skel.position_lower_limits()[self.selectedBox]), skel.position_upper_limits()[self.selectedBox])
             skel.set_positions(qpos)
 
     def click(self, button, state, x, y):
@@ -1060,8 +1061,11 @@ class PoseInteractor(BaseInteractor):
                 tb.drag_to(x, y, dx, -dy)
         else:
             skel = self.viewer.sim.skeletons[self.skelix]
-            dofRange = skel.position_upper_limits()[self.selectedBox]-skel.position_lower_limits()[self.selectedBox]
-            self.incrementSelectedDOF(dx*((dofRange)/(self.boxRanges[self.selectedBox][0][1]-self.boxRanges[self.selectedBox][0][0])))
+            if not math.isinf(skel.position_lower_limits()[self.selectedBox]) and not math.isinf(skel.position_upper_limits()[self.selectedBox]):
+                dofRange = skel.position_upper_limits()[self.selectedBox]-skel.position_lower_limits()[self.selectedBox]
+                self.incrementSelectedDOF(dx*((dofRange)/(self.boxRanges[self.selectedBox][0][1]-self.boxRanges[self.selectedBox][0][0])))
+            else:
+                self.incrementSelectedDOF(dx * 0.05)
         self.viewer.mouseLastPos = np.array([x, y])
 
     def keyboard(self, key, x, y):
