@@ -34,7 +34,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.ROMPointMinDistance = 1.0
 
         #sim variables
-        self.gravity = False
+        self.gravity = True
         self.resetRandomPose = True
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
