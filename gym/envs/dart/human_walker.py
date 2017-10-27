@@ -15,11 +15,11 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([120, 120, 120, 100, 60, 60, 120, 120, 120, 100, 60, 60, 100, 100, 100, 80,80,80, 50, 80,80,80, 50])
+        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 150, 150, 150, 80,80,80, 50, 80,80,80, 50])
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.5
+        self.target_vel = 1.0
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
@@ -80,9 +80,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.set_self_collision_check(False)
 
         for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(1)
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(2)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
-            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(1)
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(2)
 
         # self.dart_world.set_collision_detector(3)
 
@@ -127,8 +127,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
             if self.constrain_2d:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
-                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
                 # tq = self.robot_skeleton.q
@@ -138,11 +138,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 # tau[2] = spdtau
 
             if self.enforce_target_vel and not self.hard_enforce:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.vel_enforce_kp, 0, self.target_vel)
-                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([force, 0, 0]))
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0,
-                 #                          self.target_vel)
-                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.vel_enforce_kp, 0, self.target_vel)
+                #self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([force, 0, 0]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0,
+                                           self.target_vel)
+                self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
                 '''tq2 = self.robot_skeleton.q
                 tq2[0] = pos_before + self.dt * self.target_vel
                 if _ % 5 == 0:
