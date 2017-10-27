@@ -35,10 +35,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         #sim variables
         self.gravity = False
-        self.resetRandomPose = False
+        self.resetRandomPose = True
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
-        simulateCloth = True
+        simulateCloth = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -61,20 +61,20 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.leftDisplacer_active = False
         self.displacerMod1 = False #temporary switch to modified reward scheme
         self.upReacher_active = False
-        self.rightTarget_active = False
+        self.rightTarget_active = True
         self.leftTarget_active = False
         self.prevTauObs = False #if True, T(t-1) is included in the obs
         #dressing terms
-        self.limbProgressReward = True #if true, the (-inf, 1] plimb progress metric is included in reward
-        self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
-        self.deformationTermination = True
-        self.deformationPenalty = True
+        self.limbProgressReward = False #if true, the (-inf, 1] plimb progress metric is included in reward
+        self.contactGeoReward = False #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.collarTermination = False #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
+        self.deformationTermination = False
+        self.deformationPenalty = False
         self.maxDeformation = 22.0
-        self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
-        self.oracleInObs = True #if true, oracle vector is in obs
-        self.contactIDInObs = True #if true, contact ids are in obs
-        self.hapticsInObs = True #if true, haptics are in observation
+        self.featureInObs = False #if true, feature centroid location and dispalcement form ef are observed
+        self.oracleInObs = False #if true, oracle vector is in obs
+        self.contactIDInObs = False #if true, contact ids are in obs
+        self.hapticsInObs = False #if true, haptics are in observation
         self.hapticsAware = True  # if false, 0's for haptic input
 
         self.limbProgress = 0
@@ -379,17 +379,17 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #vecL2 = self.target2-wLFingertip2
 
         reward_limbprogress = 0
-        if self.limbProgressReward:
+        if self.limbProgressReward and self.simulateCloth:
             self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
             reward_limbprogress = self.limbProgress
 
         minContactGeodesic = None
-        if self.numSteps > 0:
+        if self.numSteps > 0 and self.simulateCloth:
             minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
             self.minContactGeo = minContactGeodesic
 
         reward_contactGeo = 0
-        if self.contactGeoReward:
+        if self.contactGeoReward and self.simulateCloth:
             if self.limbProgress > 0:
                 reward_contactGeo = 1.0
             elif minContactGeodesic is not None:
