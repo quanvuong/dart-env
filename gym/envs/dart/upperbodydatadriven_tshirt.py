@@ -185,6 +185,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prevTime = time.time()
         self.totalTime = 0
 
+        self.dotimings = False
+        self.timings = []
+        self.timingslabels = []
+
         #intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=model_path, frame_skip=4,
@@ -263,8 +267,33 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
     def _getFile(self):
         return __file__
 
+    def addTiming(self, label=None):
+        self.timings.append(time.time())
+        if label is None:
+            self.timingslabels.append(str(len(self.timings)))
+        else:
+            self.timingslabels.append(label)
+
+    def printTiming(self):
+        print("Timings:")
+        print(self.timings)
+        print(self.timingslabels)
+        if len(self.timings) > 1:
+            totalTime = self.timings[-1] - self.timings[0]
+            percentages = []
+            for ix,t in enumerate(self.timings):
+                if ix > 0:
+                    percentages.append(((t-self.timings[ix-1])/totalTime)*100.0)
+            print("Percentages: " + str(percentages))
+
+    def clearTimings(self):
+        self.timings = []
+        self.timingslabels = []
+
     def _step(self, a):
         #print("a: " + str(a))
+        if self.dotimings:
+            self.addTiming(label="Start")
         if self.numSteps > 1:
             self.totalTime += (time.time() - self.prevTime)
             #print(self.totalTime)
@@ -311,6 +340,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #vecR1 = self.target-wRFingertip1
         #vecL1 = self.target2-wLFingertip1
 
+        if self.dotimings:
+            self.addTiming(label="Features/Handles")
+
         if self.CP0Feature is not None:
             self.CP0Feature.fitPlane()
         if self.collarFeature is not None:
@@ -328,8 +360,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             tau = np.zeros(len(self.robot_skeleton.q))
             for ix,dof in enumerate(self.actuatedDofs):
                 tau[dof] = newtau[ix]
+        if self.dotimings:
+            self.addTiming(label="Simulate")
         self.do_simulation(tau, self.frame_skip)
-
+        if self.dotimings:
+            self.addTiming(label="Reward")
         #set position and 0 velocity of locked dofs
         qpos = self.robot_skeleton.q
         qvel = self.robot_skeleton.dq
@@ -416,7 +451,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #total reward
         self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target + reward_limbprogress\
                       + reward_contactGeo + reward_clothdeformation
-
+        if self.dotimings:
+            self.addTiming(label="Observation")
         #record accuracy
         if self.renderDisplacerAccuracy and self.useOpenGL and self.numSteps>0:
             vecR = wRFingertip2 - wRFingertip1
@@ -473,6 +509,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         ob = self._get_obs()
         s = self.state_vector()
+        if self.dotimings:
+            self.addTiming(label="Termination")
         
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -508,6 +546,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             self.reward -= 500
         #increment the step counter
         self.numSteps += 1
+
+        if self.dotimings:
+            self.addTiming(label="End")
+            self.printTiming()
+            self.clearTimings()
 
         return ob, self.reward, done, {}
 
@@ -568,9 +611,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 if minGeoVix is None:
                     #oracle points to the garment when ef not in contact
                     efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-                    closeVert = self.clothScene.getCloseVertex(p=efR)
-                    #centroid = self.CP0Feature.plane.org
-                    target = self.clothScene.getVertexPos(vid=closeVert)
+                    #closeVert = self.clothScene.getCloseVertex(p=efR)
+                    #target = self.clothScene.getVertexPos(vid=closeVert)
+                    centroid = self.CP0Feature.plane.org
+                    target = centroid
                     vec = target - efR
                     oracle = vec/np.linalg.norm(vec)
                 else:
@@ -588,6 +632,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         #print("reset")
+        self.clearTimings()
         self.qHistory = []
         self.dqHistory = []
         self.tHistory = []
