@@ -15,14 +15,14 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 150, 150, 150, 80,80,80, 50, 80,80,80, 50])
+        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 150, 150, 150, 40,80,30, 50, 40,80,30, 50])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 1.0
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = True
+        self.enforce_target_vel = False
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -31,7 +31,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0  # number of steps lying on the wall
-        self.constrain_2d = True
+        self.constrain_2d = False
         self.init_balance_pd = 6000.0
         self.init_vel_pd = 3000.0
         self.end_balance_pd = 6000.0
@@ -150,6 +150,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 tau[0] = spdtau2'''
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
+            s = self.state_vector()
+            if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
+                break
 
     def advance(self, a):
         clamped_control = np.array(a)
