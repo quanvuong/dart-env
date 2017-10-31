@@ -75,7 +75,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.oracleInObs = False #if true, oracle vector is in obs
         self.contactIDInObs = False #if true, contact ids are in obs
         self.hapticsInObs = False #if true, haptics are in observation
-        self.hapticsAware = True  # if false, 0's for haptic input
+        self.hapticsAware = False  # if false, 0's for haptic input
 
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
@@ -644,7 +644,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        if self.resetRandomPose:
+        if self.resetRandomPose and self.resetFile is None:
             qpos = pyutils.getRandomPose(self.robot_skeleton)
         #qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-1.21, high=1.21, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
@@ -659,7 +659,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                          0.000398533604261, -0.000139073022976])'''
 
         count = 0
-        while self.dart_world.collision_result.num_contacts() > 0 or count == 0:
+        while self.dart_world.collision_result.num_contacts() > 0 or (count == 0 and self.simulateCloth):
             qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.195644348936, -0.098536397969, -0.681261731063, -0.553258926467, 0.869507748284, 1.82987701823, 0.442015199582, 0.395189219215, 0.0, 0.0, 0.0])
             #qpos = np.array([0.00210387423755, -0.00263432512464, -0.00608727794507, 0.00048188759912, -0.000790891203943, 0.00566944033496, -0.0062818525027, -0.139898427718, 2.89881383212, 0.542917778508, 0.593770039475, -0.196204829136, -0.0973580394792, -0.685992369829, -0.560684467346, 0.867649241514, 1.83056855945, 0.442013405854, 0.395205993027, -5.23263424256e-05, 0.000398533604261, -0.000139073022976])
 
