@@ -283,7 +283,7 @@ class Line(Geom):
         Geom.__init__(self)
         self.start = start
         self.end = end
-        self.linewidth = LineWidth(1)
+        self.linewidth = LineWidth(2)
         self.add_attr(self.linewidth)
 
     def render1(self):

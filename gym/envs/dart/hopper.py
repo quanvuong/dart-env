@@ -198,8 +198,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
-        #if self.state_index == 1:
-        #    reward *= -1
+        if self.learn_forwardbackward and self.state_index == 1:
+            reward *= -1
         if self.learn_acro:
             if self.state_index == 0: # learn to jump high
                 reward = np.max([(heightafter)*10,0])
@@ -331,6 +331,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             for ind, jtid in enumerate(jt_id):
                 self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
                 self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
+
+        if self.learn_forwardbackward:
+            self.state_index = np.random.randint(2)
 
         self.state_action_buffer = [] # for UPOSI
 
