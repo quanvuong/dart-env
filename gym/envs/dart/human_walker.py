@@ -19,10 +19,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.0
+        self.target_vel = 1.3
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = False
+        self.enforce_target_vel = True
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -31,7 +31,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0  # number of steps lying on the wall
-        self.constrain_2d = False
+        self.constrain_2d = True
         self.init_balance_pd = 6000.0
         self.init_vel_pd = 3000.0
         self.end_balance_pd = 6000.0
@@ -40,7 +40,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.local_spd_curriculum = False
+        self.local_spd_curriculum = True
         self.anchor_kp = np.array([2000, 2000])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
@@ -55,7 +55,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.curriculum_id = 0
         self.spd_kp_candidates = None
-
+        
+        self.vel_reward_weight = 3.0
+ 
         dart_env.DartEnv.__init__(self, 'kima/kima_human_edited.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
@@ -219,14 +221,16 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
         if not self.treadmill:
-            vel_rew = 2 * ( - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
+            vel_rew = self.vel_reward_weight * ( - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = 0.4 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen
+        rot_pen = 5.0 * (abs(ang_cos_uwd))
+        spine_pen = 0.3 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20]) # penalize bending of spine
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen
 
 
         self.t += self.dt

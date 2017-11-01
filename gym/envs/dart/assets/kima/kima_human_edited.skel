@@ -619,7 +619,7 @@
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
                         <lower>-0.523</lower>
-                        <upper>0.1</upper>
+                        <upper>0.523</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -630,7 +630,7 @@
                     <xyz>0.0 0.0 1.0</xyz>
                     <limit>
                         <lower>-0.523</lower>
-                        <upper>0.523</upper>
+                        <upper>0.1</upper>
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
@@ -677,7 +677,7 @@
                 <!-- de facto zxy -->
                 <axis>
                     <limit>
-                        <lower>-2.09</lower>
+                        <lower>-0.7</lower>
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
@@ -687,8 +687,8 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.4</lower>
-                        <upper>0.4</upper>
+                        <lower>-0.2</lower>
+                        <upper>0.2</upper>
                     </limit>
                     <dynamics>
                         <damping>2.5</damping>
@@ -741,7 +741,8 @@
                 <axis>
                     <limit>
                         <lower>0.0</lower>
-                        <upper>2.09</upper>
+                        <!--<upper>2.09</upper>-->
+                        <upper>0.7</upper>
                     </limit>
                     <dynamics>
                         <damping>2.5</damping>
@@ -750,8 +751,10 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.4</lower>
-                        <upper>0.4</upper>
+                        <!--<lower>-1.4</lower>
+                        <upper>0.4</upper>-->
+                        <lower>-0.2</lower>
+                        <upper>0.2</upper>
                     </limit>
                     <dynamics>
                         <damping>2.5</damping>
