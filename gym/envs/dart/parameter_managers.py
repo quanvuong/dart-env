@@ -21,10 +21,10 @@ class hopperContactMassManager:
         self.foot_mass_range = [2.0, 25.0]
         self.power_range = [150, 320]
         self.ankle_range = [40, 300]
-        self.activated_param = [2,3]
-        self.controllable_param = [2,3]
+        self.activated_param = [0, 2,3]
+        self.controllable_param = [0, 2,3]
         
-        self.binned_param = 2 # don't bin if = 0
+        self.binned_param = 0 # don't bin if = 0
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None

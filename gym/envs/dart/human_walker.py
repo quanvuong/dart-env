@@ -15,11 +15,16 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 150, 150, 150, 40,80,30, 50, 40,80,30, 50])
+        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 200, 200, 200, 10,80,10, 50, 10,80,10, 50])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 1.3
+        self.init_tv = 1.0
+        self.final_tv = 3.0
+        self.tv_endtime = 2.0
+        self.smooth_tv_change = False
+
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
@@ -36,6 +41,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_vel_pd = 3000.0
         self.end_balance_pd = 6000.0
         self.end_vel_pd = 3000.0
+
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
@@ -144,6 +150,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 #self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([force, 0, 0]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0,
                                            self.target_vel)
+
                 self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
                 '''tq2 = self.robot_skeleton.q
                 tq2[0] = pos_before + self.dt * self.target_vel
@@ -178,10 +185,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
-        posbefore = self.robot_skeleton.bodynode('thorax').com()[0]
+        posbefore = self.robot_skeleton.bodynode('pelvis').com()[0]
         self.advance(np.copy(a))
 
-        posafter = self.robot_skeleton.bodynode('thorax').com()[0]
+        posafter = self.robot_skeleton.bodynode('pelvis').com()[0]
         height = self.robot_skeleton.bodynode('head').com()[1]
         side_deviation = self.robot_skeleton.bodynode('head').com()[2]
         angle = self.robot_skeleton.q[3]
@@ -191,6 +198,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                                  self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
         self.vel_enforce_kp = self.init_vel_pd + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
         # print(self.current_pd)
+        # smoothly increase the target velocity
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (self.final_tv - self.init_tv) + self.init_tv
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('head').to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynode('head').to_world(np.array([0, 0, 0]))
@@ -224,12 +234,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             vel_rew = self.vel_reward_weight * ( - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
+
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = 0.4 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
-        rot_pen = 5.0 * (abs(ang_cos_uwd))
-        spine_pen = 0.3 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20]) # penalize bending of spine
+        rot_pen = 3.0 * (abs(ang_cos_uwd))
+        # penalize bending of spine
+        spine_pen = 0.3 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen
 
 
@@ -264,7 +276,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         state = np.concatenate([
             self.robot_skeleton.q[1:],
-            np.clip(self.robot_skeleton.dq, -10, 10),
+            self.robot_skeleton.dq,
         ])
 
         if self.include_additional_info:

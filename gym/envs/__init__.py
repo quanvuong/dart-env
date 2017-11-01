@@ -193,6 +193,13 @@ register(
     max_episode_steps=200,
 )
 
+# Point Reach
+register(
+    id='PointReach-v1',
+    entry_point = 'gym.envs.classic_control:PointReachEnv',
+    max_episode_steps = 50,
+)
+
 # Dart
 # ----------------------------------------
 register(
