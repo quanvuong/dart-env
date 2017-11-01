@@ -27,6 +27,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.renderDARTWorld = True
         self.renderUI = True
         self.renderDisplacerAccuracy = False
+        self.renderContactInfo = False
         self.compoundAccuracy = True
         self.recordHistory = False
         self.recordROMPoints = False
@@ -449,8 +450,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 reward_target += 0.5
 
         #total reward
-        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target + reward_limbprogress\
-                      + reward_contactGeo + reward_clothdeformation
+        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation
         if self.dotimings:
             self.addTiming(label="Observation")
         #record accuracy
@@ -792,12 +792,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         csVars5 = np.array([0.05, -1, -1, 0,0,0])
         csVars6 = np.array([0.0365, -1, -1, 0,0,0])
         csVars7 = np.array([0.04, -1, -1, 0,0,0])
-        csVars8 = np.array([0.036, -1, -1, 0,0,0])
+        csVars8 = np.array([0.046, -1, -1, 0,0,0])
         csVars9 = np.array([0.065, -1, -1, 0,0,0])
         csVars10 = np.array([0.05, -1, -1, 0,0,0])
         csVars11 = np.array([0.0365, -1, -1, 0,0,0])
         csVars12 = np.array([0.04, -1, -1, 0,0,0])
-        csVars13 = np.array([0.036, -1, -1, 0,0,0])
+        csVars13 = np.array([0.046, -1, -1, 0,0,0])
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
         #collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
         if np.isnan(np.sum(collisionSpheresInfo)): #this will keep nans from propagating into PhysX resulting in segfault on reset()
@@ -826,8 +826,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
             hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
+            hapticSensorRadii = np.array([csVars0[0], csVars1[0], csVars2[0], csVars3[0], csVars4[0], LERP(csVars4[0], csVars5[0], 0.33), LERP(csVars4[0], csVars5[0], 0.66), csVars5[0], LERP(csVars5[0], csVars6[0], 0.33), LERP(csVars5[0], csVars6[0], 0.66), csVars6[0], csVars7[0], csVars8[0], csVars9[0], LERP(csVars9[0], csVars10[0], 0.33), LERP(csVars9[0], csVars10[0], 0.66), csVars10[0], LERP(csVars10[0], csVars11[0], 0.33), LERP(csVars10[0], csVars11[0], 0.66), csVars11[0], csVars12[0], csVars13[0]])
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
-            
+            self.clothScene.setHapticSensorRadii(hapticSensorRadii)
+
     def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
         return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
 
@@ -868,6 +870,12 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             renderUtils.setColor(color=[0.0, 1.0 - (side1geo / self.separatedMesh.maxGeo), 0.0])
             renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
         '''
+
+        if self.renderContactInfo:
+            contactInfo = pyutils.getContactIXGeoSide(sensorix=12, clothscene=self.clothScene,meshgraph=self.separatedMesh)
+            renderUtils.drawContactInfo(sensorix=12, contactInfo=contactInfo, clothScene=self.clothScene, maxGeo=self.separatedMesh.maxGeo, viewer=self.viewer)
+            renderUtils.drawHeatMapBar(topLeft=[self.viewer.viewport[2]-300,320], h=20, w=300)
+            renderUtils.drawText(x=self.viewer.viewport[2]-300, y=335,text=str(self.separatedMesh.maxGeo) + " <= geodesic <= 0")
 
         textHeight = 15
         textLines = 2
