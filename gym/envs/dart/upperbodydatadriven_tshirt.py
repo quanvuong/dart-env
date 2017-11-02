@@ -27,7 +27,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.renderDARTWorld = True
         self.renderUI = True
         self.renderDisplacerAccuracy = False
-        self.renderContactInfo = False
+        self.renderContactInfo = True
         self.compoundAccuracy = True
         self.recordHistory = False
         self.recordROMPoints = False
@@ -389,12 +389,21 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
             self.minContactGeo = minContactGeodesic
 
+        avgContactGeodesic = None
+        if self.numSteps > 0 and self.simulateCloth:
+            contactInfo = pyutils.getContactIXGeoSide(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+            if len(contactInfo) > 0:
+                for c in contactInfo:
+                    avgContactGeodesic += c[1]
+                avgContactGeodesic /= len(contactInfo)
+
         reward_contactGeo = 0
         if self.contactGeoReward and self.simulateCloth:
             if self.limbProgress > 0:
                 reward_contactGeo = 1.0
-            elif minContactGeodesic is not None:
-                reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+            elif avgContactGeodesic is not None:
+                reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                #reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
 
         #check cloth deformation for termination
         clothDeformation = 0
