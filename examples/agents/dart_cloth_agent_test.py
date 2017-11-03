@@ -19,6 +19,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2017_11_01_reacher"
     #trial = "experiment_2017_10_31_test"
 
     #trial = "experiment_2017_10_26_tshirt_nograv_complete"
@@ -100,7 +101,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 400
+        rolloutHorizon = 50
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
