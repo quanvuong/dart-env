@@ -251,14 +251,16 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     vel_rew += - self.vel_reward_weight * (vel_diff - 0.2 * np.abs(self.target_vel))
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
-
+        
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = 0.4 * np.abs(a).sum()
+        action_pen = 0.5 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
+
         rot_pen = 0.1 * (abs(ang_cos_uwd)) + 0.1 * (abs(ang_cos_fwd)) + 0.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
         spine_pen = 0.5 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.5 * np.abs(self.robot_skeleton.q[20])
+
         spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen
 
@@ -340,7 +342,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.contact_info = np.array([0, 0])
 
         self.init_height = self.robot_skeleton.bodynode('head').C[1]
-
+ 
         return self._get_obs()
 
     def viewer_setup(self):
