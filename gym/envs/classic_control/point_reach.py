@@ -42,6 +42,7 @@ class PointReachEnv(gym.Env):
 
     def _reset(self):
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(2,))
+
         self.targets = [np.array([3.0, 8.0]), np.array([-8.0, 3.0])]
         self.current_action = np.ones(2)
         return np.array(self.state)
