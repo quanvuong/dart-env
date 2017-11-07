@@ -15,15 +15,16 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 200, 200, 200, 10,80,10, 50, 10,80,10, 50])
+        self.action_scale = np.array([150, 150, 150, 100, 60, 60, 150, 150, 150, 100, 60, 60, 200, 200, 200, 10,80,10, 50, 10,80,10, 50])
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.3
+        self.target_vel = 2.5
         self.init_tv = 1.0
-        self.final_tv = 3.0
+        self.final_tv = 1.5
         self.tv_endtime = 2.0
         self.smooth_tv_change = False
+        self.velrew_mult = 1.0
 
         self.rand_target_vel = False
         self.init_push = False
@@ -47,7 +48,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 2000])
+        self.anchor_kp = np.array([6000, 3000])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -62,7 +63,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
         
-        self.vel_reward_weight = 3.0
+        self.vel_reward_weight = 0.0
  
         dart_env.DartEnv.__init__(self, 'kima/kima_human_edited.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
@@ -88,9 +89,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.set_self_collision_check(False)
 
         for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(2)
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(20)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
-            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(2)
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
 
         # self.dart_world.set_collision_detector(3)
 
@@ -214,6 +215,13 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         ang_cos_fwd = np.dot(forward, forward_world)
         ang_cos_fwd = np.arccos(ang_cos_fwd)
 
+        lateral = np.array([0, 0, 1])
+        lateral_world = self.robot_skeleton.bodynode('head').to_world(
+            np.array([0, 0, 1])) - self.robot_skeleton.bodynode('head').to_world(np.array([0, 0, 0]))
+        lateral_world /= np.linalg.norm(lateral_world)
+        ang_cos_ltl = np.dot(lateral, lateral_world)
+        ang_cos_ltl = np.arccos(ang_cos_ltl)
+
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
         self.contact_info = np.array([0, 0])
@@ -231,17 +239,24 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
         if not self.treadmill:
-            vel_rew = self.vel_reward_weight * ( - np.abs(self.target_vel - vel))  # 1.0 * (posafter - posbefore) / self.dt
+            vel_diff = np.abs(self.target_vel - vel)
+            #vel_rew = - vel_diff * self.vel_reward_weight
+            vel_rew = - 0.2 * self.vel_reward_weight * vel_diff
+            if vel_diff > 0.4:
+                vel_rew += - self.vel_reward_weight * (vel_diff - 0.4)
+            vel_rew *= self.velrew_mult
         else:
             vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
-
+        
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = 0.4 * np.abs(a).sum()
+        action_pen = 0.5 * np.abs(a).sum()
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
-        rot_pen = 3.0 * (abs(ang_cos_uwd))
+        rot_pen = 0.2 * (abs(ang_cos_uwd)) + 0.2 * (abs(ang_cos_fwd)) + 1.0 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 0.3 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
+        spine_pen = 0.1 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.5 * np.abs(self.robot_skeleton.q[20])
+        # penalize thigh yaw a bit
+        spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen
 
 
@@ -320,7 +335,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.contact_info = np.array([0, 0])
 
         self.init_height = self.robot_skeleton.bodynode('head').C[1]
-
+ 
         return self._get_obs()
 
     def viewer_setup(self):
