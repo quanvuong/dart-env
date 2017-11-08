@@ -387,6 +387,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         if self.limbProgressReward and self.simulateCloth:
             self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
             reward_limbprogress = self.limbProgress
+            if reward_limbprogress < 0: #remove euclidean distance penalty before containment
+                reward_limbprogress = 0
 
         '''minContactGeodesic = None
         if self.numSteps > 0 and self.simulateCloth:
