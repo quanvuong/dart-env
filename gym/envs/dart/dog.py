@@ -10,11 +10,11 @@ from gym.envs.dart.parameter_managers import *
 
 class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0]*16,[-1.0]*16])
+        self.control_bounds = np.array([[1.0]*1,[-1.0]*1])
         self.action_scale = 200
-        obs_dim = 43
+        obs_dim = 11
 
-        dart_env.DartEnv.__init__(self, 'dog.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'dog/dog.skel', 15, obs_dim, self.control_bounds, disableViewer=False)
 
         self.dart_world.set_collision_detector(3) # 3 is ode collision detector
 
@@ -28,7 +28,6 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[6:] = clamped_control * self.action_scale
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
         self.do_simulation(tau, self.frame_skip)
@@ -51,7 +50,7 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
-            np.clip(self.robot_skeleton.dq,-10,10)
+            self.robot_skeleton.dq
         ])
 
         return state
@@ -65,5 +64,5 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -15.5
-        self.track_skeleton_id = 0
+        if not self.disableViewer:
+            self._get_viewer().scene.tb.trans[2] = -3.5

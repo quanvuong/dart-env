@@ -15,11 +15,11 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([200, 200, 200, 100, 60, 60, 200, 200, 200, 100, 60, 60, 200, 200, 200, 10,40,10, 2, 10,40,10, 2])
+        self.action_scale = np.array([60, 200, 60, 150, 60, 60, 60, 200, 60, 150, 60, 60, 200, 200, 200, 3,10,3, 2, 3,10,3, 2])
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.5
+        self.target_vel = 2.0
         self.init_tv = 2.5
         self.final_tv = 2.5
         self.tv_endtime = 4.0
@@ -257,9 +257,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 1.0 * (abs(ang_cos_uwd))# + 0.1 * (abs(ang_cos_fwd)) + 0.5 * (abs(ang_cos_ltl))
+        rot_pen = 0.5 * (abs(ang_cos_uwd)) + 0.5 * (abs(ang_cos_fwd)) + 0.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 0.1 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.1 * np.abs(self.robot_skeleton.q[20])
+        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
 
         spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen
