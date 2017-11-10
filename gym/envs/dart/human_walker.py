@@ -15,7 +15,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60, 200, 60, 150, 60, 60, 60, 200, 60, 150, 60, 60, 200, 200, 200, 3,20,3, 2, 3,20,3, 2])
+        self.action_scale = np.array([60, 200, 60, 150, 60, 60, 60, 200, 60, 150, 60, 60, 200, 200, 200, 3,10,3, 2, 3,10,3, 2])
         obs_dim = 57
 
         self.t = 0
