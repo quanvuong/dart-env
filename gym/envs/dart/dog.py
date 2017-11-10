@@ -21,7 +21,7 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
-        clamped_control = np.array(a)
+        '''clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -42,10 +42,12 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .7) and (height < 1.8) and (side_deviation < .4))
+                    (height > .7) and (height < 1.8) and (side_deviation < .4))'''
+        reward = 0.0
+        done = True
         ob = self._get_obs()
 
-        return ob, reward, done, {'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'done_return':done}
+        return ob, reward, done, {'done_return':done}
 
     def _get_obs(self):
         state =  np.concatenate([
