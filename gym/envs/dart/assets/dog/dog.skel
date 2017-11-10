@@ -4,7 +4,7 @@
         <physics>
             <time_step>0.002</time_step>
             <gravity>0 -9.81 0</gravity>
-            <collision_detector>fcl_mesh</collision_detector>
+            <collision_detector>dart</collision_detector>
         </physics>
 
         <skeleton name="ground skeleton">
@@ -36,7 +36,7 @@
         </skeleton>
 
         <skeleton name="dog">
-            <transformation>0 0.0 0 0 0 0</transformation>
+            <transformation>0 -0.45 0 0 0 0</transformation>
 
             <body name="pelvis_aux">
                 <transformation>0.0 1.035 0.0 0 0.0 0</transformation>
@@ -72,12 +72,21 @@
                 <collision_shape>
                     <transformation>0.0 0.0 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.16 0.08 0.08</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/pelvis.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="back1">
@@ -104,6 +113,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.04 -0.023 0.0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.12 0.12 0.12</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.04 -0.043 0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -111,7 +129,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="back2">
@@ -138,6 +156,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.025 -0.05 0.0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.13 0.13 0.13</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.035 -0.06 0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -145,7 +172,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="back3">
@@ -172,6 +199,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.015 -0.062 0.0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.14 0.14 0.14</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.025 -0.072 0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -179,7 +215,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="back4">
@@ -206,6 +242,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.025 -0.064 0.0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.16 0.16 0.16</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.025 -0.084 0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -213,7 +258,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="back5">
@@ -242,12 +287,21 @@
                 <collision_shape>
                     <transformation>-0.086 -0.056 0.0 0 0 0</transformation>
                     <geometry>
+                        <ellipsoid>
+                            <size>0.24 0.24 0.24</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.086 -0.056 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/back5.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="neck1">
@@ -276,12 +330,21 @@
                 <collision_shape>
                     <transformation>-0.015 0.02 0.0 0 0 0</transformation>
                     <geometry>
+                        <ellipsoid>
+                            <size>0.06 0.06 0.06</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.015 0.02 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/neck1.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="neck2">
@@ -310,12 +373,21 @@
                 <collision_shape>
                     <transformation>-0.015 0.02 0.0 0 0 0</transformation>
                     <geometry>
+                        <ellipsoid>
+                            <size>0.06 0.06 0.06</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.015 0.02 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/neck2.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="neck3">
@@ -344,12 +416,21 @@
                 <collision_shape>
                     <transformation>-0.015 0.02 0.0 0 0 0</transformation>
                     <geometry>
+                        <ellipsoid>
+                            <size>0.06 0.06 0.06</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.015 0.02 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/neck3.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="head">
@@ -376,6 +457,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.06 0.03 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.24 0.12 0.12</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.04 0.03 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -383,7 +473,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lHumerus">
@@ -412,12 +502,21 @@
                 <collision_shape>
                     <transformation>-0.006 -0.12 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.05 0.16 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.006 -0.12 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/humerus.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rHumerus">
@@ -446,12 +545,21 @@
                 <collision_shape>
                     <transformation>-0.006 -0.12 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.05 0.16 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.006 -0.12 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/humerus.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lForearm">
@@ -480,12 +588,21 @@
                 <collision_shape>
                     <transformation>0.004 -0.086 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.05 0.16 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>0.004 -0.086 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/ulna.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rForearm">
@@ -514,12 +631,21 @@
                 <collision_shape>
                     <transformation>0.004 -0.086 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.05 0.16 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>0.004 -0.086 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/ulna.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lMetacarpals">
@@ -548,12 +674,21 @@
                 <collision_shape>
                     <transformation>0.0 -0.04 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.04 0.06 0.04</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>0.0 -0.04 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/frontFoot.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rMetacarpals">
@@ -582,12 +717,21 @@
                 <collision_shape>
                     <transformation>0.0 -0.04 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.04 0.06 0.04</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>0.0 -0.04 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/frontFoot.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lFingers">
@@ -614,6 +758,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.019 -0.014 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.07 0.03 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.012 -0.014 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -621,7 +774,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rFingers">
@@ -648,6 +801,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>-0.019 -0.014 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.07 0.03 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>-0.012 -0.014 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -655,7 +817,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lFemur">
@@ -682,6 +844,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.119 0.005 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.06 0.22 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0 -0.104 0.005 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -689,7 +860,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rFemur">
@@ -716,6 +887,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.119 -0.005 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.06 0.22 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0 -0.104 -0.005 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -723,7 +903,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lShin">
@@ -750,6 +930,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.118 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.05 0.19 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0.0 -0.098 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -757,7 +946,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rShin">
@@ -784,6 +973,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.118 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.05 0.19 0.05</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0.0 -0.098 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -791,7 +989,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lMetatarsals">
@@ -818,6 +1016,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.058 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.04 0.07 0.04</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0.0 -0.043 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -825,7 +1032,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rMetatarsals">
@@ -852,6 +1059,15 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
+                    <transformation>0.0 -0.058 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.04 0.07 0.04</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
                     <transformation>0.0 -0.043 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
@@ -859,7 +1075,7 @@
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="lToes">
@@ -888,12 +1104,21 @@
                 <collision_shape>
                     <transformation>-0.024 -0.017 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.06 0.035 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.024 -0.017 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/rearToes.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="rToes">
@@ -922,19 +1147,28 @@
                 <collision_shape>
                     <transformation>-0.024 -0.017 0.0 0 0 0</transformation>
                     <geometry>
+                        <box>
+                            <size>0.06 0.035 0.06</size>
+                        </box>
+                    </geometry>
+                    <color>1 0 0 0.2</color>
+                </collision_shape>
+                <!--<collision_shape>
+                    <transformation>-0.024 -0.017 0.0 0 0 0</transformation>
+                    <geometry>
                         <mesh>
                             <file_name>dogSimple/rearToes.obj</file_name>
                             <scale>1.0 1.0 1.0</scale>
                         </mesh>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
             </body>
 
             <body name="tail1">
-                <transformation>0.0 0.0 0.0 0 0.0 0</transformation>
+                <transformation>0.07 1.001 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0.035 -0.015 0</offset>
                     <moment_of_inertia>
                     <ixx>0.001</ixx>
                     <iyy>0.002</iyy>
@@ -945,7 +1179,7 @@
                     </moment_of_inertia>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <transformation>0.035 -0.015 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>dogSimple/tail.obj</file_name>
@@ -953,22 +1187,13 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
-                    <geometry>
-                        <mesh>
-                            <file_name>dogSimple/tail.obj</file_name>
-                            <scale>1.0 1.0 1.0</scale>
-                        </mesh>
-                    </geometry>
-                </collision_shape>
             </body>
 
             <body name="tail2">
-                <transformation>0.0 0.0 0.0 0 0.0 0</transformation>
+                <transformation>0.14 0.971 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0.035 -0.015 0</offset>
                     <moment_of_inertia>
                     <ixx>0.001</ixx>
                     <iyy>0.002</iyy>
@@ -979,7 +1204,7 @@
                     </moment_of_inertia>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <transformation>0.035 -0.015 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>dogSimple/tail.obj</file_name>
@@ -987,22 +1212,13 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
-                    <geometry>
-                        <mesh>
-                            <file_name>dogSimple/tail.obj</file_name>
-                            <scale>1.0 1.0 1.0</scale>
-                        </mesh>
-                    </geometry>
-                </collision_shape>
             </body>
 
             <body name="tail3">
-                <transformation>0.0 0.0 0.0 0 0.0 0</transformation>
+                <transformation>0.21 0.941 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0.035 -0.015 0</offset>
                     <moment_of_inertia>
                     <ixx>0.001</ixx>
                     <iyy>0.002</iyy>
@@ -1013,7 +1229,7 @@
                     </moment_of_inertia>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <transformation>0.035 -0.015 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>dogSimple/tail.obj</file_name>
@@ -1021,22 +1237,13 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
-                    <geometry>
-                        <mesh>
-                            <file_name>dogSimple/tail.obj</file_name>
-                            <scale>1.0 1.0 1.0</scale>
-                        </mesh>
-                    </geometry>
-                </collision_shape>
             </body>
 
             <body name="tail4">
-                <transformation>0.0 0.0 0.0 0 0.0 0</transformation>
+                <transformation>0.28 0.911 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0.035 -0.015 0</offset>
                     <moment_of_inertia>
                     <ixx>0.001</ixx>
                     <iyy>0.002</iyy>
@@ -1047,7 +1254,7 @@
                     </moment_of_inertia>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <transformation>0.035 -0.015 0.0 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>dogSimple/tail.obj</file_name>
@@ -1055,15 +1262,6 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
-                    <geometry>
-                        <mesh>
-                            <file_name>dogSimple/tail.obj</file_name>
-                            <scale>1.0 1.0 1.0</scale>
-                        </mesh>
-                    </geometry>
-                </collision_shape>
             </body>
 
 

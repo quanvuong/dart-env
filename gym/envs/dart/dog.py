@@ -16,12 +16,10 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, 'dog/dog.skel', 15, obs_dim, self.control_bounds, disableViewer=False)
 
-        self.dart_world.set_collision_detector(3) # 3 is ode collision detector
-
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
-        '''clamped_control = np.array(a)
+        clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -41,13 +39,11 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 1e-3 * np.square(a).sum()
 
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .7) and (height < 1.8) and (side_deviation < .4))'''
-        reward = 0.0
-        done = True
+        #done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
+        #            (height > .7) and (height < 1.8) and (side_deviation < .4))
         ob = self._get_obs()
-
-        return ob, reward, done, {'done_return':done}
+        done = False
+        return ob, reward, done, {'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'done_return':done}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -67,4 +63,4 @@ class DartDogEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if not self.disableViewer:
-            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb.trans[2] = -2.5
