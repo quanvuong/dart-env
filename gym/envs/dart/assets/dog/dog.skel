@@ -735,7 +735,7 @@
             </body>
 
             <body name="lFingers">
-                <transformation>-0.477 0.515 -0.054 0 0.0 0</transformation>
+                <transformation>-0.477 0.515 0.054 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
                     <offset>-0.012 -0.014 0</offset>
@@ -778,7 +778,7 @@
             </body>
 
             <body name="rFingers">
-                <transformation>-0.477 0.515 0.054 0 0.0 0</transformation>
+                <transformation>-0.477 0.515 -0.054 0 0.0 0</transformation>
                 <inertia>
                     <mass>0.2</mass>
                     <offset>-0.012 -0.014 0</offset>
@@ -1285,18 +1285,27 @@
                         <lower>-1.6</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-1.0</lower>
                         <upper>0.3</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1309,18 +1318,27 @@
                         <lower>-1.6</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.3</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1333,18 +1351,27 @@
                         <lower>-3.0</lower>
                         <upper>3.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-1.0</lower>
                         <upper>0.1</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1357,18 +1384,27 @@
                         <lower>-3.0</lower>
                         <upper>3.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.1</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1381,6 +1417,9 @@
                         <lower>-2.6</lower>
                         <upper>0.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1393,6 +1432,9 @@
                         <lower>-2.6</lower>
                         <upper>0.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1405,6 +1447,9 @@
                         <lower>-0.1</lower>
                         <upper>2.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1417,6 +1462,9 @@
                         <lower>-0.1</lower>
                         <upper>2.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1429,6 +1477,9 @@
                         <lower>-0.8</lower>
                         <upper>0.8</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
@@ -1436,6 +1487,9 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
             </joint>
 
@@ -1448,6 +1502,9 @@
                         <lower>-0.8</lower>
                         <upper>0.8</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <xyz>1.0 0.0 0.0</xyz>
@@ -1455,6 +1512,9 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
             </joint>
 
@@ -1467,18 +1527,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1491,18 +1560,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1515,18 +1593,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1539,18 +1626,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1563,18 +1659,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1587,18 +1692,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1611,18 +1725,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1635,18 +1758,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1659,18 +1791,27 @@
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis2>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis2>
                 <axis3>
                     <limit>
                         <lower>-0.6</lower>
                         <upper>0.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis3>
             </joint>
 
@@ -1683,6 +1824,9 @@
                         <lower>0.0</lower>
                         <upper>3.1</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1695,6 +1839,9 @@
                         <lower>0.0</lower>
                         <upper>3.1</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1707,6 +1854,9 @@
                         <lower>-3.1</lower>
                         <upper>0.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1719,6 +1869,9 @@
                         <lower>-3.1</lower>
                         <upper>0.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
             </joint>
 
@@ -1731,6 +1884,9 @@
                         <lower>-0.8</lower>
                         <upper>1.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis1>
                     <xyz>1.0 0.0 0.0</xyz>
@@ -1738,6 +1894,9 @@
                         <lower>-1.0</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis1>
             </joint>
 
@@ -1750,6 +1909,9 @@
                         <lower>-0.8</lower>
                         <upper>1.6</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis>
                 <axis1>
                     <xyz>1.0 0.0 0.0</xyz>
@@ -1757,6 +1919,9 @@
                         <lower>-1.0</lower>
                         <upper>1.0</upper>
                     </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
                 </axis1>
             </joint>
 
@@ -1764,24 +1929,132 @@
                 <parent>pelvis</parent>
                 <child>tail1</child>
                 <axis_order>zyx</axis_order>
+                <axis>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis>
+                <axis2>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis2>
+                <axis3>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis3>
             </joint>
 
             <joint type="euler" name="tailJ2">
                 <parent>tail1</parent>
                 <child>tail2</child>
                 <axis_order>zyx</axis_order>
+                <axis>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis>
+                <axis2>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis2>
+                <axis3>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis3>
             </joint>
 
             <joint type="euler" name="tailJ3">
                 <parent>tail2</parent>
                 <child>tail3</child>
                 <axis_order>zyx</axis_order>
+                <axis>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis>
+                <axis2>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis2>
+                <axis3>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis3>
             </joint>
 
             <joint type="euler" name="tailJ4">
                 <parent>tail3</parent>
                 <child>tail4</child>
                 <axis_order>zyx</axis_order>
+                <axis>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis>
+                <axis2>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis2>
+                <axis3>
+                    <limit>
+                        <lower>-0.5</lower>
+                        <upper>0.5</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                    </dynamics>
+                </axis3>
             </joint>
         </skeleton>
 
