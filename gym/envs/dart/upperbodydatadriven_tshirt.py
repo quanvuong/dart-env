@@ -67,6 +67,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prevTauObs = False #if True, T(t-1) is included in the obs
         #dressing terms
         self.limbProgressReward = True #if true, the (-inf, 1] plimb progress metric is included in reward
+        self.oracleDisplacementReward = True #if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
         self.deformationTermination = True
@@ -181,6 +182,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.displacerActual = [[], []]
 
         self.reward = 0
+        self.cumulativeReward = 0
         self.deformation = 0
 
         self.prevTime = time.time()
@@ -453,6 +455,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             else:
                 reward_displacement += actual_displacement.dot(self.leftDisplacement)
 
+        reward_oracleDisplacement = 0
+        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0:
+            actual_displacement = wRFingertip2 - wRFingertip1
+            reward_oracleDisplacement += actual_displacement.dot(self.prevOracle)
+
         reward_target = 0
         if self.rightTarget_active:
             targetDistR = np.linalg.norm(self.rightTarget-wRFingertip2)
@@ -466,7 +473,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 reward_target += 0.5
 
         #total reward
-        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation
+        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation + reward_oracleDisplacement
+        self.cumulativeReward += self.reward
         if self.dotimings:
             self.addTiming(label="Observation")
         #record accuracy
@@ -648,6 +656,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         #print("reset")
+        self.cumulativeReward = 0
         self.clearTimings()
         self.qHistory = []
         self.dqHistory = []
@@ -923,6 +932,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps/self.totalTime), color=(0., 0, 0))
                 textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             if self.simulateCloth:
                 self.clothScene.drawText(x=15., y=textLines*textHeight, text="Deformation = " + str(self.deformation), color=(0., 0, 0))
