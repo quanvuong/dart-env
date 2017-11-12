@@ -66,6 +66,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.leftTarget_active = False
         self.prevTauObs = False #if True, T(t-1) is included in the obs
         #dressing terms
+        self.elbowFlairReward = True
+        self.elbowFlairNode = 10
         self.limbProgressReward = True #if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward = True #if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
@@ -385,6 +387,18 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
 
+        reward_elbow_flair = 0
+        if self.elbowFlairReward:
+            root = self.robot_skeleton.bodynodes[0].to_world(np.zeros(3))
+            spine = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+            elbow = self.robot_skeleton.bodynodes[self.elbowFlairNode].to_world(np.zeros(3))
+            dist = pyutils.distToLine(p=elbow, l0=root, l1=spine)
+            z=0.5
+            s=16
+            l=0.2
+            reward_elbow_flair = (1 - (z * math.tanh(s*(dist-l)) + z))
+            #print("reward_elbow_flair: " + str(reward_elbow_flair))
+
         reward_limbprogress = 0
         if self.limbProgressReward and self.simulateCloth:
             self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
@@ -473,7 +487,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 reward_target += 0.5
 
         #total reward
-        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation + reward_oracleDisplacement
+        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation + reward_oracleDisplacement + reward_elbow_flair
         self.cumulativeReward += self.reward
         if self.dotimings:
             self.addTiming(label="Observation")

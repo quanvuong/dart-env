@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_11_08_tshirt_1starm"
+    #trial = "experiment_2017_11_10_tshirt_1starm"
 
     #trial = "experiment_2017_11_01_reacher"
     #trial = "experiment_2017_10_31_test"
@@ -114,7 +114,7 @@ if __name__ == '__main__':
             a = np.zeros(22) #22 dof upper body
 
             #a = np.ones(22)
-            a += np.random.uniform(-1,1,len(a))
+            #a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
