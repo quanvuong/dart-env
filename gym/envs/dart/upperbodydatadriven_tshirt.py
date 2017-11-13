@@ -389,15 +389,15 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         reward_elbow_flair = 0
         if self.elbowFlairReward:
-            root = self.robot_skeleton.bodynodes[0].to_world(np.zeros(3))
+            root = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
             spine = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
             elbow = self.robot_skeleton.bodynodes[self.elbowFlairNode].to_world(np.zeros(3))
             dist = pyutils.distToLine(p=elbow, l0=root, l1=spine)
             z=0.5
             s=16
             l=0.2
-            reward_elbow_flair = (1 - (z * math.tanh(s*(dist-l)) + z))
-            #print("reward_elbow_flair: " + str(reward_elbow_flair))
+            reward_elbow_flair = -(1 - (z * math.tanh(s*(dist-l)) + z))
+            print("reward_elbow_flair: " + str(reward_elbow_flair))
 
         reward_limbprogress = 0
         if self.limbProgressReward and self.simulateCloth:
@@ -885,6 +885,18 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        #testing elbow flair reward
+        '''root = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
+        spine = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+        elbow = self.robot_skeleton.bodynodes[self.elbowFlairNode].to_world(np.zeros(3))
+        dist = pyutils.distToLine(p=elbow, l0=root, l1=spine)
+        z = 0.5
+        s = 16
+        l = 0.2
+        reward_elbow_flair = (1 - (z * math.tanh(s * (dist - l)) + z))
+        #print("reward_elbow_flair: " + str(reward_elbow_flair))
+        renderUtils.drawLineStrip(points=[root, elbow, spine])'''
 
         #HSL = self.clothScene.getHapticSensorLocations()
         #renderUtils.drawSphere(pos=HSL[12*3:13*3],rad=0.1)
