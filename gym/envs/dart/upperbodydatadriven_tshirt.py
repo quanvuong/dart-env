@@ -397,7 +397,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             s=16
             l=0.2
             reward_elbow_flair = -(1 - (z * math.tanh(s*(dist-l)) + z))
-            print("reward_elbow_flair: " + str(reward_elbow_flair))
+            #print("reward_elbow_flair: " + str(reward_elbow_flair))
 
         reward_limbprogress = 0
         if self.limbProgressReward and self.simulateCloth:
