@@ -22,7 +22,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.screenSize = (1080, 720)
         self.renderDARTWorld = True
         self.renderUI = True
@@ -124,6 +124,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.qHistory = []
         self.dqHistory = []
         self.tHistory = []
+        self.dispR = np.zeros(3)
 
         self.reset_number = 0 #debugging
         self.numSteps = 0
@@ -301,6 +302,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
     def _step(self, a):
         #print("a: " + str(a))
+        #if random.random() > 0.99:
+        #    time.sleep(60)
         if self.dotimings:
             self.addTiming(label="Start")
         if self.numSteps > 1:
@@ -384,6 +387,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        self.dispR = wRFingertip2 - wRFingertip1
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
 
@@ -487,7 +491,16 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 reward_target += 0.5
 
         #total reward
-        self.reward = reward_ctrl*0 + reward_upright + reward_upreach + reward_displacement + reward_target*10 + reward_limbprogress*3 + reward_contactGeo + reward_clothdeformation + reward_oracleDisplacement + reward_elbow_flair
+        self.reward = reward_ctrl*0\
+                      + reward_upright\
+                      + reward_upreach\
+                      + reward_displacement\
+                      + reward_target*10\
+                      + reward_limbprogress*3\
+                      + reward_contactGeo*2\
+                      + reward_clothdeformation\
+                      + reward_oracleDisplacement*50\
+                      + reward_elbow_flair
         self.cumulativeReward += self.reward
         if self.dotimings:
             self.addTiming(label="Observation")
@@ -898,9 +911,22 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #print("reward_elbow_flair: " + str(reward_elbow_flair))
         renderUtils.drawLineStrip(points=[root, elbow, spine])'''
 
+        reward_oracleDisplacement = 0
+        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0:
+            efR = self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.06,0]))
+            actual_displacement = self.dispR
+            reward_oracleDisplacement += actual_displacement.dot(self.prevOracle)
+            #print(reward_oracleDisplacement)
+            renderUtils.setColor([1.0, 0, 0])
+            if reward_oracleDisplacement > 0:
+                renderUtils.setColor([0,1.0,0])
+            renderUtils.drawArrow(p0=efR, p1=efR + actual_displacement/np.linalg.norm(actual_displacement)*0.15, hwRatio=0.15)
+
+
         #HSL = self.clothScene.getHapticSensorLocations()
         #renderUtils.drawSphere(pos=HSL[12*3:13*3],rad=0.1)
 
+        renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 

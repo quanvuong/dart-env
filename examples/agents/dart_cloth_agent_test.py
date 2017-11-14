@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_11_12_tshirt_1starm"
+    trial = "experiment_2017_11_13_tshirt_1starm"
 
     #trial = "experiment_2017_11_01_reacher"
     #trial = "experiment_2017_10_31_test"
