@@ -81,6 +81,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.hapticsInObs = True #if true, haptics are in observation
         self.hapticsAware = True  # if false, 0's for haptic input
 
+        self.interArmCollisions = False
+
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
         self.minContactGeo = 0
@@ -252,6 +254,15 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[8])  # head to left shoulder
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
+
+        if not self.interArmCollisions: #turn off collisions between the arms
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+                                               self.robot_skeleton.bodynodes[5])  # left forearm to right forearm
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+                                               self.robot_skeleton.bodynodes[4])  # left forearm to right bicep
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
+                                               self.robot_skeleton.bodynodes[9])  # right forearm to left bicep
+
 
         #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
