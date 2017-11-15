@@ -82,7 +82,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.hapticsAware = True  # if false, 0's for haptic input
 
         self.interArmCollisions = True
-        self.shoulderCollisions = True
+        self.shoulderCollisions = False
 
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
