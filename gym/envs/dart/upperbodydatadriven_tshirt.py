@@ -22,7 +22,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = True
+        self.useOpenGL = False
         self.screenSize = (1080, 720)
         self.renderDARTWorld = True
         self.renderUI = True
@@ -81,7 +81,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.hapticsInObs = True #if true, haptics are in observation
         self.hapticsAware = True  # if false, 0's for haptic input
 
-        self.interArmCollisions = False
+        self.interArmCollisions = True
+        self.shoulderCollisions = True
 
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
@@ -263,6 +264,15 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
                                                self.robot_skeleton.bodynodes[9])  # right forearm to left bicep
 
+        if not self.shoulderCollisions: #turn off collisions involving the shoulder nodes
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
+                                               self.robot_skeleton.bodynodes[3])  # right forearm to shoulder
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[6],
+                                               self.robot_skeleton.bodynodes[3])  # right hand to shoulder
+            collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[6],
+                                               self.robot_skeleton.bodynodes[3])  # right fingers to shoulder
+
+
 
         #TODO: make this more generic
         self.torqueGraph = None#pyutils.LineGrapher(title="Torques")
@@ -360,6 +370,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         fingertip = np.array([0.0, -0.06, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1) #right fingertip in right shoulder local frame
         #vecR1 = self.target-wRFingertip1
         #vecL1 = self.target2-wLFingertip1
 
@@ -398,6 +409,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         self.dispR = wRFingertip2 - wRFingertip1
         #vecR2 = self.target-wRFingertip2
         #vecL2 = self.target2-wLFingertip2
@@ -486,8 +498,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         reward_oracleDisplacement = 0
         if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0:
-            actual_displacement = wRFingertip2 - wRFingertip1
-            reward_oracleDisplacement += actual_displacement.dot(self.prevOracle)
+            #world_ef_displacement = wRFingertip2 - wRFingertip1
+            relative_displacement = localRightEfShoulder2-localRightEfShoulder1
+            oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2+self.prevOracle) - localRightEfShoulder2
+            #oracle0 = oracle0/np.linalg.norm(oracle0)
+            reward_oracleDisplacement += relative_displacement.dot(oracle0)
 
         reward_target = 0
         if self.rightTarget_active:
