@@ -72,7 +72,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.oracleDisplacementReward = True #if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward = True #if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
-        self.deformationTermination = True
+        self.deformationTermination = False
         self.deformationPenalty = True
         self.maxDeformation = 22.0
         self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
@@ -82,7 +82,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.hapticsAware = True  # if false, 0's for haptic input
 
         self.interArmCollisions = True
-        self.shoulderCollisions = False
+        self.shoulderCollisions = True
 
         self.limbProgress = 0
         self.prevOracle = np.zeros(3)
@@ -222,7 +222,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         
         #self.clothScene.seedRandom(random.randint(1,1000))
         self.clothScene.setFriction(0, 0.5)
-        
+
+        self.collisionCapsuleInfo = None #set in updateClothCollisionStructures(capsules=True)
+        self.collisionSphereInfo = None #set in updateClothCollisionStructures()
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
         self.simulateCloth = simulateCloth
@@ -524,7 +526,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                       + reward_target*10\
                       + reward_limbprogress*3\
                       + reward_contactGeo*2\
-                      + reward_clothdeformation\
+                      + reward_clothdeformation*3\
                       + reward_oracleDisplacement*50\
                       + reward_elbow_flair
         self.cumulativeReward += self.reward
@@ -881,6 +883,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         csVars12 = np.array([0.04, -1, -1, 0,0,0])
         csVars13 = np.array([0.046, -1, -1, 0,0,0])
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
+        self.collisionSphereInfo = np.array(collisionSpheresInfo)
         #collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
         if np.isnan(np.sum(collisionSpheresInfo)): #this will keep nans from propagating into PhysX resulting in segfault on reset()
             return
@@ -902,7 +905,22 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             collisionCapsuleInfo[10,11] = 1
             collisionCapsuleInfo[11,12] = 1
             collisionCapsuleInfo[12,13] = 1
-            self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo)
+            collisionCapsuleBodynodes = -1 * np.ones((14,14))
+            collisionCapsuleBodynodes[0, 1] = 1
+            collisionCapsuleBodynodes[1, 2] = 13
+            collisionCapsuleBodynodes[1, 4] = 3
+            collisionCapsuleBodynodes[1, 9] = 8
+            collisionCapsuleBodynodes[2, 3] = 14
+            collisionCapsuleBodynodes[4, 5] = 4
+            collisionCapsuleBodynodes[5, 6] = 5
+            collisionCapsuleBodynodes[6, 7] = 6
+            collisionCapsuleBodynodes[7, 8] = 7
+            collisionCapsuleBodynodes[9, 10] = 9
+            collisionCapsuleBodynodes[10, 11] = 10
+            collisionCapsuleBodynodes[11, 12] = 11
+            collisionCapsuleBodynodes[12, 13] = 12
+            self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
+            self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
             
         if hapticSensors is True:
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])

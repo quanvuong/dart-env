@@ -979,6 +979,10 @@ class PoseInteractor(BaseInteractor):
         self.selectedBox = None
         self.boxesDefined = False
         self.topLeft = None
+        self.selectedNode = None
+        self.selectedNodeOffset = np.zeros(3)
+        self.clickz = 0
+        self.mouseGlobal = None
 
     def defineBoxRanges(self):
         #manually defined
@@ -1020,12 +1024,48 @@ class PoseInteractor(BaseInteractor):
                 qpos[self.selectedBox] = min(max(qpos[self.selectedBox], skel.position_lower_limits()[self.selectedBox]), skel.position_upper_limits()[self.selectedBox])
             skel.set_positions(qpos)
 
+    def distToSkel(self):
+        #return the distance from the previous mouse position (3D) to the skeleton and the nearest bodynode
+        skel = self.viewer.sim.skeletons[self.skelix]
+        self.selectedNode = None
+        self.selectedNodeOffset = np.zeros(3)
+        sphereInfo = self.viewer.clothScene.getCollisionSpheresInfo()
+        capsuleInfo = self.viewer.clothScene.getCollisionCapsuleInfo()
+        capsuleBodynodes = self.viewer.clothScene.collisionCapsuleBodynodes
+        if capsuleBodynodes is None:
+            print("No bodynode correspondance present in clothscene. Aborting.")
+            return
+        smallestDistance = 9999
+        bestTangentialDistance = 0
+        closestNode = -1
+        for row in range(len(capsuleInfo)):
+            for col in range(len(capsuleInfo)):
+                if capsuleInfo[row][col] != 0:
+                    #print("capsule between spheres " + str(row) + " and " + str(col))
+                    p0 = sphereInfo[9*row:9*row+3]
+                    r0 = sphereInfo[9 * row + 3]
+                    p1 = sphereInfo[9*col:9*col+3]
+                    r1 = sphereInfo[9 * col + 3]
+                    #print("length = " + str(np.linalg.norm(p0-p1)))
+                    distance, tangentialDistance = pyutils.distToLine(p=self.viewer.prevWorldMouse, l0=p0, l1=p1, distOnLine=True)
+                    radius = r0 + (r1-r0)*tangentialDistance
+                    if distance-radius < smallestDistance:
+                        smallestDistance = distance-radius
+                        bestTangentialDistance = tangentialDistance
+                        closestNode = int(capsuleBodynodes[row][col])
+        if smallestDistance < 0.01:
+            self.selectedNode = closestNode
+            self.selectedNodeOffset = skel.bodynodes[closestNode].to_local(self.viewer.prevWorldMouse)
+            print("Clicked " + str(skel.bodynodes[closestNode]) + " at distance " + str(smallestDistance) + " and extent " + str(bestTangentialDistance))
+
     def click(self, button, state, x, y):
         tb = self.viewer.scene.tb
         if state == 0:  # Mouse pressed
             self.selectedBox = self.boxClickTest(np.array([x,y]))
             if button == 0:
+                self.clickz = GL.glReadPixels(self.viewer.mouseLastPos[0],self.viewer.viewport[3]-self.viewer.mouseLastPos[1], 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
                 self.viewer.mouseLButton = True
+                self.distToSkel()
             if button == 2:
                 self.viewer.mouseRButton = True
             self.viewer.mouseLastPos = np.array([x, y])
@@ -1040,7 +1080,10 @@ class PoseInteractor(BaseInteractor):
                 else:
                     tb.trans[2] -= 0.1
         elif state == 1:  # mouse released
+            self.selectedNode = None
+            self.selectedNodeOffset = np.zeros(3)
             self.selectedBox = None
+            self.mouseGlobal = None
             # self.mouseLastPos = None
             if button == 0:
                 self.viewer.mouseLButton = False
@@ -1051,7 +1094,15 @@ class PoseInteractor(BaseInteractor):
         dx = x - self.viewer.mouseLastPos[0]
         dy = y - self.viewer.mouseLastPos[1]
 
-        if self.selectedBox is None:
+        if self.selectedNode is not None:
+            #print("adding force")
+            self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0],self.viewer.viewport[3]-self.viewer.mouseLastPos[1], self.clickz])))
+            forceScale = 20.0
+            skel = self.viewer.sim.skeletons[self.skelix]
+            #skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.viewer.camRight * dx + self.viewer.camUp * -dy), _offset=self.selectedNodeOffset)
+            #skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.mouseGlobal - skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset)), _offset=self.selectedNodeOffset)
+
+        elif self.selectedBox is None:
             tb = self.viewer.scene.tb
             if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
                 tb.zoom_to(dx, -dy)
@@ -1091,6 +1142,16 @@ class PoseInteractor(BaseInteractor):
         self.viewer.keyPressed(key, x, y)
 
     def contextRender(self):
+
+        if self.mouseGlobal is not None and self.selectedNode is not None:
+            skel = self.viewer.sim.skeletons[self.skelix]
+            self.viewer.drawSphere(p=self.mouseGlobal, r=0.01, solid=True)
+            renderUtils.drawArrow(p0=skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset), p1=self.mouseGlobal)
+            forceScale = 500.0
+            skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.mouseGlobal - skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset)), _offset=self.selectedNodeOffset)
+        else:
+            self.viewer.drawSphere(p=self.viewer.prevWorldMouse, r=0.01, solid=True)
+
         if self.selectedBox is not None:
             GL.glMatrixMode(GL.GL_PROJECTION)
             GL.glPushMatrix()
