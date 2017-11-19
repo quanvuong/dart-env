@@ -271,6 +271,7 @@
                             <file_name>head.dae</file_name>
                             <scale>1.3 1.3 1.3</scale>
                         </mesh>
+                        <color>1.0 0.0 0.0</color>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
