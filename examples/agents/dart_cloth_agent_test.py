@@ -19,8 +19,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2017_11_16_tshirt_nodeformationterm"
+    #trial = "experiment_2017_11_16_tshirt_nodeformationterm_grav"
+
     #trial = "experiment_2017_11_15_tshirt_relative_noshouldercollision"
-    trial = "experiment_2017_11_15_tshirt_elbowflair_relative"
+    #trial = "experiment_2017_11_15_tshirt_elbowflair_relative"
     #trial = "experiment_2017_11_14_tshirt_elbowflair"
     #trial = "experiment_2017_11_14_tshirt_nointerarmcollision"
     #trial = "experiment_2017_11_13_tshirt_1starm"

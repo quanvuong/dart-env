@@ -35,7 +35,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.ROMPointMinDistance = 1.0
 
         #sim variables
-        self.gravity = True
+        self.gravity = False
         self.resetRandomPose = False
         self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
@@ -324,314 +324,321 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.saveObjState("objState", 0)
 
     def _step(self, a):
-        #print("a: " + str(a))
-        #if random.random() > 0.99:
-        #    time.sleep(60)
-        if self.dotimings:
-            self.addTiming(label="Start")
-        if self.numSteps > 1:
-            self.totalTime += (time.time() - self.prevTime)
-            #print(self.totalTime)
-        self.prevTime = time.time()
-        clamped_control = np.array(a)
-        for i in range(len(clamped_control)):
-            if clamped_control[i] > self.control_bounds[0][i]:
-                clamped_control[i] = self.control_bounds[0][i]
-            if clamped_control[i] < self.control_bounds[1][i]:
-                clamped_control[i] = self.control_bounds[1][i]
-        self.prevTau = np.array(clamped_control)
-        self.prevPose = np.array(self.robot_skeleton.q)
-        if self.recordHistory:
-            self.qHistory.append(np.array(self.robot_skeleton.q))
-            self.dqHistory.append(np.array(self.robot_skeleton.dq))
-            self.tHistory.append(np.array(self.prevTau))
-            self.rewardHistory.append(self.reward)
-        if self.recordROMPoints:
-            minDist = None
-            for p in self.ROMPoints:
-                dist = np.linalg.norm(self.robot_skeleton.q-p)
-                if minDist is None:
-                    minDist = dist
-                if dist < minDist:
-                    minDist = dist
-                    if minDist < self.ROMPointMinDistance:
-                        break
-            if minDist is not None:
-                if minDist > self.ROMPointMinDistance:
+        #print("step " + str(self.numSteps) + " a: " + str(a))
+        try:
+            '''if random.random() > 0.9999:
+                print("killing thread")
+                sys.exit(123)'''
+                #time.sleep(60)
+            if self.dotimings:
+                self.addTiming(label="Start")
+            if self.numSteps > 1:
+                self.totalTime += (time.time() - self.prevTime)
+                #print(self.totalTime)
+            self.prevTime = time.time()
+            clamped_control = np.array(a)
+            for i in range(len(clamped_control)):
+                if clamped_control[i] > self.control_bounds[0][i]:
+                    clamped_control[i] = self.control_bounds[0][i]
+                if clamped_control[i] < self.control_bounds[1][i]:
+                    clamped_control[i] = self.control_bounds[1][i]
+            self.prevTau = np.array(clamped_control)
+            self.prevPose = np.array(self.robot_skeleton.q)
+            if self.recordHistory:
+                self.qHistory.append(np.array(self.robot_skeleton.q))
+                self.dqHistory.append(np.array(self.robot_skeleton.dq))
+                self.tHistory.append(np.array(self.prevTau))
+                self.rewardHistory.append(self.reward)
+            if self.recordROMPoints:
+                minDist = None
+                for p in self.ROMPoints:
+                    dist = np.linalg.norm(self.robot_skeleton.q-p)
+                    if minDist is None:
+                        minDist = dist
+                    if dist < minDist:
+                        minDist = dist
+                        if minDist < self.ROMPointMinDistance:
+                            break
+                if minDist is not None:
+                    if minDist > self.ROMPointMinDistance:
+                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
+                        print("Saved poses = " + str(len(self.ROMPoints)))
+                else:
                     self.ROMPoints.append(np.array(self.robot_skeleton.q))
-                    print("Saved poses = " + str(len(self.ROMPoints)))
-            else:
-                self.ROMPoints.append(np.array(self.robot_skeleton.q))
-        tau = np.multiply(clamped_control, self.action_scale)
+            tau = np.multiply(clamped_control, self.action_scale)
 
-        if self.reset_number > 0 and self.torqueGraph is not None:
-            self.torqueGraph.yData[0][self.numSteps - 1] = tau[0]
-            self.torqueGraph.yData[1][self.numSteps - 1] = tau[1]
-            self.torqueGraph.update()
+            if self.reset_number > 0 and self.torqueGraph is not None:
+                self.torqueGraph.yData[0][self.numSteps - 1] = tau[0]
+                self.torqueGraph.yData[1][self.numSteps - 1] = tau[1]
+                self.torqueGraph.update()
 
-        fingertip = np.array([0.0, -0.06, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1) #right fingertip in right shoulder local frame
-        #vecR1 = self.target-wRFingertip1
-        #vecL1 = self.target2-wLFingertip1
+            fingertip = np.array([0.0, -0.06, 0.0])
+            wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1) #right fingertip in right shoulder local frame
+            #vecR1 = self.target-wRFingertip1
+            #vecL1 = self.target2-wLFingertip1
 
-        if self.dotimings:
-            self.addTiming(label="Features/Handles")
+            if self.dotimings:
+                self.addTiming(label="Features/Handles")
 
-        if self.CP0Feature is not None:
-            self.CP0Feature.fitPlane()
-        if self.collarFeature is not None:
-            self.collarFeature.fitPlane()
+            if self.CP0Feature is not None:
+                self.CP0Feature.fitPlane()
+            if self.collarFeature is not None:
+                self.collarFeature.fitPlane()
 
 
-        if self.handleNode is not None:
-            if self.updateHandleNodeFrom >= 0:
-                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            self.handleNode.step()
-        
-        #apply action and simulate
-        if len(tau) < len(self.robot_skeleton.q):
-            newtau = np.array(tau)
-            tau = np.zeros(len(self.robot_skeleton.q))
-            for ix,dof in enumerate(self.actuatedDofs):
-                tau[dof] = newtau[ix]
-        if self.dotimings:
-            self.addTiming(label="Simulate")
-        self.do_simulation(tau, self.frame_skip)
-        if self.dotimings:
-            self.addTiming(label="Reward")
-        #set position and 0 velocity of locked dofs
-        qpos = self.robot_skeleton.q
-        qvel = self.robot_skeleton.dq
-        for dof in self.lockedDofs:
-            qpos[dof] = 0
-            qvel[dof] = 0
-        self.set_state(qpos, qvel)
+            if self.handleNode is not None:
+                if self.updateHandleNodeFrom >= 0:
+                    self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+                self.handleNode.step()
 
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
-        self.dispR = wRFingertip2 - wRFingertip1
-        #vecR2 = self.target-wRFingertip2
-        #vecL2 = self.target2-wLFingertip2
+            #apply action and simulate
+            if len(tau) < len(self.robot_skeleton.q):
+                newtau = np.array(tau)
+                tau = np.zeros(len(self.robot_skeleton.q))
+                for ix,dof in enumerate(self.actuatedDofs):
+                    tau[dof] = newtau[ix]
+            if self.dotimings:
+                self.addTiming(label="Simulate")
+            self.do_simulation(tau, self.frame_skip)
+            if self.dotimings:
+                self.addTiming(label="Reward")
+            #set position and 0 velocity of locked dofs
+            qpos = self.robot_skeleton.q
+            qvel = self.robot_skeleton.dq
+            for dof in self.lockedDofs:
+                qpos[dof] = 0
+                qvel[dof] = 0
+            self.set_state(qpos, qvel)
 
-        reward_elbow_flair = 0
-        if self.elbowFlairReward:
-            root = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
-            spine = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
-            elbow = self.robot_skeleton.bodynodes[self.elbowFlairNode].to_world(np.zeros(3))
-            dist = pyutils.distToLine(p=elbow, l0=root, l1=spine)
-            z=0.5
-            s=16
-            l=0.2
-            reward_elbow_flair = -(1 - (z * math.tanh(s*(dist-l)) + z))
-            #print("reward_elbow_flair: " + str(reward_elbow_flair))
+            wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
+            self.dispR = wRFingertip2 - wRFingertip1
+            #vecR2 = self.target-wRFingertip2
+            #vecL2 = self.target2-wLFingertip2
 
-        reward_limbprogress = 0
-        if self.limbProgressReward and self.simulateCloth:
-            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
-            reward_limbprogress = self.limbProgress
-            if reward_limbprogress < 0: #remove euclidean distance penalty before containment
-                reward_limbprogress = 0
+            reward_elbow_flair = 0
+            if self.elbowFlairReward:
+                root = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
+                spine = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+                elbow = self.robot_skeleton.bodynodes[self.elbowFlairNode].to_world(np.zeros(3))
+                dist = pyutils.distToLine(p=elbow, l0=root, l1=spine)
+                z=0.5
+                s=16
+                l=0.2
+                reward_elbow_flair = -(1 - (z * math.tanh(s*(dist-l)) + z))
+                #print("reward_elbow_flair: " + str(reward_elbow_flair))
 
-        '''minContactGeodesic = None
-        if self.numSteps > 0 and self.simulateCloth:
-            minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
-            self.minContactGeo = minContactGeodesic'''
+            reward_limbprogress = 0
+            if self.limbProgressReward and self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
+                reward_limbprogress = self.limbProgress
+                if reward_limbprogress < 0: #remove euclidean distance penalty before containment
+                    reward_limbprogress = 0
 
-        avgContactGeodesic = None
-        if self.numSteps > 0 and self.simulateCloth:
-            contactInfo = pyutils.getContactIXGeoSide(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
-            if len(contactInfo) > 0:
-                avgContactGeodesic = 0
-                for c in contactInfo:
-                    avgContactGeodesic += c[1]
-                avgContactGeodesic /= len(contactInfo)
+            '''minContactGeodesic = None
+            if self.numSteps > 0 and self.simulateCloth:
+                minContactGeodesic = pyutils.getMinContactGeodesic(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+                self.minContactGeo = minContactGeodesic'''
 
-        reward_contactGeo = 0
-        if self.contactGeoReward and self.simulateCloth:
-            if self.limbProgress > 0:
-                reward_contactGeo = 1.0
-            elif avgContactGeodesic is not None:
-                reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
-                #reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+            avgContactGeodesic = None
+            if self.numSteps > 0 and self.simulateCloth:
+                contactInfo = pyutils.getContactIXGeoSide(sensorix=12, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+                if len(contactInfo) > 0:
+                    avgContactGeodesic = 0
+                    for c in contactInfo:
+                        avgContactGeodesic += c[1]
+                    avgContactGeodesic /= len(contactInfo)
 
-        #check cloth deformation for termination
-        clothDeformation = 0
-        if self.simulateCloth is True:
-            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
-            self.deformation = clothDeformation
+            reward_contactGeo = 0
+            if self.contactGeoReward and self.simulateCloth:
+                if self.limbProgress > 0:
+                    reward_contactGeo = 1.0
+                elif avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    #reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
 
-        reward_clothdeformation = 0
-        if clothDeformation > 15 and self.deformationPenalty is True:
-            reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            #check cloth deformation for termination
+            clothDeformation = 0
+            if self.simulateCloth is True:
+                clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+                self.deformation = clothDeformation
 
-        #force magnitude penalty    
-        reward_ctrl = -np.square(tau).sum()
+            reward_clothdeformation = 0
+            if clothDeformation > 15 and self.deformationPenalty is True:
+                reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
-        #reward for maintaining posture
-        reward_upright = 0
-        if self.upright_active:
-            reward_upright = -abs(self.robot_skeleton.q[0])-abs(self.robot_skeleton.q[1])
+            #force magnitude penalty
+            reward_ctrl = -np.square(tau).sum()
 
-        #reward for reaching up with both arms.
-        reward_upreach = 0
-        if self.upReacher_active:
-            reward_upreach = wRFingertip2[1] + wLFingertip2[1]
+            #reward for maintaining posture
+            reward_upright = 0
+            if self.upright_active:
+                reward_upright = -abs(self.robot_skeleton.q[0])-abs(self.robot_skeleton.q[1])
 
-        #reward for following displacement goals
-        reward_displacement = 0
-        if self.rightDisplacer_active:
-            actual_displacement = wRFingertip2 - wRFingertip1
-            if np.linalg.norm(self.rightDisplacement) == 0:
-                if self.displacerMod1:
-                    reward_displacement += -np.linalg.norm(wRFingertip2-self.displacer0TargetR)
+            #reward for reaching up with both arms.
+            reward_upreach = 0
+            if self.upReacher_active:
+                reward_upreach = wRFingertip2[1] + wLFingertip2[1]
+
+            #reward for following displacement goals
+            reward_displacement = 0
+            if self.rightDisplacer_active:
+                actual_displacement = wRFingertip2 - wRFingertip1
+                if np.linalg.norm(self.rightDisplacement) == 0:
+                    if self.displacerMod1:
+                        reward_displacement += -np.linalg.norm(wRFingertip2-self.displacer0TargetR)
+                    else:
+                        reward_displacement += -np.linalg.norm(actual_displacement)
                 else:
+                    reward_displacement += actual_displacement.dot(self.rightDisplacement)
+            if self.leftDisplacer_active:
+                actual_displacement = wLFingertip2 - wLFingertip1
+                if np.linalg.norm(self.leftDisplacement) == 0:
                     reward_displacement += -np.linalg.norm(actual_displacement)
-            else:
-                reward_displacement += actual_displacement.dot(self.rightDisplacement)
-        if self.leftDisplacer_active:
-            actual_displacement = wLFingertip2 - wLFingertip1
-            if np.linalg.norm(self.leftDisplacement) == 0:
-                reward_displacement += -np.linalg.norm(actual_displacement)
-            else:
-                reward_displacement += actual_displacement.dot(self.leftDisplacement)
-
-        reward_oracleDisplacement = 0
-        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0:
-            #world_ef_displacement = wRFingertip2 - wRFingertip1
-            relative_displacement = localRightEfShoulder2-localRightEfShoulder1
-            oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2+self.prevOracle) - localRightEfShoulder2
-            #oracle0 = oracle0/np.linalg.norm(oracle0)
-            reward_oracleDisplacement += relative_displacement.dot(oracle0)
-
-        reward_target = 0
-        if self.rightTarget_active:
-            targetDistR = np.linalg.norm(self.rightTarget-wRFingertip2)
-            reward_target -= targetDistR
-            if targetDistR < 0.01:
-                reward_target += 0.5
-        if self.leftTarget_active:
-            targetDistL = np.linalg.norm(self.leftTarget-wLFingertip2)
-            reward_target -= targetDistL
-            if targetDistL < 0.01:
-                reward_target += 0.5
-
-        #total reward
-        self.reward = reward_ctrl*0\
-                      + reward_upright\
-                      + reward_upreach\
-                      + reward_displacement\
-                      + reward_target*10\
-                      + reward_limbprogress*3\
-                      + reward_contactGeo*2\
-                      + reward_clothdeformation*3\
-                      + reward_oracleDisplacement*50\
-                      + reward_elbow_flair
-        self.cumulativeReward += self.reward
-        if self.dotimings:
-            self.addTiming(label="Observation")
-        #record accuracy
-        if self.renderDisplacerAccuracy and self.useOpenGL and self.numSteps>0:
-            vecR = wRFingertip2 - wRFingertip1
-            dispMagR = np.linalg.norm(vecR)
-            if self.compoundAccuracy and len(self.displacerTargets[0]) > 0:
-                self.displacerTargets[0].append(self.displacerTargets[0][-1] + self.rightDisplacement * dispMagR)
-            else:
-                self.displacerTargets[0].append(wRFingertip1+self.rightDisplacement*dispMagR)
-            self.displacerActual[0].append(wRFingertip2)
-            if np.linalg.norm(self.rightDisplacement) > 0:
-                self.cumulativeMotionR += dispMagR
-                self.cumulativeAccurateMotionR += vecR.dot(self.rightDisplacement)
-            else:
-                self.cumulativeFixedMotionR += dispMagR
-                self.cumulativeFixedTimeR += 1
-            vecL = wLFingertip2 - wLFingertip1
-            dispMagL = np.linalg.norm(vecL)
-            if self.compoundAccuracy and len(self.displacerTargets[1]) > 0:
-                self.displacerTargets[1].append(self.displacerTargets[1][-1] + self.leftDisplacement * dispMagL)
-            else:
-                self.displacerTargets[1].append(wLFingertip1 + self.leftDisplacement * dispMagL)
-            self.displacerActual[1].append(wLFingertip2)
-            if np.linalg.norm(self.leftDisplacement) > 0:
-                self.cumulativeMotionL += dispMagL
-                self.cumulativeAccurateMotionL += vecL.dot(self.leftDisplacement)
-            else:
-                self.cumulativeFixedMotionL += dispMagR
-                self.cumulativeFixedTimeL += 1
-
-        #compute changes in displacements before the next observation phase
-        if self.rightDisplacer_active:
-            if random.random() < self.displacementParameters[1]: #reset vector
-                if random.random() < self.displacementParameters[0]:
-                    self.rightDisplacement = np.zeros(3)
-                    self.displacer0TargetR = np.array(wRFingertip2)
                 else:
-                    self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
-            elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.rightDisplacement) > 0: #add noise to vector
-                noise = pyutils.sampleDirections(num=1)[0]
-                noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
-                self.rightDisplacement += noise
-                self.rightDisplacement /= np.linalg.norm(self.rightDisplacement)
-        if self.leftDisplacer_active:
-            if random.random() < self.displacementParameters[1]: #reset vector
-                if random.random() < self.displacementParameters[0]:
-                    self.leftDisplacement = np.zeros(3)
+                    reward_displacement += actual_displacement.dot(self.leftDisplacement)
+
+            reward_oracleDisplacement = 0
+            if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0:
+                #world_ef_displacement = wRFingertip2 - wRFingertip1
+                relative_displacement = localRightEfShoulder2-localRightEfShoulder1
+                oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2+self.prevOracle) - localRightEfShoulder2
+                #oracle0 = oracle0/np.linalg.norm(oracle0)
+                reward_oracleDisplacement += relative_displacement.dot(oracle0)
+
+            reward_target = 0
+            if self.rightTarget_active:
+                targetDistR = np.linalg.norm(self.rightTarget-wRFingertip2)
+                reward_target -= targetDistR
+                if targetDistR < 0.01:
+                    reward_target += 0.5
+            if self.leftTarget_active:
+                targetDistL = np.linalg.norm(self.leftTarget-wLFingertip2)
+                reward_target -= targetDistL
+                if targetDistL < 0.01:
+                    reward_target += 0.5
+
+            #total reward
+            self.reward = reward_ctrl*0\
+                          + reward_upright\
+                          + reward_upreach\
+                          + reward_displacement\
+                          + reward_target*10\
+                          + reward_limbprogress*3\
+                          + reward_contactGeo*2\
+                          + reward_clothdeformation*3\
+                          + reward_oracleDisplacement*50\
+                          + reward_elbow_flair
+            self.cumulativeReward += self.reward
+            if self.dotimings:
+                self.addTiming(label="Observation")
+            #record accuracy
+            if self.renderDisplacerAccuracy and self.useOpenGL and self.numSteps>0:
+                vecR = wRFingertip2 - wRFingertip1
+                dispMagR = np.linalg.norm(vecR)
+                if self.compoundAccuracy and len(self.displacerTargets[0]) > 0:
+                    self.displacerTargets[0].append(self.displacerTargets[0][-1] + self.rightDisplacement * dispMagR)
                 else:
-                    self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
-            elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.leftDisplacement) > 0: #add noise to vector
-                noise = pyutils.sampleDirections(num=1)[0]
-                noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
-                self.leftDisplacement += noise
-                self.leftDisplacement /= np.linalg.norm(self.leftDisplacement)
+                    self.displacerTargets[0].append(wRFingertip1+self.rightDisplacement*dispMagR)
+                self.displacerActual[0].append(wRFingertip2)
+                if np.linalg.norm(self.rightDisplacement) > 0:
+                    self.cumulativeMotionR += dispMagR
+                    self.cumulativeAccurateMotionR += vecR.dot(self.rightDisplacement)
+                else:
+                    self.cumulativeFixedMotionR += dispMagR
+                    self.cumulativeFixedTimeR += 1
+                vecL = wLFingertip2 - wLFingertip1
+                dispMagL = np.linalg.norm(vecL)
+                if self.compoundAccuracy and len(self.displacerTargets[1]) > 0:
+                    self.displacerTargets[1].append(self.displacerTargets[1][-1] + self.leftDisplacement * dispMagL)
+                else:
+                    self.displacerTargets[1].append(wLFingertip1 + self.leftDisplacement * dispMagL)
+                self.displacerActual[1].append(wLFingertip2)
+                if np.linalg.norm(self.leftDisplacement) > 0:
+                    self.cumulativeMotionL += dispMagL
+                    self.cumulativeAccurateMotionL += vecL.dot(self.leftDisplacement)
+                else:
+                    self.cumulativeFixedMotionL += dispMagR
+                    self.cumulativeFixedTimeL += 1
 
-        ob = self._get_obs()
-        s = self.state_vector()
-        if self.dotimings:
-            self.addTiming(label="Termination")
-        
-        #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
-        
-        #check termination conditions
-        topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
-        bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
-        bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
-        done = False
-        if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
-            print("Detecting potential instability")
-            print(s)
-            done = True
-            self.reward -= 500
-        elif not np.isfinite(s).all():
-            print("Infinite value detected..." + str(s))
-            print("reward: " + str(self.reward))
-            print("prevT: " + str(self.prevTau))
-            print("prevQ: " + str(self.prevPose))
-            print("obs: " + str(ob))
-            pyutils.saveList(self.qHistory,filename="qhistory", listoflists=True)
-            pyutils.saveList(self.dqHistory, filename="dqhistory", listoflists=True)
-            pyutils.saveList(self.tHistory, filename="thistory", listoflists=True)
-            pyutils.saveList(self.rewardHistory, filename="rewardhistory", listoflists=False)
-            done = True
-            self.reward = -500
-            ob = np.zeros(len(ob))
-        elif self.deformationTermination and clothDeformation > self.maxDeformation:
-            done = True
-            self.reward -= 500
-        elif self.collarTermination and not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-            done = True
-            self.reward -= 500
-        #increment the step counter
-        self.numSteps += 1
+            #compute changes in displacements before the next observation phase
+            if self.rightDisplacer_active:
+                if random.random() < self.displacementParameters[1]: #reset vector
+                    if random.random() < self.displacementParameters[0]:
+                        self.rightDisplacement = np.zeros(3)
+                        self.displacer0TargetR = np.array(wRFingertip2)
+                    else:
+                        self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
+                elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.rightDisplacement) > 0: #add noise to vector
+                    noise = pyutils.sampleDirections(num=1)[0]
+                    noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
+                    self.rightDisplacement += noise
+                    self.rightDisplacement /= np.linalg.norm(self.rightDisplacement)
+            if self.leftDisplacer_active:
+                if random.random() < self.displacementParameters[1]: #reset vector
+                    if random.random() < self.displacementParameters[0]:
+                        self.leftDisplacement = np.zeros(3)
+                    else:
+                        self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
+                elif random.random() < self.displacementParameters[2] and np.linalg.norm(self.leftDisplacement) > 0: #add noise to vector
+                    noise = pyutils.sampleDirections(num=1)[0]
+                    noise *= LERP(self.displacementParameters[3], self.displacementParameters[4], random.random())
+                    self.leftDisplacement += noise
+                    self.leftDisplacement /= np.linalg.norm(self.leftDisplacement)
 
-        if self.dotimings:
-            self.addTiming(label="End")
-            self.printTiming()
-            self.clearTimings()
+            ob = self._get_obs()
+            s = self.state_vector()
+            if self.dotimings:
+                self.addTiming(label="Termination")
 
-        return ob, self.reward, done, {}
+            #update physx capsules
+            self.updateClothCollisionStructures(hapticSensors=True)
+
+            #check termination conditions
+            topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
+            bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+            bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
+            done = False
+            if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
+                print("Detecting potential instability")
+                print(s)
+                done = True
+                self.reward -= 500
+            elif not np.isfinite(s).all():
+                print("Infinite value detected..." + str(s))
+                print("reward: " + str(self.reward))
+                print("prevT: " + str(self.prevTau))
+                print("prevQ: " + str(self.prevPose))
+                print("obs: " + str(ob))
+                pyutils.saveList(self.qHistory,filename="qhistory", listoflists=True)
+                pyutils.saveList(self.dqHistory, filename="dqhistory", listoflists=True)
+                pyutils.saveList(self.tHistory, filename="thistory", listoflists=True)
+                pyutils.saveList(self.rewardHistory, filename="rewardhistory", listoflists=False)
+                done = True
+                self.reward = -500
+                ob = np.zeros(len(ob))
+            elif self.deformationTermination and clothDeformation > self.maxDeformation:
+                done = True
+                self.reward -= 500
+            elif self.collarTermination and not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
+                done = True
+                self.reward -= 500
+            #increment the step counter
+            self.numSteps += 1
+
+            if self.dotimings:
+                self.addTiming(label="End")
+                self.printTiming()
+                self.clearTimings()
+
+            return ob, self.reward, done, {}
+        except:
+            print("step " + str(self.numSteps) + " failed")
+            self.step(action=np.zeros(len(a)))
+
 
     def _get_obs(self):
         f_size = 66
@@ -710,144 +717,148 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         return obs
 
     def reset_model(self):
-        #print("reset")
-        self.cumulativeReward = 0
-        self.clearTimings()
-        self.qHistory = []
-        self.dqHistory = []
-        self.tHistory = []
-        self.rewardHistory = []
-        self.totalTime = 0
-        self.cumulativeReward = 0
-        self.dart_world.reset()
-        self.clothScene.reset()
-        self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
-        #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        if self.resetRandomPose and self.resetFile is None:
-            qpos = pyutils.getRandomPose(self.robot_skeleton)
-        #qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-1.21, high=1.21, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
+        try:
+            #print("reset")
+            self.cumulativeReward = 0
+            self.clearTimings()
+            self.qHistory = []
+            self.dqHistory = []
+            self.tHistory = []
+            self.rewardHistory = []
+            self.totalTime = 0
+            self.cumulativeReward = 0
+            self.dart_world.reset()
+            self.clothScene.reset()
+            self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
+            #self.clothScene.translateCloth(0, np.array([-10.5,0,0]))
+            qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+            if self.resetRandomPose and self.resetFile is None:
+                qpos = pyutils.getRandomPose(self.robot_skeleton)
+            #qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-1.21, high=1.21, size=self.robot_skeleton.ndofs)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
 
-        #qpos = np.array([0.00984645029962, -0.00599959056884, -0.00671256780872, 0.00964348234246, 0.00328979646153, -0.00837484539897, -0.00392902285366, 0.00853631720415, 0.00648306871506, 0.00987675799087, 0.00065973832776, 0.0010888166833, -0.00496454405722, 0.400025413727, -1.35451513127, 0.521185386519, 1.74393040052, 0.341179954072, 0.29062079937, 0.00471862920899, -0.00625057092677, 0.00977505517246])
-        #qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.193940077276, -0.0995533658543, -0.680941213889, -0.524547635822, 0.929809563123, 1.56740631418, 0.272488901324, 0.335129983119, 0.0, 0.0, 0.0])
+            #qpos = np.array([0.00984645029962, -0.00599959056884, -0.00671256780872, 0.00964348234246, 0.00328979646153, -0.00837484539897, -0.00392902285366, 0.00853631720415, 0.00648306871506, 0.00987675799087, 0.00065973832776, 0.0010888166833, -0.00496454405722, 0.400025413727, -1.35451513127, 0.521185386519, 1.74393040052, 0.341179954072, 0.29062079937, 0.00471862920899, -0.00625057092677, 0.00977505517246])
+            #qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.193940077276, -0.0995533658543, -0.680941213889, -0.524547635822, 0.929809563123, 1.56740631418, 0.272488901324, 0.335129983119, 0.0, 0.0, 0.0])
 
-        '''qpos = np.array([0.00210387423755, -0.00263432512464, -0.00608727794507, 0.00048188759912, -0.000790891203943,
-                         0.00566944033496, -0.0062818525027, -0.139898427718, 2.89881383212, 0.542917778508,
-                         0.593770039475, -0.196204829136, -0.0973580394792, -0.685992369829, -0.560684467346,
-                         0.867649241514, 1.83056855945, 0.442013405854, 0.395205993027, -5.23263424256e-05,
-                         0.000398533604261, -0.000139073022976])'''
+            '''qpos = np.array([0.00210387423755, -0.00263432512464, -0.00608727794507, 0.00048188759912, -0.000790891203943,
+                             0.00566944033496, -0.0062818525027, -0.139898427718, 2.89881383212, 0.542917778508,
+                             0.593770039475, -0.196204829136, -0.0973580394792, -0.685992369829, -0.560684467346,
+                             0.867649241514, 1.83056855945, 0.442013405854, 0.395205993027, -5.23263424256e-05,
+                             0.000398533604261, -0.000139073022976])'''
 
-        count = 0
-        while self.dart_world.collision_result.num_contacts() > 0 or (count == 0 and self.simulateCloth):
-            qpos = np.array([-0.0246826682648, 0.018944398895, -0.0134400014064, -0.0542085581649, -0.0124679311973, 0.136099614883, -0.149784150499, -0.238294428353, 2.73616801182, 0.000688467033079, 0.00286269170768, -0.196131932122, -0.100183323563, -0.667021683751, -0.551852317711, 0.876048055372, 1.82933888348, 0.442029727913, 0.395167537265, -0.00267152791664, -0.00169419615312, -8.29783655585e-05])
-            #qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.195644348936, -0.098536397969, -0.681261731063, -0.553258926467, 0.869507748284, 1.82987701823, 0.442015199582, 0.395189219215, 0.0, 0.0, 0.0])
-            #qpos = np.array([0.00210387423755, -0.00263432512464, -0.00608727794507, 0.00048188759912, -0.000790891203943, 0.00566944033496, -0.0062818525027, -0.139898427718, 2.89881383212, 0.542917778508, 0.593770039475, -0.196204829136, -0.0973580394792, -0.685992369829, -0.560684467346, 0.867649241514, 1.83056855945, 0.442013405854, 0.395205993027, -5.23263424256e-05, 0.000398533604261, -0.000139073022976])
+            count = 0
+            while self.dart_world.collision_result.num_contacts() > 0 or (count == 0 and self.simulateCloth):
+                qpos = np.array([-0.0246826682648, 0.018944398895, -0.0134400014064, -0.0542085581649, -0.0124679311973, 0.136099614883, -0.149784150499, -0.238294428353, 2.73616801182, 0.000688467033079, 0.00286269170768, -0.196131932122, -0.100183323563, -0.667021683751, -0.551852317711, 0.876048055372, 1.82933888348, 0.442029727913, 0.395167537265, -0.00267152791664, -0.00169419615312, -8.29783655585e-05])
+                #qpos = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.195644348936, -0.098536397969, -0.681261731063, -0.553258926467, 0.869507748284, 1.82987701823, 0.442015199582, 0.395189219215, 0.0, 0.0, 0.0])
+                #qpos = np.array([0.00210387423755, -0.00263432512464, -0.00608727794507, 0.00048188759912, -0.000790891203943, 0.00566944033496, -0.0062818525027, -0.139898427718, 2.89881383212, 0.542917778508, 0.593770039475, -0.196204829136, -0.0973580394792, -0.685992369829, -0.560684467346, 0.867649241514, 1.83056855945, 0.442013405854, 0.395205993027, -5.23263424256e-05, 0.000398533604261, -0.000139073022976])
 
-            #qpos[7:9] += self.np_random.uniform(low=-1.0, high=1.0, size=2)
-            #qpos[9:11] += self.np_random.uniform(low=-0.6, high=0.6, size=2)
-            self.set_state(qpos, qvel)
-            self.dart_world.check_collision()
-            '''print(self.dart_world.collision_result.num_contacts())
-            for b in self.dart_world.collision_result.contacted_bodies:
-                print(b)'''
-            count += 1
-
-        #qpos = np.array([0.00789179104753, -0.00778707237558, -0.00575381599684, 0.0160314569834, -0.0215529394607, 0.00116310449511, 0.0141075139802, 0.0210178621179, -0.00535740130501, 0.0971533372584, -0.119663743335, -0.0831924264075, -0.107272709514, 0.343058669125, -0.929541335875, 0.572642382432, 1.96034075215, 0.0425568556954, 0.109450420964, -0.0104435230604, -0.0187997920078, -0.00127660576633])
-        #qpos = np.array([0.0133847298842, 0.00623134347354, 0.00901967139099, 0.0197357484081, -0.0147453364021, -0.00214595430132, 0.0267835260132, -0.0122496485753, -0.0012161563398, 0.0614366033843, -0.166508814892, -0.109839479566, -0.0906491452046, 0.386626055839, -1.34713152342, 0.556287307477, 1.68271950222, 0.0305543921666, 0.6, -0.0163504623659, -0.0306551917448, 0.0135542729712])
-
-        #qpos =np.array([0.2731471618,-0.3451429935,0.7688092455,-0.1597715944,0.1860187999,0.2504905961,0.042594533,1.0984740419,1.5495887065,-0.4358303746,-0.0589387622,0.2504341555,-0.2507510455,0.6146392381,-1.4901314838,-1.4741124414,1.1877315006,-0.6148575721,-0.2584124213,-0.0088981053,0.5894612576,0.7433916044])
-        #qvel =np.array([0.0567240367,0.1688628579,1.2036850076,-1.7722794241,-1.7820411113,4.524206467,0.2259652913,3.8046292181,0.5771628785,5.825386422,2.767861514,3.28269589289E-009,-4.10147826813E-009,56.4937752114,-8.1748603334,-64.0955705123,-2.6189647867,-6.8044512247E-009,12.1735770456,-3.5029552058,-0.9008247279,0.6619836226])
-        self.set_state(qpos, qvel)
-
-        if self.resetRandomPose:
-            if self.resetFile is not None:
-                if len(self.ROMPoints) < 1:
-                    self.ROMPoints = pyutils.loadListOfVecs(filename=self.resetFile)
-                ix = random.randint(0,len(self.ROMPoints)-1)
-                qpos = self.ROMPoints[ix]
+                #qpos[7:9] += self.np_random.uniform(low=-1.0, high=1.0, size=2)
+                #qpos[9:11] += self.np_random.uniform(low=-0.6, high=0.6, size=2)
                 self.set_state(qpos, qvel)
                 self.dart_world.check_collision()
-                while self.dart_world.collision_result.num_contacts() > 0:
-                    ix = random.randint(0, len(self.ROMPoints) - 1)
+                '''print(self.dart_world.collision_result.num_contacts())
+                for b in self.dart_world.collision_result.contacted_bodies:
+                    print(b)'''
+                count += 1
+
+            #qpos = np.array([0.00789179104753, -0.00778707237558, -0.00575381599684, 0.0160314569834, -0.0215529394607, 0.00116310449511, 0.0141075139802, 0.0210178621179, -0.00535740130501, 0.0971533372584, -0.119663743335, -0.0831924264075, -0.107272709514, 0.343058669125, -0.929541335875, 0.572642382432, 1.96034075215, 0.0425568556954, 0.109450420964, -0.0104435230604, -0.0187997920078, -0.00127660576633])
+            #qpos = np.array([0.0133847298842, 0.00623134347354, 0.00901967139099, 0.0197357484081, -0.0147453364021, -0.00214595430132, 0.0267835260132, -0.0122496485753, -0.0012161563398, 0.0614366033843, -0.166508814892, -0.109839479566, -0.0906491452046, 0.386626055839, -1.34713152342, 0.556287307477, 1.68271950222, 0.0305543921666, 0.6, -0.0163504623659, -0.0306551917448, 0.0135542729712])
+
+            #qpos =np.array([0.2731471618,-0.3451429935,0.7688092455,-0.1597715944,0.1860187999,0.2504905961,0.042594533,1.0984740419,1.5495887065,-0.4358303746,-0.0589387622,0.2504341555,-0.2507510455,0.6146392381,-1.4901314838,-1.4741124414,1.1877315006,-0.6148575721,-0.2584124213,-0.0088981053,0.5894612576,0.7433916044])
+            #qvel =np.array([0.0567240367,0.1688628579,1.2036850076,-1.7722794241,-1.7820411113,4.524206467,0.2259652913,3.8046292181,0.5771628785,5.825386422,2.767861514,3.28269589289E-009,-4.10147826813E-009,56.4937752114,-8.1748603334,-64.0955705123,-2.6189647867,-6.8044512247E-009,12.1735770456,-3.5029552058,-0.9008247279,0.6619836226])
+            self.set_state(qpos, qvel)
+
+            if self.resetRandomPose:
+                if self.resetFile is not None:
+                    if len(self.ROMPoints) < 1:
+                        self.ROMPoints = pyutils.loadListOfVecs(filename=self.resetFile)
+                    ix = random.randint(0,len(self.ROMPoints)-1)
                     qpos = self.ROMPoints[ix]
                     self.set_state(qpos, qvel)
                     self.dart_world.check_collision()
-                #self.dart_world.check_collision()
-            else:
-                self.dart_world.check_collision()
-                while self.dart_world.collision_result.num_contacts() > 0:
-                    qpos = pyutils.getRandomPose(self.robot_skeleton)
-                    self.set_state(qpos, qvel)
+                    while self.dart_world.collision_result.num_contacts() > 0:
+                        ix = random.randint(0, len(self.ROMPoints) - 1)
+                        qpos = self.ROMPoints[ix]
+                        self.set_state(qpos, qvel)
+                        self.dart_world.check_collision()
+                    #self.dart_world.check_collision()
+                else:
                     self.dart_world.check_collision()
-        #print(self.dart_world.collision_result.num_contacts())
+                    while self.dart_world.collision_result.num_contacts() > 0:
+                        qpos = pyutils.getRandomPose(self.robot_skeleton)
+                        self.set_state(qpos, qvel)
+                        self.dart_world.check_collision()
+            #print(self.dart_world.collision_result.num_contacts())
 
-        if random.random() < self.displacementParameters[0]:
-            self.rightDisplacement = np.zeros(3)
-            wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.06,0]))
-            self.displacer0TargetR = np.array(wRFingertip2)
-        else:
-            self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
-        if random.random() < self.displacementParameters[0]:
-            self.leftDisplacement = np.zeros(3)
-        else:
-            self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
+            if random.random() < self.displacementParameters[0]:
+                self.rightDisplacement = np.zeros(3)
+                wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.06,0]))
+                self.displacer0TargetR = np.array(wRFingertip2)
+            else:
+                self.rightDisplacement = pyutils.sampleDirections(num=1)[0]
+            if random.random() < self.displacementParameters[0]:
+                self.leftDisplacement = np.zeros(3)
+            else:
+                self.leftDisplacement = pyutils.sampleDirections(num=1)[0]
 
-        armLength = 0.75
-        if self.rightTarget_active:
-            self.rightTarget = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
-        if self.leftTarget_active:
-            self.leftTarget = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
+            armLength = 0.75
+            if self.rightTarget_active:
+                self.rightTarget = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
+            if self.leftTarget_active:
+                self.leftTarget = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))+pyutils.sampleDirections(1)[0]*random.random()*armLength
 
-        self.clothScene.setSelfCollisionDistance(0.025)
+            self.clothScene.setSelfCollisionDistance(0.025)
 
-        if self.handleNode is not None:
-            self.handleNode.clearHandles()
-            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
-            self.handleNode.setOrgToCentroid()
-            if self.updateHandleNodeFrom >= 0:
-                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            self.handleNode.recomputeOffsets()
+            if self.handleNode is not None:
+                self.handleNode.clearHandles()
+                self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+                self.handleNode.setOrgToCentroid()
+                if self.updateHandleNodeFrom >= 0:
+                    self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+                self.handleNode.recomputeOffsets()
 
-        if self.simulateCloth:
-            self.CP0Feature.fitPlane()
-            self.collarFeature.fitPlane()
-            if self.reset_number == 0:
-                self.separatedMesh.initSeparatedMeshGraph()
-                self.separatedMesh.updateWeights()
-                self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=0)
+            if self.simulateCloth:
+                self.CP0Feature.fitPlane()
+                self.collarFeature.fitPlane()
+                if self.reset_number == 0:
+                    self.separatedMesh.initSeparatedMeshGraph()
+                    self.separatedMesh.updateWeights()
+                    self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=0)
 
-        #update physx capsules
-        self.updateClothCollisionStructures(hapticSensors=True)
-        self.clothScene.clearInterpolation()
+            #update physx capsules
+            self.updateClothCollisionStructures(hapticSensors=True)
+            self.clothScene.clearInterpolation()
 
-        #debugging
-        self.reset_number += 1
-        self.numSteps = 0
+            #debugging
+            self.reset_number += 1
+            self.numSteps = 0
 
-        if self.limbProgressReward:
-            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
+            if self.limbProgressReward:
+                self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.06,0])), feature=self.CP0Feature)
 
-        if self.torqueGraph is not None:
-            xdata = np.arange(400)
-            self.torqueGraph.xdata = xdata
-            initialYData0 = np.zeros(400)
-            initialYData1 = np.zeros(400)
-            self.torqueGraph.plotData(ydata=initialYData0)
-            self.torqueGraph.plotData(ydata=initialYData1)
+            if self.torqueGraph is not None:
+                xdata = np.arange(400)
+                self.torqueGraph.xdata = xdata
+                initialYData0 = np.zeros(400)
+                initialYData1 = np.zeros(400)
+                self.torqueGraph.plotData(ydata=initialYData0)
+                self.torqueGraph.plotData(ydata=initialYData1)
 
-        self.displacerTargets = [[], []]
-        self.displacerActual = [[], []]
-        #self.cumulativeMotionR = 0.00001
-        #self.cumulativeAccurateMotionR = 0
-        #self.cumulativeMotionL = 0.00001
-        #self.cumulativeAccurateMotionL = 0
+            self.displacerTargets = [[], []]
+            self.displacerActual = [[], []]
+            #self.cumulativeMotionR = 0.00001
+            #self.cumulativeAccurateMotionR = 0
+            #self.cumulativeMotionL = 0.00001
+            #self.cumulativeAccurateMotionL = 0
 
-        if self.recordROMPoints:
-            if len(self.ROMPoints) > 1:
-                pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
+            if self.recordROMPoints:
+                if len(self.ROMPoints) > 1:
+                    pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-        return self._get_obs()
+            print("done reset")
+            return self._get_obs()
+        except:
+            print("Failed on reset " + str(self.reset_number))
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
         a=0
