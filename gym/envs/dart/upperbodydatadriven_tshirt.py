@@ -865,7 +865,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 if len(self.ROMPoints) > 1:
                     pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-            print("done reset")
+            #print("done reset")
             return self._get_obs()
         except:
             print("Failed on reset " + str(self.reset_number))
