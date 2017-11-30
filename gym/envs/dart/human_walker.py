@@ -45,6 +45,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.energy_weight = 0.05
 
+        self.constrain_dcontrol = 2.0
+        self.previous_control = None
+
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0  # number of steps lying on the wall
@@ -68,7 +71,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_additional_info = True
         if self.include_additional_info:
             obs_dim += len(self.contact_info)
-        if self.rand_target_vel:
+        if self.rand_target_vel or self.smooth_tv_change:
             obs_dim += 1
         if self.running_average_velocity or self.smooth_tv_change:
             obs_dim += 1
@@ -155,25 +158,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.current_pd, 2)
-                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([0, 0, force]))
-                # tq = self.robot_skeleton.q
-                # tq[2] = 0
-                # if _ % 5 == 0:
-                #    spdtau = self._spd(tq, 2, self.current_pd)
-                # tau[2] = spdtau
 
             if self.enforce_target_vel and not self.hard_enforce:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('pelvis'), self.vel_enforce_kp, 0,
-                #                           self.target_vel)
-                #self.robot_skeleton.bodynode('pelvis').add_ext_force(np.array([force, 0, 0]))
-                '''tq2 = self.robot_skeleton.q
-                tq2[0] = pos_before + self.dt * self.target_vel
-                if _ % 5 == 0:
-                    spdtau2 = self._spd(tq2, 0, self.vel_enforce_kp, self.target_vel)
-                tau[0] = spdtau2'''
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
             s = self.state_vector()
@@ -193,6 +181,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 elif clamped_control[i] < self.previous_control[i] - self.constrain_dcontrol:
                     clamped_control[i] = self.previous_control[i] - self.constrain_dcontrol
         self.previous_control = clamped_control
+
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[6:] = clamped_control * self.action_scale
 
@@ -302,10 +291,13 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
         self.t += self.dt
+
         self.cur_step += 1
 
         s = self.state_vector()
 
+        height_in_range = (height-self.init_height > -0.4) and (height - self.init_height < 1.0)
+        ang_in_range = (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0) and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height-self.init_height > -0.3) and (height - self.init_height < 1.0) and (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.3)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
@@ -315,8 +307,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # if self.conseq_limit_pen > 20:
         #    done = True
 
-        #if done:
         #    reward = 0
+        #if done:
+        #    print(height_in_range, ang_in_range, np.abs(side_deviation) < 0.9)
 
         ob = self._get_obs()
 
@@ -382,6 +375,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.previous_control = None
 
         self.init_height = self.robot_skeleton.bodynode('head').C[1]
+        self.moving_bin = None
+
+        self.vel_cache = []
  
         self.moving_bin = None
         self.reference_trajectory = None 
@@ -389,4 +385,5 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if not self.disableViewer:
+            #self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
