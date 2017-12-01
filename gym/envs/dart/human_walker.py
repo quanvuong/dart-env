@@ -71,8 +71,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_additional_info = True
         if self.include_additional_info:
             obs_dim += len(self.contact_info)
-        if self.rand_target_vel or self.smooth_tv_change:
-            obs_dim += 1
         if self.running_average_velocity or self.smooth_tv_change:
             obs_dim += 1
 
