@@ -80,7 +80,7 @@
                 <transformation>-0.1225 -0.035 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>7.6</mass>
-                    <offset>0 -0.02872625 0</offset>
+                    <offset>0 -0.24310125 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
@@ -103,7 +103,7 @@
                 <transformation>-0.1225 -0.46375 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>3.534</mass>
-                    <offset>0 -0.02685025 0</offset>
+                    <offset>0 -0.22722525 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
@@ -126,7 +126,7 @@
                 <transformation>-0.1225 -0.8645 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1.684</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.0 -0.0525</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
@@ -150,7 +150,7 @@
                 <transformation>0.1225 -0.035 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>7.6</mass>
-                    <offset>0 -0.02872625 0</offset>
+                    <offset>0 -0.24310125 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
@@ -173,7 +173,7 @@
                 <transformation>0.1225 -0.46375 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>3.534</mass>
-                    <offset>0 -0.02685025 0</offset>
+                    <offset>0 -0.22722525 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
@@ -196,7 +196,7 @@
                 <transformation>0.1225 -0.8645 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1.684</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.0 -0.0525</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>-0.0 0.0 -0.0525 0 0 0</transformation>
@@ -220,7 +220,7 @@
                 <transformation>0.0 0.09275 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>11.3316</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.0735 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0.0735 0.0 0 0 0</transformation>
@@ -244,7 +244,7 @@
                 <transformation>0.0 0.27825 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>13.5888</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.097125 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0.097125 0.0 0 0 0</transformation>
@@ -268,7 +268,7 @@
                 <transformation>0.0 0.58975 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>6.156</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.098875 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0.098875 0.0 0 0 0</transformation>
@@ -277,6 +277,7 @@
                             <file_name>head.dae</file_name>
                             <scale>1.3 1.3 1.3</scale>
                         </mesh>
+                        <color>1.0 0.0 0.0</color>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
@@ -293,7 +294,7 @@
                 <transformation>-0.03 0.47075 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>0.76</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.0 -0.07</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0.0 -0.07 0 0 0</transformation>
@@ -304,20 +305,12 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 -0.07 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.175 0.091 0.14</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="l-upperarm">
                 <transformation>-0.205 0.455 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>2.128</mass>
-                    <offset>0 -0.02016 0</offset>
+                    <offset>0 -0.17766 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
@@ -327,20 +320,12 @@
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.315 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="l-lowerarm">
                 <transformation>-0.205 0.14 0.0 0 0 0</transformation>
                 <inertia>
-                    <mass>1.216</mass>
-                    <offset>0 -0.0177625 0</offset>
+                    <mass>1.416</mass>
+                    <offset>0 -0.1646375 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
@@ -350,21 +335,13 @@
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.25375 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
 
             <body name="r-clavicle">
                 <transformation>0.03 0.47075 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>0.76</mass>
-                    <offset>0 0.0 0</offset>
+                    <offset>0 0.0 -0.07</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0.0 -0.07 0 0 0</transformation>
@@ -375,20 +352,12 @@
                         </mesh>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 0.0 -0.07 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.175 0.091 0.14</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="r-upperarm">
                 <transformation>0.205 0.455 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>2.128</mass>
-                    <offset>0 -0.02016 0</offset>
+                    <offset>0 -0.17766 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
@@ -398,20 +367,12 @@
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.315 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
             <body name="r-lowerarm">
                 <transformation>0.205 0.14 0.0 0 0 0</transformation>
                 <inertia>
-                    <mass>1.216</mass>
-                    <offset>0 -0.0177625 0</offset>
+                    <mass>1.416</mass>
+                    <offset>0 -0.1646375 0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
@@ -421,14 +382,6 @@
                         </box>
                     </geometry>
                 </visualization_shape>
-                <collision_shape>
-                    <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
-                    <geometry>
-                        <box>
-                            <size>0.1 0.25375 0.1</size>
-                        </box>
-                    </geometry>
-                </collision_shape>
             </body>
 
             <!-- JOINT: Pelvis -->
@@ -456,7 +409,7 @@
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -466,7 +419,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -476,7 +429,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -494,7 +447,7 @@
                         <upper>3.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -512,7 +465,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -523,7 +476,7 @@
                         <upper>0.5</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -542,7 +495,7 @@
                         <upper>1.570796</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -552,7 +505,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -562,7 +515,7 @@
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -580,7 +533,7 @@
                         <upper>3.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -598,7 +551,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -609,7 +562,7 @@
                         <upper>0.5</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -628,7 +581,7 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -639,7 +592,7 @@
                         <upper>0.1</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -657,7 +610,7 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -683,21 +636,21 @@
                 <!-- de facto zxy -->
                 <axis>
                     <limit>
-                        <lower>-0.7</lower>
+                        <lower>-2.09</lower>
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.4</lower>
-                        <upper>0.4</upper>
+                        <lower>-2.4</lower>
+                        <upper>1.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -707,7 +660,7 @@
                         <upper>0.2</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -722,14 +675,14 @@
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
                         <lower>0.0</lower>
-                        <upper>3.14</upper>
+                        <upper>2.61</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.15</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>0.0</init_pos>
+                <init_pos>1.5</init_pos>
                 <init_vel>0</init_vel>
             </joint>
 
@@ -747,20 +700,20 @@
                     <limit>
                         <lower>0.0</lower>
                         <!--<upper>2.09</upper>-->
-                        <upper>0.7</upper>
+                        <upper>2.09</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.4</lower>
-                        <upper>0.4</upper>
+                        <lower>-2.4</lower>
+                        <upper>1.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -770,7 +723,7 @@
                         <upper>0.2</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.3</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -785,14 +738,14 @@
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
                         <lower>0.0</lower>
-                        <upper>3.14</upper>
+                        <upper>2.61</upper>
                     </limit>
                     <dynamics>
-                        <damping>0.15</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>0.0</init_pos>
+                <init_pos>1.5</init_pos>
                 <init_vel>0</init_vel>
             </joint>
         </skeleton>

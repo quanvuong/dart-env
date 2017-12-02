@@ -20,6 +20,9 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
+
+        self.slippery_surface = False
+        self.slippery_coef = 0.3
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
         self.param_manager.activated_param = [0]
@@ -46,7 +49,7 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, ['hopper_rss.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
-        #self.param_manager.set_simulator_parameters([0.4])
+        self.param_manager.set_simulator_parameters([1.0])
         self.current_param = self.param_manager.get_simulator_parameters()
 
         self.dart_world = self.dart_worlds[0]
@@ -73,6 +76,12 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        if self.slippery_surface:
+            if self.robot_skeleton.com()[0] > 20 and self.robot_skeleton.com()[0] < 30:
+                self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(self.slippery_coef)
+            else:
+                self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(0.9)
+
         self.t += self.dt
         prev_obs = self._get_obs()
         pre_state = [self.state_vector()]
