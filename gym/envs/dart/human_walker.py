@@ -15,8 +15,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array(
-            [60.0, 100, 60, 100, 80, 60, 60, 100, 60, 100, 80, 60, 150, 150, 100, 5, 15, 5, 3, 5, 15, 5, 3])
+        self.action_scale = np.array([60.0, 100, 60, 100, 80, 60, 60, 100, 60, 100, 80, 60, 150, 150, 100, 5,15,5, 3, 5,15,5, 3])
         self.action_scale *= 1.0
         obs_dim = 57
 
@@ -28,6 +27,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.smooth_tv_change = True
         self.running_average_velocity = False
         self.running_avg_rew_only = True
+        self.avg_rew_weighting = []
         self.vel_cache = []
         self.init_pos = 0
 
@@ -75,7 +75,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
 
-        self.vel_reward_weight = 3.0
+        self.vel_reward_weight = 4.0
 
         if self.treadmill:
             dart_env.DartEnv.__init__(self, 'kima/kima_human_edited_treadmill.skel', 15, obs_dim, self.control_bounds,
@@ -143,7 +143,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
         p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+
         d = -self.Kd * (bn.dC[dof] - target_vel * 1.0)  # compensate for average velocity match
+
         qddot = invM * (-bn.C[dof] + p + d)
         tau = p + d - self.Kd * (qddot) * self.sim_dt
 
@@ -253,27 +255,22 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
         self.vel_cache.append(vel)
-        if len(self.vel_cache) > int(1.0 / self.dt):
+        if self.running_average_velocity or self.running_avg_rew_only:
+            if self.t < self.tv_endtime:
+                self.avg_rew_weighting.append(0.3)
+            else:
+                self.avg_rew_weighting.append(1)
+
+        if len(self.vel_cache) > int(1.0/self.dt):
             self.vel_cache.pop(0)
+            self.avg_rew_weighting.pop(0)
         if not self.treadmill:
             if self.reference_trajectory is not None:
-                vel_rew = - np.exp(
-                    3.0 * (np.abs(self.reference_trajectory[self.cur_step][0] - self.robot_skeleton.com()[0] ** 2)))
+                vel_rew = - np.exp(3.0*(np.abs(self.reference_trajectory[self.cur_step][0] - self.robot_skeleton.com()[0]**2)))
             elif self.running_average_velocity or self.running_avg_rew_only:
-                vel_rew = -3.0 * np.abs(self.target_vel - np.mean(self.vel_cache))
+                vel_rew = -3.0 * np.mean(np.array(self.avg_rew_weighting) * np.abs(np.array(self.vel_cache) - self.target_vel))
             else:
                 vel_diff = np.abs(self.target_vel - vel)
-                vel_rew = - self.vel_reward_weight * vel_diff
-                # vel_rew = -2.0 +2* vel # run as fast as possible
-                # if vel < self.target_vel - 0.4:
-                #    vel_rew += self.vel_reward_weight * (vel + 0.4 - self.target_vel)
-                '''if self.t >= 1.0:
-                    if self.moving_bin is None:
-                        self.moving_bin = self.robot_skeleton.q[0]
-                    if np.abs(self.robot_skeleton.q[0] - self.moving_bin) > 0.3:
-                        vel_rew = - 10.0 * (np.abs(self.robot_skeleton.q[0] - self.moving_bin)-0.3)
-                    #vel_rew -= np.abs(self.robot_skeleton.q[0] - self.moving_bin) * 1.0
-                    self.moving_bin += self.dt * 1.45'''
         else:
             if self.running_average_velocity or self.running_avg_rew_only:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - np.mean(self.vel_cache)))
@@ -321,7 +318,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         broke_sim = False
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             broke_sim = True
-
         final_reward = 0.0
         return ob, reward, done, {'broke_sim': broke_sim, 'vel_rew': vel_rew, 'action_pen': action_pen,
                                   'deviation_pen': deviation_pen, 'curriculum_id': self.curriculum_id,
@@ -384,6 +380,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.moving_bin = None
 
         self.vel_cache = []
+
+        self.avg_rew_weighting = []
 
         self.moving_bin = None
         self.reference_trajectory = None

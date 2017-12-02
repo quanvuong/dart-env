@@ -21,6 +21,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t = 0
         self.target_vel = 1.0
+        self.init_tv = 1.0
+        self.final_tv = 3.0
+        self.tv_endtime = 2.5
+        self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
@@ -42,8 +46,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
         #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
 
-        self.local_spd_curriculum = False
-        self.anchor_kp = np.array([2000, 200])
+        self.local_spd_curriculum = True
+        self.anchor_kp = np.array([2000, 2000])
         self.curriculum_step_size = 0.1 # 10%
         self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -52,7 +56,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_additional_info = True
         if self.include_additional_info:
             obs_dim += len(self.contact_info)
-        if self.rand_target_vel:
+        if self.rand_target_vel or self.smooth_tv_change:
             obs_dim += 1
 
         self.curriculum_id = 0
@@ -82,6 +86,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
+
+        for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(20)
+        for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
 
         self.sim_dt = self.dt / self.frame_skip
 
@@ -122,14 +131,14 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
             if self.constrain_2d:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
-                self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and not self.hard_enforce:
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
-                self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
+                #self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
 
@@ -164,6 +173,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (self.final_tv - self.init_tv) + self.init_tv
+
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
@@ -204,48 +216,29 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 if contact.bodynode1 == self.robot_skeleton.bodynodes[-4] or contact.bodynode2 == self.robot_skeleton.bodynodes[-4]:
                     self.contact_info[1] = 1
 
-        joint_limit_penalty = 0
-        for j in [2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.01:
-                self.conseq_limit_pen += 1
-                #joint_limit_penalty += abs(1.0)
-            elif (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.01:
-                self.conseq_limit_pen += 1
-            else:
-                self.conseq_limit_pen = 0
-        if self.conseq_limit_pen > 0:
-            self.conseq_limit_pen = np.min([self.conseq_limit_pen, 21])
-            #joint_limit_penalty = 0.2 * 1.1 ** self.conseq_limit_pen
-                #joint_limit_penalty += abs(1.0)
-        #joint_limit_penalty*=0
-        #print(self.conseq_limit_pen, joint_limit_penalty)
-
-        actuator_pen_multiplier = np.ones(len(a)) # penalize actuation more if it is trying to push against limit
-        '''for j in range(1,len(a)+1):
-            if (self.robot_skeleton.q_lower[-j] - self.robot_skeleton.q[-j]) > -0.05 and a[-j] < 0:
-                actuator_pen_multiplier[-j] = 100
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[-j]) < 0.05 and a[-j] > 0:
-                actuator_pen_multiplier[-j] = 100'''
-
+        pos_rew = 0
+        neg_pen = 0
         if self.base_policy is None:
-            alive_bonus = 1.5
+            alive_bonus = 4.0
             vel = (posafter - posbefore) / self.dt
             if not self.treadmill:
-                vel_rew = 2*(1.0 - 1.0*np.abs(self.target_vel - vel))#1.0 * (posafter - posbefore) / self.dt
+                vel_rew = -2.0*np.abs(self.target_vel - vel)#1.0 * (posafter - posbefore) / self.dt
             else:
                 vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
+            #vel_rew *= 0
             #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
             action_pen =5e-1 * np.abs(a).sum()
             #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
             deviation_pen = 3 * abs(side_deviation)
             reward = vel_rew + alive_bonus - action_pen - deviation_pen
+            pos_rew = alive_bonus - deviation_pen
+            neg_pen = vel_rew - action_pen
         else:
             alive_bonus = 2.0
             vel_rew = 1.0 * (posafter - posbefore) / self.dt
             action_pen = 1e-2 * np.square(a).sum()
-            joint_pen = 2e-1 * joint_limit_penalty
             deviation_pen = 1 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - joint_pen - deviation_pen
+            reward = vel_rew + alive_bonus - action_pen - deviation_pen
 
 
         #reward -= 1e-7 * total_force_mag
@@ -279,7 +272,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         ob = self._get_obs()
  
-        return ob, reward, done, {'broke_sim':broke_sim, 'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates, 'done_return':done, 'dyn_model_id':0, 'state_index':0}
+        return ob, reward, done, {'pos_rew':pos_rew, 'neg_pen': neg_pen, 'broke_sim':broke_sim, 'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen, 'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates, 'done_return':done, 'dyn_model_id':0, 'state_index':0}
 
     def _get_obs(self):
         state =  np.concatenate([
@@ -290,7 +283,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.include_additional_info:
             state = np.concatenate([state, self.contact_info])
 
-        if self.rand_target_vel:
+        if self.rand_target_vel or self.smooth_tv_change:
             state = np.concatenate([state, [self.target_vel]])
 
         return state
@@ -343,4 +336,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if not self.disableViewer:
+            #self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
+
