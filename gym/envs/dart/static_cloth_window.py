@@ -28,6 +28,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.viewport = None
         self.prevWorldMouse = np.array([0.,0,0])
         self.camForward = np.array([0.,0,1])
+        self.camForwardNear = np.array([0.,0.,0.])
         self.camUp = np.array([0.,1.0,0])
         self.camRight = np.array([1.,0.0,0])
         self.mouseLastPos = np.array([0,0])
@@ -113,6 +114,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #camera forward
         z = GL.glReadPixels(self.viewport[2]/2, self.viewport[3]/2, 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
         forwardNear = np.array(self.unproject(np.array([self.viewport[2]/2, self.viewport[3]/2, 0])))
+        self.camForwardNear = forwardNear
         forwardFar = np.array(self.unproject(np.array([self.viewport[2]/2, self.viewport[3]/2, z])))
         self.camForward = forwardFar-forwardNear
         self.camForward = self.camForward / np.linalg.norm(self.camForward)
@@ -1062,10 +1064,13 @@ class PoseInteractor(BaseInteractor):
         tb = self.viewer.scene.tb
         if state == 0:  # Mouse pressed
             self.selectedBox = self.boxClickTest(np.array([x,y]))
-            if button == 0:
-                self.clickz = GL.glReadPixels(self.viewer.mouseLastPos[0],self.viewer.viewport[3]-self.viewer.mouseLastPos[1], 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
-                self.viewer.mouseLButton = True
+            if not self.viewer.mouseRButton and not self.viewer.mouseLButton:
+                self.clickz = GL.glReadPixels(self.viewer.mouseLastPos[0],
+                                            self.viewer.viewport[3] - self.viewer.mouseLastPos[1], 1, 1,
+                                            GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
                 self.distToSkel()
+            if button == 0:
+                self.viewer.mouseLButton = True
             if button == 2:
                 self.viewer.mouseRButton = True
             self.viewer.mouseLastPos = np.array([x, y])
@@ -1079,24 +1084,41 @@ class PoseInteractor(BaseInteractor):
                     self.incrementSelectedDOF(-0.05)
                 else:
                     tb.trans[2] -= 0.1
+            elif button == 7: #front side mouse button
+                self.clickz -= 0.0001
+                if self.selectedNode is not None:
+                    self.mouseGlobal = np.array(self.viewer.unproject(np.array(
+                        [self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1],
+                         self.clickz])))
+            elif button == 8: #back side mouse button
+                self.clickz += 0.0001
+                if self.selectedNode is not None:
+                    self.mouseGlobal = np.array(self.viewer.unproject(np.array(
+                        [self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1],
+                         self.clickz])))
         elif state == 1:  # mouse released
-            self.selectedNode = None
-            self.selectedNodeOffset = np.zeros(3)
             self.selectedBox = None
-            self.mouseGlobal = None
             # self.mouseLastPos = None
             if button == 0:
                 self.viewer.mouseLButton = False
             if button == 2:
                 self.viewer.mouseRButton = False
-
+            if not self.viewer.mouseRButton and not self.viewer.mouseLButton:
+                self.selectedNode = None
+                self.mouseGlobal = None
+                self.selectedNodeOffset = np.zeros(3)
     def drag(self, x, y):
         dx = x - self.viewer.mouseLastPos[0]
         dy = y - self.viewer.mouseLastPos[1]
 
         if self.selectedNode is not None:
             #print("adding force")
-            self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0],self.viewer.viewport[3]-self.viewer.mouseLastPos[1], self.clickz])))
+            if self.viewer.mouseRButton:
+                self.clickz += -dy*0.000005
+                self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1], self.clickz])))
+            elif self.viewer.mouseLButton:
+                self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1], self.clickz])))
+
             forceScale = 20.0
             skel = self.viewer.sim.skeletons[self.skelix]
             #skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.viewer.camRight * dx + self.viewer.camUp * -dy), _offset=self.selectedNodeOffset)
@@ -1139,6 +1161,9 @@ class PoseInteractor(BaseInteractor):
             dofstr = dofstr + "]"
             print(dofstr)
             return
+        if keycode == 110: #'n'
+            #pin the current handle
+            a=0
         self.viewer.keyPressed(key, x, y)
 
     def contextRender(self):
@@ -1146,10 +1171,19 @@ class PoseInteractor(BaseInteractor):
         if self.mouseGlobal is not None and self.selectedNode is not None:
             skel = self.viewer.sim.skeletons[self.skelix]
             self.viewer.drawSphere(p=self.mouseGlobal, r=0.01, solid=True)
-            renderUtils.drawArrow(p0=skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset), p1=self.mouseGlobal)
-            forceScale = 500.0
-            skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.mouseGlobal - skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset)), _offset=self.selectedNodeOffset)
-        else:
+            handlePos = skel.bodynodes[self.selectedNode].to_world(self.selectedNodeOffset)
+            forceDir = self.mouseGlobal-handlePos
+            forceMag = np.linalg.norm(forceDir)
+            forceDir /= forceMag
+            forceMag = min(1.0, forceMag)**2
+            renderUtils.drawSphere(pos=handlePos,rad=0.02)
+            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0,maximum=1.0,value=forceMag))
+            renderUtils.drawLineStrip(points=[handlePos, self.mouseGlobal])
+            renderUtils.drawArrow(p0=handlePos, p1=handlePos+forceDir*0.2,hwRatio=0.15)
+            renderUtils.drawExtendedAxis(self.mouseGlobal)
+            forceScale = 10000.0
+            skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*forceDir*forceMag, _offset=self.selectedNodeOffset)
+        elif np.linalg.norm(self.viewer.prevWorldMouse-self.viewer.camForwardNear) > 0.05:
             self.viewer.drawSphere(p=self.viewer.prevWorldMouse, r=0.01, solid=True)
 
         if self.selectedBox is not None:

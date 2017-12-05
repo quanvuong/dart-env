@@ -563,6 +563,8 @@
                     <limit>
 						<lower>-0.5</lower>
 						<upper>0.5</upper>
+						<!-- <lower>0.</lower>
+						<upper>0.</upper> -->
 					</limit>
                     <dynamics>
                         <damping>1.0</damping>
@@ -574,6 +576,8 @@
                     <limit>
 						<lower>-0.5</lower>
 						<upper>1</upper>
+						<!--<lower>0.</lower>
+						<upper>0.</upper>--->
 					</limit>
                     <dynamics>
                         <damping>1.0</damping>
@@ -643,8 +647,8 @@
                 <axis3>
                     <limit>
                         <!-- -60~120 deg -->
-                        <lower>-1.0</lower>
-                        <upper>2.09</upper>
+                        <lower>-2.09</lower>
+                        <upper>1.0</upper>
                     </limit>
                     <dynamics>
                         <damping>0.1</damping>
@@ -660,7 +664,7 @@
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
 					<limit>
-						<lower>0</lower>
+						<lower>0.2</lower>
 						<upper>2.9</upper>
 					</limit>
 					<dynamics>
@@ -668,6 +672,7 @@
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
+                <init_pos>0.201</init_pos>
             </joint>
             
             <joint type="universal" name="wristR">
@@ -749,8 +754,8 @@
                 <axis3>
                     <limit>
                         <!-- -120~60 deg -->
-                        <lower>-2.09</lower>
-                        <upper>1.0</upper>
+                        <lower>-1.0</lower>
+                        <upper>2.09</upper>
                     </limit>
                     <dynamics>
                         <damping>0.1</damping>
@@ -766,7 +771,7 @@
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
 					<limit>
-						<lower>0</lower>
+						<lower>0.2</lower>
 						<upper>2.9</upper>
 					</limit>
 					<dynamics>
@@ -774,6 +779,7 @@
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
+                <init_pos>0.201</init_pos>
             </joint>
             <joint type="universal" name="wristL">
                 <parent>forearmL</parent>

@@ -9,6 +9,7 @@ import math
 
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
+from pyPhysX.pyutils import LERP
 import pyPhysX.renderUtils
 import pyPhysX.meshgraph as meshgraph
 from pyPhysX.clothfeature import *
@@ -37,9 +38,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = False
         self.resetRandomPose = False
-        self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
+        self.resetFile = None#self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
         simulateCloth = True
+        renderCloth = True
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -58,6 +60,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         #task modes
         self.upright_active = True
+        self.restPose_active = False
+        self.restPose = None
         self.rightDisplacer_active = False
         self.leftDisplacer_active = False
         self.displacerMod1 = False #temporary switch to modified reward scheme
@@ -74,12 +78,13 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.collarTermination = True #if true and self.collarFeature is defined, head/neck not contained in this feature results in termination
         self.deformationTermination = False
         self.deformationPenalty = True
-        self.maxDeformation = 22.0
+        self.maxDeformation = 30.0
         self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
         self.oracleInObs = True #if true, oracle vector is in obs
         self.contactIDInObs = True #if true, contact ids are in obs
         self.hapticsInObs = True #if true, haptics are in observation
         self.hapticsAware = True  # if false, 0's for haptic input
+
 
         self.interArmCollisions = True
         self.shoulderCollisions = True
@@ -159,7 +164,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = pyphysx.ClothScene(step=0.01,
                                         mesh_path=self.prefix + "/assets/tshirt_m.obj",
-                                        state_path=self.prefix + "/../../../../tshirt_regrip3.obj",
+                                        state_path=self.prefix + "/../../../../tshirt_regrip5.obj",
                                         scale=1.4)
 
         clothScene.togglePinned(0, 0)  # turn off auto-pin
@@ -167,6 +172,11 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.separatedMesh = None
         if simulateCloth:
             self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+
+        if not renderCloth:
+            clothScene.renderClothFill = False
+            clothScene.renderClothBoundary = False
+            clothScene.renderClothWires = False
 
         #TODO: add other sleeve and check/rename this
         #self.sleeveLVerts = [7, 140, 2255, 2247, 2322, 2409, 2319, 2427, 2240, 2320, 2241, 2326, 2334, 2288, 2289, 2373, 2264, 2419, 2444, 2345, 2408, 2375, 2234, 2399]
@@ -208,8 +218,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
 
         #setup data-driven joint limits
         if self.dataDrivenJointLimts:
-            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), False)
-            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), True)
+            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), True)
+            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), False)
             leftarmConstraint.add_to_world(self.dart_world)
             rightarmConstraint.add_to_world(self.dart_world)
 
@@ -329,6 +339,20 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             '''if random.random() > 0.9999:
                 print("killing thread")
                 sys.exit(123)'''
+
+            qpos = np.zeros(len(self.robot_skeleton.q))
+            for ix,dof in enumerate(self.robot_skeleton.q):
+                if dof > 6.28:
+                    qpos[ix] = dof-6.28
+                    print("dof " +str(ix) +" is wrapping")
+                elif dof < -6.28:
+                    qpos[ix] = dof + 6.28
+                    print("dof " + str(ix) + " is wrapping")
+                else:
+                    qpos[ix] = dof
+
+            self.set_state(qpos, self.robot_skeleton.dq)
+
                 #time.sleep(60)
             if self.dotimings:
                 self.addTiming(label="Start")
@@ -521,6 +545,16 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                 if targetDistL < 0.01:
                     reward_target += 0.5
 
+            reward_restPose = 0
+            if self.restPose_active and self.restPose is not None:
+                z = 0.5 #half the max magnitude (e.g. 0.5 -> [0,1])
+                s = 1.0 #steepness (higher is steeper)
+                l = 4.2 #translation
+                dist = np.linalg.norm(self.robot_skeleton.q-self.restPose)
+                reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+                #print("distance: " + str(dist) + " -> " + str(reward_restPose))
+
+
             #total reward
             self.reward = reward_ctrl*0\
                           + reward_upright\
@@ -531,7 +565,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                           + reward_contactGeo*2\
                           + reward_clothdeformation*3\
                           + reward_oracleDisplacement*50\
-                          + reward_elbow_flair
+                          + reward_elbow_flair\
+                          + reward_restPose
             self.cumulativeReward += self.reward
             if self.dotimings:
                 self.addTiming(label="Observation")
@@ -637,7 +672,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             return ob, self.reward, done, {}
         except:
             print("step " + str(self.numSteps) + " failed")
-            self.step(action=np.zeros(len(a)))
+            #self.step(action=np.zeros(len(a)))
 
 
     def _get_obs(self):
@@ -764,12 +799,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                     print("Looping more than once: " + str(count))
                 count += 1'''
 
-            if self.simulateCloth:
-                qpos = np.array([-0.0246826682648, 0.018944398895, -0.0134400014064, -0.0542085581649, -0.0124679311973,
-                                 0.136099614883, -0.149784150499, -0.238294428353, 2.73616801182, 0.000688467033079,
-                                 0.00286269170768, -0.196131932122, -0.100183323563, -0.667021683751, -0.551852317711,
-                                 0.876048055372, 1.82933888348, 0.442029727913, 0.395167537265, -0.00267152791664,
-                                 -0.00169419615312, -8.29783655585e-05])
+            #if self.simulateCloth:
+            qpos = np.array([-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004, -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334, -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637, 0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
+
 
             #qpos = np.array([0.00789179104753, -0.00778707237558, -0.00575381599684, 0.0160314569834, -0.0215529394607, 0.00116310449511, 0.0141075139802, 0.0210178621179, -0.00535740130501, 0.0971533372584, -0.119663743335, -0.0831924264075, -0.107272709514, 0.343058669125, -0.929541335875, 0.572642382432, 1.96034075215, 0.0425568556954, 0.109450420964, -0.0104435230604, -0.0187997920078, -0.00127660576633])
             #qpos = np.array([0.0133847298842, 0.00623134347354, 0.00901967139099, 0.0197357484081, -0.0147453364021, -0.00214595430132, 0.0267835260132, -0.0122496485753, -0.0012161563398, 0.0614366033843, -0.166508814892, -0.109839479566, -0.0906491452046, 0.386626055839, -1.34713152342, 0.556287307477, 1.68271950222, 0.0305543921666, 0.6, -0.0163504623659, -0.0306551917448, 0.0135542729712])
@@ -777,6 +809,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             #qpos =np.array([0.2731471618,-0.3451429935,0.7688092455,-0.1597715944,0.1860187999,0.2504905961,0.042594533,1.0984740419,1.5495887065,-0.4358303746,-0.0589387622,0.2504341555,-0.2507510455,0.6146392381,-1.4901314838,-1.4741124414,1.1877315006,-0.6148575721,-0.2584124213,-0.0088981053,0.5894612576,0.7433916044])
             #qvel =np.array([0.0567240367,0.1688628579,1.2036850076,-1.7722794241,-1.7820411113,4.524206467,0.2259652913,3.8046292181,0.5771628785,5.825386422,2.767861514,3.28269589289E-009,-4.10147826813E-009,56.4937752114,-8.1748603334,-64.0955705123,-2.6189647867,-6.8044512247E-009,12.1735770456,-3.5029552058,-0.9008247279,0.6619836226])
             self.set_state(qpos, qvel)
+            self.restPose = qpos
 
             if self.resetRandomPose:
                 if self.resetFile is not None:
@@ -994,6 +1027,9 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[5].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[5].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, 0, -0.105])), self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, 0.2, -0.105]))])
 
         #render sample range
         #renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)), rad=0.75, solid=False)
@@ -1117,7 +1153,6 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.renderCollisionCaps = True
         self.clothScene.renderCollisionSpheres = True
 
-def LERP(p0, p1, t):
-    return p0 + (p1-p0)*t
+
 
 
