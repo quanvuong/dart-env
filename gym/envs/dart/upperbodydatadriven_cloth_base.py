@@ -41,7 +41,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.ROMPoints = []
         self.ROMPositions = [] #end effector positions at ROMPoint poses
         self.ROMPointMinDistance = 1.0
-        self.ROMFile = self.prefix + "/assests/processedROMPoints_upperbodycapsules_datadriven"#"processedROMPoints"
+        self.ROMFile = self.prefix + "/assets/processedROMPoints_upperbodycapsules_datadriven"#"processedROMPoints"
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
