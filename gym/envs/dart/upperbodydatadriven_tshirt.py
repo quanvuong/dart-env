@@ -23,7 +23,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
-        self.useOpenGL = False
+        self.useOpenGL = True
         self.screenSize = (1080, 720)
         self.renderDARTWorld = True
         self.renderUI = True
@@ -31,7 +31,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.renderContactInfo = True
         self.compoundAccuracy = True
         self.recordHistory = False
-        self.recordROMPoints = False
+        self.recordROMPoints = True
         self.ROMPoints = []
         self.ROMPointMinDistance = 1.0
 
@@ -40,8 +40,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.resetRandomPose = False
         self.resetFile = None#self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
-        simulateCloth = True
-        renderCloth = True
+        simulateCloth = False
+        renderCloth = False
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -79,7 +79,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         self.deformationTermination = False
         self.deformationPenalty = True
         self.maxDeformation = 30.0
-        self.featureInObs = True #if true, feature centroid location and dispalcement form ef are observed
+        self.featureInObs = True #if true, feature centroid location and dispalcement from ef are observed
         self.oracleInObs = True #if true, oracle vector is in obs
         self.contactIDInObs = True #if true, contact ids are in obs
         self.hapticsInObs = True #if true, haptics are in observation
@@ -387,7 +387,7 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
                     if minDist > self.ROMPointMinDistance:
                         self.ROMPoints.append(np.array(self.robot_skeleton.q))
                         print("Saved poses = " + str(len(self.ROMPoints)))
-                else:
+                else: #auto-add when list is empty
                     self.ROMPoints.append(np.array(self.robot_skeleton.q))
             tau = np.multiply(clamped_control, self.action_scale)
 
@@ -658,9 +658,10 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             elif self.deformationTermination and clothDeformation > self.maxDeformation:
                 done = True
                 self.reward -= 500
-            elif self.collarTermination and not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-                done = True
-                self.reward -= 500
+            elif self.collarTermination and self.simulateCloth:
+                if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
+                    done = True
+                    self.reward -= 500
             #increment the step counter
             self.numSteps += 1
 
@@ -673,7 +674,6 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
         except:
             print("step " + str(self.numSteps) + " failed")
             #self.step(action=np.zeros(len(a)))
-
 
     def _get_obs(self):
         f_size = 66
@@ -984,8 +984,8 @@ class DartClothUpperBodyDataDrivenTshirtEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             self.clothScene.setHapticSensorRadii(hapticSensorRadii)
 
-    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
-        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
+    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None, resetFunc=None):
+        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc, self.reset_model)
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)

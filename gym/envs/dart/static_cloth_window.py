@@ -15,11 +15,13 @@ from gym.envs.dart.static_window import *
 import pyPhysX.pyutils as pyutils
 
 class StaticClothGLUTWindow(StaticGLUTWindow):
-    def __init__(self, sim, title, clothScene=None, extraRenderFunc=None, inputFunc=None):
+    def __init__(self, sim, title, clothScene=None, extraRenderFunc=None, inputFunc=None, resetFunc=None, env=None):
         super(StaticClothGLUTWindow,self).__init__(sim, title)
         self.clothScene = clothScene
+        self.env = env
         self.extraRenderFunc = extraRenderFunc
         self.inputFunc = inputFunc
+        self.resetFunc = resetFunc
         self.mouseLButton = False
         self.mouseRButton = False
         #store the most recent rendering matrices
@@ -86,6 +88,9 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         img.save(filename, 'png')
         self.captureIndex += 1
 
+    def resizeGL(self, w, h):
+        self.scene.resize(w, h)
+        self.interactors[4].defineBoxRanges()
         
     def extraRender(self):
         'Place any extra rendering functionality here. This can be used to extend the window class'
@@ -214,7 +219,13 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             self.close()
             return
         if keycode == 32: #space bar
-            self.is_simulating = not self.is_simulating
+            if self.env is not None:
+                self.env.simulating = not self.env.simulating
+            #self.is_simulating = not self.is_simulating
+            return
+        if keycode == 114: #'r' #reset
+            if self.resetFunc is not None:
+                self.resetFunc()
             return
         #if an interactor context is defined, pass control to it
         if self.curInteractorIX is not None:
@@ -236,10 +247,6 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             #print("trans: " + str(self.scene.tb.trans))
 
         #if no interactor context, do the following
-        if keycode == 114: #'r'
-            self.clothScene.reset()
-            self.sim.reset_model()
-            return
         if keycode == 13: #ENTER
             if self.inputFunc is not None:
                 self.inputFunc()
@@ -985,13 +992,14 @@ class PoseInteractor(BaseInteractor):
         self.selectedNodeOffset = np.zeros(3)
         self.clickz = 0
         self.mouseGlobal = None
+        self.mouseAtClick = np.zeros(2)
 
     def defineBoxRanges(self):
         #manually defined
         #These values are taken from pyPhysX.renderUtils.renderDofs()
         skel = self.viewer.sim.skeletons[self.skelix]
-        if self.topLeft is None:
-            self.topLeft = np.array([2., self.viewer.viewport[3] - 10])
+        #if self.topLeft is None:
+        self.topLeft = np.array([2., self.viewer.viewport[3] - 10])
         textWidth = 165.  # pixel width of the text
         numWidth = 50.  # pixel width of the lower/upper bounds text
         barWidth = 90.
@@ -1026,7 +1034,7 @@ class PoseInteractor(BaseInteractor):
                 qpos[self.selectedBox] = min(max(qpos[self.selectedBox], skel.position_lower_limits()[self.selectedBox]), skel.position_upper_limits()[self.selectedBox])
             skel.set_positions(qpos)
 
-    def distToSkel(self):
+    def distToSkel(self, medial=False):
         #return the distance from the previous mouse position (3D) to the skeleton and the nearest bodynode
         skel = self.viewer.sim.skeletons[self.skelix]
         self.selectedNode = None
@@ -1040,6 +1048,7 @@ class PoseInteractor(BaseInteractor):
         smallestDistance = 9999
         bestTangentialDistance = 0
         closestNode = -1
+        bestLine = None
         for row in range(len(capsuleInfo)):
             for col in range(len(capsuleInfo)):
                 if capsuleInfo[row][col] != 0:
@@ -1049,26 +1058,33 @@ class PoseInteractor(BaseInteractor):
                     p1 = sphereInfo[9*col:9*col+3]
                     r1 = sphereInfo[9 * col + 3]
                     #print("length = " + str(np.linalg.norm(p0-p1)))
-                    distance, tangentialDistance = pyutils.distToLine(p=self.viewer.prevWorldMouse, l0=p0, l1=p1, distOnLine=True)
+                    distance, tangentialDistance = pyutils.distToLine(p=self.viewer.prevWorldMouse, l0=p0, l1=p1, distOnLine=True) #note: distances returned in p0->p1 space (not unit space)
                     radius = r0 + (r1-r0)*tangentialDistance
                     if distance-radius < smallestDistance:
                         smallestDistance = distance-radius
                         bestTangentialDistance = tangentialDistance
                         closestNode = int(capsuleBodynodes[row][col])
+                        bestLine = (p0, p1, tangentialDistance)
         if smallestDistance < 0.01:
             self.selectedNode = closestNode
-            self.selectedNodeOffset = skel.bodynodes[closestNode].to_local(self.viewer.prevWorldMouse)
+            if not medial: #grab a point on the surface of the node
+                self.selectedNodeOffset = skel.bodynodes[closestNode].to_local(self.viewer.prevWorldMouse)
+            else: #grab a point on the medial axis of the node
+                nodeDirection = (bestLine[1]-bestLine[0])
+                #nodeDirection /= np.linalg.norm(nodeDirection)
+                self.selectedNodeOffset = skel.bodynodes[closestNode].to_local(bestLine[0]+nodeDirection*bestLine[2])
             print("Clicked " + str(skel.bodynodes[closestNode]) + " at distance " + str(smallestDistance) + " and extent " + str(bestTangentialDistance))
 
     def click(self, button, state, x, y):
         tb = self.viewer.scene.tb
+        self.mouseAtClick = np.array([x,y])
         if state == 0:  # Mouse pressed
             self.selectedBox = self.boxClickTest(np.array([x,y]))
             if not self.viewer.mouseRButton and not self.viewer.mouseLButton:
                 self.clickz = GL.glReadPixels(self.viewer.mouseLastPos[0],
                                             self.viewer.viewport[3] - self.viewer.mouseLastPos[1], 1, 1,
                                             GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT)
-                self.distToSkel()
+                self.distToSkel(medial=(button == 2))
             if button == 0:
                 self.viewer.mouseLButton = True
             if button == 2:
@@ -1098,6 +1114,7 @@ class PoseInteractor(BaseInteractor):
                          self.clickz])))
         elif state == 1:  # mouse released
             self.selectedBox = None
+            self.viewer.env.supplementalTau *= 0.0
             # self.mouseLastPos = None
             if button == 0:
                 self.viewer.mouseLButton = False
@@ -1112,13 +1129,7 @@ class PoseInteractor(BaseInteractor):
         dy = y - self.viewer.mouseLastPos[1]
 
         if self.selectedNode is not None:
-            #print("adding force")
-            if self.viewer.mouseRButton:
-                self.clickz += -dy*0.000005
-                self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1], self.clickz])))
-            elif self.viewer.mouseLButton:
-                self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1], self.clickz])))
-
+            self.mouseGlobal = np.array(self.viewer.unproject(np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3] - self.viewer.mouseLastPos[1], self.clickz])))
             forceScale = 20.0
             skel = self.viewer.sim.skeletons[self.skelix]
             #skel.bodynodes[self.selectedNode].add_ext_force(_force=forceScale*(self.viewer.camRight * dx + self.viewer.camUp * -dy), _offset=self.selectedNodeOffset)
@@ -1134,11 +1145,15 @@ class PoseInteractor(BaseInteractor):
                 tb.drag_to(x, y, dx, -dy)
         else:
             skel = self.viewer.sim.skeletons[self.skelix]
-            if not math.isinf(skel.position_lower_limits()[self.selectedBox]) and not math.isinf(skel.position_upper_limits()[self.selectedBox]):
-                dofRange = skel.position_upper_limits()[self.selectedBox]-skel.position_lower_limits()[self.selectedBox]
-                self.incrementSelectedDOF(dx*((dofRange)/(self.boxRanges[self.selectedBox][0][1]-self.boxRanges[self.selectedBox][0][0])))
+            if self.viewer.mouseLButton:
+                if not math.isinf(skel.position_lower_limits()[self.selectedBox]) and not math.isinf(skel.position_upper_limits()[self.selectedBox]):
+                    dofRange = skel.position_upper_limits()[self.selectedBox]-skel.position_lower_limits()[self.selectedBox]
+                    self.incrementSelectedDOF(dx*((dofRange)/(self.boxRanges[self.selectedBox][0][1]-self.boxRanges[self.selectedBox][0][0])))
+                else:
+                    self.incrementSelectedDOF(dx * 0.05)
             else:
-                self.incrementSelectedDOF(dx * 0.05)
+                if self.viewer.env is not None:
+                    self.viewer.env.supplementalTau[self.selectedBox] = (self.viewer.mouseLastPos[0] - self.mouseAtClick[0])*0.1
         self.viewer.mouseLastPos = np.array([x, y])
 
     def keyboard(self, key, x, y):
@@ -1149,6 +1164,9 @@ class PoseInteractor(BaseInteractor):
         if keycode == 13:  # ENTER
             if self.viewer.inputFunc is not None:
                 self.viewer.inputFunc()
+            return
+        if keycode == 98: #'b'
+            self.defineBoxRanges()
             return
         if keycode == 112:  # 'p'
             # print relevant info
@@ -1161,12 +1179,15 @@ class PoseInteractor(BaseInteractor):
             dofstr = dofstr + "]"
             print(dofstr)
             return
-        if keycode == 110: #'n'
-            #pin the current handle
-            a=0
         self.viewer.keyPressed(key, x, y)
 
     def contextRender(self):
+        if self.selectedBox is not None and self.viewer.mouseRButton:
+            #applying offset distance based torque to a joint, draw the offset lines
+            mouseAtClickCorrected = np.array([self.mouseAtClick[0], self.viewer.viewport[3]-self.mouseAtClick[1]])
+            mouseLastCorrected = np.array([self.viewer.mouseLastPos[0], self.viewer.viewport[3]-self.viewer.mouseLastPos[1]])
+            yVector = np.array([mouseLastCorrected[0], mouseAtClickCorrected[1]])
+            renderUtils.drawLines2D(points=[mouseAtClickCorrected, mouseLastCorrected, mouseAtClickCorrected, yVector])
 
         if self.mouseGlobal is not None and self.selectedNode is not None:
             skel = self.viewer.sim.skeletons[self.skelix]

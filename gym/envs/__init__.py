@@ -399,6 +399,24 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenTshirt-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothTshirtREnv',
+    #max_episode_steps=250,
+)
+
+register(
+    id='DartClothUpperBodyDataDrivenTshirt-v3',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothTshirtLEnv',
+    #max_episode_steps=250,
+)
+
+register(
+    id='DartClothUpperBodyDataDrivenReacher-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothReacherEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

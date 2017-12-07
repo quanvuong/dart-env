@@ -37,12 +37,15 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         #done pyPhysx init
         
         self.simulateCloth = True #toggle this off to remove cloth computation
+        self.simulating = True
         
         self.kinematic = False #if false, compute dynamics, otherwise rely on manual position updates
         
         #initialize dart_env
         DartEnv.__init__(self, model_paths, frame_skip, observation_size, action_bounds, dt, obs_type, action_type, visualize, disableViewer, screen_width, screen_height)
-        
+
+        self.supplementalTau = np.zeros(self.robot_skeleton.ndofs)  # added to control tau in simulation
+
         utils.EzPickle.__init__(self)
 
     def _reset(self):
@@ -60,7 +63,9 @@ class DartClothEnv(DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         'Overwrite of DartEnv.do_simulation to add cloth simulation step'
-        
+        if not self.simulating:
+            return
+
         if self.add_perturbation:
             if self.perturbation_duration == 0:
                 self.perturb_force *= 0
@@ -77,7 +82,12 @@ class DartClothEnv(DartEnv, utils.EzPickle):
                 self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
 
             if not self.kinematic:
-                self.robot_skeleton.set_forces(tau)
+                combinedTau = np.array(tau)
+                try:
+                    combinedTau += self.supplementalTau
+                except:
+                    print("could not combine tau")
+                self.robot_skeleton.set_forces(combinedTau)
                 self.dart_world.step()
             #pyPhysX step
             if self.simulateCloth:
@@ -86,12 +96,12 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):
         #    self._reset()
 
-    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
+    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None, resetFunc=None):
         'Overwrite of DartEnv.getViewer to instantiate StaticClothGLUTWindow instead'
         # glutInit(sys.argv)
         win = NoRenderWindow(sim, title)
         if not self.disableViewer:
-            win = StaticClothGLUTWindow(sim, title, self.clothScene, extraRenderFunc, inputFunc)
+            win = StaticClothGLUTWindow(sim, title, self.clothScene, extraRenderFunc, inputFunc, resetFunc, self)
             win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
             win.scene.set_camera(win.scene.num_cameras()-1)
 

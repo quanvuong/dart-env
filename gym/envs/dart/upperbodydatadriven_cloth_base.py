@@ -19,7 +19,7 @@ import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile="", clothScale=1.4, skelFile="", obs_size=0):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -30,10 +30,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #sim variables
         self.gravity = False
-        self.resetRandomPose = False
-        self.resetFile = self.prefix + "/assets/ROMPoints_upperbodycapsules_datadriven"
         self.dataDrivenJointLimts = True
-        simulateCloth = True
+        self.lockTorso = True
+        self.lockSpine = True
+
+        #record character range of motion through random exploration
+        self.recordROMPoints = False
+        self.loadROMPoints = True
+        self.processROMPoints = False
+        self.ROMPoints = []
+        self.ROMPositions = [] #end effector positions at ROMPoint poses
+        self.ROMPointMinDistance = 1.0
+        self.ROMFile = self.prefix + "/assests/processedROMPoints_upperbodycapsules_datadriven"#"processedROMPoints"
 
         self.arm = 0 # 0->both, 1->right, 2->left
         self.actuatedDofs = np.arange(22) # full upper body
@@ -50,6 +58,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.actuatedDofs = np.arange(11, 19) # left arm
             self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
 
+        if self.lockTorso:
+            for i in range(2):
+                if i not in self.lockedDofs:
+                    self.lockedDofs.append(i)
+        if self.lockSpine and 2 not in self.lockedDofs:
+            self.lockedDofs.append(2)
+
+
         #22 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))*12
         if 0 in self.actuatedDofs:
@@ -63,10 +79,17 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.numSteps = 0
 
         #create cloth scene
-        clothScene = pyphysx.ClothScene(step=0.01,
-                                        mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                        state_path=self.prefix + "/../../../../" + clothMeshStateFile,
-                                        scale=clothScale)
+        clothScene = None
+
+        if clothMeshStateFile is not None:
+            clothScene = pyphysx.ClothScene(step=0.01,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            state_path=self.prefix + "/../../../../" + clothMeshStateFile,
+                                            scale=clothScale)
+        else:
+            clothScene = pyphysx.ClothScene(step=0.01,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            scale=clothScale)
 
         clothScene.togglePinned(0, 0)  # turn off auto-pin
 
@@ -79,6 +102,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.deformation = 0
 
         self.obs_size = obs_size
+        skelFile = 'UpperBodyCapsules_datadriven.skel'
 
         #intialize the parent env
         if self.useOpenGL is True:
@@ -90,8 +114,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #setup data-driven joint limits
         if self.dataDrivenJointLimts:
-            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), False)
-            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), True)
+            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), True)
+            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), False)
             leftarmConstraint.add_to_world(self.dart_world)
             rightarmConstraint.add_to_world(self.dart_world)
 
@@ -153,8 +177,22 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.robot_skeleton.joints[4].set_position_limit_enforced(True)
         self.robot_skeleton.joints[9].set_position_limit_enforced(True)
 
+        if self.loadROMPoints:
+            self.ROMPoints = pyutils.loadListOfVecs(filename=self.ROMFile)
+            self.ROMPositions = pyutils.positionsFromPoses(self.robot_skeleton, poses=self.ROMPoints,nodes=[7,12], offsets=[np.array([0,-0.065,0]),np.array([0,-0.065,0])])
+        if self.processROMPoints:
+            self._processROMPoints()
+
     def _getFile(self):
         return __file__
+
+    def _processROMPoints(self):
+        positions = pyutils.positionsFromPoses(self.robot_skeleton,poses=self.ROMPoints,nodes=[7,12], offsets=[np.array([0,-0.065,0]),np.array([0,-0.065,0])])
+        before = pyutils.averageShortestDistance(positions)#len(self.ROMPoints)
+        pyutils.cullPosesFromPositionDistances(numPoses=1000, poses=self.ROMPoints, positions=positions)
+        after = pyutils.averageShortestDistance(positions)#len(self.ROMPoints)
+        print("before: " + str(before) + " after: " + str(after))
+        pyutils.saveList(self.ROMPoints, filename="processedROMPoints", listoflists=True)
 
     def saveObjState(self):
         print("Trying to save the object state")
@@ -181,6 +219,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return 0
 
     def _step(self, a):
+        if self.reset_number == 0 or not self.simulating:
+            return np.zeros(self.obs_size), 0, False, {}
         try:
             clamped_control = np.array(a)
             for i in range(len(clamped_control)):
@@ -188,6 +228,26 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     clamped_control[i] = self.control_bounds[0][i]
                 if clamped_control[i] < self.control_bounds[1][i]:
                     clamped_control[i] = self.control_bounds[1][i]
+
+            if self.recordROMPoints:
+                violation = self.dart_world.getMaxConstraintViolation()
+                if violation > 0:
+                    #print(violation)
+                    minDist = None
+                    for p in self.ROMPoints:
+                        dist = np.linalg.norm(self.robot_skeleton.q-p)
+                        if minDist is None:
+                            minDist = dist
+                        if dist < minDist:
+                            minDist = dist
+                            if minDist < self.ROMPointMinDistance:
+                                break
+                    if minDist is not None:
+                        if minDist > self.ROMPointMinDistance:
+                            self.ROMPoints.append(np.array(self.robot_skeleton.q))
+                            print("Saved poses = " + str(len(self.ROMPoints)))
+                    else: #auto-add when list is empty
+                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
 
             tau = np.multiply(clamped_control, self.action_scale)
 
@@ -227,7 +287,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             return ob, self.reward, done, {}
         except:
             print("step " + str(self.numSteps) + " failed")
-            self.step(action=np.zeros(len(a)))
+            #self.step(action=np.zeros(len(a)))
 
     def _get_obs(self):
         print("base observation")
@@ -252,10 +312,12 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.updateClothCollisionStructures(hapticSensors=True)
             self.clothScene.clearInterpolation()
 
-            #debugging
+            if self.recordROMPoints:
+                if len(self.ROMPoints) > 1:
+                    pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
+
             self.reset_number += 1
             self.numSteps = 0
-
             return self._get_obs()
         except:
             print("Failed on reset " + str(self.reset_number))
@@ -341,8 +403,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             self.clothScene.setHapticSensorRadii(hapticSensorRadii)
 
-    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None):
-        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc)
+    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None, resetFunc=None):
+        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc, self.reset_model)
 
     def inputFunc(self, repeat=False):
         pyutils.inputGenie(domain=self, repeat=repeat)
@@ -363,7 +425,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
-
+            if self.totalTime > 0:
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps) + " framerate = " + str(self.numSteps/self.totalTime), color=(0., 0, 0))
+                textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))

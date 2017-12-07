@@ -29,7 +29,9 @@ from gym.envs.dart.endeffectordisplacer import DartClothEndEffectorDisplacerEnv
 from gym.envs.dart.jointlimitstest import DartClothJointLimitsTestEnv
 from gym.envs.dart.upperbodydatadriven import DartClothUpperBodyDataDrivenEnv
 from gym.envs.dart.upperbodydatadriven_tshirt import DartClothUpperBodyDataDrivenTshirtEnv
-
+from gym.envs.dart.upperbodydatadriven_cloth_tshirtR import DartClothUpperBodyDataDrivenClothTshirtREnv
+from gym.envs.dart.upperbodydatadriven_cloth_tshirtL import DartClothUpperBodyDataDrivenClothTshirtLEnv
+from gym.envs.dart.upperbodydatadriven_cloth_reacher import DartClothUpperBodyDataDrivenClothReacherEnv
 
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv
