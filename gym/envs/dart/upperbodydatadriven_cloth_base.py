@@ -31,8 +31,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = False
         self.dataDrivenJointLimts = True
-        self.lockTorso = True
-        self.lockSpine = True
+        self.lockTorso = False
+        self.lockSpine = False
 
         #record character range of motion through random exploration
         self.recordROMPoints = False

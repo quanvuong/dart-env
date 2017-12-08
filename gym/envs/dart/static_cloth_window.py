@@ -1187,6 +1187,12 @@ class PoseInteractor(BaseInteractor):
             except:
                 print("failed to save obj file or character state")
             return
+        if keycode == 118: # 'v'
+            #0 character velocity to stop drift
+            print("zeroing velocity")
+            skel = self.viewer.sim.skeletons[self.skelix]
+            vpos = np.zeros(skel.ndofs)
+            skel.set_velocities(vpos)
         self.viewer.keyPressed(key, x, y)
 
     def contextRender(self):

@@ -97,7 +97,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
 
     policy = None
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 3000
+        rolloutHorizon = 30000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

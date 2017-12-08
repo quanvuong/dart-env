@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -77,6 +77,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                                                           screensize=(1080,720),
                                                           clothMeshFile="tshirt_m.obj",
                                                           clothMeshStateFile = "tshirt_regrip5.obj",
+                                                          #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=1.4,
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation)
@@ -99,6 +100,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.clothScene.renderClothFill = False
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
+
+        #self.loadCharacterState(filename="characterState_1starmin")
 
     def _getFile(self):
         return __file__
@@ -322,6 +325,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
              -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         self.set_state(qpos, qvel)
+        #self.loadCharacterState(filename="characterState_1starmin")
         self.restPose = qpos
 
         if self.handleNode is not None:
@@ -365,20 +369,6 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.CP2Feature.drawProjectionPoly()
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly()
-
-        # render geodesic
-        '''
-        for v in range(self.clothScene.getNumVertices()):
-            side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
-            side0geo = self.separatedMesh.nodes[v].geodesic
-
-            pos = self.clothScene.getVertexPos(vid=v)
-            norm = self.clothScene.getVertNormal(vid=v)
-            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
-            renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
-            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
-            renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
-        '''
 
         textHeight = 15
         textLines = 2
