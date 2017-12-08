@@ -198,6 +198,32 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         print("Trying to save the object state")
         self.clothScene.saveObjState("objState", 0)
 
+    def saveCharacterState(self):
+        print("saving character state")
+        f = open("characterState", 'w')
+        for ix,dof in enumerate(self.robot_skeleton.q):
+            if ix > 0:
+                f.write(" ")
+            f.write(str(dof))
+        f.close()
+
+    def loadCharacterState(self, filename=None):
+        openFile = "characterState"
+        if filename is not None:
+            openFile = filename
+        f = open(openFile, 'r')
+        for ix, line in enumerate(f):
+            if ix > 0: #only want the first file line
+                break
+            words = line.split()
+            if(len(words) != self.robot_skeleton.ndofs):
+                break
+            qpos = np.zeros(self.robot_skeleton.ndofs)
+            for ixw, w in enumerate(words):
+                qpos[ixw] = float(w)
+            self.robot_skeleton.set_positions(qpos)
+        f.close()
+
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         a=0

@@ -23,8 +23,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
     def __init__(self):
         #feature flags
         rendering = False
-        clothSimulation = False
-        renderCloth = False
+        clothSimulation = True
+        renderCloth = True
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
@@ -83,10 +83,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         #clothing features
         self.sleeveRVerts = [2580, 2495, 2508, 2586, 2518, 2560, 2621, 2529, 2559, 2593, 272, 2561, 2658, 2582, 2666, 2575, 2584, 2625, 2616, 2453, 2500, 2598, 2466]
+        self.sleeveRMidVerts = [2556, 2646, 2641, 2574, 2478, 2647, 2650, 269, 2630, 2528, 2607, 2662, 2581, 2458, 2516, 2499, 2555, 2644, 2482, 2653, 2507, 2648, 2573, 2601, 2645]
         self.sleeveREndVerts = [252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 10, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251]
         self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
         self.CP0Feature = ClothFeature(verts=self.sleeveRVerts, clothScene=self.clothScene)
         self.CP1Feature = ClothFeature(verts=self.sleeveREndVerts, clothScene=self.clothScene)
+        self.CP2Feature = ClothFeature(verts=self.sleeveRMidVerts, clothScene=self.clothScene)
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
@@ -112,6 +114,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.CP0Feature.fitPlane()
         if self.CP1Feature is not None:
             self.CP1Feature.fitPlane()
+        if self.CP2Feature is not None:
+            self.CP2Feature.fitPlane()
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
 
@@ -266,7 +270,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             obs = np.concatenate([obs, f]).ravel()
 
         if self.featureInObs and self.simulateCloth:
-            centroid = self.CP0Feature.plane.org
+            centroid = self.CP2Feature.plane.org
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             disp = centroid-efR
             obs = np.concatenate([obs, centroid, disp]).ravel()
@@ -287,7 +291,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                     efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
                     #closeVert = self.clothScene.getCloseVertex(p=efR)
                     #target = self.clothScene.getVertexPos(vid=closeVert)
-                    centroid = self.CP0Feature.plane.org
+                    centroid = self.CP2Feature.plane.org
                     target = centroid
                     vec = target - efR
                     oracle = vec/np.linalg.norm(vec)
@@ -331,11 +335,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.simulateCloth:
             self.CP0Feature.fitPlane()
             self.CP1Feature.fitPlane()
+            self.CP2Feature.fitPlane()
             self.collarFeature.fitPlane()
             if self.reset_number == 0:
                 self.separatedMesh.initSeparatedMeshGraph()
                 self.separatedMesh.updateWeights()
-                self.separatedMesh.computeGeodesic(feature=self.CP0Feature, oneSided=True, side=0, normalSide=0)
+                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
 
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
@@ -356,8 +361,24 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.CP0Feature.drawProjectionPoly()
         if self.CP1Feature is not None:
             self.CP1Feature.drawProjectionPoly()
+        if self.CP2Feature is not None:
+            self.CP2Feature.drawProjectionPoly()
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly()
+
+        # render geodesic
+        '''
+        for v in range(self.clothScene.getNumVertices()):
+            side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+            side0geo = self.separatedMesh.nodes[v].geodesic
+
+            pos = self.clothScene.getVertexPos(vid=v)
+            norm = self.clothScene.getVertNormal(vid=v)
+            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
+            renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
+            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
+            renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+        '''
 
         textHeight = 15
         textLines = 2

@@ -1179,6 +1179,14 @@ class PoseInteractor(BaseInteractor):
             dofstr = dofstr + "]"
             print(dofstr)
             return
+        if keycode == 80:  # 'P'
+            print("Trying to save pose and cloth state")
+            try:
+                self.viewer.env.saveObjState()
+                self.viewer.env.saveCharacterState()
+            except:
+                print("failed to save obj file or character state")
+            return
         self.viewer.keyPressed(key, x, y)
 
     def contextRender(self):

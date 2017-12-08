@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_12_07_new2reacher"
+    #trial = "experiment_2017_12_07_new2reacher"
     #trial = "experiment_2017_12_05_tshirt_newlimits"
 
     #trial = "experiment_2017_11_29_tshirt_nodeformationterm2"
@@ -97,8 +97,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 150
+        rolloutHorizon = 3000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
@@ -129,7 +129,7 @@ if __name__ == '__main__':
             #a = np.ones(22)
             #a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
-            a += np.random.randint(3, size=len(a))-np.ones(len(a))
+            #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
             if j==0:
                 a = np.array([-1,-0.5935519015,-0.6243126472,-1,-0.3540411152,-0.8545956428,-0.1052807823,-0.6650868959,1,-1,-0.4370771514,-1,-0.2656309561,-0.7392283111,1,-0.4849024561,-0.4222881197,-1,-1,-0.1260703,1,0.3853144958,])
