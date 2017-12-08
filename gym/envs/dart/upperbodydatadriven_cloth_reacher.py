@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = False
 
@@ -148,11 +148,13 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
         reward_rightTarget = 0
         if self.rightTargetReward:
-            reward_rightTarget = -np.linalg.norm(self.rightTarget-wRFingertip2)
+            rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
+            reward_rightTarget = -rDist - rDist**2
 
         reward_leftTarget = 0
         if self.leftTargetReward:
-            reward_leftTarget = -np.linalg.norm(self.leftTarget - wLFingertip2)
+            lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
+            reward_leftTarget = -lDist - lDist**2
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
@@ -216,8 +218,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
         if self.loadTargetsFromROMPositions and len(self.ROMPositions) > 0:
             ix = random.randint(0, len(self.ROMPositions) - 1)
-            self.rightTarget = self.ROMPositions[ix][:3]
-            self.leftTarget = self.ROMPositions[ix][-3:]
+            self.rightTarget = self.ROMPositions[ix][:3] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
+            self.leftTarget = self.ROMPositions[ix][-3:] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
 
         self.set_state(qpos, qvel)
         self.restPose = qpos

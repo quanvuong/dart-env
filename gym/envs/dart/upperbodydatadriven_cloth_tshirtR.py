@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = False
 
