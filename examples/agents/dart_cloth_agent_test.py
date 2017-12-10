@@ -19,42 +19,16 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2017_12_08_2ndSleeve"
+    #trial = "experiment_2017_12_08_sleeveFeatureOverlapWarmstart"
+    trial = "experiment_2017_12_07_new2reacher2"
+
     #trial = "experiment_2017_12_07_new2reacher"
     #trial = "experiment_2017_12_05_tshirt_newlimits"
 
     #trial = "experiment_2017_11_29_tshirt_nodeformationterm2"
     #trial = "experiment_2017_11_16_tshirt_nodeformationterm"
     #trial = "experiment_2017_11_16_tshirt_nodeformationterm_grav"
-
-    #trial = "experiment_2017_11_15_tshirt_relative_noshouldercollision"
-    #trial = "experiment_2017_11_15_tshirt_elbowflair_relative"
-    #trial = "experiment_2017_11_14_tshirt_elbowflair"
-    #trial = "experiment_2017_11_14_tshirt_nointerarmcollision"
-    #trial = "experiment_2017_11_13_tshirt_1starm"
-
-    #trial = "experiment_2017_11_01_reacher"
-    #trial = "experiment_2017_10_31_test"
-
-    #trial = "experiment_2017_10_26_tshirt_nograv_complete"
-    #trial = "experiment_2017_10_26_tshirt_grav_complete"
-
-    #trial = "experiment_2017_10_18_displacerR_mod_prevT"
-    #trial = "experiment_2017_10_18_displacerR_mod"
-    #trial = "experiment_2017_10_18_gravity_displacerR_prevTau"
-
-    #trial = "experiment_2017_10_17_nogravity_reacherR"
-    #trial = "experiment_2017_10_17_gravity_reacherR"
-    #trial = "experiment_2017_10_17_nogravity_displacerR"
-    #trial = "experiment_2017_10_17_gravity_displacerR"
-
-    #trial = "experiment_2017_10_13_displacer_gravity_noT_randpose"
-    #trial = "experiment_2017_10_13_displacer_nogravity_noT"
-    #trial = "experiment_2017_10_13_displacer_gravity_noT"
-
-    #trial = "experiment_2017_10_12_upright_gravity"
-    #trial = "experiment_2017_10_12_displacer_gravity"
-    #trial = "experiment_2017_10_12_displacer_nogravity"
-    #trial = "experiment_2017_10_12_upreacher_gravity"
 
     #trial = "experiment_2017_09_10_mode7_gripcover"
     #trial = "experiment_2017_09_06_lineargownclose"
@@ -97,8 +71,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
-    #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -116,7 +90,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 30000
+        rolloutHorizon = 150
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

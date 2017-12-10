@@ -62,9 +62,9 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.contactIDInObs:
             observation_size += 22
         if self.rightTargetReward:
-            observation_size += 3
+            observation_size += 6
         if self.leftTargetReward:
-            observation_size += 3
+            observation_size += 6
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -193,10 +193,12 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            obs = np.concatenate([obs, self.rightTarget]).ravel()
+            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            obs = np.concatenate([obs, self.rightTarget, efR]).ravel()
 
         if self.leftTargetReward:
-            obs = np.concatenate([obs, self.leftTarget]).ravel()
+            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            obs = np.concatenate([obs, self.leftTarget, efL]).ravel()
 
         return obs
 
@@ -238,12 +240,17 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render targets
+        fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
+            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
-        if self.rightTargetReward:
+            renderUtils.drawLineStrip(points=[self.rightTarget, efR])
+        if self.leftTargetReward:
+            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
+            renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         textHeight = 15
         textLines = 2
