@@ -137,6 +137,13 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.sim_dt = self.dt / self.frame_skip
 
+        for bn in self.robot_skeleton.bodynodes:
+            if len(bn.shapenodes) > 0:
+                if hasattr(bn.shapenodes[0].shape, 'size'):
+                    shapesize = bn.shapenodes[0].shape.size()
+                    print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
+        print('Total mass: ', self.robot_skeleton.mass())
+
         utils.EzPickle.__init__(self)
 
     # only 1d

@@ -17,7 +17,7 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
 
@@ -95,7 +95,7 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
         posafter = self.robot_skeleton.com()[0]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
-        alive_bonus = 2.0
+        alive_bonus = 1.0
         reward = (posafter - posbefore) / (self.dt)
         reward += alive_bonus
         reward -= 0.003 * np.square(a).sum()
@@ -173,3 +173,4 @@ class DartHopperRSSEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
