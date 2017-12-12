@@ -43,7 +43,7 @@
         <skeleton name="walker">
             <transformation>0 0.0 0 0 0 0</transformation>
             <body name="h_torso_aux">
-                <transformation> 0.0 1.425 0 0 0 0</transformation>
+                <transformation> 0.0 1.525 0 0 0 0</transformation>
                 <inertia>
                     <mass>0.0</mass>
                     <offset>0.0 0 0.0</offset>
@@ -51,16 +51,16 @@
             </body>
 
             <body name="h_torso">
-                <transformation> 0.0 1.425 0 0 0 0</transformation>
+                <transformation> 0.0 1.525 0 0 0 0</transformation>
                 <inertia>
-                    <mass>17.88</mass>
+                    <mass>40.68</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 0 0.0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.12 0.45 0.22</size>
+                            <size>0.12 0.65 0.4</size>
                         </box>
                     </geometry>
                 </visualization_shape>
@@ -69,7 +69,7 @@
                     <geometry>
                         <box>
                             <!--size>1.0*0.1088 1.0*0.1088 2.2*0.1088</size-->
-                            <size> 0.12 0.45 0.22 </size>
+                            <size> 0.12 0.65 0.4 </size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -107,7 +107,7 @@
             <body name="h_thigh">
                 <transformation>0.0 1.05 0.07 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>3.5</mass>
+                    <mass>4.5</mass>
                     <offset>0.0 -0.225 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -156,22 +156,22 @@
                 <transformation>0.0 0.1 0.07 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>1.616</mass>
-                    <offset>0.1 0.0 0.0</offset>
+                    <offset>0.075 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation> 0.1 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation> 0.075 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.2 0.09 0.09</size>
+                            <size>0.25 0.09 0.09</size>
                         </box>
                     </geometry>
                     <color>1.0 0.5 0.0</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation> 0.075 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.2 0.09 0.09</size>
+                            <size>0.25 0.09 0.09</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -181,7 +181,7 @@
             <body name="h_thigh_left">
                 <transformation>0.0 1.05 -0.07 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>3.5</mass>
+                    <mass>4.5</mass>
                     <offset>0.0 -0.225 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -232,22 +232,22 @@
                 <transformation>0.0 0.1 -0.07 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>1.616</mass>
-                    <offset>0.1 0.0 0.0</offset>
+                    <offset>0.075 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation> 0.1 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation> 0.075 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.2 0.09 0.09</size>
+                            <size>0.25 0.09 0.09</size>
                         </box>
                     </geometry>
                     <color>0.7 0.3 0.6</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.1 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation>0.075 0.0 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.2 0.09 0.09</size>
+                            <size>0.25 0.09 0.09</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -259,12 +259,12 @@
             <joint type="translational" name="j_torso">
                 <parent>world</parent>
                 <child>h_torso_aux</child>
-                <axis3>
+                <!--<axis3>
  		            <limit>
                     	<lower>-0.0001</lower>
                     	<upper>0.0001</upper>
                     </limit>
-                </axis3>
+                </axis3>-->
             </joint>
 
             <joint type="euler" name="j_torso2">
@@ -330,11 +330,11 @@
                 <axis_order>zyx</axis_order>
                 <axis>
 		            <limit>
-                    	<lower>0.0</lower>
+                    	<lower>-0.3</lower>
                     	<upper>1.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
@@ -371,7 +371,7 @@
                     	<upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
@@ -415,11 +415,11 @@
                 <axis_order>zyx</axis_order>
                 <axis>
 		            <limit>
-                    	<lower>0.0</lower>
+                    	<lower>-0.3</lower>
                     	<upper>1.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>
@@ -456,7 +456,7 @@
                     	<upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>10.0</stiffness>
                     </dynamics>
                 </axis>

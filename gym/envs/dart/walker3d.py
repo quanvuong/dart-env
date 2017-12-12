@@ -68,22 +68,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.spd_kp_candidates = None
         self.param_manager = walker3dManager(self)
 
-        if self.base_policy is not None:
-            # when training balance delta function
-            self.base_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]
-            self.deltacontrol_bounds = np.array([[2.0]*8,[-2.0]*8])
-            self.delta_action_indices = [0,1, 4,5, 8, 10,11, 14]
-
-            '''# when training forward delta function
-            self.base_action_indices = [0,1, 4,5, 8, 10,11, 14]
-            self.deltacontrol_bounds = np.array([[1.0]*15,[-1.0]*15])
-            self.delta_action_indices = [0,1,2,3, 4,5,6,7, 8,9, 10,11,12,13 ,14]'''
-
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.deltacontrol_bounds, disableViewer=False)
-        elif self.treadmill:
+        if self.treadmill:
             dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 15, obs_dim, self.control_bounds, disableViewer=True)
         else:
-            dart_env.DartEnv.__init__(self, 'walker3d_full.skel', 15, obs_dim, self.control_bounds,
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
         #self.dart_world.set_collision_detector(3)
@@ -281,9 +269,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
-            np.clip(self.robot_skeleton.dq,-10,10),
+            self.robot_skeleton.dq,
         ])
-
         if self.include_additional_info:
             state = np.concatenate([state, self.contact_info])
 
