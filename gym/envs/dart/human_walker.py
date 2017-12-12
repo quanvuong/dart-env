@@ -16,14 +16,15 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
         self.action_scale = np.array([60.0, 100, 60, 100, 80, 60, 60, 100, 60, 100, 80, 60, 150, 150, 100, 5,15,5, 3, 5,15,5, 3])
-        self.action_scale *= 1.0
+        self.action_scale *= 1.5
+        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 1.0
-        self.init_tv = 1.0
+        self.target_vel = 5.5
+        self.init_tv = 5.5
         self.final_tv = 5.5
-        self.tv_endtime = 4.0
+        self.tv_endtime = 0.04
         self.smooth_tv_change = True
         self.running_average_velocity = False
         self.running_avg_rew_only = True
@@ -34,17 +35,20 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
-        self.hard_enforce = False
-        self.treadmill = False
-        self.treadmill_vel_ratio = -1.0  # ratio between treadmill velocity and target velocity
+        self.hard_enforce = True
+        self.treadmill = True
         self.treadmill_vel = -self.init_tv
+        self.treadmill_init_tv = -5.5
+        self.treadmill_final_tv = -5.5
+        self.treadmill_tv_endtime = 0.04
+
         self.base_policy = None
         self.push_target = 'pelvis'
 
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.1
+        self.energy_weight = 0.25
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -60,7 +64,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([35, 650])
+        self.anchor_kp = np.array([2000.0, 67.0])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -75,7 +79,27 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
 
-        self.vel_reward_weight = 4.0
+        self.vel_reward_weight = 3.0
+
+        self.init_qs = [
+            np.array( [ -2.89238718e-01, -9.29257100e-02, -3.07078440e-02, -4.15327171e-02,
+   5.83924834e-02, -4.71606015e-02,  1.48977210e-03, -5.44134982e-01,
+  -1.81086954e-03, -3.82748081e-02, -1.77467849e-01,  4.85611185e-01,
+  -1.02180162e-04,  4.94809618e-01,  5.51014204e-03,  5.59560832e-01,
+  -7.15421935e-01,  2.93405226e-01,  4.02499653e-02,  5.73677976e-02,
+  -5.27050402e-02, -7.42991206e-02,  9.99610887e-01,  2.01051844e-01,
+  -2.10429626e-03,  3.83956893e-01, -6.40007362e-02, -2.00071433e-01,
+   5.19437974e-01])]
+
+        self.init_dqs = [
+            np.array( [  1.01851403e+00, -1.23959308e+00, -2.08295926e-01,  1.48034588e+00,
+  -1.75699809e-01, -3.25052801e-01,  8.52433124e-11,  3.62135638e+00,
+  -1.34838363e-09, -3.87428667e-09, -3.76459443e+00, -5.65576426e-01,
+  -6.15563156e-11, -2.51946361e+00,  7.51502416e-10,  1.50267900e+01,
+   2.56216163e+00,  2.74806714e+00,  4.50750935e-01,  2.44003327e-01,
+  -6.18723651e-01, -9.07565503e-01, -9.30654030e-02,  4.90717744e-10,
+  -3.14452742e-10,  5.39206331e-01,  4.53671153e+00, -5.00044783e-10,
+   9.49501133e-01])]
 
         if self.treadmill:
             dart_env.DartEnv.__init__(self, 'kima/kima_human_edited_treadmill.skel', 15, obs_dim, self.control_bounds,
@@ -157,9 +181,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
 
-            if self.enforce_target_vel and not self.hard_enforce:
+            if self.enforce_target_vel:# and not self.hard_enforce:
+                tvel = self.target_vel
+                if self.treadmill:
+                    tvel += self.treadmill_vel
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0,
-                                           self.target_vel)
+                                           tvel)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -167,20 +194,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
                 break
 
-    def advance(self, a):
-        clamped_control = np.array(a)
-        for i in range(len(clamped_control)):
-            if clamped_control[i] > self.control_bounds[0][i]:
-                clamped_control[i] = self.control_bounds[0][i]
-            if clamped_control[i] < self.control_bounds[1][i]:
-                clamped_control[i] = self.control_bounds[1][i]
-            if self.previous_control is not None:
-                if clamped_control[i] > self.previous_control[i] + self.constrain_dcontrol:
-                    clamped_control[i] = self.previous_control[i] + self.constrain_dcontrol
-                elif clamped_control[i] < self.previous_control[i] - self.constrain_dcontrol:
-                    clamped_control[i] = self.previous_control[i] - self.constrain_dcontrol
-        self.previous_control = clamped_control
-
+    def advance(self, clamped_control):
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[6:] = clamped_control * self.action_scale
 
@@ -196,24 +210,38 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        # smoothly increase the target velocity
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
+                    self.final_tv - self.init_tv) + self.init_tv
+            self.treadmill_vel = (np.min([self.t, self.treadmill_tv_endtime]) / self.treadmill_tv_endtime) * (
+                    self.treadmill_final_tv - self.treadmill_init_tv) + self.treadmill_init_tv
+
+
         posbefore = self.robot_skeleton.bodynode(self.push_target).com()[0]
-        self.advance(np.copy(a))
+
+        clamped_control = np.array(a)
+        for i in range(len(clamped_control)):
+            if clamped_control[i] > self.control_bounds[0][i]:
+                clamped_control[i] = self.control_bounds[0][i]
+            if clamped_control[i] < self.control_bounds[1][i]:
+                clamped_control[i] = self.control_bounds[1][i]
+            if self.previous_control is not None:
+                if clamped_control[i] > self.previous_control[i] + self.constrain_dcontrol:
+                    clamped_control[i] = self.previous_control[i] + self.constrain_dcontrol
+                elif clamped_control[i] < self.previous_control[i] - self.constrain_dcontrol:
+                    clamped_control[i] = self.previous_control[i] - self.constrain_dcontrol
+        self.advance(np.copy(clamped_control))
 
         posafter = self.robot_skeleton.bodynode(self.push_target).com()[0]
         height = self.robot_skeleton.bodynode('head').com()[1]
         side_deviation = self.robot_skeleton.bodynode('head').com()[2]
         angle = self.robot_skeleton.q[3]
 
-        pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd + (
-                                                     self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
-        self.vel_enforce_kp = self.init_vel_pd + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
-        # print(self.current_pd)
-        # smoothly increase the target velocity
-        if self.smooth_tv_change:
-            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
-            self.final_tv - self.init_tv) + self.init_tv
-            self.treadmill_vel = self.target_vel * self.treadmill_vel_ratio
+        #pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
+        self.current_pd = self.init_balance_pd #+ (
+                                             #        self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
+        self.vel_enforce_kp = self.init_vel_pd #+ (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('head').to_world(
@@ -240,16 +268,17 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         total_force_mag = 0
         self.contact_info = np.array([0, 0])
         for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
             if contact.skel_id1 == contact.skel_id2:
                 self_colliding = True
             if contact.skel_id1 + contact.skel_id2 == 1:
                 if contact.bodynode1 == self.robot_skeleton.bodynode(
                         'l-foot') or contact.bodynode2 == self.robot_skeleton.bodynode('l-foot'):
                     self.contact_info[0] = 1
+                    total_force_mag += np.linalg.norm(contact.force)
                 if contact.bodynode1 == self.robot_skeleton.bodynode(
                         'r-foot') or contact.bodynode2 == self.robot_skeleton.bodynode('r-foot'):
                     self.contact_info[1] = 1
+                    total_force_mag += np.linalg.norm(contact.force)
 
         alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
@@ -261,24 +290,31 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             else:
                 self.avg_rew_weighting.append(1)
 
-        if len(self.vel_cache) > int(1.0/self.dt):
+
+        vel_rew_scale = 1.0
+        if len(self.vel_cache) > int(1.0/self.dt) and (self.running_average_velocity or self.running_avg_rew_only):
             self.vel_cache.pop(0)
             self.avg_rew_weighting.pop(0)
+        else:
+            vel_rew_scale = 0.1#np.min([len(self.vel_cache) * self.dt, 1.0])
+
         if not self.treadmill:
             if self.reference_trajectory is not None:
                 vel_rew = - np.exp(3.0*(np.abs(self.reference_trajectory[self.cur_step][0] - self.robot_skeleton.com()[0]**2)))
             elif self.running_average_velocity or self.running_avg_rew_only:
-                vel_rew = -3.0 * np.mean(np.array(self.avg_rew_weighting) * np.abs(np.array(self.vel_cache) - self.target_vel))
+                append_vel = np.zeros(int(1.0/self.dt) - len(self.vel_cache))
+                vel_rew = -3.0 * np.mean(np.append(np.array(self.avg_rew_weighting) * np.abs(np.array(self.vel_cache) - self.target_vel), append_vel))
             else:
                 vel_diff = np.abs(self.target_vel - vel)
         else:
             if self.running_average_velocity or self.running_avg_rew_only:
-                vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - np.mean(self.vel_cache)))
+                append_vel = np.ones(int(1.0/self.dt) - len(self.vel_cache)) * (self.target_vel + self.treadmill_vel)
+                vel_rew = -3.0 *vel_rew_scale* (np.abs(self.target_vel + self.treadmill_vel - np.mean(np.append(self.vel_cache, append_vel))))
             else:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = self.energy_weight * np.abs(a).sum()
+        action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()
         # action_pen += 0.02 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
         deviation_pen = 3 * abs(side_deviation)
 
@@ -305,6 +341,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
+
+        self.previous_control = clamped_control
 
         # if self.conseq_limit_pen > 20:
         #    done = True
@@ -344,8 +382,16 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reset_model(self):
         self.dart_world.reset()
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
+
+        init_q = self.robot_skeleton.q
+        init_dq = self.robot_skeleton.dq
+        if len(self.init_dqs) > 0:
+            init_pid = np.random.randint(len(self.init_qs))
+            init_q = self.init_qs[init_pid]
+            init_dq = self.init_dqs[init_pid]
+
+        qpos = init_q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        qvel = init_dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
 
         if self.rand_target_vel:
             self.target_vel = np.random.uniform(0.8, 2.5)
@@ -360,7 +406,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.end_vel_pd = chosen_curriculum[1]
 
         if self.init_push:
-            qpos[0] = self.target_vel
+            qvel[0] = self.target_vel
         self.set_state(qpos, qvel)
         self.t = self.dt
         self.cur_step = 0

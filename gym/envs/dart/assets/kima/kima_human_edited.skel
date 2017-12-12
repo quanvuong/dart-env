@@ -409,11 +409,11 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.5</lower>
+                        <lower>-1.8</lower>
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -495,11 +495,11 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.5</lower>
+                        <lower>-1.8</lower>
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
