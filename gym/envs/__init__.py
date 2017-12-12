@@ -210,6 +210,13 @@ register(
 )
 
 register(
+    id='DartHopperRSS-v1',
+    entry_point='gym.envs.dart:DartHopperRSSEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopperAssist-v1',
     entry_point='gym.envs.dart:DartHopperAssistEnv',
     reward_threshold=3800.0,
@@ -279,7 +286,13 @@ register(
 register(
     id='DartDog-v1',
     entry_point='gym.envs.dart:DartDogEnv',
-    max_episode_steps=1000,
+    max_episode_steps=300,
+)
+
+register(
+    id='DartDogRobot-v1',
+    entry_point='gym.envs.dart:DartDogRobotEnv',
+    max_episode_steps=600,
 )
 
 '''register(
@@ -317,6 +330,12 @@ register(
 register(
     id='DartWalker3d-v1',
     entry_point='gym.envs.dart:DartWalker3dEnv',
+    max_episode_steps=300,
+)
+
+register(
+    id='DartWalker3dFull-v1',
+    entry_point='gym.envs.dart:DartWalker3dFullEnv',
     max_episode_steps=300,
 )
 
@@ -434,6 +453,13 @@ register(
 register(
     id='Hopper-v1',
     entry_point='gym.envs.mujoco:HopperEnv',
+    max_episode_steps=1000,
+    reward_threshold=3800.0,
+)
+
+register(
+    id='HopperRSS-v1',
+    entry_point='gym.envs.mujoco:HopperRSSEnv',
     max_episode_steps=1000,
     reward_threshold=3800.0,
 )

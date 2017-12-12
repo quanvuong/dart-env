@@ -196,7 +196,7 @@ class DartEnv(gym.Env):
     def getViewer(self, sim, title=None):
         # glutInit(sys.argv)
         win = StaticGLUTWindow(sim, title)
-        win.scene.add_camera(Trackball(theta=-45.0, phi = 0.0, zoom=0.1), 'gym_camera')
+        win.scene.add_camera(Trackball(theta=-0.0, phi = 0.0, zoom=0.1), 'gym_camera')
         win.scene.set_camera(win.scene.num_cameras()-1)
 
         # to add speed,

@@ -15,7 +15,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60, 200, 60, 150, 60, 60, 60, 200, 60, 150, 60, 60, 200, 200, 200, 3,10,3, 2, 3,10,3, 2])
+        self.action_scale = np.array([60.0, 200, 60, 150, 60, 60, 60, 200, 60, 150, 60, 60, 200, 200, 200, 3,10,3, 2, 3,10,3, 2])
         obs_dim = 57
 
         self.t = 0
@@ -100,6 +100,13 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # self.dart_world.set_collision_detector(3)
 
         self.sim_dt = self.dt / self.frame_skip
+
+        for bn in self.robot_skeleton.bodynodes:
+            if len(bn.shapenodes) > 0:
+                if hasattr(bn.shapenodes[0].shape, 'size'):
+                    shapesize = bn.shapenodes[0].shape.size()
+                    print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
+        print('Total mass: ', self.robot_skeleton.mass())
 
         utils.EzPickle.__init__(self)
 

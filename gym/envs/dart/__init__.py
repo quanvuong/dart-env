@@ -16,12 +16,14 @@ from gym.envs.dart.cart_pole_img import DartCartPoleImgEnv
 from gym.envs.dart.walker2d import DartWalker2dEnv
 from gym.envs.dart.walker2d_backpack import DartWalker2dBackpackEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv
+from gym.envs.dart.walker3d_full import DartWalker3dFullEnv
 from gym.envs.dart.walker3d_restricted import DartWalker3dRestrictedEnv
 from gym.envs.dart.walker3d_project import DartWalker3dProjectionEnv
 
 from gym.envs.dart.walker3d_spd import DartWalker3dSPDEnv
 from gym.envs.dart.inverted_double_pendulum import DartDoubleInvertedPendulumEnv
 from gym.envs.dart.dog import DartDogEnv
+from gym.envs.dart.dog_robot import DartDogRobotEnv
 from gym.envs.dart.reacher2d import DartReacher2dEnv
 
 from gym.envs.dart.cartpole_swingup import DartCartPoleSwingUpEnv
@@ -31,3 +33,5 @@ from gym.envs.dart.walker2d_pendulum import DartWalker2dPendulumEnv
 from gym.envs.dart.ball_walker import DartBallWalkerEnv
 
 from gym.envs.dart.human_walker import DartHumanWalkerEnv
+
+from gym.envs.dart.hopper_rss import DartHopperRSSEnv

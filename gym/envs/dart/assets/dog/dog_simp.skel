@@ -1518,70 +1518,14 @@
                 </axis2>
             </joint>
 
-            <joint type="euler" name="backJ1">
+            <joint type="weld" name="backJ1">
                 <parent>pelvis</parent>
                 <child>back1</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="backJ2">
+            <joint type="weld" name="backJ2">
                 <parent>back1</parent>
                 <child>back2</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
             <joint type="euler" name="backJ3">
@@ -1617,202 +1561,34 @@
                 </axis3>
             </joint>
 
-            <joint type="euler" name="backJ4">
+            <joint type="weld" name="backJ4">
                 <parent>back3</parent>
                 <child>back4</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="backJ5">
+            <joint type="weld" name="backJ5">
                 <parent>back4</parent>
                 <child>back5</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="neckJ1">
+            <joint type="weld" name="neckJ1">
                 <parent>back5</parent>
                 <child>neck1</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="neckJ2">
+            <joint type="weld" name="neckJ2">
                 <parent>neck1</parent>
                 <child>neck2</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="neckJ3">
+            <joint type="weld" name="neckJ3">
                 <parent>neck2</parent>
                 <child>neck3</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="neckJ4">
+            <joint type="weld" name="neckJ4">
                 <parent>neck3</parent>
                 <child>head</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.6</lower>
-                        <upper>0.6</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
             <joint type="revolute" name="lKnee">
@@ -1958,103 +1734,19 @@
                 </axis3>
             </joint>
 
-            <joint type="euler" name="tailJ2">
+            <joint type="weld" name="tailJ2">
                 <parent>tail1</parent>
                 <child>tail2</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="tailJ3">
+            <joint type="weld" name="tailJ3">
                 <parent>tail2</parent>
                 <child>tail3</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
 
-            <joint type="euler" name="tailJ4">
+            <joint type="weld" name="tailJ4">
                 <parent>tail3</parent>
                 <child>tail4</child>
-                <axis_order>zyx</axis_order>
-                <axis>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis>
-                <axis2>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis2>
-                <axis3>
-                    <limit>
-                        <lower>-0.5</lower>
-                        <upper>0.5</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>3.0</damping>
-                    </dynamics>
-                </axis3>
             </joint>
         </skeleton>
 

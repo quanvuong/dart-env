@@ -15,3 +15,5 @@ from gym.envs.mujoco.pusher import PusherEnv
 from gym.envs.mujoco.thrower import ThrowerEnv
 from gym.envs.mujoco.striker import StrikerEnv
 from gym.envs.mujoco.reacher3d import Reacher3dEnv
+
+from gym.envs.mujoco.hopper_rss import HopperRSSEnv
