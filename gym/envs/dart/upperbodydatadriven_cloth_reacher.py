@@ -150,11 +150,15 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
             reward_rightTarget = -rDist - rDist**2
+            if rDist < 0.02:
+                reward_rightTarget += 0.25
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             reward_leftTarget = -lDist - lDist**2
+            if lDist < 0.02:
+                reward_leftTarget += 0.25
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
@@ -204,9 +208,10 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
     def additionalResets(self):
         #do any additional resetting here
+        fingertip = np.array([0, -0.065, 0])
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qpos = np.array(
             [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
@@ -215,14 +220,33 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
 
         if self.resetPoseFromROMPoints and len(self.ROMPoints) > 0:
-            ix = random.randint(0,len(self.ROMPoints)-1)
-            qpos = self.ROMPoints[ix]
+            poseFound = False
+            while not poseFound:
+                ix = random.randint(0,len(self.ROMPoints)-1)
+                qpos = self.ROMPoints[ix]
+                efR = self.ROMPositions[ix][:3]
+                efL = self.ROMPositions[ix][-3:]
+                if efR[2] < 0 and efL[2] < 0: #half-plane constraint on end effectors
+                    poseFound = True
+
+        #Check the constrained population
+        '''positive = 0
+        for targets in self.ROMPositions:
+            efR = targets[:3]
+            efL = targets[-3:]
+            if efR[2] < 0 and efL[2] < 0:
+                positive += 1
+        print("Valid Poses: " + str(positive) + " | ratio: " + str(positive/len(self.ROMPositions)))'''
+
 
         if self.loadTargetsFromROMPositions and len(self.ROMPositions) > 0:
-            ix = random.randint(0, len(self.ROMPositions) - 1)
-            self.rightTarget = self.ROMPositions[ix][:3] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
-            self.leftTarget = self.ROMPositions[ix][-3:] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
-
+            targetFound = False
+            while not targetFound:
+                ix = random.randint(0, len(self.ROMPositions) - 1)
+                self.rightTarget = self.ROMPositions[ix][:3] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
+                self.leftTarget = self.ROMPositions[ix][-3:] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
+                if self.rightTarget[2] < 0 and self.leftTarget[2] < 0: #half-plane constraint on end effectors
+                    targetFound = True
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
