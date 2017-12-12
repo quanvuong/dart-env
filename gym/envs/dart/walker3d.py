@@ -16,18 +16,22 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale[[-1,-2,-7,-8]] = 60
         self.action_scale[[0, 1, 2]] = 100
         #self.action_scale = np.array([40,80,150, 150,60,80,120,60,60, 150,60,80,120,60,60])
-        self.action_scale = np.array([200, 200, 200, 150, 60, 80, 150, 60, 60, 150, 60, 80, 150, 60, 60])
+        self.action_scale = np.array([200, 200, 200, 250, 60, 80, 100, 60, 60, 250, 60, 80, 100, 60, 60])
         obs_dim = 41
 
         self.t = 0
         self.target_vel = 1.0
         self.init_tv = 1.0
-        self.final_tv = 3.0
+        self.final_tv = 4.0
         self.tv_endtime = 2.5
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
+        self.running_avg_rew_only = True
+        self.avg_rew_weighting = []
+        self.vel_cache = []
+
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -1.0
@@ -44,7 +48,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
-        #self.base_policy = joblib.load(os.path.join(modelpath, 'walker3d_init/init_policy_forward_newlimit.pkl'))
+
+        self.energy_weight = 0.1
 
         self.local_spd_curriculum = True
         self.anchor_kp = np.array([2000, 2000])
@@ -102,33 +107,18 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         utils.EzPickle.__init__(self)
 
-    # only 1d
-    def _spd(self, target_q, id, kp, target_dq = 0.0):
-        self.Kp = kp
-        self.Kd = kp*self.sim_dt
-        if target_dq > 0:
-            self.Kd = self.Kp
-            self.Kp *= 0
 
-        invM = 1.0/(self.robot_skeleton.M[id][id] + self.Kd * self.sim_dt)
-        if target_dq == 0:
-            p = -self.Kp * (self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.sim_dt - target_q[id])
-        else:
-            p = 0
-        d = -self.Kd * (self.robot_skeleton.dq[id] - target_dq)
-        qddot = invM * (-self.robot_skeleton.c[id] + p + d)
-        tau = p + d - self.Kd*(qddot) * self.sim_dt
-        return tau
-
-    def _bodynode_spd(self, bn, kp, dof, target_vel=0.0):
+    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
         self.Kp = kp
         self.Kd = kp * self.sim_dt
-        if target_vel > 0:
+        if target_vel is not None:
             self.Kd = self.Kp
             self.Kp *= 0
 
         invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
         p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        if target_vel is None:
+            target_vel = 0.0
         d = -self.Kd * (bn.dC[dof] - target_vel)
         qddot = invM * (-bn.C[dof] + p + d)
         tau = p + d - self.Kd * (qddot) * self.sim_dt
@@ -137,14 +127,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
             if self.constrain_2d:
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
-                #self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and not self.hard_enforce:
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
-                #self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
 
@@ -224,29 +210,39 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                         self.robot_skeleton.bodynode('h_foot'):
                     self.contact_info[1] = 1
 
-        pos_rew = 0
-        neg_pen = 0
-        if self.base_policy is None:
-            alive_bonus = 4.0
-            vel = (posafter - posbefore) / self.dt
-            if not self.treadmill:
-                vel_rew = -2.0*np.abs(self.target_vel - vel)#1.0 * (posafter - posbefore) / self.dt
+        alive_bonus = 4.0
+        vel = (posafter - posbefore) / self.dt
+        self.vel_cache.append(vel)
+        if self.running_avg_rew_only:
+            if self.t < self.tv_endtime:
+                self.avg_rew_weighting.append(0.3)
             else:
-                vel_rew = 2*(self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
-            vel_rew *= 0
-            #action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-            action_pen =5e-1 * np.abs(a).sum()
-            #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
-            deviation_pen = 3 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - deviation_pen
-            pos_rew = alive_bonus - deviation_pen
-            neg_pen = vel_rew - action_pen
+                self.avg_rew_weighting.append(1)
+
+        if len(self.vel_cache) > int(1.0/self.dt) and (self.running_avg_rew_only):
+            self.vel_cache.pop(0)
+            self.avg_rew_weighting.pop(0)
+
+        vel_rew = 0
+        if not self.treadmill:
+            if self.running_avg_rew_only:
+                append_vel = np.zeros(int(1.0/self.dt) - len(self.vel_cache))
+                vel_rew = -3.0 * np.mean(np.append(np.array(self.avg_rew_weighting) * np.abs(np.array(self.vel_cache) - self.target_vel), append_vel))
+            else:
+                vel_diff = np.abs(self.target_vel - vel)
         else:
-            alive_bonus = 2.0
-            vel_rew = 1.0 * (posafter - posbefore) / self.dt
-            action_pen = 1e-2 * np.square(a).sum()
-            deviation_pen = 1 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - deviation_pen
+            if self.running_avg_rew_only:
+                append_vel = np.ones(int(1.0/self.dt) - len(self.vel_cache)) * (self.target_vel + self.treadmill_vel)
+                vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - np.mean(np.append(self.vel_cache, append_vel))))
+            else:
+                vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
+
+        action_pen = self.energy_weight * np.abs(a).sum()
+        #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
+        deviation_pen = 3 * abs(side_deviation)
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen
+        pos_rew = alive_bonus - deviation_pen
+        neg_pen = vel_rew - action_pen
 
 
         #reward -= 1e-7 * total_force_mag
@@ -333,6 +329,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.stepwise_rewards = []
 
         self.init_pos = self.robot_skeleton.q[0]
+
+        self.vel_cache = []
+
+        self.avg_rew_weighting = []
 
         self.conseq_limit_pen = 0
         self.current_pd = self.init_balance_pd

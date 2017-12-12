@@ -15,16 +15,16 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 100, 60, 100, 80, 60, 60, 100, 60, 100, 80, 60, 150, 150, 100, 5,15,5, 3, 5,15,5, 3])
-        self.action_scale *= 1.5
+        self.action_scale = np.array([60.0, 250, 60, 60, 80, 60, 60, 250, 60, 60, 80, 60, 150, 150, 100, 5,15,5, 3, 5,15,5, 3])
+        self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 5.5
-        self.init_tv = 5.5
+        self.init_tv = 0.0
         self.final_tv = 5.5
-        self.tv_endtime = 0.04
+        self.tv_endtime = 4.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
         self.running_avg_rew_only = True
@@ -38,9 +38,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.hard_enforce = True
         self.treadmill = True
         self.treadmill_vel = -self.init_tv
-        self.treadmill_init_tv = -5.5
+        self.treadmill_init_tv = -0.0
         self.treadmill_final_tv = -5.5
-        self.treadmill_tv_endtime = 0.04
+        self.treadmill_tv_endtime = 4.0
 
         self.base_policy = None
         self.push_target = 'pelvis'
@@ -48,7 +48,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.25
+        self.energy_weight = 0.1
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -64,7 +64,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000.0, 67.0])
+        self.anchor_kp = np.array([2000.0, 1000.6])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -100,6 +100,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
   -6.18723651e-01, -9.07565503e-01, -9.30654030e-02,  4.90717744e-10,
   -3.14452742e-10,  5.39206331e-01,  4.53671153e+00, -5.00044783e-10,
    9.49501133e-01])]
+
+        self.init_qs = []
+        self.init_dqs = []
 
         if self.treadmill:
             dart_env.DartEnv.__init__(self, 'kima/kima_human_edited_treadmill.skel', 15, obs_dim, self.control_bounds,
@@ -147,15 +150,15 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     # only 1d
-    def _spd(self, target_q, id, kp, target_dq=0.0):
+    def _spd(self, target_q, id, kp, target_dq=None):
         self.Kp = kp
         self.Kd = kp * self.sim_dt
-        if target_dq > 0:
+        if target_dq is not None:
             self.Kd = self.Kp
             self.Kp *= 0
 
         invM = 1.0 / (self.robot_skeleton.M[id][id] + self.Kd * self.sim_dt)
-        if target_dq == 0:
+        if target_dq is None:
             p = -self.Kp * (self.robot_skeleton.q[id] + self.robot_skeleton.dq[id] * self.sim_dt - target_q[id])
         else:
             p = 0
@@ -165,16 +168,17 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         return tau
 
-    def _bodynode_spd(self, bn, kp, dof, target_vel=0.0):
+    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
         self.Kp = kp
         self.Kd = kp * self.sim_dt
-        if target_vel > 0:
+        if target_vel is not None:
             self.Kd = self.Kp
             self.Kp *= 0
 
         invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
         p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
-
+        if target_vel is None:
+            target_vel = 0.0
         d = -self.Kd * (bn.dC[dof] - target_vel * 1.0)  # compensate for average velocity match
 
         qddot = invM * (-bn.C[dof] + p + d)
