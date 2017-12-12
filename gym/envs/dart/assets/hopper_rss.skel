@@ -24,7 +24,7 @@
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>500.0 0.05 5.0</size>
+                            <size>500.0 0.05 10.0</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -36,11 +36,11 @@
         </skeleton>
 
         <skeleton name="hopper">
-            <transformation>0 0.0 0 0 0 0</transformation>
+            <transformation>0 0.03 0 0 0 0</transformation>
             <body name="h_pelvis">
                 <transformation> 0.0 1.25 0 0 0 0</transformation>
                 <inertia>
-                    <mass>4</mass>
+                    <mass>3.53429174</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -83,14 +83,14 @@
             <body name="h_thigh">
                 <transformation>0.0 1.05 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>4.5</mass>
+                    <mass>3.92699082</mass>
                     <offset>0.0 -0.225 0.0</offset>
                 </inertia>
                 <visualization_shape>
                     <transformation>0.0 -0.225 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.1 0.45 0.1</size>
+                            <size>0.1 0.55 0.1</size>
                         </box>
                     </geometry>
                 </visualization_shape>
@@ -98,7 +98,7 @@
                     <transformation>0.0 -0.225 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
-                            <size>0.1 0.45 0.1</size>
+                            <size>0.1 0.55 0.1</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -107,7 +107,7 @@
             <body name="h_shin">
                 <transformation>0.0 0.6 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>3.2</mass>
+                    <mass>2.71433605</mass>
                     <offset>0.0 -0.25 0.0</offset>
                 </inertia>
                 <visualization_shape>
@@ -131,20 +131,19 @@
             <body name="h_foot">
                 <transformation>0.0 0.1 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>5.616</mass>
-                    <offset>0.065 0.0 0.0</offset>
+                    <mass>5.0893801</mass>
+                    <offset>0.065 -0.03 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation> 0.065 -0.06 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
                             <size> 0.39 0.12 0.12</size>
                         </box>
                     </geometry>
-                    <color>1.0 0.5 0.0</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation> 0.065 0.0 0.0 0.0 0.0 0.0</transformation>
+                    <transformation> 0.065 -0.06 0.0 0.0 0.0 0.0</transformation>
                     <geometry>
                         <box>
                             <size> 0.39 0.12 0.12</size>
@@ -194,12 +193,14 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-2.61799</lower>
-                    	<upper>0.0</upper>
+                    	<lower>-1.4</lower>
+                    	<upper>1.4</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>
-                        <friction>0.0</friction>
+                        <friction>5.0</friction>
+                        <spring_rest_position>0.0</spring_rest_position>
+                        <spring_stiffness>3.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0</init_pos>
@@ -213,15 +214,17 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-2.61799</lower>
-                    	<upper>0.0</upper>
+                    	<lower>-3.14</lower>
+                    	<upper>0.02</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>
-                        <friction>0.0</friction>
+                        <friction>5.0</friction>
+                        <spring_rest_position>-0.17</spring_rest_position>
+                        <spring_stiffness>3.0</spring_stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>0.0</init_pos>
+                <init_pos>-0.17</init_pos>
                 <init_vel>0</init_vel>
             </joint>
 
@@ -232,15 +235,17 @@
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
 		     <limit>
-                    	<lower>-0.785398</lower>
-                    	<upper>0.785398</upper>
+                    	<lower>-1.14</lower>
+                    	<upper>1.14</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>
-                        <friction>0.0</friction>
+                        <friction>5.0</friction>
+                        <spring_rest_position>0.17</spring_rest_position>
+                        <spring_stiffness>3.0</spring_stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>0.0</init_pos>
+                <init_pos>0.17</init_pos>
                 <init_vel>0</init_vel>
             </joint>
 

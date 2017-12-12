@@ -8,14 +8,17 @@
         </physics>
 
         <skeleton name="ground skeleton">
-            <mobile>false</mobile>
             <body name="ground">
-                <transformation>0 -0.9825 0 0 0 0</transformation>
+                <transformation>0 -0.985 0 0 0 0</transformation>
+                <inertia>
+                        <mass>100000.0</mass>
+                        <offset>0.0 0 0.0</offset>
+                    </inertia>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>500.0 0.04 2.0</size>
+                            <size>500.0 0.04 10.0</size>
                         </box>
                     </geometry>
                     <color>0.8 0.8 0.8</color>
@@ -29,9 +32,12 @@
                     </geometry>
                 </collision_shape>
             </body>
-            <joint name="joint_1" type="free">
+            <joint type="prismatic" name="joint 1">
                 <parent>world</parent>
                 <child>ground</child>
+                <axis>
+                      <xyz>1.0 0.0 0.0</xyz>
+                </axis>
             </joint>
         </skeleton>
 
@@ -403,7 +409,7 @@
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -413,7 +419,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -423,7 +429,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -459,7 +465,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -470,7 +476,7 @@
                         <upper>0.5</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -489,7 +495,7 @@
                         <upper>1.570796</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -499,7 +505,7 @@
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -509,7 +515,7 @@
                         <upper>0.0</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
@@ -545,7 +551,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -556,7 +562,7 @@
                         <upper>0.5</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -575,7 +581,7 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
@@ -586,7 +592,7 @@
                         <upper>0.1</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
@@ -604,7 +610,7 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>2.0</damping>
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>

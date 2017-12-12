@@ -346,3 +346,4 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.disableViewer:
             #self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
+

@@ -12,11 +12,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0])
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
@@ -74,14 +74,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel', 'hopper_hybrid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
         self.dart_worlds[0].set_collision_detector(3)
-        self.dart_worlds[1].set_collision_detector(0)
-        self.dart_worlds[2].set_collision_detector(1)
-        self.dart_worlds[3].set_collision_detector(1)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -214,7 +211,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .4 or self.learn_acro))
+                    (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .2 or self.learn_acro))
 
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1

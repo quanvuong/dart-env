@@ -17,12 +17,13 @@ class hopperContactMassManager:
         self.foot_mass_range = [4.0, 6.0]
         self.power_range = [170, 230]'''
         self.restitution_range = [0.0, 0.3]
-        self.torso_mass_range = [2.0, 35.0]
+        self.torso_mass_range = [2.0, 15.0]
         self.foot_mass_range = [2.0, 25.0]
         self.power_range = [150, 320]
         self.ankle_range = [40, 300]
-        self.activated_param = [0, 2,3]
-        self.controllable_param = [0, 2,3]
+        self.slippery_coef = [0.55, 0.9]
+        self.activated_param = [2]
+        self.controllable_param = [2]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -49,7 +50,8 @@ class hopperContactMassManager:
         cur_ank_power = self.simulator.action_scale[2]
         ank_power_param = (cur_ank_power - self.ankle_range[0]) / (self.ankle_range[1] - self.ankle_range[0])
 
-        params = np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param, ank_power_param])[self.activated_param]
+
+        params = np.array([friction_param, restitution_param, mass_param, ft_mass_param, power_param, ank_power_param ])[self.activated_param]
         if self.binned_param > 0:
             for i in range(len(params)):
                 params[i] = int(params[i] / (1.0 / self.binned_param)) * (1.0/self.binned_param) + 0.5 / self.binned_param
