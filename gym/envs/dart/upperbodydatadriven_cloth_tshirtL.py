@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -55,6 +55,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.prevOracle = None
         self.localLeftEfShoulder1 = None
         self.limbProgress = 0
+        self.previousDeformationReward = 0
 
         self.handleNode = None
         self.updateHandleNodeFrom = 7  # right fingers
@@ -216,10 +217,10 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             self.deformation = clothDeformation
 
         reward_clothdeformation = 0
-        if clothDeformation > 15 and self.deformationPenalty is True:
-            reward_clothdeformation = (math.tanh(
-                9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
-
+        if self.deformationPenalty is True:
+            #reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_clothdeformation = -(math.tanh(0.14*(clothDeformation-25)) + 1)/2.0 # near 0 at 15, ramps up to -1.0 at ~35 and remains constant
+        self.previousDeformationReward = reward_clothdeformation
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
 
@@ -247,9 +248,9 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_limbprogress * 3 \
+                      + reward_limbprogress * 30 \
                       + reward_contactGeo * 2 \
-                      + reward_clothdeformation * 3 \
+                      + reward_clothdeformation * 5 \
                       + reward_oracleDisplacement * 50 \
                       + reward_elbow_flair \
                       + reward_restPose
@@ -401,10 +402,16 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
-
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+            textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+
+            self.clothScene.drawText(x=450., y=self.viewer.viewport[3] - 24, text="Limb Progress: ", color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
+            self.clothScene.drawText(x=400., y=self.viewer.viewport[3] - 47, text="Deformation Penalty:           [~15, ~34]", color=(0., 0, 0))
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 35], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

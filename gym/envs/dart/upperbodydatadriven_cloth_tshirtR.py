@@ -55,6 +55,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.prevOracle = np.zeros(3)
         self.localRightEfShoulder1 = None
         self.limbProgress = 0
+        self.previousDeformationReward = 0
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -211,10 +212,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.deformation = clothDeformation
 
         reward_clothdeformation = 0
-        if clothDeformation > 15 and self.deformationPenalty is True:
-            reward_clothdeformation = (math.tanh(
-                9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
-
+        if self.deformationPenalty is True:
+            #reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_clothdeformation = -(math.tanh(0.14*(clothDeformation-25)) + 1)/2.0 # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+        self.previousDeformationReward = reward_clothdeformation
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
 
@@ -240,9 +241,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_limbprogress * 3 \
+                      + reward_limbprogress * 30 \
                       + reward_contactGeo * 2 \
-                      + reward_clothdeformation * 3 \
+                      + reward_clothdeformation * 5 \
                       + reward_oracleDisplacement * 50 \
                       + reward_elbow_flair \
                       + reward_restPose
@@ -383,3 +384,6 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=self.previousDeformationReward, color=[1.0, 0.0, 0])

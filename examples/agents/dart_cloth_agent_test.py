@@ -20,8 +20,8 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2017_12_08_2ndSleeve"
-    #trial = "experiment_2017_12_08_sleeveFeatureOverlapWarmstart"
-    trial = "experiment_2017_12_07_new2reacher2"
+    trial = "experiment_2017_12_08_sleeveFeatureOverlapWarmstart"
+    #trial = "experiment_2017_12_07_new2reacher2"
 
     #trial = "experiment_2017_12_07_new2reacher"
     #trial = "experiment_2017_12_05_tshirt_newlimits"
@@ -71,8 +71,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
-    env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 150
+        rolloutHorizon = 300
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
