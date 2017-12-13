@@ -21,7 +21,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 57
 
         self.t = 0
-        self.target_vel = 5.5
+        self.target_vel = 0.0
         self.init_tv = 0.0
         self.final_tv = 5.5
         self.tv_endtime = 4.0
@@ -31,12 +31,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.avg_rew_weighting = []
         self.vel_cache = []
         self.init_pos = 0
+        self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
 
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
-        self.hard_enforce = True
-        self.treadmill = True
+        self.const_force = 700
+        self.hard_enforce = False
+        self.treadmill = False
         self.treadmill_vel = -self.init_tv
         self.treadmill_init_tv = -0.0
         self.treadmill_final_tv = -5.5
@@ -64,7 +66,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000.0, 1000.6])
+        self.anchor_kp = np.array([2000.0, 1000.0])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -82,24 +84,40 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_reward_weight = 3.0
 
         self.init_qs = [
-            np.array( [ -2.89238718e-01, -9.29257100e-02, -3.07078440e-02, -4.15327171e-02,
-   5.83924834e-02, -4.71606015e-02,  1.48977210e-03, -5.44134982e-01,
-  -1.81086954e-03, -3.82748081e-02, -1.77467849e-01,  4.85611185e-01,
-  -1.02180162e-04,  4.94809618e-01,  5.51014204e-03,  5.59560832e-01,
-  -7.15421935e-01,  2.93405226e-01,  4.02499653e-02,  5.73677976e-02,
-  -5.27050402e-02, -7.42991206e-02,  9.99610887e-01,  2.01051844e-01,
-  -2.10429626e-03,  3.83956893e-01, -6.40007362e-02, -2.00071433e-01,
-   5.19437974e-01])]
+            np.array( [ -5.56165714e+00, -8.16853029e-02,  5.23586418e-02, -5.45760089e-02,
+   3.47707725e-02,  9.19093181e-03, -1.03065930e-01,  2.32717610e-01,
+  -1.13241248e-03,  1.18363611e+00, -5.62215623e-01, -4.46848695e-02,
+  -1.76482930e-03, -6.76959442e-01,  3.92880322e-04, -5.47721776e-02,
+   1.84577691e-01,  4.25422481e-02, -4.84204354e-03,  1.00294798e-01,
+  -6.65703191e-02, -5.99180265e-01, -7.62201204e-01,  2.01373361e-01,
+   3.68753870e-01,  1.05051477e-02,  9.84797936e-01, -2.00614298e-01,
+  -2.37298554e-02]),
+        np.array([ -4.56887015e+00, -2.15558113e-02,  1.05308512e-02, -1.08203543e-01,
+  -1.76333091e-02,  2.05616857e-03, -3.18974071e-02,  2.08627618e-01,
+  -1.59333540e-03, -1.91564053e-02, -3.05054899e-01,  3.30156412e-02,
+  -8.49623925e-04, -1.01606164e+00,  7.74751949e-04,  1.38508357e+00,
+   8.00119506e-01,  5.59960485e-02,  7.42088731e-04,  1.02728751e-01,
+   3.62308692e-02, -2.94983376e-01, -4.16207217e-01,  2.00060856e-01,
+   1.17834025e-01,  6.65153261e-02,  3.85158627e-01, -2.02811438e-01,
+   2.18143914e-01])]
 
         self.init_dqs = [
-            np.array( [  1.01851403e+00, -1.23959308e+00, -2.08295926e-01,  1.48034588e+00,
-  -1.75699809e-01, -3.25052801e-01,  8.52433124e-11,  3.62135638e+00,
-  -1.34838363e-09, -3.87428667e-09, -3.76459443e+00, -5.65576426e-01,
-  -6.15563156e-11, -2.51946361e+00,  7.51502416e-10,  1.50267900e+01,
-   2.56216163e+00,  2.74806714e+00,  4.50750935e-01,  2.44003327e-01,
-  -6.18723651e-01, -9.07565503e-01, -9.30654030e-02,  4.90717744e-10,
-  -3.14452742e-10,  5.39206331e-01,  4.53671153e+00, -5.00044783e-10,
-   9.49501133e-01])]
+            np.array(  [ -5.09508492e-02, -1.06889427e+00,  2.88470343e-01,  6.43231339e-01,
+   1.60053972e+00, -8.04937660e-01, -1.87311136e+00, -3.23317099e+00,
+  -3.01391911e-10,  1.22879667e+01,  5.69627474e+00, -7.74174899e-01,
+  -6.72139566e-11,  3.19734180e+00,  1.26607513e-09, -2.18949037e-09,
+  -8.50271546e+00, -1.78218489e+00,  6.17206945e-01,  3.11879838e-10,
+  -9.99369235e-01,  1.20275350e-01,  4.16794522e-01,  3.07726795e-11,
+   1.10716241e+00,  4.42843129e-01, -1.04567603e+00, -7.44950213e-10,
+  -3.35045602e-10]),
+        np.array([ -2.70092208e-01,  1.87640753e-01,  1.97555719e-01, -2.50778615e-01,
+  -3.02678037e-01, -1.36986233e-01, -2.21447225e-01,  4.42323955e+00,
+  -1.81084336e-09, -2.94067132e-11, -7.62047737e+00, -4.59373231e-02,
+  -4.02883227e-10, -3.28332537e+00,  5.52354829e-10, -7.70499059e+00,
+   3.55139695e-09,  1.44087306e+00,  7.76148678e-01,  1.07250409e-09,
+  -5.39485258e-01, -1.79614557e+00, -4.99030321e+00,  4.56624349e-10,
+   1.02953630e+00, -1.58523365e+00,  7.22442921e+00, -2.93200075e-10,
+  -1.85738970e+00])]
 
         self.init_qs = []
         self.init_dqs = []
@@ -180,7 +198,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         if target_vel is None:
             target_vel = 0.0
         d = -self.Kd * (bn.dC[dof] - target_vel * 1.0)  # compensate for average velocity match
-
         qddot = invM * (-bn.C[dof] + p + d)
         tau = p + d - self.Kd * (qddot) * self.sim_dt
 
@@ -196,8 +213,15 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 tvel = self.target_vel
                 if self.treadmill:
                     tvel += self.treadmill_vel
-                force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0,
+                if self.const_force is None:
+                    force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0,
                                            tvel)
+                else:
+                    if self.robot_skeleton.bodynode(self.push_target).dC[0] < tvel:
+                        force = self.const_force
+                    else:
+                        force = 0
+                self.push_forces.append(force)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -294,13 +318,15 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
-        self.vel_cache.append(vel)
+        if self.pos_spd:
+            self.vel_cache.append(posafter) # actually position cache
+        else:
+            self.vel_cache.append(vel)
         if self.running_average_velocity or self.running_avg_rew_only:
             if self.t < self.tv_endtime:
                 self.avg_rew_weighting.append(0.3)
             else:
                 self.avg_rew_weighting.append(1)
-
 
         vel_rew_scale = 1.0
         if len(self.vel_cache) > int(1.0/self.dt) and (self.running_average_velocity or self.running_avg_rew_only):
@@ -428,8 +454,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.conseq_limit_pen = 0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
+        if self.const_force is not None:
+            self.const_force = self.init_vel_pd
 
         self.contact_info = np.array([0, 0])
+
+        self.push_forces = []
 
         self.previous_control = None
 
