@@ -295,6 +295,12 @@ register(
     max_episode_steps=600,
 )
 
+register(
+    id='DartHexapod-v1',
+    entry_point='gym.envs.dart:DartHexapodEnv',
+    max_episode_steps=500,
+)
+
 '''register(
     id='DartSwimmer-v1',
     entry_point='gym.envs.dart:DartSwimmerEnv',

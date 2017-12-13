@@ -10,12 +10,10 @@ from gym.envs.dart.parameter_managers import *
 
 class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0] * 12, [-1.0] * 12])
-        self.action_scale = np.array([100,200,150, 100,200,150, 40.0, 80, 60, 40,80,60])
-        self.action_scale *= 0.8
-        self.action_scale[0:6] = self.action_scale[0:6] * 0.8
+        self.control_bounds = np.array([[1.0] * 18, [-1.0] * 18])
+        self.action_scale = np.array([100,100,100, 100,100,100, 100,100,100, 80,80,80,80,80,80])
 
-        obs_dim = 35
+        obs_dim = 47
 
         self.t = 0
         self.target_vel = 8.0
@@ -54,7 +52,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.anchor_kp = np.array([2000, 2000])
 
         # state related
-        self.contact_info = np.array([0, 0, 0, 0])
+        self.contact_info = np.array([0, 0, 0, 0, 0, 0])
 
         if self.running_avg_rew_only:
             obs_dim += 1
@@ -209,11 +207,17 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
                         'rear_foot_left') or contact.bodynode2 == self.robot_skeleton.bodynode('rear_foot_left'):
                     self.contact_info[1] = 1
                 elif contact.bodynode1 == self.robot_skeleton.bodynode(
-                        'front_foot') or contact.bodynode2 == self.robot_skeleton.bodynode('front_foot'):
+                        'front_foot') or contact.bodynode2 == self.robot_skeleton.bodynode('middle_foot'):
                     self.contact_info[2] = 1
                 elif contact.bodynode1 == self.robot_skeleton.bodynode(
-                        'front_foot_left') or contact.bodynode2 == self.robot_skeleton.bodynode('front_foot_left'):
+                        'front_foot_left') or contact.bodynode2 == self.robot_skeleton.bodynode('middle_foot_left'):
                     self.contact_info[3] = 1
+                elif contact.bodynode1 == self.robot_skeleton.bodynode(
+                        'front_foot') or contact.bodynode2 == self.robot_skeleton.bodynode('front_foot'):
+                    self.contact_info[4] = 1
+                elif contact.bodynode1 == self.robot_skeleton.bodynode(
+                        'front_foot_left') or contact.bodynode2 == self.robot_skeleton.bodynode('front_foot_left'):
+                    self.contact_info[5] = 1
                 else:
                     body_hit_ground = True
 
@@ -242,7 +246,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.2) and (height - self.init_height < 1.0) and (
+                    (not body_hit_ground) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9 and not body_hit_ground)
         self.stepwise_rewards.append(reward)

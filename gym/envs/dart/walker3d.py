@@ -52,7 +52,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.energy_weight = 0.1
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 2000])
+        self.anchor_kp = np.array([0, 0])
         self.curriculum_step_size = 0.1 # 10%
         self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
 
