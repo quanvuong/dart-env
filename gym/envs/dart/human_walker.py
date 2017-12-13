@@ -15,7 +15,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 250, 60, 60, 80, 60, 60, 250, 60, 60, 80, 60, 150, 150, 100, 5,15,5, 3, 5,15,5, 3])
+        self.action_scale = np.array([60.0, 250, 60, 60, 80, 60, 60, 250, 60, 60, 80, 60, 150, 150, 100, 15,50,15, 30, 15,50,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
         obs_dim = 57
@@ -36,7 +36,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.rand_target_vel = False
         self.init_push = False
         self.enforce_target_vel = True
-        self.const_force = 700
+        self.const_force = 1000
         self.hard_enforce = False
         self.treadmill = False
         self.treadmill_vel = -self.init_tv
@@ -418,6 +418,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         return state
 
     def reset_model(self):
+        #print('resetttt')
         self.dart_world.reset()
 
         init_q = self.robot_skeleton.q

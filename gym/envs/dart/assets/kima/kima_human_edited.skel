@@ -641,7 +641,7 @@
                 <axis2>
                     <limit>
                         <lower>-2.4</lower>
-                        <upper>0.3</upper>
+                        <upper>0.6</upper>
                     </limit>
                     <dynamics>
                         <damping>2.0</damping>
@@ -704,7 +704,7 @@
                 <axis2>
                     <limit>
                         <lower>-2.4</lower>
-                        <upper>0.3</upper>
+                        <upper>0.6</upper>
                     </limit>
                     <dynamics>
                         <damping>2.0</damping>
