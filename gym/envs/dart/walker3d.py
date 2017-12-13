@@ -27,7 +27,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
-        self.enforce_target_vel = True
+        self.enforce_target_vel = False
         self.running_avg_rew_only = True
         self.avg_rew_weighting = []
         self.vel_cache = []
@@ -40,7 +40,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
-        self.constrain_2d = True
+        self.constrain_2d = False
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
         self.end_balance_pd = 2000.0

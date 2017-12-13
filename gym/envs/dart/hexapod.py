@@ -11,7 +11,7 @@ from gym.envs.dart.parameter_managers import *
 class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 18, [-1.0] * 18])
-        self.action_scale = np.array([100,100,100, 100,100,100, 100,100,100, 80,80,80,80,80,80])
+        self.action_scale = np.array([100,100,100,100,100,100, 100,100,100,100,100,100, 80,80,80,80,80,80])
 
         obs_dim = 47
 
@@ -193,7 +193,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
 
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
-        self.contact_info = np.array([0, 0, 0, 0])
+        self.contact_info = np.array([0, 0, 0, 0, 0, 0])
         body_hit_ground = False
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
@@ -309,7 +309,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.contact_info = np.array([0, 0, 0, 0])
+        self.contact_info = np.array([0, 0, 0, 0, 0, 0])
 
         self.vel_cache = []
 
