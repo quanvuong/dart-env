@@ -34,6 +34,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.lockTorso = False
         self.lockSpine = False
 
+        #violation graphing
+        self.graphViolation = False
+        self.violationGraphFrequency = 1
+
         #record character range of motion through random exploration
         self.recordROMPoints = False
         self.loadROMPoints = True
@@ -224,6 +228,72 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.robot_skeleton.set_positions(qpos)
         f.close()
 
+    def graphJointConstraintViolation(self, cix=1, pivotDof=8, otherDofs=[5,6,7], numPivotSamples=50, numOtherSamples=50, otherRange=(-1.0,1.0), counting=False):
+        startTime = time.time()
+        #print("graphJointConstraintViolation: collecting pivot samples")
+        #collect samples:
+        pivotLimits = [self.robot_skeleton.dofs[pivotDof].position_lower_limit(), self.robot_skeleton.dofs[pivotDof].position_upper_limit()]
+        pivotSamples = []
+        for i in range(numPivotSamples):
+            pivotSamples.append(pivotLimits[0] + (pivotLimits[1]-pivotLimits[0])*(i/(numPivotSamples-1)))
+        #print("graphJointConstraintViolation: collecting other samples")
+        samples = []
+        for dof in otherDofs:
+            samples.append([])
+            if self.robot_skeleton.dofs[dof].has_position_limit():
+                #sample the whole range
+                dofLimits = [self.robot_skeleton.dofs[dof].position_lower_limit(), self.robot_skeleton.dofs[dof].position_upper_limit()]
+                for i in range(numOtherSamples):
+                    samples[-1].append(dofLimits[0] + (dofLimits[1]-dofLimits[0])*(i/(numOtherSamples-1)))
+            else:
+                #sample otherRange about the current position
+                currentPos = self.robot_skeleton.q[dof]
+                for i in range(numOtherSamples):
+                    samples[-1].append(otherRange[0]+currentPos + (otherRange[1]-otherRange[0])*(i/(numOtherSamples-1)))
+
+        #print("graphJointConstraintViolation: checking violation")
+        #check and store constraint violation at each sampled pose combination
+        violations = [[] for i in range(len(otherDofs))]
+        collisions = [[] for i in range(len(otherDofs))]
+        positions = [[] for i in range(len(otherDofs))]
+        currentPose = np.array(self.robot_skeleton.q)
+        currentVel = np.array(self.robot_skeleton.dq)
+        for ps in pivotSamples:
+            for ix,list in enumerate(samples):
+                violations[ix].append([])
+                positions[ix].append([])
+                collisions[ix].append([])
+                for item in list:
+                    qpos = np.array(currentPose)
+                    qpos[pivotDof] = ps
+                    qpos[otherDofs[ix]] = item
+                    self.robot_skeleton.set_positions(qpos)
+                    self.dart_world.step()
+                    violations[ix][-1].append(self.dart_world.getAllConstraintViolations()[cix])
+                    positions[ix][-1].append(item)
+                    if self.dart_world.collision_result.num_contacts() > 0:
+                        collisions[ix][-1].append(np.array([0.0, 1.0, 0.0, 0.2]))
+                    else:
+                        collisions[ix][-1].append(np.array([1.0, 0, 0, 0.0]))
+
+        self.set_state(currentPose, currentVel)
+        #print("graphJointConstraintViolation: done: " + str(violations))
+        filenames = []
+        for i in range(len(otherDofs)):
+            ylabel = self.robot_skeleton.dofs[pivotDof].name
+            xlabel = self.robot_skeleton.dofs[otherDofs[i]].name
+            title = "Constraint violation " + xlabel + " vs. " + ylabel
+            filename = xlabel + "_vs_" + ylabel
+            points = [[currentPose[otherDofs[i]], currentPose[pivotDof]]]
+            #print("about to create image " + filename)
+            filenames.append(renderUtils.render2DHeatmap(data=violations[i], overlay=collisions[i], extent=[samples[i][0],samples[i][-1], pivotLimits[0],pivotLimits[1]], title=title, xlabel=xlabel, ylabel=ylabel, points=points, filename=filename))
+            #print("...done")
+        #print("finished creating the images")
+        outfilename = ""
+        if counting:
+            outfilename = "../image_matrix_output/%05d" % self.numSteps
+        renderUtils.imageMatrixFrom(filenames=filenames, outfilename=outfilename)
+        #print("Done graphing constraints. Took " + str(time.time()-startTime) + " seconds.")
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         a=0
@@ -248,6 +318,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
         try:
+            if self.graphViolation:
+                if self.numSteps%self.violationGraphFrequency == 0:
+                    self.graphJointConstraintViolation(counting=True)
+
             clamped_control = np.array(a)
             for i in range(len(clamped_control)):
                 if clamped_control[i] > self.control_bounds[0][i]:

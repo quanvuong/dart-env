@@ -19,6 +19,15 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2017_12_12_halfplane_reacher_cont3"
+    #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
+
+
+    #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont"
+    #trial = "experiment_2017_12_12_1sdSleeve_progressfocus"
+    #trial = "experiment_2017_12_12_halfplane_reacher_cont"
+    #trial = "experiment_2017_12_08_2ndSleeve_cont"
+
     #trial = "experiment_2017_12_08_2ndSleeve"
     #trial = "experiment_2017_12_08_sleeveFeatureOverlapWarmstart"
     #trial = "experiment_2017_12_07_new2reacher2"
@@ -83,14 +92,14 @@ if __name__ == '__main__':
     time.sleep(0.5)
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
-    for i in range(10000):
+    for i in range(5):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 150
+        rolloutHorizon = 300
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

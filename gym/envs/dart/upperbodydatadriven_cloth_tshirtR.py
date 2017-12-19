@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -241,7 +241,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_limbprogress * 30 \
+                      + reward_limbprogress * 10 \
                       + reward_contactGeo * 2 \
                       + reward_clothdeformation * 5 \
                       + reward_oracleDisplacement * 50 \
@@ -386,4 +386,4 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
-            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=self.previousDeformationReward, color=[1.0, 0.0, 0])
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

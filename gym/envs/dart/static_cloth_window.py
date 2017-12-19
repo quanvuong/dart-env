@@ -84,7 +84,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         data = GL.glReadPixels(0, 0, w, h, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
         img = Image.frombytes("RGB", (w, h), data)
         img = img.transpose(Image.FLIP_TOP_BOTTOM)
-        filename = directory + "/capture%04d.png" % self.captureIndex
+        filename = directory + "/capture%05d.png" % self.captureIndex
         img.save(filename, 'png')
         self.captureIndex += 1
 
@@ -212,10 +212,10 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
     def mykeyboard(self, key, x, y):
         #regardless of the interactor conext, 'm' always switches contexts
         keycode = ord(key)
-        if keycode == 109:
+        if keycode == 109: #'m'
             self.switchInteractorContext()
             return
-        if keycode == 27:
+        if keycode == 27: #esc
             self.close()
             return
         if keycode == 32: #space bar
@@ -246,6 +246,12 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             #print("trans: " + str(self.scene.tb.trans))
             #print("trans: " + str(self.scene.tb.trans))
 
+        if keycode == 106: #'j' joint constraint test
+            try:
+                print(hasattr(self.env, 'graphJointConstraintViolation'))
+                self.env.graphJointConstraintViolation()
+            except:
+                print("Graph Joint Constraint Violation did not work out. Sorry.")
         #if no interactor context, do the following
         if keycode == 13: #ENTER
             if self.inputFunc is not None:

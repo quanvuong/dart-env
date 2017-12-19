@@ -52,6 +52,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.localLeftEfShoulder1 = None
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
+        self.prevErrors = None #stores the errors taken from DART each iteration
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -62,9 +63,9 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.contactIDInObs:
             observation_size += 22
         if self.rightTargetReward:
-            observation_size += 6
+            observation_size += 9
         if self.leftTargetReward:
-            observation_size += 6
+            observation_size += 9
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -116,6 +117,12 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
+
+        #store the previous step's errors
+        if self.reset_number > 0 and self.numSteps > 0:
+            self.prevErrors = self.dart_world.getAllConstraintViolations()
+            #print("after getAllCon..")
+            print("prevErrors: " +str(self.prevErrors))
 
         self.prevTau = tau
 
@@ -198,11 +205,11 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-            obs = np.concatenate([obs, self.rightTarget, efR]).ravel()
+            obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
             efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-            obs = np.concatenate([obs, self.leftTarget, efL]).ravel()
+            obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
 
         return obs
 
