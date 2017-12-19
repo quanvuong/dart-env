@@ -43,6 +43,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.loadTargetsFromROMPositions = True
         self.resetPoseFromROMPoints = True
+        self.resetTime = 0
 
         #other variables
         self.prevTau = None
@@ -122,7 +123,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.reset_number > 0 and self.numSteps > 0:
             self.prevErrors = self.dart_world.getAllConstraintViolations()
             #print("after getAllCon..")
-            print("prevErrors: " +str(self.prevErrors))
+            #print("prevErrors: " +str(self.prevErrors))
 
         self.prevTau = tau
 
@@ -214,6 +215,9 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         return obs
 
     def additionalResets(self):
+        if self.resetTime > 0:
+            print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
+        self.resetTime = time.time()
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])
         if self.simulateCloth:
