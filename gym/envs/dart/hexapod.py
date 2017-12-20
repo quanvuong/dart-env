@@ -49,7 +49,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 2000])
+        self.anchor_kp = np.array([1321, 660])
 
         # state related
         self.contact_info = np.array([0, 0, 0, 0, 0, 0])

@@ -501,7 +501,7 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.8</lower>
+                        <lower>-1.</lower>
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>

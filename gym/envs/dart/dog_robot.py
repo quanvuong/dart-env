@@ -10,18 +10,17 @@ from gym.envs.dart.parameter_managers import *
 
 class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0] * 12, [-1.0] * 12])
-        self.action_scale = np.array([100,200,150, 100,200,150, 40.0, 80, 60, 40,80,60])
-        self.action_scale *= 0.8
-        self.action_scale[0:6] = self.action_scale[0:6] * 0.8
+        self.control_bounds = np.array([[1.0] * 14, [-1.0] * 14])
+        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 120, 100, 40,120,100])
+        self.action_scale *= 1.0
 
-        obs_dim = 35
+        obs_dim = 39
 
         self.t = 0
-        self.target_vel = 8.0
+        self.target_vel = 2.5
         self.init_tv = 0.0
-        self.final_tv = 8.0
-        self.tv_endtime = 5.0
+        self.final_tv = 2.0
+        self.tv_endtime = 2.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
@@ -30,6 +29,11 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_push = False
 
         self.enforce_target_vel = True
+        self.treadmill = False
+        self.treadmill_vel = -self.init_tv
+        self.treadmill_init_tv = -0.0
+        self.treadmill_final_tv = -2.5
+        self.treadmill_tv_endtime = 3.0
 
         self.running_avg_rew_only = True
 
@@ -44,19 +48,19 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.05
+        self.energy_weight = 0.3
 
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 2000])
+        self.anchor_kp = np.array([2000, 1000])
 
         # state related
         self.contact_info = np.array([0, 0, 0, 0])
 
-        if self.running_avg_rew_only:
+        if self.smooth_tv_change:
             obs_dim += 1
         self.include_additional_info = True
         if self.include_additional_info:
@@ -76,6 +80,12 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(10.0)
 
         self.sim_dt = self.dt / self.frame_skip
+
+        for bn in self.robot_skeleton.bodynodes:
+            if len(bn.shapenodes) > 0:
+                if hasattr(bn.shapenodes[0].shape, 'size'):
+                    shapesize = bn.shapenodes[0].shape.size()
+                    print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
 
         utils.EzPickle.__init__(self)
 
@@ -232,8 +242,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         action_pen = self.energy_weight * np.abs(a).sum()# + 5e-2 * np.abs(a*self.robot_skeleton.dq[6:]).sum()
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 1.0 * (abs(ang_cos_uwd)) + 1.0 * (abs(ang_cos_fwd))  # + 0.5 * (abs(ang_cos_ltl))
-        #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
+        rot_pen = 0.5 * (abs(ang_cos_uwd)) + 0.5 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
 
         self.t += self.dt

@@ -348,7 +348,7 @@ register(
 register(
     id='DartHumanWalker-v1',
     entry_point='gym.envs.dart:DartHumanWalkerEnv',
-    max_episode_steps=500,
+    max_episode_steps=10,
 )
 
 register(
