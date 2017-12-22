@@ -55,7 +55,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.15
+        self.energy_weight = 0.05
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -71,7 +71,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([0.0, 0.0])
+        self.anchor_kp = np.array([500.0, 250.0])
         self.curriculum_step_size = 0.1  # 10%
         self.min_curriculum_step = 50  # include (0, 0) if distance between anchor point and origin is smaller than this value
 
@@ -90,24 +90,40 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_reward_weight = 3.0
 
         self.init_qs = [
-            np.array( [  6.28813378e+01, -7.73303555e-02, -1.80775779e-02, -1.51152206e-01,
-  -2.25992314e-02,  1.16528388e-03,  1.58692120e-03, -3.85923885e-01,
-   1.05369964e-02, -1.04378333e-02, -2.35685816e-01, -5.41304027e-02,
-  -1.18790014e-03, -3.42103096e-01, -1.65523029e-03,  1.84274794e+00,
-  -2.88465581e-01, -3.14714295e-01,  1.12884210e-03,  9.62699334e-02,
-   1.01712985e-01, -6.90848045e-01,  4.84494292e-01,  2.00025144e-01,
-  -1.70751078e-03,  3.94284752e-01, -4.65402293e-01, -2.02120637e-01,
-   2.85468923e-02])]
+            np.array( [  5.15273987e+01, -8.04763020e-02,  3.86921801e-02, -1.78539281e-01,
+   1.84310742e-02, -4.68463765e-03, -6.27056856e-02, -2.60245839e-01,
+   5.19733590e-02,  1.70583431e+00, -1.76105083e-01, -6.61885489e-02,
+  -4.28951036e-03, -4.35963925e-01, -4.75294528e-02,  2.10718195e-02,
+  -2.06695211e-01, -5.74471548e-03,  4.44251433e-03,  8.42588661e-02,
+  -5.95486494e-02, -1.85003566e-02, -4.21741002e-01, -2.00459857e-01,
+   2.07920283e-02,  2.06603943e-01,  2.29621587e-01,  1.56988254e-01,
+   1.61257908e-02]),
+        np.array([  5.14975315e+01, -5.29815974e-02,  2.86173421e-02, -1.54597587e-01,
+   4.27261330e-02, -1.31358069e-01,  5.58865057e-03, -9.05564632e-01,
+   6.35826448e-02,  2.17134858e+00,  1.20749173e-01, -6.43625111e-02,
+  -1.94372034e-02,  9.23126207e-02,  2.77593942e-04, -6.25425735e-03,
+  -3.67230053e-02,  1.03461135e-01,  1.07730362e-01,  4.30434494e-02,
+  -3.29365599e-02, -4.76782056e-02,  1.96126416e-01, -2.01457189e-01,
+   3.39089929e-01,  1.59854360e-01, -1.89955522e-01,  2.04694113e-01,
+  -9.57711691e-03])]
 
         self.init_dqs = [
-            np.array(   [  4.55619528e+00,  1.11964363e+00,  3.81286159e-01, -1.05787860e+00,
-  -7.23443132e-01,  6.77786264e-01,  2.91040697e-09,  4.69898777e+00,
-   8.27007646e-01, -3.70824349e-09,  5.75473099e+00,  4.10630656e-01,
-  -3.74820441e-09, -1.15715633e+01, -1.37013329e+00,  5.85160249e+00,
-   6.91623003e+00, -2.50240892e+00, -1.57653685e+00, -1.10850323e+00,
-   1.89228669e+00,  7.65233668e-02, -9.67536688e+00,  6.04506667e-10,
-   9.09042015e-01, -2.81208245e+00,  7.53784587e+00, -4.21477131e-10,
-   6.26784140e-01])]
+            np.array(   [  4.54592657e+00,  1.33501865e+00, -3.33158860e-01, -6.65886893e-03,
+  -6.09968826e-01,  5.40188474e-01,  3.50627546e+00, -6.44482627e+00,
+  -1.56484986e+00,  3.58371225e+00,  9.22988916e+00, -2.47326876e+00,
+   3.10744781e-01,  1.07818735e+01,  7.99594611e-01, -1.07549191e+01,
+   2.53704836e-03,  6.12138871e-01, -4.54669660e-01, -1.18536264e+00,
+   5.21403666e-01,  1.04790070e-01,  4.61444138e+00, -4.64325134e-10,
+  -4.97353970e+00, -4.58674873e-01, -8.70620916e+00, -2.62150394e-01,
+   7.94284166e-01]),
+        np.array( [  5.45157576e+00, -6.61799913e-02, -2.95999610e-01,  1.27191591e+00,
+   8.12941986e-01,  2.06150675e-02,  5.29586985e-10, -6.66937156e+00,
+  -1.67811107e-01, -7.49538983e-01,  6.08521444e+00, -6.77646137e-01,
+  -1.10461230e-10,  7.44466840e+00,  1.34143965e-09, -7.43773709e-10,
+  -1.45714221e+00, -3.86098652e-01, -5.55498073e-01, -8.87369048e-01,
+   1.89240520e-01, -1.32347179e+00,  6.95572711e+00, -3.94926813e-10,
+  -1.99355911e+00, -2.11902926e-01, -6.11592633e+00,  1.14648047e-09,
+  -7.82819476e-10])]
 
         self.init_qs = []
         self.init_dqs = []
@@ -157,11 +173,16 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.use_ref_policy = True
         self.ref_policy = None
-        self.ref_policy_curriculum = np.array([2000, 1000])
-        self.ref_strength_q = 1.0
-        self.ref_strength_dq = 0.1
+        self.ref_policy_curriculum = np.array([1000, 500])
+        self.ref_strength_q = 0.005
+        self.ref_strength_dq = 0.0005
+        self.ref_feat_strength = 0.2
+        self.ref_dfeat_strength = 0.02
         self.ref_trajs = []
+        self.ref_features = []
         self.chosen_traj = [0, 0]
+        self.max_eps_step_ref = 100 # maximum episode step when using reference policy
+        self.ref_traj_num = 10
 
         utils.EzPickle.__init__(self)
 
@@ -423,7 +444,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-        action_pen = self.energy_weight * (1.5/np.max([2.0,self.target_vel])) * np.abs(a * self.action_penalty_weight).sum()
+        action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
         # action_pen += 0.02 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
         deviation_pen = 3 * abs(side_deviation)
 
@@ -437,11 +458,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         #torso_vel_pen = 0.15*np.abs(self.robot_skeleton.bodynode('thorax').com_spatial_velocity()[0:3]).sum()
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen + stride_reward# - torso_vel_pen
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen# + stride_reward# - torso_vel_pen
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
 
         ref_reward = 0
+        ref_feat_rew = 0
         self.t += self.dt
 
         self.cur_step += 1
@@ -462,9 +484,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 ref_reward += self.ref_strength_dq * np.abs(cur_dposes[p] - target_dposes[p]).sum()
             reward += - ref_reward'''
             ref_state_vec = self.ref_trajs[self.chosen_traj[0]][self.chosen_traj[1] + self.cur_step]
-            reward -= self.ref_strength_q * np.sum(np.abs(self.state_vector() - ref_state_vec)[0:int(len(self.robot_skeleton.q)/2)])
-            reward -= self.ref_strength_dq * np.sum(
+            weight = np.exp(- 0.04*(self.cur_step-1))
+            ref_reward -= self.ref_strength_q * weight * np.sum(np.abs(self.state_vector() - ref_state_vec)[0:int(len(self.robot_skeleton.q)/2)])
+            ref_reward -= self.ref_strength_dq * weight * np.sum(
                 np.abs(self.state_vector() - ref_state_vec)[int(len(self.robot_skeleton.q) / 2):])
+            for k in self.ref_features[self.chosen_traj[0]][self.chosen_traj[1] + self.cur_step].keys():
+                ref_feat_rew -= self.ref_strength_q * weight * np.sum(np.square(self.robot_skeleton.bodynode(k).C - self.ref_features[self.chosen_traj[0]][self.chosen_traj[1] + self.cur_step][k][0]))
+                ref_feat_rew -= self.ref_strength_dq * weight * np.sum(np.square(self.robot_skeleton.bodynode(k).dC - self.ref_features[self.chosen_traj[0]][self.chosen_traj[1] + self.cur_step][k][1]))
+            reward += 1.0 + ref_reward + ref_feat_rew
 
         height_in_range = (height - self.init_height > -0.4) and (height - self.init_height < 1.0)
         ang_in_range = (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0) and np.abs(angle) < 1.3 and np.abs(
@@ -473,6 +500,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     (height - self.init_height > -0.3) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.3)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
+
+        if self.use_ref_policy and self.cur_step > self.max_eps_step_ref:
+            done = True
 
         self.stepwise_rewards.append(reward)
 
@@ -490,7 +520,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                   'dyn_model_id': 0, 'state_index': 0, 'com': self.robot_skeleton.com(),
                                   'pos_rew': pos_rew, 'neg_pen': neg_pen, 'contact_locations':self.contact_locations,
                                   'contact_force_x': l_foot_force[0] + r_foot_force[0],
-                                  'ref_reward': ref_reward}
+                                  'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew}
 
     def _get_obs(self):
         state = np.concatenate([
@@ -569,6 +599,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.reference_trajectory = None
 
+        if np.random.randint(2) == 0:
+            self.push_target = 'pelvis'
+        #else:
+        #    self.push_target = 'thorax'
+
         if self.use_ref_policy:
             if len(self.ref_trajs) == 0:
                 self.use_ref_policy = False
@@ -577,27 +612,42 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
                 for i in range(50):
                     one_traj = []
+                    one_traj_feature = []
                     o = self.reset()
                     self.init_balance_pd = self.ref_policy_curriculum[0]
                     self.init_vel_pd = self.ref_policy_curriculum[1]
                     one_traj.append(self.state_vector())
+                    one_traj_feature.append({'l-foot': [self.robot_skeleton.bodynode('l-foot').C,
+                                                        self.robot_skeleton.bodynode('l-foot').dC],
+                                             'r-foot': [self.robot_skeleton.bodynode('r-foot').C,
+                                                        self.robot_skeleton.bodynode('r-foot').dC],
+                                             'l-lowerarm': [self.robot_skeleton.bodynode('l-lowerarm').C,
+                                                            self.robot_skeleton.bodynode('l-lowerarm').dC],
+                                             'r-lowerarm': [self.robot_skeleton.bodynode('r-lowerarm').C,
+                                                            self.robot_skeleton.bodynode('r-lowerarm').dC]})
                     for j in range(400):
                         a, v = self.ref_policy.act(False, o)
                         o, r, d, _ = self._step(a)
                         one_traj.append(self.state_vector())
+                        one_traj_feature.append({'l-foot':[self.robot_skeleton.bodynode('l-foot').C,self.robot_skeleton.bodynode('l-foot').dC],
+                                                 'r-foot':[self.robot_skeleton.bodynode('r-foot').C,self.robot_skeleton.bodynode('r-foot').dC],
+                                                 'l-lowerarm':[self.robot_skeleton.bodynode('l-lowerarm').C, self.robot_skeleton.bodynode('l-lowerarm').dC],
+                                                 'r-lowerarm':[self.robot_skeleton.bodynode('r-lowerarm').C, self.robot_skeleton.bodynode('r-lowerarm').dC]})
                         if d:
                             break
                     if len(one_traj) > 300:
                         self.ref_trajs.append(one_traj)
-                    if len(self.ref_trajs) > 10:
+                        self.ref_features.append(one_traj_feature)
+                    if len(self.ref_trajs) > self.ref_traj_num:
                         break
                 self.current_pd = current_pd
                 self.vel_enforce_kp = vel_enforce_kp
                 self.use_ref_policy = True
                 self.reset()
             self.chosen_traj[0] = np.random.randint(len(self.ref_trajs))
-            self.chosen_traj[1] = np.random.randint(len(self.ref_trajs[self.chosen_traj[0]]) - 15)
+            self.chosen_traj[1] = np.random.randint(len(self.ref_trajs[self.chosen_traj[0]]) - self.max_eps_step_ref-1)
             self.set_state_vector(self.ref_trajs[self.chosen_traj[0]][self.chosen_traj[1]])
+            self.t = self.chosen_traj[1] * self.dt
 
         return self._get_obs()
 

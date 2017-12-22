@@ -79,9 +79,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                        <size>0.124 0.42875 0.124</size>
-                        </box>
+                        <multi_sphere>
+                        <sphere>
+                            <radius>0.062</radius>
+                            <position>0 0.214375 0</position>
+                        </sphere>
+                        <sphere>
+                            <radius>0.062</radius>
+                            <position>0 -0.214375 0</position>
+                        </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
@@ -102,9 +109,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                        <size>0.0955 0.400875 0.0955</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.04775</radius>
+                                <position>0 0.2004875 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.04775</radius>
+                                <position>0 -0.2004875 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
@@ -149,9 +163,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                        <size>0.124 0.42875 0.124</size>
-                        </box>
+                        <multi_sphere>
+                        <sphere>
+                            <radius>0.062</radius>
+                            <position>0 0.214375 0</position>
+                        </sphere>
+                        <sphere>
+                            <radius>0.062</radius>
+                            <position>0 -0.214375 0</position>
+                        </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
@@ -172,9 +193,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                        <size>0.0955 0.400875 0.0955</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.04775</radius>
+                                <position>0 0.2004875 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.04775</radius>
+                                <position>0 -0.2004875 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
@@ -309,9 +337,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                            <size>0.1 0.315 0.1</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 0.1575 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 -0.1575 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
             </body>
@@ -324,9 +359,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                            <size>0.1 0.25375 0.1</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 0.126875 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 -0.126875 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
             </body>
@@ -356,9 +398,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.1575 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                            <size>0.1 0.315 0.1</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 0.1575 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 -0.1575 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
             </body>
@@ -371,9 +420,16 @@
                 <visualization_shape>
                     <transformation>0.0 -0.126875 0.0 0 0 0</transformation>
                     <geometry>
-                        <box>
-                            <size>0.1 0.25375 0.1</size>
-                        </box>
+                        <multi_sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 0.126875 0</position>
+                            </sphere>
+                            <sphere>
+                                <radius>0.05</radius>
+                                <position>0 -0.126875 0</position>
+                            </sphere>
+                        </multi_sphere>
                     </geometry>
                 </visualization_shape>
             </body>

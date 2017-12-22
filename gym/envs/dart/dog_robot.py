@@ -10,17 +10,17 @@ from gym.envs.dart.parameter_managers import *
 
 class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0] * 14, [-1.0] * 14])
-        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 120, 100, 40,120,100])
-        self.action_scale *= 1.0
+        self.control_bounds = np.array([[1.0] * 16, [-1.0] * 16])
+        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 100, 80, 60, 40,100,80, 60])
+        self.action_scale *= 1.3
 
-        obs_dim = 39
+        obs_dim = 43
 
         self.t = 0
-        self.target_vel = 2.5
+        self.target_vel = 2.0
         self.init_tv = 0.0
-        self.final_tv = 2.0
-        self.tv_endtime = 2.0
+        self.final_tv = 6.0
+        self.tv_endtime = 6.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
@@ -48,7 +48,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.2
 
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
@@ -231,19 +231,22 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         vel = (posafter - posbefore) / self.dt
 
         self.vel_cache.append(vel)
+        self.target_vel_cache.append(self.target_vel)
         if len(self.vel_cache) > int(0.5 / self.dt):
             self.vel_cache.pop(0)
+            self.target_vel_cache.pop(0)
 
         vel_diff = np.abs(self.target_vel - vel)
         vel_rew = - 0.2 * self.vel_reward_weight * vel_diff
         if self.running_avg_rew_only:
-            vel_rew = - 3.0 * np.abs(self.target_vel - np.mean(self.vel_cache))
+            vel_rew = - 3.0 * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
 
         action_pen = self.energy_weight * np.abs(a).sum()# + 5e-2 * np.abs(a*self.robot_skeleton.dq[6:]).sum()
         deviation_pen = 3 * abs(side_deviation)
 
         rot_pen = 0.5 * (abs(ang_cos_uwd)) + 0.5 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
+        dq_pen = 0.0001 * np.sum(np.square(self.robot_skeleton.dq[6:]))
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - dq_pen
 
         self.t += self.dt
         self.cur_step += 1
@@ -317,6 +320,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.contact_info = np.array([0, 0, 0, 0])
 
         self.vel_cache = []
+        self.target_vel_cache = []
 
         self.previous_control = None
 
