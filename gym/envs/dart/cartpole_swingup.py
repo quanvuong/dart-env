@@ -21,7 +21,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         self.avg_div = 0
         self.param_manager = CartPoleManager(self)
 
-        self.split_task_test = True
+        self.split_task_test = False
         self.tasks = TaskList(3)
         self.tasks.add_world_choice_tasks([0,1,2])
         # self.tasks.add_range_param_tasks([0, [[0.0, 0.5], [0.5, 1.0], [0.0, 0.5], [0.5, 1.0]]])
