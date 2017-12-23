@@ -11,7 +11,7 @@ from gym.envs.dart.parameter_managers import *
 class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 16, [-1.0] * 16])
-        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 100, 80, 60, 40,100,80, 60])
+        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 130, 80, 60, 40,130,80, 60])
         self.action_scale *= 1.3
 
         obs_dim = 43
