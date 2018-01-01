@@ -417,6 +417,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenDropGrip-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothDropGripEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

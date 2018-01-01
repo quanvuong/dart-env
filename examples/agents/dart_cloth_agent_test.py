@@ -11,6 +11,7 @@ import pyPhysX.pyutils as pyutils
 import os
 
 if __name__ == '__main__':
+
     filename = None
     filename2 = None
 
@@ -19,7 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2017_12_12_halfplane_reacher_cont3"
+    #trial = "experiment_2017_12_12_halfplane_reacher_cont3"
     #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
 
 
@@ -81,7 +82,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
 
     policy = None
     if trial is not None and policy is None:
@@ -92,14 +94,14 @@ if __name__ == '__main__':
     time.sleep(0.5)
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
-    for i in range(5):
+    for i in range(50):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 300
+        rolloutHorizon = 200
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

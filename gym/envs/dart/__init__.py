@@ -32,6 +32,7 @@ from gym.envs.dart.upperbodydatadriven_tshirt import DartClothUpperBodyDataDrive
 from gym.envs.dart.upperbodydatadriven_cloth_tshirtR import DartClothUpperBodyDataDrivenClothTshirtREnv
 from gym.envs.dart.upperbodydatadriven_cloth_tshirtL import DartClothUpperBodyDataDrivenClothTshirtLEnv
 from gym.envs.dart.upperbodydatadriven_cloth_reacher import DartClothUpperBodyDataDrivenClothReacherEnv
+from gym.envs.dart.upperbodydatadriven_cloth_dropgrip import DartClothUpperBodyDataDrivenClothDropGripEnv
 
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv

@@ -27,6 +27,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.screenSize = screensize
         self.renderDARTWorld = True
         self.renderUI = True
+        self.avgtimings = {}
 
         #sim variables
         self.gravity = False
@@ -315,6 +316,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return 0
 
     def _step(self, a):
+        startTime = time.time()
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
         try:
@@ -351,7 +353,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
             tau = np.multiply(clamped_control, self.action_scale)
 
+            startTime2 = time.time()
             self.updateBeforeSimulation() #any env specific updates before simulation
+            #print("updateBeforeSimulation took " + str(time.time() - startTime2))
+            try:
+                self.avgtimings["updateBeforeSimulation"] += time.time() - startTime2
+            except:
+                self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
             #apply action and simulate
             if len(tau) < len(self.robot_skeleton.q):
@@ -360,7 +368,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 for ix,dof in enumerate(self.actuatedDofs):
                     tau[dof] = newtau[ix]
 
+            startTime2 = time.time()
             self.do_simulation(tau, self.frame_skip)
+            #print("do_simulation took " + str(time.time() - startTime2))
+            try:
+                self.avgtimings["do_simulation"] += time.time() - startTime2
+            except:
+                self.avgtimings["do_simulation"] = time.time() - startTime2
+
 
             #set position and 0 velocity of locked dofs
             qpos = self.robot_skeleton.q
@@ -370,10 +385,24 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 qvel[dof] = 0
             self.set_state(qpos, qvel)
 
+            startTime2 = time.time()
             reward = self.computeReward(tau=tau)
+            #print("computeReward took " + str(time.time() - startTime2))
+            try:
+                self.avgtimings["computeReward"] += time.time() - startTime2
+            except:
+                self.avgtimings["computeReward"] = time.time() - startTime2
 
+
+            startTime2 = time.time()
             ob = self._get_obs()
             s = self.state_vector()
+            #print("obs and state took " + str(time.time() - startTime2))
+            try:
+                self.avgtimings["obs"] += time.time() - startTime2
+            except:
+                self.avgtimings["obs"] = time.time() - startTime2
+
 
             #update physx capsules
             self.updateClothCollisionStructures(hapticSensors=True)
@@ -383,7 +412,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.cumulativeReward += self.reward
 
             self.numSteps += 1
-
+            #print("_step took " + str(time.time() - startTime))
+            try:
+                self.avgtimings["_step"] += time.time() - startTime2
+            except:
+                self.avgtimings["_step"] = time.time() - startTime2
             return ob, self.reward, done, {}
         except:
             print("step " + str(self.numSteps) + " failed")
@@ -398,6 +431,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        startTime = time.time()
         try:
             #print("reset")
             self.cumulativeReward = 0
@@ -416,6 +450,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 if len(self.ROMPoints) > 1:
                     pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
+            if self.numSteps > 0:
+                print("reset_model took " + str(time.time()-startTime))
+                for item in self.avgtimings.items():
+                    print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
+            self.avgtimings = {}
             self.reset_number += 1
             self.numSteps = 0
             return self._get_obs()

@@ -19,30 +19,32 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = False
-        clothSimulation = False
-        renderCloth = False
+        clothSimulation = True
+        renderCloth = True
 
         #observation terms
-        self.contactIDInObs = False  # if true, contact ids are in obs
-        self.hapticsInObs   = False  # if true, haptics are in observation
+        self.contactIDInObs = True  # if true, contact ids are in obs
+        self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
 
         #reward flags
-        self.uprightReward              = False  #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = False
-        self.deformationPenalty         = False
+        self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
+        self.elbowFlairReward           = True
+        self.deformationPenalty         = True
         self.restPoseReward             = False
-        self.rightTargetReward          = True
+        self.rightTargetReward          = False
         self.leftTargetReward           = True
 
         #other flags
+        self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
+        self.collarTerminationCD = 10 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
         self.hapticsAware       = True  # if false, 0's for haptic input
-        self.loadTargetsFromROMPositions = True
-        self.resetPoseFromROMPoints = True
+        self.loadTargetsFromROMPositions = False
+        self.resetPoseFromROMPoints = False
         self.resetTime = 0
 
         #other variables
@@ -77,6 +79,11 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation)
 
+        # clothing features
+        self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
+        self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
+        self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
+
         self.simulateCloth = clothSimulation
         if not renderCloth:
             self.clothScene.renderClothFill = False
@@ -92,16 +99,20 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-
         fingertip = np.array([0.0, -0.065, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
+        self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
         a=0
 
     def checkTermination(self, tau, s, obs):
         #check the termination conditions and return: done,reward
+        topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
+        bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+        bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
+
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
@@ -109,6 +120,11 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             return True, -500
+        elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
+            if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
+                        self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
+                return True, -500
+
         return False, 0
 
     def computeReward(self, tau):
@@ -133,9 +149,10 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
             self.deformation = clothDeformation
 
         reward_clothdeformation = 0
-        if clothDeformation > 15 and self.deformationPenalty is True:
-            reward_clothdeformation = (math.tanh(
-                9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+        if self.deformationPenalty is True:
+            # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_clothdeformation = -(math.tanh(
+                0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
@@ -221,14 +238,28 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])
         if self.simulateCloth:
-            self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
+            up = np.array([0,1.0,0])
+            '''vDir = pyutils.sampleDirections(num=1)[0]
+            tries = 0
+            while vDir.dot(up) < 0.95:
+                tries += 1
+                vDir = pyutils.sampleDirections(num=1)[0]
+            print("took " + str(tries) + " tries to sample")
+            varianceR = self.clothScene.rotateTo(v1=up, v2=vDir)'''
+            varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
+            adjustR = pyutils.rotateY(0.2)
+            R = self.clothScene.rotateTo(v1=np.array([0,0,1.0]), v2=up)
+            self.clothScene.translateCloth(0, np.array([-0.01, 0.0255, 0]))
+            self.clothScene.rotateCloth(cid=0, R=R)
+            self.clothScene.rotateCloth(cid=0, R=adjustR)
+            self.clothScene.rotateCloth(cid=0, R=varianceR)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
-        #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        qpos = np.array(
-            [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
-             -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
-             -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
-             0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
+        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        #qpos = np.array(
+        #    [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
+        #     -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
+        #     -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
+        #     0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
 
         if self.resetPoseFromROMPoints and len(self.ROMPoints) > 0:
             poseFound = False
