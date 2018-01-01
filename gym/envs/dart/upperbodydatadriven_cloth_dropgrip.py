@@ -232,8 +232,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         return obs
 
     def additionalResets(self):
-        if self.resetTime > 0:
+        '''if self.resetTime > 0:
             print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
+        '''
         self.resetTime = time.time()
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])

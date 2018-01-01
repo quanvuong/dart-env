@@ -450,10 +450,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 if len(self.ROMPoints) > 1:
                     pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-            if self.numSteps > 0:
+            '''if self.numSteps > 0:
                 print("reset_model took " + str(time.time()-startTime))
                 for item in self.avgtimings.items():
                     print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
+            '''
             self.avgtimings = {}
             self.reset_number += 1
             self.numSteps = 0
