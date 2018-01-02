@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -36,7 +36,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.elbowFlairReward           = True
         self.deformationPenalty         = True
         self.restPoseReward             = True
-        self.rightTargetReward          = False
+        self.rightTargetReward          = True
         self.leftTargetReward           = True
 
         #other flags
@@ -48,6 +48,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.resetTime = 0
 
         #other variables
+        self.handleNode = None
+        self.updateHandleNodeFrom = 12  # left fingers
         self.prevTau = None
         self.maxDeformation = 30.0
         self.restPose = None
@@ -74,7 +76,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                                                           rendering=rendering,
                                                           screensize=(1080,720),
                                                           clothMeshFile="tshirt_m.obj",
-                                                          #clothMeshStateFile = "tshirt_regrip5.obj",
+                                                          clothMeshStateFile = "endDropGrip1.obj",
                                                           clothScale=1.4,
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation)
@@ -85,6 +87,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
+        if self.simulateCloth:
+            self.handleNode = HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975]))
+
         if not renderCloth:
             self.clothScene.renderClothFill = False
             self.clothScene.renderClothBoundary = False
@@ -104,10 +109,16 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
-        self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
+        #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
+
+        # update handle nodes
+        if self.handleNode is not None:
+            if self.updateHandleNodeFrom >= 0:
+                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+            self.handleNode.step()
 
         a=0
 
@@ -196,10 +207,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 4 \
-                      + reward_restPose*0.3 \
+                      + reward_clothdeformation * 5 \
+                      + reward_restPose \
                       + reward_rightTarget \
-                      + reward_leftTarget*5.0
+                      + reward_leftTarget
         return self.reward
 
     def _get_obs(self):
@@ -247,31 +258,18 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.resetTime = time.time()
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])
-        if self.simulateCloth:
+        '''if self.simulateCloth:
             up = np.array([0,1.0,0])
-            '''vDir = pyutils.sampleDirections(num=1)[0]
-            tries = 0
-            while vDir.dot(up) < 0.95:
-                tries += 1
-                vDir = pyutils.sampleDirections(num=1)[0]
-            print("took " + str(tries) + " tries to sample")
-            varianceR = self.clothScene.rotateTo(v1=up, v2=vDir)'''
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
             adjustR = pyutils.rotateY(0.2)
             R = self.clothScene.rotateTo(v1=np.array([0,0,1.0]), v2=up)
             self.clothScene.translateCloth(0, np.array([-0.01, 0.0255, 0]))
             self.clothScene.rotateCloth(cid=0, R=R)
             self.clothScene.rotateCloth(cid=0, R=adjustR)
-            self.clothScene.rotateCloth(cid=0, R=varianceR)
+            self.clothScene.rotateCloth(cid=0, R=varianceR)'''
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        #qpos = np.array(
-        #    [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
-        #     -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
-        #     -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
-        #     0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
 
-        if self.resetPoseFromROMPoints and len(self.ROMPoints) > 0:
+        '''if self.resetPoseFromROMPoints and len(self.ROMPoints) > 0:
             poseFound = False
             while not poseFound:
                 ix = random.randint(0,len(self.ROMPoints)-1)
@@ -280,7 +278,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                 efL = self.ROMPositions[ix][-3:]
                 if efR[2] < 0 and efL[2] < 0: #half-plane constraint on end effectors
                     poseFound = True
-
+        '''
         #Check the constrained population
         '''positive = 0
         for targets in self.ROMPositions:
@@ -291,7 +289,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         print("Valid Poses: " + str(positive) + " | ratio: " + str(positive/len(self.ROMPositions)))'''
 
 
-        if self.loadTargetsFromROMPositions and len(self.ROMPositions) > 0:
+        '''if self.loadTargetsFromROMPositions and len(self.ROMPositions) > 0:
             targetFound = False
             while not targetFound:
                 ix = random.randint(0, len(self.ROMPositions) - 1)
@@ -299,8 +297,30 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                 self.leftTarget = self.ROMPositions[ix][-3:] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
                 if self.rightTarget[2] < 0 and self.leftTarget[2] < 0: #half-plane constraint on end effectors
                     targetFound = True
+        self.set_state(qpos, qvel)'''
+        qpos = np.array(
+            [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
+             -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
+             -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
+             0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         self.set_state(qpos, qvel)
-        self.restPose = qpos
+
+        #find end effector targets and set restPose from solution
+        fingertip = np.array([0.0, -0.065, 0.0])
+        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        self.restPose = np.array(self.robot_skeleton.q)
+
+        self.loadCharacterState(filename="characterState_endDropGrip1")
+
+        if self.handleNode is not None:
+            self.handleNode.clearHandles()
+            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+            self.handleNode.setOrgToCentroid()
+            if self.updateHandleNodeFrom >= 0:
+                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
+            self.handleNode.recomputeOffsets()
+
 
         if self.simulateCloth:
             self.collarFeature.fitPlane()

@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_01_01_dropgrip"
+    #trial = "experiment_2018_01_01_dropgrip"
 
     #trial = "experiment_2017_12_12_halfplane_reacher_cont3"
     #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
@@ -85,7 +85,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1')
 
     policy = None
     if trial is not None and policy is None:

@@ -423,6 +423,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenPhaseInterpolate-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',
