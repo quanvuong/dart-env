@@ -192,8 +192,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             if lDist < 0.02:
                 reward_leftTarget += 0.25
 
-        print("reward_restPose: " + str(reward_restPose))
-        print("reward_leftTarget: " + str(reward_leftTarget))
+        #print("reward_restPose: " + str(reward_restPose))
+        #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
                       + reward_clothdeformation * 4 \
