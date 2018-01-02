@@ -35,7 +35,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
         self.elbowFlairReward           = True
         self.deformationPenalty         = True
-        self.restPoseReward             = False
+        self.restPoseReward             = True
         self.rightTargetReward          = False
         self.leftTargetReward           = True
 
@@ -105,6 +105,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
         self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
+
+        if self.collarFeature is not None:
+            self.collarFeature.fitPlane()
+
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -123,6 +127,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
+                print("collar term")
                 return True, -500
 
         return False, 0
@@ -164,11 +169,13 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
-            z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
+            '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
             s = 1.0  # steepness (higher is steeper)
             l = 4.2  # translation
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
+            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+            reward_restPose = -dist
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         reward_rightTarget = 0
@@ -185,12 +192,14 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             if lDist < 0.02:
                 reward_leftTarget += 0.25
 
+        print("reward_restPose: " + str(reward_restPose))
+        print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 3 \
-                      + reward_restPose \
+                      + reward_clothdeformation * 4 \
+                      + reward_restPose*0.3 \
                       + reward_rightTarget \
-                      + reward_leftTarget
+                      + reward_leftTarget*5.0
         return self.reward
 
     def _get_obs(self):
@@ -293,6 +302,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
+        if self.simulateCloth:
+            self.collarFeature.fitPlane()
+
         a=0
 
     def extraRenderFunction(self):
@@ -301,6 +313,14 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         GL.glVertex3d(0,0,0)
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
+
+        topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
+        bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+        bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
+
+        renderUtils.drawLineStrip(points=[bottomNeck, bottomHead, topHead])
+        if self.collarFeature is not None:
+            self.collarFeature.drawProjectionPoly()
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
