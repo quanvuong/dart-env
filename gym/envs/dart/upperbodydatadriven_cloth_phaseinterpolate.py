@@ -33,7 +33,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = True
+        self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = True
@@ -41,7 +41,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
-        self.collarTerminationCD = 10 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
+        self.collarTerminationCD = 0 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
@@ -131,15 +131,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -1500
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -500
+            return True, -1500
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-                print("collar term")
-                return True, -500
+                #print("collar term")
+                return True, -1500
 
         return False, 0
 
@@ -193,15 +193,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
             reward_rightTarget = -rDist - rDist**2
-            if rDist < 0.02:
-                reward_rightTarget += 0.25
+            '''if rDist < 0.02:
+                reward_rightTarget += 0.25'''
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             reward_leftTarget = -lDist - lDist**2
-            if lDist < 0.02:
-                reward_leftTarget += 0.25
+            '''if lDist < 0.02:
+                reward_leftTarget += 0.25'''
 
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))

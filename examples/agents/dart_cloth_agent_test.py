@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_01_02_phaseinterpolate_toR"
+    #trial = "experiment_2018_01_02_dropgrip2"
     #trial = "experiment_2018_01_01_dropgrip"
 
     #trial = "experiment_2017_12_12_halfplane_reacher_cont3"
