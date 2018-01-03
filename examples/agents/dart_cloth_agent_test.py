@@ -88,8 +88,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2')
 
 
     policy = None

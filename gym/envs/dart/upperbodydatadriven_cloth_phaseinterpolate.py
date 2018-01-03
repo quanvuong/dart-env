@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -80,6 +80,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                                                           clothScale=1.4,
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation)
+
+        #define pose and obj files for reset
+        self.resetStateFileNames = ["endDropGrip1"] #each state name 'n' should refer to both a character state file: " characterState_'n' " and the cloth state file: " 'n'.obj ".
+        #load reset poses from file
+        for name in self.resetStateFileNames:
+            self.clothScene.addResetStateFrom(filename=name+".obj")
 
         # clothing features
         self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
