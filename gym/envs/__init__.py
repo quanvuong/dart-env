@@ -441,6 +441,18 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenJacket-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothJacketREnv',
+    #max_episode_steps=250,
+)
+
+'''register(
+    id='DartClothUpperBodyDataDrivenJacket-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothJacketLEnv',
+    #max_episode_steps=250,
+)'''
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

@@ -93,7 +93,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
 
 
     policy = None
@@ -112,7 +113,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 200
+        rolloutHorizon = 2000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
