@@ -409,6 +409,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
             done, terminationReward = self.checkTermination(tau, s, ob)
             reward += terminationReward
+            self.reward = reward
             self.cumulativeReward += self.reward
 
             self.numSteps += 1

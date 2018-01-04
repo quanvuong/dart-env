@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -198,7 +198,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         reward_rightTarget = 0
         if self.rightTargetReward:
-            rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
+            rDist = np.linalg.norm(self.rightTarget - wRFingertip2)
             reward_rightTarget = -rDist - rDist**2
             '''if rDist < 0.02:
                 reward_rightTarget += 0.25'''
