@@ -58,6 +58,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
+        self.previousDeformationReward = 0
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -142,9 +143,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             print("Infinite value detected..." + str(s))
             return True, -1500
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
-            if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
-                        self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-                #print("collar term")
+            if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 return True, -1500
 
         return False, 0
@@ -175,6 +174,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             reward_clothdeformation = -(math.tanh(
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+
+        self.previousDeformationReward = reward_clothdeformation
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
@@ -378,3 +379,5 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
