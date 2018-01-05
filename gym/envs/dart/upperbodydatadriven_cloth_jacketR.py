@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -218,7 +218,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
         reward_oracleDisplacement = 0
         if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
             # world_ef_displacement = wRFingertip2 - wRFingertip1
@@ -232,7 +232,8 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
             s = 1.0  # steepness (higher is steeper)
             l = 4.2  # translation
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+            #reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+            reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         self.reward = reward_ctrl * 0 \
@@ -362,6 +363,10 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
+                                          self.prevOracle+self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
+                                          ])
 
         if self.CP0Feature is not None:
             self.CP0Feature.drawProjectionPoly()

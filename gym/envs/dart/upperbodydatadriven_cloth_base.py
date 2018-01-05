@@ -35,6 +35,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.lockTorso = False
         self.lockSpine = False
 
+        #other tracking variables
+        self.rewardTrajectory = [] #store all rewards since the last reset
+
         #violation graphing
         self.graphViolation = False
         self.violationGraphFrequency = 1
@@ -411,6 +414,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             reward += terminationReward
             self.reward = reward
             self.cumulativeReward += self.reward
+            self.rewardTrajectory.append(self.reward)
+
+            #if done and terminationReward < 0:
+            #    print("terminated negatively. reward trajectory: " + str(self.rewardTrajectory))
 
             self.numSteps += 1
             #print("_step took " + str(time.time() - startTime))
@@ -432,6 +439,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        self.rewardTrajectory = []
         startTime = time.time()
         try:
             #print("reset")
@@ -439,7 +447,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.dart_world.reset()
             self.clothScene.reset()
 
-            self.clothScene.setSelfCollisionDistance(0.025)
+            self.clothScene.setSelfCollisionDistance(0.03)
 
             self.additionalResets()
 

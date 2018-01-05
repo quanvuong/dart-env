@@ -227,7 +227,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
         reward_oracleDisplacement = 0
         if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localLeftEfShoulder1 is not None:

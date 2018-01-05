@@ -20,6 +20,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_01_04_jacketR"
+    #trial = "experiment_2018_01_04_phaseinterpolate_toL"
+    #trial = "experiment_2018_01_04_phaseinterpolate_toR3"
+    #trial = "experiment_2018_01_04_phaseinterpolate_matchgrip3"
+
     #trial = "experiment_2018_01_03_phaseinterpolate_toR2"
     #trial = "experiment_2018_01_03_phaseinterpolate_matchgrip"
 
@@ -113,7 +118,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 2000
+        rolloutHorizon = 200
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

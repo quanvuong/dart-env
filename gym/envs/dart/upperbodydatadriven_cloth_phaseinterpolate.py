@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -183,7 +183,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
@@ -193,7 +193,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
             reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -dist
+            reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         reward_rightTarget = 0

@@ -106,12 +106,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0, -0.095, 0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
-        #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
+        self.rightTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
@@ -122,7 +122,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
 
-        self.rightTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        #self.rightTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
 
         a=0
 
@@ -149,7 +149,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0, -0.095, 0])
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
@@ -182,7 +182,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
@@ -192,7 +192,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
             reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -dist
+            reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         reward_rightTarget = 0
@@ -228,7 +228,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0, -0.095, 0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -263,7 +263,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         '''
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
+        fingertip = np.array([0, -0.095, 0])
         '''if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -308,7 +308,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.loadCharacterState(filename="characterState_regrip")
 
         #find end effector targets and set restPose from solution
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0, -0.095, 0])
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         self.restPose = np.array(self.robot_skeleton.q)
 
@@ -350,7 +350,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render targets
-        fingertip = np.array([0,-0.065,0])
+        fingertip = np.array([0,-0.095,0])
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             renderUtils.setColor(color=[1.0,0,0])

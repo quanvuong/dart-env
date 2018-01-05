@@ -143,7 +143,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:

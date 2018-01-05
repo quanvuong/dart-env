@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -60,6 +60,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
+        self.previousSelfCollisions = 0
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -161,10 +162,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         self.prevTau = tau
 
+        #startTime = time.time()
         clothDeformation = 0
         if self.simulateCloth:
-            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+            maxDef, minDef, avgDef, varDef, ratios = self.clothScene.getAllDeformationStats(0)
+            #clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+            clothDeformation = maxDef
             self.deformation = clothDeformation
+        #print("deformation check took: " + str(time.time()-startTime))
+
+        '''startTime = time.time()
+        if self.simulateCloth:
+            self.previousSelfCollisions = self.clothScene.getNumSelfCollisions(0, culldistance=0.04)
+
+        print("self collision = " + str(self.previousSelfCollisions) + " | check took: " + str(time.time() - startTime))
+        '''
 
         reward_clothdeformation = 0
         if self.deformationPenalty is True:
@@ -180,7 +192,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+
+        '''totalFreedom = 0
+        for dof in range(len(self.robot_skeleton.q)):
+            if self.robot_skeleton.dof(dof).has_position_limit():
+                totalFreedom += self.robot_skeleton.dof(dof).position_upper_limit()-self.robot_skeleton.dof(dof).position_lower_limit()
+        print("totalFreedom: " + str(totalFreedom))'''
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
@@ -190,7 +208,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
             reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
             dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -dist
+            reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         reward_rightTarget = 0
@@ -358,6 +376,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
+        if self.restPoseReward:
+            links = pyutils.getRobotLinks(self.robot_skeleton,pose=self.restPose)
+            renderUtils.drawLines(lines=links)
+
         textHeight = 15
         textLines = 2
 
@@ -369,7 +391,40 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Self Collisions = " + str(self.previousSelfCollisions), color=(0., 0, 0))
+            textLines += 1
+
+            #display deformation stats
+            maxDef, minDef, avgDef, varDef, ratios = self.clothScene.getAllDeformationStats(0)
+            stdDevDef = math.sqrt(varDef)
+            percentWithin1StdDevDef = 0
+            avgDefAboveStdDev = 0
+            numDefAboveStdDev = 0
+            for r in ratios:
+                if abs(avgDef-r) <= avgDef+stdDevDef:
+                    percentWithin1StdDevDef += 1
+                elif r-avgDef > avgDef+stdDevDef:
+                    avgDefAboveStdDev += r
+                    numDefAboveStdDev += 1
+            if numDefAboveStdDev > 0:
+                avgDefAboveStdDev /= numDefAboveStdDev
+            percentWithin1StdDevDef /= len(ratios)
+            percentWithin1StdDevDef *= 100
+
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Deformation [min,max] = [" + str(minDef) + "," + str(maxDef) + "]", color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Deformation [avg,var] = [" + str(avgDef) + "," + str(varDef) + "]", color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Deformation percent within 1 stdDev = " + str(percentWithin1StdDevDef), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Deformation avg above 1 stdDev = " + str(avgDefAboveStdDev), color=(0., 0, 0))
+            textLines += 1
+
+
+
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 60], h=16, w=60, progress=maxDef/25.0, color=[0.0, 1.0, 0])
+            renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 90], h=16, w=60, progress=avgDefAboveStdDev/25.0, color=[0.0, 1.0, 0])
