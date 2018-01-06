@@ -46,6 +46,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
+        self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
 
         #other variables
         self.prevTau = None
@@ -57,6 +58,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         self.localRightEfShoulder1 = None
         self.limbProgress = 0
         self.previousDeformationReward = 0
+        self.handFirst = False #once the hand enters the feature, switches to true
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -126,7 +128,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
 
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0.0, -0.095, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         a=0
@@ -146,15 +148,23 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
             limbInsertionError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP1Feature)
+                                                  offset=np.array([0, -0.095, 0])), feature=self.CP1Feature)
             if limbInsertionError > 0:
                 return True, -500
-
+        elif self.elbowFirstTerm and self.simulateCloth and not self.handFirst:
+            if self.limbProgress > 0 and self.limbProgress < 0.14:
+                self.handFirst = True
+            else:
+                limbInsertionError = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR[:3]),
+                    feature=self.CP0Feature)
+                if limbInsertionError > 0:
+                    return True, -500
         return False, 0
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0.0, -0.095, 0.0])
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
@@ -177,7 +187,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         if self.limbProgressReward and self.simulateCloth:
             self.limbProgress = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
+                                                  offset=np.array([0, -0.095, 0])), feature=self.CP0Feature)
             reward_limbprogress = self.limbProgress
             if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
                 reward_limbprogress = 0
@@ -255,7 +265,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.065, 0.0])
+        fingertip = np.array([0.0, -0.095, 0.0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -316,6 +326,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
 
     def additionalResets(self):
         #do any additional resetting here
+        self.handFirst = False
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0.125, -0.27, -0.6]))
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
@@ -349,7 +360,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
                 self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=1)
 
             if self.limbProgressReward:
-                self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
+                self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.095,0])), feature=self.CP0Feature)
 
         a=0
 
@@ -401,6 +412,8 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Previous Avg Geodesic = " + str(self.prevAvgGeodesic), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Limb Progress = " + str(self.limbProgress), color=(0., 0, 0))
             textLines += 1
 
             if self.numSteps > 0:
