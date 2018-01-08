@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -316,6 +316,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         fingertip = np.array([0.0, -0.065, 0.0])
         self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        print("right target: " + str(self.rightTarget))
+        print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
 
         self.loadCharacterState(filename="characterState_endDropGrip1")

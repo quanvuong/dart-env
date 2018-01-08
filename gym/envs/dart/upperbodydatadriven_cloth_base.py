@@ -34,6 +34,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.dataDrivenJointLimts = True
         self.lockTorso = False
         self.lockSpine = False
+        self.additionalAction = np.zeros(22) #added to input action for step
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -327,7 +328,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 if self.numSteps%self.violationGraphFrequency == 0:
                     self.graphJointConstraintViolation(counting=True)
 
-            clamped_control = np.array(a)
+            startTime2 = time.time()
+            #self.additionalAction should be set in updateBeforeSimulation
+            self.updateBeforeSimulation()  # any env specific updates before simulation
+            # print("updateBeforeSimulation took " + str(time.time() - startTime2))
+            try:
+                self.avgtimings["updateBeforeSimulation"] += time.time() - startTime2
+            except:
+                self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
+
+
+            full_control = a + self.additionalAction
+            clamped_control = np.array(full_control)
             for i in range(len(clamped_control)):
                 if clamped_control[i] > self.control_bounds[0][i]:
                     clamped_control[i] = self.control_bounds[0][i]
@@ -355,14 +367,6 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                         self.ROMPoints.append(np.array(self.robot_skeleton.q))
 
             tau = np.multiply(clamped_control, self.action_scale)
-
-            startTime2 = time.time()
-            self.updateBeforeSimulation() #any env specific updates before simulation
-            #print("updateBeforeSimulation took " + str(time.time() - startTime2))
-            try:
-                self.avgtimings["updateBeforeSimulation"] += time.time() - startTime2
-            except:
-                self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
             #apply action and simulate
             if len(tau) < len(self.robot_skeleton.q):

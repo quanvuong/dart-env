@@ -20,10 +20,12 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_01_04_jacketR_cont"
-    #trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"
-    #trial = "experiment_2018_01_04_phaseinterpolate_toR3_cont"
-    #trial = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
+    #trial = "experiment_2018_01_06_jacketR2"
+    #trial = "experiment_2018_01_04_phaseinterpolate_toR3_cont"      #***
+    #trial = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont" #***
+
+    #trial = "experiment_2018_01_04_jacketR_cont"
+    #trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"      #***
 
     #trial = "experiment_2018_01_04_jacketR"
     #trial = "experiment_2018_01_04_phaseinterpolate_toL"
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
-    env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
+    env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket right sleeve from grip
 
 
     policy = None
