@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -46,6 +46,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
+        self.resetStateFromDistribution = True
+        self.resetDistributionPrefix = "saved_control_states/Right Tuck"
+        self.resetDistributionSize = 16
 
         #other variables
         self.handleNode = None
@@ -83,10 +86,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                                                           simulateCloth=clothSimulation)
 
         #define pose and obj files for reset
-        self.resetStateFileNames = ["endDropGrip1"] #each state name 'n' should refer to both a character state file: " characterState_'n' " and the cloth state file: " 'n'.obj ".
+        '''self.resetStateFileNames = ["endDropGrip1"] #each state name 'n' should refer to both a character state file: " characterState_'n' " and the cloth state file: " 'n'.obj ".
         #load reset poses from file
         for name in self.resetStateFileNames:
-            self.clothScene.addResetStateFrom(filename=name+".obj")
+            self.clothScene.addResetStateFrom(filename=name+".obj")'''
 
         # clothing features
         self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
@@ -316,11 +319,28 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         fingertip = np.array([0.0, -0.065, 0.0])
         self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        print("right target: " + str(self.rightTarget))
-        print("left target: " + str(self.leftTarget))
+        #print("right target: " + str(self.rightTarget))
+        #print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
 
-        self.loadCharacterState(filename="characterState_endDropGrip1")
+        if self.resetStateFromDistribution:
+            if self.reset_number == 0: #load the distribution
+                count = 0
+                objfname_ix = self.resetDistributionPrefix + "%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    #print(objfname_ix)
+                    self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
+                    objfname_ix = self.resetDistributionPrefix + "%05d" % count
+
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = 0
+            charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.loadCharacterState(filename=charfname_ix)
+
+        else:
+            self.loadCharacterState(filename="characterState_endDropGrip1")
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()

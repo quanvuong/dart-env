@@ -151,6 +151,46 @@ class MatchGripController(Controller):
             self.env.handleNode.step()
         a=0
 
+class RightSleeveController(Controller):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        obs_subset = [(0,132), (172, 9), (132, 22)]
+        policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
+        name="Right Sleeve"
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+    def setup(self):
+        self.env.fingertip = np.array([0, -0.065, 0])
+        #setup cloth handle
+        self.env.updateHandleNodeFrom = 12
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles()
+        self.env.handleNode = HandleNode(self.env.clothScene, org=np.array([0.05, 0.034, -0.975]))
+        self.env.handleNode.addVertices(verts=self.env.targetGripVertices)
+        self.env.handleNode.setOrgToCentroid()
+        self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+        self.env.handleNode.recomputeOffsets()
+
+        #geodesic
+        self.env.separatedMesh.initSeparatedMeshGraph()
+        self.env.separatedMesh.updateWeights()
+        self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveRMidFeature, oneSided=True, side=0, normalSide=0)
+
+        #feature/oracle setup
+        self.env.focusFeature = self.env.sleeveRMidFeature  # if set, this feature centroid is used to get the "feature" obs
+        self.env.focusFeatureNode = 7  # if set, this body node is used to fill feature displacement obs
+        self.env.progressFeature = self.env.sleeveRSeamFeature  # if set, this feature is used to fill oracle normal and check arm progress
+        self.env.contactSensorIX = 12
+
+        a=0
+
+    def update(self):
+        if self.env.handleNode is not None:
+            if self.env.updateHandleNodeFrom >= 0:
+                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+            self.env.handleNode.step()
+        #limb progress
+        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.env.sleeveRSeamFeature)
+        a=0
 
 class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
@@ -164,6 +204,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.collarTerminationCD = 10 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.resetTime = 0
+        self.save_state_on_control_switch = True #if true, the cloth and character state is saved when controllers are switched
+        self.state_save_directory = "saved_control_states/"
 
         #other variables
         self.restPose = None
@@ -223,18 +265,19 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
-        #TODO: controller initialzation
+        #controller initialzation
         self.controllers = [
-
+            DropGripController(self),
+            RightTuckController(self),
+            RightSleeveController(self),
+            MatchGripController(self),
+            LeftTuckController(self)
         ]
         self.currentController = None
+        self.stepsSinceControlSwitch = 0
 
     def _getFile(self):
         return __file__
-
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
@@ -262,6 +305,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             obs = self._get_obs()
             self.additionalAction = self.controllers[self.currentController].query(obs)
 
+        self.stepsSinceControlSwitch += 1
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -337,21 +381,26 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         elif self.limbProgress > 0:
             oracle = self.progressFeature.plane.normal
         else:
-            minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=self.contactSensorIX,
-                                                                                 clothscene=self.clothScene,
-                                                                                 meshgraph=self.separatedMesh,
-                                                                                 returnOnlyGeo=False)
+            minGeoVix = None
+            minContactGeodesic = None
+            _side = None
+            if self.contactSensorIX is not None:
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=self.contactSensorIX,
+                                                                                     clothscene=self.clothScene,
+                                                                                     meshgraph=self.separatedMesh,
+                                                                                     returnOnlyGeo=False)
             if minGeoVix is None:
-                # oracle points to the garment when ef not in contact
-                ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
-                # closeVert = self.clothScene.getCloseVertex(p=efR)
-                # target = self.clothScene.getVertexPos(vid=closeVert)
+                if self.focusFeatureNode is not None:
+                    # oracle points to the garment when ef not in contact
+                    ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
+                    # closeVert = self.clothScene.getCloseVertex(p=efR)
+                    # target = self.clothScene.getVertexPos(vid=closeVert)
 
-                centroid = self.focusFeature.plane.org
+                    centroid = self.focusFeature.plane.org
 
-                target = centroid
-                vec = target - ef
-                oracle = vec / np.linalg.norm(vec)
+                    target = centroid
+                    vec = target - ef
+                    oracle = vec / np.linalg.norm(vec)
             else:
                 vixSide = 0
                 if _side:
@@ -367,6 +416,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.resetTime = time.time()
         #do any additional resetting here
         #fingertip = np.array([0, -0.065, 0])
+        self.currentController = 0
         if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -390,6 +440,10 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             self.sleeveLSeamFeature.fitPlane()
             self.sleeveLMidFeature.fitPlane()
             self.sleeveLEndFeature.fitPlane()
+        if self.handleNode is not None:
+            self.handleNode.clearHandles()
+            self.handleNode = None
+
         a=0
 
     def extraRenderFunction(self):
@@ -437,3 +491,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+
+            if self.stepsSinceControlSwitch < 50 and len(self.controllers) > 0:
+                label = self.controllers[self.currentController].name
+                self.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 60,
+                                         text="Active Controller = " + str(label), color=(0., 0, 0))

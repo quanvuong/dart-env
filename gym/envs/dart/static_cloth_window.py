@@ -141,7 +141,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.drawLine(p0=self.camRight)
 
 
-        if self.lastContextSwitch < 100:
+        if self.lastContextSwitch < 50:
             context = "Default Context"
             if self.curInteractorIX is not None:
                 context = self.interactors[self.curInteractorIX].label
@@ -179,7 +179,6 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             if button == 2:
                 self.mouseRButton = False
 
-
     def motionFunc(self, x, y):
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].drag(x, y)
@@ -208,10 +207,41 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.mouseLastPos = np.array([x, y])
         #print("self.mouseLastPos = " + str(self.mouseLastPos))
             
-            
     def mykeyboard(self, key, x, y):
         #regardless of the interactor conext, 'm' always switches contexts
         keycode = ord(key)
+        if keycode == 46: #'>'
+            try:
+                self.env.currentController = min(len(self.env.controllers)-1, self.env.currentController+1)
+                self.env.controllers[self.env.currentController].setup()
+                self.env.stepsSinceControlSwitch = 0
+                print("Switched to " + str(self.env.controllers[self.env.currentController].name))
+                if self.env.save_state_on_control_switch:
+                    fname = self.env.state_save_directory + self.env.controllers[self.env.currentController].name
+                    print(fname)
+                    count = 0
+                    objfname_ix = fname+"%05d"%count
+                    charfname_ix = fname+"_char%05d"%count
+                    while os.path.isfile(objfname_ix+".obj"):
+                        count += 1
+                        objfname_ix = fname + "%05d"%count
+                        charfname_ix = fname+"_char%05d"%count
+                    print(objfname_ix)
+                    self.env.saveObjState(filename=objfname_ix)
+                    self.env.saveCharacterState(filename=charfname_ix)
+                    print("...successfully saved state")
+            except:
+                print("no controllers to switch")
+            return
+        if keycode == 44: #'<'
+            try:
+                self.env.currentController = max(0, self.env.currentController-1)
+                self.env.controllers[self.env.currentController].setup()
+                self.env.stepsSinceControlSwitch = 0
+                print("Switched to " + str(self.env.controllers[self.env.currentController].name))
+            except:
+                print("no controllers to switch")
+            return
         if keycode == 109: #'m'
             self.switchInteractorContext()
             return

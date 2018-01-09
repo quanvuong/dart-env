@@ -203,13 +203,19 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         print("before: " + str(before) + " after: " + str(after))
         pyutils.saveList(self.ROMPoints, filename="processedROMPoints", listoflists=True)
 
-    def saveObjState(self):
+    def saveObjState(self, filename=None):
         print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
+        print("filename: " + str(filename))
+        if filename is None:
+            filename = "objState"
+        self.clothScene.saveObjState(filename, 0)
 
-    def saveCharacterState(self):
+    def saveCharacterState(self, filename=None):
         print("saving character state")
-        f = open("characterState", 'w')
+        if filename is None:
+            filename = "characterState"
+        print("filename " + str(filename))
+        f = open(filename, 'w')
         for ix,dof in enumerate(self.robot_skeleton.q):
             if ix > 0:
                 f.write(" ")
@@ -323,115 +329,115 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         startTime = time.time()
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
+        #try:
+        if self.graphViolation:
+            if self.numSteps%self.violationGraphFrequency == 0:
+                self.graphJointConstraintViolation(counting=True)
+
+        startTime2 = time.time()
+        #self.additionalAction should be set in updateBeforeSimulation
+        self.updateBeforeSimulation()  # any env specific updates before simulation
+        # print("updateBeforeSimulation took " + str(time.time() - startTime2))
         try:
-            if self.graphViolation:
-                if self.numSteps%self.violationGraphFrequency == 0:
-                    self.graphJointConstraintViolation(counting=True)
-
-            startTime2 = time.time()
-            #self.additionalAction should be set in updateBeforeSimulation
-            self.updateBeforeSimulation()  # any env specific updates before simulation
-            # print("updateBeforeSimulation took " + str(time.time() - startTime2))
-            try:
-                self.avgtimings["updateBeforeSimulation"] += time.time() - startTime2
-            except:
-                self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
-
-
-            full_control = a + self.additionalAction
-            clamped_control = np.array(full_control)
-            for i in range(len(clamped_control)):
-                if clamped_control[i] > self.control_bounds[0][i]:
-                    clamped_control[i] = self.control_bounds[0][i]
-                if clamped_control[i] < self.control_bounds[1][i]:
-                    clamped_control[i] = self.control_bounds[1][i]
-
-            if self.recordROMPoints:
-                violation = self.dart_world.getMaxConstraintViolation()
-                if violation > 0:
-                    #print(violation)
-                    minDist = None
-                    for p in self.ROMPoints:
-                        dist = np.linalg.norm(self.robot_skeleton.q-p)
-                        if minDist is None:
-                            minDist = dist
-                        if dist < minDist:
-                            minDist = dist
-                            if minDist < self.ROMPointMinDistance:
-                                break
-                    if minDist is not None:
-                        if minDist > self.ROMPointMinDistance:
-                            self.ROMPoints.append(np.array(self.robot_skeleton.q))
-                            print("Saved poses = " + str(len(self.ROMPoints)))
-                    else: #auto-add when list is empty
-                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
-
-            tau = np.multiply(clamped_control, self.action_scale)
-
-            #apply action and simulate
-            if len(tau) < len(self.robot_skeleton.q):
-                newtau = np.array(tau)
-                tau = np.zeros(len(self.robot_skeleton.q))
-                for ix,dof in enumerate(self.actuatedDofs):
-                    tau[dof] = newtau[ix]
-
-            startTime2 = time.time()
-            self.do_simulation(tau, self.frame_skip)
-            #print("do_simulation took " + str(time.time() - startTime2))
-            try:
-                self.avgtimings["do_simulation"] += time.time() - startTime2
-            except:
-                self.avgtimings["do_simulation"] = time.time() - startTime2
-
-
-            #set position and 0 velocity of locked dofs
-            qpos = self.robot_skeleton.q
-            qvel = self.robot_skeleton.dq
-            for dof in self.lockedDofs:
-                qpos[dof] = 0
-                qvel[dof] = 0
-            self.set_state(qpos, qvel)
-
-            startTime2 = time.time()
-            reward = self.computeReward(tau=tau)
-            #print("computeReward took " + str(time.time() - startTime2))
-            try:
-                self.avgtimings["computeReward"] += time.time() - startTime2
-            except:
-                self.avgtimings["computeReward"] = time.time() - startTime2
-
-
-            startTime2 = time.time()
-            ob = self._get_obs()
-            s = self.state_vector()
-            #print("obs and state took " + str(time.time() - startTime2))
-            try:
-                self.avgtimings["obs"] += time.time() - startTime2
-            except:
-                self.avgtimings["obs"] = time.time() - startTime2
-
-
-            #update physx capsules
-            self.updateClothCollisionStructures(hapticSensors=True)
-
-            done, terminationReward = self.checkTermination(tau, s, ob)
-            reward += terminationReward
-            self.reward = reward
-            self.cumulativeReward += self.reward
-            self.rewardTrajectory.append(self.reward)
-
-            #if done and terminationReward < 0:
-            #    print("terminated negatively. reward trajectory: " + str(self.rewardTrajectory))
-
-            self.numSteps += 1
-            #print("_step took " + str(time.time() - startTime))
-            try:
-                self.avgtimings["_step"] += time.time() - startTime2
-            except:
-                self.avgtimings["_step"] = time.time() - startTime2
-            return ob, self.reward, done, {}
+            self.avgtimings["updateBeforeSimulation"] += time.time() - startTime2
         except:
-            print("step " + str(self.numSteps) + " failed")
+            self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
+
+
+        full_control = a + self.additionalAction
+        clamped_control = np.array(full_control)
+        for i in range(len(clamped_control)):
+            if clamped_control[i] > self.control_bounds[0][i]:
+                clamped_control[i] = self.control_bounds[0][i]
+            if clamped_control[i] < self.control_bounds[1][i]:
+                clamped_control[i] = self.control_bounds[1][i]
+
+        if self.recordROMPoints:
+            violation = self.dart_world.getMaxConstraintViolation()
+            if violation > 0:
+                #print(violation)
+                minDist = None
+                for p in self.ROMPoints:
+                    dist = np.linalg.norm(self.robot_skeleton.q-p)
+                    if minDist is None:
+                        minDist = dist
+                    if dist < minDist:
+                        minDist = dist
+                        if minDist < self.ROMPointMinDistance:
+                            break
+                if minDist is not None:
+                    if minDist > self.ROMPointMinDistance:
+                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
+                        print("Saved poses = " + str(len(self.ROMPoints)))
+                else: #auto-add when list is empty
+                    self.ROMPoints.append(np.array(self.robot_skeleton.q))
+
+        tau = np.multiply(clamped_control, self.action_scale)
+
+        #apply action and simulate
+        if len(tau) < len(self.robot_skeleton.q):
+            newtau = np.array(tau)
+            tau = np.zeros(len(self.robot_skeleton.q))
+            for ix,dof in enumerate(self.actuatedDofs):
+                tau[dof] = newtau[ix]
+
+        startTime2 = time.time()
+        self.do_simulation(tau, self.frame_skip)
+        #print("do_simulation took " + str(time.time() - startTime2))
+        try:
+            self.avgtimings["do_simulation"] += time.time() - startTime2
+        except:
+            self.avgtimings["do_simulation"] = time.time() - startTime2
+
+
+        #set position and 0 velocity of locked dofs
+        qpos = self.robot_skeleton.q
+        qvel = self.robot_skeleton.dq
+        for dof in self.lockedDofs:
+            qpos[dof] = 0
+            qvel[dof] = 0
+        self.set_state(qpos, qvel)
+
+        startTime2 = time.time()
+        reward = self.computeReward(tau=tau)
+        #print("computeReward took " + str(time.time() - startTime2))
+        try:
+            self.avgtimings["computeReward"] += time.time() - startTime2
+        except:
+            self.avgtimings["computeReward"] = time.time() - startTime2
+
+
+        startTime2 = time.time()
+        ob = self._get_obs()
+        s = self.state_vector()
+        #print("obs and state took " + str(time.time() - startTime2))
+        try:
+            self.avgtimings["obs"] += time.time() - startTime2
+        except:
+            self.avgtimings["obs"] = time.time() - startTime2
+
+
+        #update physx capsules
+        self.updateClothCollisionStructures(hapticSensors=True)
+
+        done, terminationReward = self.checkTermination(tau, s, ob)
+        reward += terminationReward
+        self.reward = reward
+        self.cumulativeReward += self.reward
+        self.rewardTrajectory.append(self.reward)
+
+        #if done and terminationReward < 0:
+        #    print("terminated negatively. reward trajectory: " + str(self.rewardTrajectory))
+
+        self.numSteps += 1
+        #print("_step took " + str(time.time() - startTime))
+        try:
+            self.avgtimings["_step"] += time.time() - startTime2
+        except:
+            self.avgtimings["_step"] = time.time() - startTime2
+        return ob, self.reward, done, {}
+        #except:
+        #    print("step " + str(self.numSteps) + " failed")
             #self.step(action=np.zeros(len(a)))
 
     def _get_obs(self):
