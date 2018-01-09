@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -43,9 +43,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.restPoseReward             = False
 
         #other flags
-        self.hapticsAware       = True  # if false, 0's for haptic input
-        self.collarTermination  = True  #if true, rollout terminates when collar is off the head/neck
-        self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
+        self.hapticsAware               = True  # if false, 0's for haptic input
+        self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
+        self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
+        self.resetStateFromDistribution = True
+        self.resetDistributionPrefix = "saved_control_states/Right Tuck"
+        self.resetDistributionSize = 16
 
         #other variables
         self.prevTau = None
@@ -316,8 +319,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
     def additionalResets(self):
         #do any additional resetting here
-        if self.simulateCloth:
-            self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
+        #if self.simulateCloth:
+        #    self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qpos = np.array(
@@ -328,6 +331,26 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.set_state(qpos, qvel)
         #self.loadCharacterState(filename="characterState_1starmin")
         self.restPose = qpos
+
+        if self.resetStateFromDistribution:
+            if self.reset_number == 0: #load the distribution
+                count = 0
+                objfname_ix = self.resetDistributionPrefix + "%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    #print(objfname_ix)
+                    self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
+                    objfname_ix = self.resetDistributionPrefix + "%05d" % count
+
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = 0
+            charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.loadCharacterState(filename=charfname_ix)
+
+        else:
+            self.loadCharacterState(filename="characterState_endDropGrip1")
+
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()

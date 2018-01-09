@@ -47,7 +47,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/Right Tuck"
+        self.resetDistributionPrefix = "saved_control_states/DropGrip"
         self.resetDistributionSize = 16
 
         #other variables

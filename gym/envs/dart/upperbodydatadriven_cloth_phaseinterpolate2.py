@@ -47,6 +47,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
+        self.resetStateFromDistribution = True
+        self.resetDistributionPrefix = "saved_control_states/Right Tuck"
+        self.resetDistributionSize = 16
 
         #other variables
         self.handleNode = None
@@ -313,7 +316,24 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
 
-        self.loadCharacterState(filename="characterState_1starmin")
+        if self.resetStateFromDistribution:
+            if self.reset_number == 0: #load the distribution
+                count = 0
+                objfname_ix = self.resetDistributionPrefix + "%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    #print(objfname_ix)
+                    self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
+                    objfname_ix = self.resetDistributionPrefix + "%05d" % count
+
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = 0
+            charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.loadCharacterState(filename=charfname_ix)
+
+        else:
+            self.loadCharacterState(filename="characterState_1starmin")
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()

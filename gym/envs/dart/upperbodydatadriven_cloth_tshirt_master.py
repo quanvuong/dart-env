@@ -64,7 +64,8 @@ class DropGripController(Controller):
 class RightTuckController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,172)]
-        policyfilename = "experiment_2018_01_04_phaseinterpolate_toR3_cont"
+        #policyfilename = "experiment_2018_01_04_phaseinterpolate_toR3_cont"
+        policyfilename = "experiment_2018_01_08_distribution_rightTuck_warm"
         name="Right Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
@@ -204,7 +205,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.collarTerminationCD = 10 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.resetTime = 0
-        self.save_state_on_control_switch = True #if true, the cloth and character state is saved when controllers are switched
+        self.save_state_on_control_switch = False #if true, the cloth and character state is saved when controllers are switched
         self.state_save_directory = "saved_control_states/"
 
         #other variables
