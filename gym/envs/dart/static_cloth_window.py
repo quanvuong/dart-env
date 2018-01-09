@@ -242,6 +242,25 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             except:
                 print("no controllers to switch")
             return
+        if keycode == 115: #'s'
+            try:
+                print("trying to save state")
+                fname = self.env.state_save_directory + self.env.controllers[self.env.currentController].name
+                print(fname)
+                count = 0
+                objfname_ix = fname + "%05d" % count
+                charfname_ix = fname + "_char%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                print(objfname_ix)
+                self.env.saveObjState(filename=objfname_ix)
+                self.env.saveCharacterState(filename=charfname_ix)
+                print("...successfully saved state")
+            except:
+                print("...could not save the state")
+            return
         if keycode == 109: #'m'
             self.switchInteractorContext()
             return

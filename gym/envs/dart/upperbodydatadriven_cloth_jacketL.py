@@ -80,7 +80,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
                                                           rendering=rendering,
                                                           screensize=(1080,720),
                                                           clothMeshFile="jacketmedium.obj",
-                                                          clothMeshStateFile = "endJacketSleeveR.obj",
+                                                          clothMeshStateFile = "startJacketSleeveL.obj",
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
@@ -339,7 +339,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         '''
         self.set_state(qpos, qvel)
-        self.loadCharacterState(filename="characterState_endJacketSleeveR")
+        self.loadCharacterState(filename="characterState_startJacketSleeveL")
         self.restPose = qpos
 
         if self.handleNode is not None:
