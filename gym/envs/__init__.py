@@ -459,6 +459,18 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env',
+    #max_episode_steps=250,
+)
+
+register(
+    id='DartClothUpperBodyDataDrivenJacketMaster-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothJacketMasterEnv',
+    #max_episode_steps=250,
+)
+
 #Multi-agent
 register(
     id='DartMultiAgent-v1',

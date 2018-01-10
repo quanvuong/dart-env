@@ -7,6 +7,7 @@ from gym.envs.dart.upperbodydatadriven_cloth_base import *
 import random
 import time
 import math
+import pickle
 
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
@@ -19,7 +20,35 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class Controller(object):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        self.env = env #needed to set env state variables on setup for use
+        self.name = name
+        prefix = os.path.dirname(os.path.abspath(__file__))
+        prefix = os.path.join(prefix, '../../../../rllab/data/local/experiment/')
+        if name is None:
+            self.name = policyfilename
+        self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
+        self.obs_subset = obs_subset #list of index,length tuples to slice obs for input
+
+    def query(self, obs):
+        obs_subset = np.array([])
+        for s in self.obs_subset:
+            obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
+        a, a_info = self.policy.get_action(obs_subset)
+        return a
+
+    def setup(self):
+        print("base setup ... overwrite this for specific control requirements")
+        #TODO: subclasses for setup requirements
+
+    def update(self):
+        print("default update")
+        #TODO: subclasses update targets, etc...
+
+
+
+class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
@@ -59,7 +88,6 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         self.limbProgress = 0
         self.previousDeformationReward = 0
         self.handFirst = False #once the hand enters the feature, switches to true
-        self.state_save_directory = "saved_control_states/"
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -108,6 +136,10 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
 
     def _getFile(self):
         return __file__
+
+    def saveObjState(self):
+        print("Trying to save the object state")
+        self.clothScene.saveObjState("objState", 0)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
