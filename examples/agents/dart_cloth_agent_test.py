@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = ""
+
     #trial = "experiment_2018_01_08_distribution_rightTuck_warm"
 
     #trial = "experiment_2018_01_06_jacketR2"

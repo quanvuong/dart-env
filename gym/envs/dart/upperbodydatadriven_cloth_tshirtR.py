@@ -225,7 +225,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         # reward for maintaining posture
         reward_upright = 0
         if self.uprightReward:
-            reward_upright = -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1])
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+
         reward_oracleDisplacement = 0
         if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
             # world_ef_displacement = wRFingertip2 - wRFingertip1
@@ -233,6 +234,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2 + self.prevOracle) - localRightEfShoulder2
             # oracle0 = oracle0/np.linalg.norm(oracle0)
             reward_oracleDisplacement += relative_displacement.dot(oracle0)
+
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
             z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
