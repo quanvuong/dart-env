@@ -25,7 +25,8 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
-        self.assist_timeout = 2.0
+        self.assist_timeout = 200.0
+        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 750]], [6.0, [1125, 562.5]]]
 
         self.init_push = False
 
@@ -44,7 +45,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.05
+        self.energy_weight = 0.1
 
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
@@ -150,6 +151,19 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
+            self.final_tv - self.init_tv) + self.init_tv
+
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
+
         if self.t < self.freefloat:
             self.dart_world.set_gravity(np.array([0, -(self.t / self.freefloat) * 9.8, 0]))
         else:
@@ -161,15 +175,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynode('h_torso').com()[2]
         angle = self.robot_skeleton.q[3]
 
-        pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd# + (
-                                               #      self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
-        self.vel_enforce_kp = self.init_vel_pd# + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
-        # print(self.current_pd)
-        # smoothly increase the target velocity
-        if self.smooth_tv_change:
-            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
-            self.final_tv - self.init_tv) + self.init_tv
+
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('h_torso').to_world(
