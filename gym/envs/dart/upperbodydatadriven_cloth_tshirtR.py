@@ -22,15 +22,15 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = True  # if true, contact ids are in obs
-        self.hapticsInObs   = True  # if true, haptics are in observation
+        self.contactIDInObs = False  # if true, contact ids are in obs
+        self.hapticsInObs   = False # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
 
         #reward flags
@@ -46,7 +46,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.hapticsAware               = True  # if false, 0's for haptic input
         self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
-        self.resetStateFromDistribution = True
+        self.resetStateFromDistribution = False
         self.resetDistributionPrefix = "saved_control_states/Right Tuck"
         self.resetDistributionSize = 16
 
@@ -351,8 +351,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.loadCharacterState(filename=charfname_ix)
 
         else:
-            self.loadCharacterState(filename="characterState_endDropGrip1")
-
+            self.set_state(qpos, qvel)
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
