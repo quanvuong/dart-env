@@ -13,17 +13,15 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
         self.action_scale = np.array([150.0]*15)
-        self.action_scale[[-1,-2,-7,-8]] = 60
-        self.action_scale[[0, 1, 2]] = 100
-        #self.action_scale = np.array([40,80,150, 150,60,80,120,60,60, 150,60,80,120,60,60])
-        self.action_scale = np.array([200, 200, 200, 250, 60, 80, 100, 60, 60, 250, 60, 80, 100, 60, 60])
+        self.action_scale = np.array([200.0, 200, 200, 250, 60, 80, 100, 60, 60, 250, 60, 80, 100, 60, 60])
+        #self.action_scale *= 1.5
         obs_dim = 41
 
         self.t = 0
         self.target_vel = 1.0
         self.init_tv = 0.0
-        self.final_tv = 1.5
-        self.tv_endtime = 1.5
+        self.final_tv = 4.0
+        self.tv_endtime = 3.0
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
@@ -31,6 +29,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.running_avg_rew_only = True
         self.avg_rew_weighting = []
         self.vel_cache = []
+        self.assist_timeout = 0
+        self.assist_prob = 1.0
+        self.assist_schedule = [[0.0, [0, 0]], [3.0, [0, 0.0]], [6.0, [0, 0]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -53,7 +54,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.1
+        self.energy_weight = 0.15
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True
@@ -118,12 +119,13 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         return tau
 
     def do_simulation(self, tau, n_frames):
+        provide_assist = np.random.random() < self.assist_prob
         for _ in range(n_frames):
-            if self.constrain_2d:
+            if self.constrain_2d and self.t < self.assist_timeout and provide_assist:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([0, 0, force]))
 
-            if self.enforce_target_vel and not self.hard_enforce:
+            if self.enforce_target_vel and not self.hard_enforce and self.t < self.assist_timeout and provide_assist:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
 
@@ -166,6 +168,15 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.treadmill_vel = (np.min([self.t, self.treadmill_tv_endtime]) / self.treadmill_tv_endtime) * (
                     self.treadmill_final_tv - self.treadmill_init_tv) + self.treadmill_init_tv
 
+        self.current_pd = self.init_balance_pd  # + (self.end_balance_pd - self.init_balance_pd)/self.pd_vary_end*pos_val
+        self.vel_enforce_kp = self.init_vel_pd  # + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end*pos_val
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
+
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
@@ -175,10 +186,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[1].com()[1]
         side_deviation = self.robot_skeleton.bodynodes[1].com()[2]
         angle = self.robot_skeleton.q[3]
-
-        pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd# + (self.end_balance_pd - self.init_balance_pd)/self.pd_vary_end*pos_val
-        self.vel_enforce_kp = self.init_vel_pd# + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end*pos_val
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynodes[1].to_world(np.array([0, 1, 0])) - self.robot_skeleton.bodynodes[1].to_world(np.array([0, 0, 0]))
@@ -233,6 +240,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - np.mean(np.append(self.vel_cache, append_vel))))
             else:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
+        if self.t < self.tv_endtime:
+            vel_rew *= 1.0
 
         action_pen = self.energy_weight * np.abs(a).sum()
         #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
@@ -240,7 +249,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         contact_pen = 0.2 * np.square(np.clip(l_foot_force, -1000, 1000) / 500.0).sum() + np.square(
             np.clip(r_foot_force, -1000, 1000) / 500.0).sum()
 
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - contact_pen
+        rot_pen = 0.5 * (abs(ang_cos_uwd))
+
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen# - contact_pen
         pos_rew = alive_bonus - deviation_pen
         neg_pen = vel_rew - action_pen
 

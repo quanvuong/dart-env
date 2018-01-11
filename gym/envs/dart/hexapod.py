@@ -11,19 +11,21 @@ from gym.envs.dart.parameter_managers import *
 class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 18, [-1.0] * 18])
-        self.action_scale = np.array([100,100,100,100,100,100, 100,100,100,100,100,100, 80,80,80,80,80,80])
+        self.action_scale = np.array([100.0,50,100,100,50,100, 100,50,100,100,50,100, 80,40,80,80,40,80])
+        self.action_scale *= 1.5
 
         obs_dim = 47
 
         self.t = 0
-        self.target_vel = 8.0
+        self.target_vel = 2.0
         self.init_tv = 0.0
-        self.final_tv = 8.0
-        self.tv_endtime = 5.0
+        self.final_tv = 2.0
+        self.tv_endtime = 2.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
+        self.assist_timeout = 2.0
 
         self.init_push = False
 
@@ -49,7 +51,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([1321, 660])
+        self.anchor_kp = np.array([2000, 1000])
 
         # state related
         self.contact_info = np.array([0, 0, 0, 0, 0, 0])
@@ -113,11 +115,11 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            if self.constrain_2d:
+            if self.constrain_2d and self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
 
-            if self.enforce_target_vel:
+            if self.enforce_target_vel and self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
             self.robot_skeleton.set_forces(tau)
@@ -246,9 +248,9 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (not body_hit_ground) and (height - self.init_height < 1.0) and (
+                    (not body_hit_ground or self.t < 0.5) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
-                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9 and not body_hit_ground)
+                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
         self.stepwise_rewards.append(reward)
         #print((height - self.init_height > -0.2), (height - self.init_height < 1.0), (
         #            abs(ang_cos_uwd) < 1.0))

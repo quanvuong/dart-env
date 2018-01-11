@@ -15,16 +15,16 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 250, 60, 150, 120, 60, 60, 250, 60, 150, 120, 60, 250, 250, 200, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 3.0
-        self.tv_endtime = 3.0
+        self.final_tv = 1.5
+        self.tv_endtime = 1.5
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -33,8 +33,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.push_timeout = 30.0  # do not provide pushing assistance after certain time
-        self.stage_learning = False
+        self.push_timeout = 1000.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 750.0]], [6.0, [1125, 562.5]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -88,8 +88,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
 
-        self.vel_reward_weight = 1.5
-        self.stride_weight = 15.0
+        self.vel_reward_weight = 3.0
+        self.stride_weight = 0.0
 
         self.init_qs = [
             np.array( [  5.15273987e+01, -8.04763020e-02,  3.86921801e-02, -1.78539281e-01,
@@ -226,7 +226,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            if self.constrain_2d:
+            force = 0
+            if self.constrain_2d and (self.t < self.push_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
 
@@ -247,6 +248,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 self.push_forces.append(force)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
             self.total_act_force += np.linalg.norm(tau)
+
             self.total_ass_force += np.abs(force)
 
             self.robot_skeleton.set_forces(tau)
@@ -296,6 +298,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.treadmill_vel = (np.min([self.t, self.treadmill_tv_endtime]) / self.treadmill_tv_endtime) * (
                     self.treadmill_final_tv - self.treadmill_init_tv) + self.treadmill_init_tv
 
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
 
         '''if self.use_ref_policy:
             current_q = np.copy(self.robot_skeleton.q)
@@ -332,23 +342,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynode('head').com()[1]
         side_deviation = self.robot_skeleton.bodynode('head').com()[2]
         angle = self.robot_skeleton.q[3]
-
-        #pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd #+ (
-                                             #        self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
-        self.vel_enforce_kp = self.init_vel_pd #+ (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
-
-        if self.stage_learning:
-            # reduce spd gain at 5 second and 10 second
-            #if self.t > self.tv_endtime:
-            #    self.vel_enforce_kp *= (15.0 - self.t) / (15.0 - self.tv_endtime)
-            if self.t > 6:
-                self.current_pd *= 0.5
-                self.vel_enforce_kp *= 0.5
-
-            if self.t > 11:
-                self.current_pd *= 0.5
-                self.vel_enforce_kp *= 0.5
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('head').to_world(
@@ -450,6 +443,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 vel_rew = -3.0 *vel_rew_scale* (np.abs(self.target_vel + self.treadmill_vel - np.mean(np.append(self.vel_cache, append_vel))))
             else:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.1
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
@@ -468,7 +463,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         #torso_vel_pen = 0.15*np.abs(self.robot_skeleton.bodynode('thorax').com_spatial_velocity()[0:3]).sum()
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen - dq_pen - contact_pen #+ stride_reward # - torso_vel_pen
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
 
@@ -561,8 +556,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = init_q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = init_dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         s = np.sign(np.random.random()-0.5) * self.np_random.uniform(low=.005, high=.05)
-        qpos[1] += s
-        qpos[7] -= s
+        #qpos[1] += s
+        #qpos[7] -= s
 
         if self.rand_target_vel:
             self.target_vel = np.random.uniform(0.8, 2.5)
