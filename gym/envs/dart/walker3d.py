@@ -12,9 +12,7 @@ import time
 class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*15,[-1.0]*15])
-        self.action_scale = np.array([150.0]*15)
         self.action_scale = np.array([200.0, 200, 200, 250, 60, 80, 100, 60, 60, 250, 60, 80, 100, 60, 60])
-        #self.action_scale *= 1.5
         obs_dim = 41
 
         self.t = 0
@@ -29,9 +27,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.running_avg_rew_only = True
         self.avg_rew_weighting = []
         self.vel_cache = []
-        self.assist_timeout = 0
-        self.assist_prob = 1.0
-        self.assist_schedule = [[0.0, [0, 0]], [3.0, [0, 0.0]], [6.0, [0, 0]]]
+
+        self.assist_timeout = 0.0
+        self.assist_prob = 1.0 # probability of providing assistance
+        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1500, 750]], [7.5, [1125, 562.5]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -54,13 +53,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.15
+        self.energy_weight = 0.3
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 1000])
-        self.curriculum_step_size = 0.1 # 10%
-        self.min_curriculum_step = 50 # include (0, 0) if distance between anchor point and origin is smaller than this value
+        self.anchor_kp = np.array([2000, 1000]) * 1.0
 
         # state related
         self.contact_info = np.array([0, 0])
@@ -232,8 +229,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.treadmill:
             if self.running_avg_rew_only:
                 vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+                if self.t < self.tv_endtime:
+                    vel_rew *= 0.1
             else:
-                vel_diff = np.abs(self.target_vel - vel)
+                vel_rew = -self.vel_reward_weight * np.abs(self.target_vel - vel).sum()
         else:
             if self.running_avg_rew_only:
                 append_vel = np.ones(int(1.0/self.dt) - len(self.vel_cache)) * (self.target_vel + self.treadmill_vel)
@@ -243,13 +242,17 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.t < self.tv_endtime:
             vel_rew *= 1.0
 
+        '''if self.t < 1.0:
+            self.energy_weight = 0.3
+        else:
+            self.energy_weight = 0.5'''
         action_pen = self.energy_weight * np.abs(a).sum()
         #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
         contact_pen = 0.2 * np.square(np.clip(l_foot_force, -1000, 1000) / 500.0).sum() + np.square(
             np.clip(r_foot_force, -1000, 1000) / 500.0).sum()
 
-        rot_pen = 0.5 * (abs(ang_cos_uwd))
+        rot_pen = 0.0 * (abs(ang_cos_uwd))
 
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen# - contact_pen
         pos_rew = alive_bonus - deviation_pen

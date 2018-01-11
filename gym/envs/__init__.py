@@ -366,7 +366,7 @@ register(
 register(
     id='DartWalker3dSPD-v1',
     entry_point='gym.envs.dart:DartWalker3dSPDEnv',
-    max_episode_steps=300,
+    max_episode_steps=900,
 )
 
 register(

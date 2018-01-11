@@ -83,7 +83,7 @@ class DartWalker3dSPDEnv(dart_env.DartEnv, utils.EzPickle):
             dart_env.DartEnv.__init__(self, 'walker3d_treadmill.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True)
         else:
-            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
+            dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 5, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
         # self.dart_world.set_collision_detector(3)
