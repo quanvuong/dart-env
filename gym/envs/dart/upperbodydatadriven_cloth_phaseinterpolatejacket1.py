@@ -148,16 +148,16 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -1500
+            return True, -2000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -2000
         elif self.simulateCloth: #terminate if sleeve slips off right arm
             sleeveSlipError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR[:3],
                                                   offset=None), feature=self.CP0Feature)
             if sleeveSlipError <= 0:
-                return True, -500
+                return True, -2000
         return False, 0
 
     def computeReward(self, tau):

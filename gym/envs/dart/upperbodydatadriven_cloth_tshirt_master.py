@@ -155,7 +155,8 @@ class MatchGripController(Controller):
 class RightSleeveController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,132), (172, 9), (132, 22)]
-        policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
+        #policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
+        policyfilename = "experiment_2018_01_09_tshirtR_dist_warm"
         name="Right Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
