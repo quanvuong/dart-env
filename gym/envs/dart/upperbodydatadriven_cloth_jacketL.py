@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -47,6 +47,10 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
+        self.resetStateFromDistribution = True
+        self.resetDistributionPrefix = "saved_control_states/jacketTransition"
+        self.resetDistributionSize = 16
+        self.state_save_directory = "saved_control_states/"
 
         #other variables
         self.prevTau = None
@@ -95,8 +99,8 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.CP2Feature = ClothFeature(verts=self.sleeveLMidVerts, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
-        #if self.simulateCloth:
-        #    self.handleNode = HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975]))
+        if self.simulateCloth:
+            self.handleNode = HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975]))
 
         if not renderCloth:
             self.clothScene.renderClothFill = False
@@ -123,10 +127,12 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
             self.CP2Feature.fitPlane()
 
         #update handle nodes
-        if self.handleNode is not None:
+        if self.handleNode is not None and self.numSteps < 1:
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
+        if self.numSteps > 0:
+            self.handleNode.clearHandles()
 
         fingertip = np.array([0.0, -0.095, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
@@ -339,7 +345,28 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         '''
         self.set_state(qpos, qvel)
-        self.loadCharacterState(filename="characterState_startJacketSleeveL")
+
+        if self.resetStateFromDistribution:
+            if self.reset_number == 0: #load the distribution
+                count = 0
+                objfname_ix = self.resetDistributionPrefix + "%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    #print(objfname_ix)
+                    self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
+                    objfname_ix = self.resetDistributionPrefix + "%05d" % count
+
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = 0
+            #resetStateNumber = self.reset_number%self.resetDistributionSize
+            #print(resetStateNumber)
+            charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.loadCharacterState(filename=charfname_ix)
+
+        else:
+            self.loadCharacterState(filename="characterState_startJacketSleeveL")
+
         self.restPose = qpos
 
         if self.handleNode is not None:

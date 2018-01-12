@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -49,6 +49,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states/JacketR"
         self.resetDistributionSize = 16
+        self.state_save_directory = "saved_control_states/"
 
         #other variables
         self.handleNode = None
@@ -110,10 +111,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
 
     def _getFile(self):
         return __file__
-
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here

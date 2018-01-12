@@ -313,7 +313,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         #find end effector targets and set restPose from solution
         fingertip = np.array([0, -0.095, 0])
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        print("left target: " + str(self.leftTarget))
+        #print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
 
         if self.resetStateFromDistribution:
