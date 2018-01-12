@@ -22,13 +22,13 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
-        self.oracleInObs    = False  # if true, oracle vector is in obs
+        self.oracleInObs    = True  # if true, oracle vector is in obs
         self.contactIDInObs = True  # if true, contact ids are in obs
         self.hapticsInObs   = True # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
@@ -46,9 +46,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.hapticsAware               = True  # if false, 0's for haptic input
         self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
-        self.resetStateFromDistribution = False
+        self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states/Right Tuck"
         self.resetDistributionSize = 16
+        self.state_save_directory = "saved_control_states/"
 
         #other variables
         self.prevTau = None
@@ -109,10 +110,6 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
     def _getFile(self):
         return __file__
-
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
@@ -346,6 +343,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 0
+            #resetStateNumber = self.reset_number%self.resetDistributionSize
+            #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)

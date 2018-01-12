@@ -239,6 +239,24 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.robot_skeleton.set_positions(qpos)
         f.close()
 
+    def saveCharacterRenderState(self, filename=None):
+        if filename is None:
+            filename = "characterRenderState"
+        #save the position and radius of each endpoint of each capsule for simple loading in Maya
+        CSI = self.clothScene.getCollisionSpheresInfo()
+        #info format: pos(3), radius, ignore(5)
+        CCI = self.clothScene.getCollisionCapsuleInfo()
+        #print("CSI: " + str(CSI))
+        #print("CCI: " + str(CCI))
+
+        f = open(filename, 'w')
+        for capix in range(len(CCI)):
+            for capix2 in range(len(CCI[capix])):
+                if CCI[capix][capix2] != 0:
+                    #this is a capsule
+                    f.write(str(CSI[capix*9:capix*9+4]) + " " + str(CSI[capix2*9:capix2*9+4]) + "\n")
+        f.close()
+
     def graphJointConstraintViolation(self, cix=1, pivotDof=8, otherDofs=[5,6,7], numPivotSamples=50, numOtherSamples=50, otherRange=(-1.0,1.0), counting=False):
         startTime = time.time()
         #print("graphJointConstraintViolation: collecting pivot samples")

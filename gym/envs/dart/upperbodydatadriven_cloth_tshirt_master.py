@@ -47,6 +47,10 @@ class Controller(object):
         print("default update")
         #TODO: subclasses update targets, etc...
 
+    def transition(self):
+        #return true when a controller detects task completion to transition to the next controller
+        return False
+
 class DropGripController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,154), (163,9)]
@@ -60,6 +64,14 @@ class DropGripController(Controller):
 
     def update(self):
         self.env.leftTarget = pyutils.getVertCentroid(verts=self.env.targetGripVertices, clothscene=self.env.clothScene) + pyutils.getVertAvgNorm(verts=self.env.targetGripVertices, clothscene=self.env.clothScene)*0.03
+
+    def transition(self):
+        efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
+        dist = np.linalg.norm(self.env.leftTarget - efL)
+        print("dist: " + str(dist))
+        if dist < 0.03:
+            return True
+        return False
 
 class RightTuckController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
@@ -304,6 +316,13 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         #update controller specific variables and produce
         if self.currentController is not None:
             self.controllers[self.currentController].update()
+            if self.controllers[self.currentController].transition():
+                changed = self.currentController
+                self.currentController = min(len(self.controllers)-1, self.currentController+1)
+                changed = (changed != self.currentController)
+                if changed:
+                    self.controllers[self.currentController].setup()
+                    self.controllers[self.currentController].update()
             obs = self._get_obs()
             self.additionalAction = self.controllers[self.currentController].query(obs)
 
