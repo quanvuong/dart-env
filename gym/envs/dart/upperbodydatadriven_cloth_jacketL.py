@@ -51,6 +51,10 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.resetDistributionPrefix = "saved_control_states/jacketTransition"
         self.resetDistributionSize = 16
         self.state_save_directory = "saved_control_states/"
+        self.curriculumBias = 0.5 #chance that a curriculum initialization is used
+        self.curriculumSet = [6,8]
+        if self.curriculumBias > 0:
+            print("Using a curriculum bias of " + str(self.curriculumBias))
 
         #other variables
         self.prevTau = None
@@ -356,7 +360,15 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
                     self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
-            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            resetStateNumber = -1
+            if self.curriculumBias > 0:
+                prob = random.random()
+                if prob < self.curriculumBias:
+                    resetStateNumber = random.randint(0, len(self.curriculumSet)-1)
+                    resetStateNumber = self.curriculumSet[resetStateNumber]
+
+            if resetStateNumber < 0:
+                resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 0
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print(resetStateNumber)
@@ -402,8 +414,8 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
-                                          self.prevOracle+self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.075, 0.0])),
+                                          self.prevOracle+self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.075, 0.0])),
                                           ])
 
         if self.CP0Feature is not None:

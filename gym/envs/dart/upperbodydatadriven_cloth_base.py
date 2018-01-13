@@ -482,35 +482,35 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
     def reset_model(self):
         self.rewardTrajectory = []
         startTime = time.time()
-        try:
-            #print("reset")
-            self.cumulativeReward = 0
-            self.dart_world.reset()
-            self.clothScene.reset()
+        #try:
+        #print("reset")
+        self.cumulativeReward = 0
+        self.dart_world.reset()
+        self.clothScene.reset()
 
-            self.clothScene.setSelfCollisionDistance(0.03)
+        self.clothScene.setSelfCollisionDistance(0.03)
 
-            self.additionalResets()
+        self.additionalResets()
 
-            #update physx capsules
-            self.updateClothCollisionStructures(hapticSensors=True)
-            self.clothScene.clearInterpolation()
+        #update physx capsules
+        self.updateClothCollisionStructures(hapticSensors=True)
+        self.clothScene.clearInterpolation()
 
-            if self.recordROMPoints:
-                if len(self.ROMPoints) > 1:
-                    pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
+        if self.recordROMPoints:
+            if len(self.ROMPoints) > 1:
+                pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-            '''if self.numSteps > 0:
-                print("reset_model took " + str(time.time()-startTime))
-                for item in self.avgtimings.items():
-                    print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
-            '''
-            self.avgtimings = {}
-            self.reset_number += 1
-            self.numSteps = 0
-            return self._get_obs()
-        except:
-            print("Failed on reset " + str(self.reset_number))
+        '''if self.numSteps > 0:
+            print("reset_model took " + str(time.time()-startTime))
+            for item in self.avgtimings.items():
+                print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
+        '''
+        self.avgtimings = {}
+        self.reset_number += 1
+        self.numSteps = 0
+        return self._get_obs()
+        #except:
+        #    print("Failed on reset " + str(self.reset_number))
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
         a=0

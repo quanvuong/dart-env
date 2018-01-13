@@ -326,9 +326,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         fingertip = np.array([0.0, -0.065, 0.0])
         self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        #print("right target: " + str(self.rightTarget))
-        #print("left target: " + str(self.leftTarget))
+        print("right target: " + str(self.rightTarget))
+        print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
+        print(self.restPose)
 
         if self.resetStateFromDistribution:
             if self.reset_number == 0: #load the distribution
