@@ -238,8 +238,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 if self.const_force is None:
                     force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0,
                                            tvel * self.tvel_diff_perc)
-                    #if force < 0:
-                    #    force = 0
                 else:
                     if self.robot_skeleton.bodynode(self.push_target).dC[0] < tvel*0.5:
                         force = self.const_force
