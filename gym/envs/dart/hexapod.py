@@ -241,7 +241,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         if self.running_avg_rew_only:
             vel_rew = - 3.0 * np.abs(self.target_vel - np.mean(self.vel_cache))
         if self.t < self.tv_endtime:
-            vel_rew *= 1.0
+            vel_rew *= 0.1
 
         action_pen = self.energy_weight * np.abs(a).sum()# + 5e-2 * np.abs(a*self.robot_skeleton.dq[6:]).sum()
         deviation_pen = 3 * abs(side_deviation)

@@ -17,7 +17,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
         self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
 
         self.t = 0
@@ -407,7 +407,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enforce_target_vel = True
 
+<<<<<<< HEAD
         alive_bonus = 9.0#np.max([1.5 + self.final_tv * 0.5 * self.vel_reward_weight, 4.0])
+=======
+        alive_bonus = 4.0#1.5 + self.final_tv * 0.5 * self.vel_reward_weight
+>>>>>>> 2554f808deaca74df24a13593168d835b1f9afd0
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
         if self.pos_spd:
