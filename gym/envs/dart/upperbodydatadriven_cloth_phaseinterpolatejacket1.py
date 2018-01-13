@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -38,6 +38,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
+        self.clothPlacementReward       = True #reward closeness of efL to a vertex
 
         #other flags
         self.collarTermination = False  # if true, rollout terminates when collar is off the head/neck
@@ -93,6 +94,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             self.clothScene.addResetStateFrom(filename=name+".obj")'''
 
         #clothing features
+        self.clothPlacementVert = 183
         self.sleeveRVerts = [46, 697, 1196, 696, 830, 812, 811, 717, 716, 718, 968, 785, 1243, 783, 1308, 883, 990, 739, 740, 742, 1318, 902, 903, 919, 737, 1218, 736, 1217]
         self.sleeveRMidVerts = [1054, 1055, 1057, 1058, 1060, 1061, 1063, 1052, 1051, 1049, 1048, 1046, 1045, 1043, 1042, 1040, 1039, 734, 732, 733]
         self.sleeveREndVerts = [228, 1059, 229, 1062, 230, 1064, 227, 1053, 226, 1050, 225, 1047, 224, 1044, 223, 1041, 142, 735, 141, 1056]
@@ -219,6 +221,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
 
+        reward_clothplacement = 0
+        if self.clothPlacementReward:
+            vpos = self.clothScene.getVertexPos(cid=0,vid=self.clothPlacementVert) - self.clothScene.getVertNormal(cid=0,vid=self.clothPlacementVert)*0.02
+            lDist = np.linalg.norm(vpos - wLFingertip2)
+            reward_clothplacement = -lDist - lDist ** 2
+
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
@@ -226,7 +234,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
                       + reward_clothdeformation * 5 \
                       + reward_restPose*2 \
                       + reward_rightTarget \
-                      + reward_leftTarget
+                      + reward_leftTarget \
+                      + reward_clothplacement
         return self.reward
 
     def _get_obs(self):
@@ -398,6 +407,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
+
+        if self.clothPlacementReward:
+            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            renderUtils.setColor(color=[0, 1.0, 0])
+            vpos = self.clothScene.getVertexPos(cid=0,vid=self.clothPlacementVert) - self.clothScene.getVertNormal(cid=0,vid=self.clothPlacementVert)*0.02
+            renderUtils.drawSphere(pos=vpos, rad=0.02)
+            renderUtils.drawLineStrip(points=[vpos, efL])
 
         textHeight = 15
         textLines = 2
