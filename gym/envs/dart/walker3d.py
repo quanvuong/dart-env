@@ -18,7 +18,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 1.0
         self.init_tv = 0.0
-        self.final_tv = 4.0
+        self.final_tv = 5.0
         self.tv_endtime = 3.0
         self.smooth_tv_change = True
         self.rand_target_vel = False
@@ -294,7 +294,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                                   'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen,
                                   'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates,
                                   'done_return':done, 'dyn_model_id':0, 'state_index':0,
-                                  'contact_force': l_foot_force + r_foot_force}
+                                  'contact_force': l_foot_force + r_foot_force, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):
         state =  np.concatenate([

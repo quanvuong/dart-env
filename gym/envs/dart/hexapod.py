@@ -19,14 +19,14 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 2.0
         self.init_tv = 0.0
-        self.final_tv = 2.0
+        self.final_tv = 4.0
         self.tv_endtime = 2.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
-        self.assist_timeout = 200.0
-        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 750]], [6.0, [1125, 562.5]]]
+        self.assist_timeout = 0.0
+        self.assist_schedule = [[0.0, [474, 474]], [3.0, [355, 355]], [7.0, [260, 260]]]
 
         self.init_push = False
 
@@ -240,6 +240,8 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         vel_rew = - 0.2 * self.vel_reward_weight * vel_diff
         if self.running_avg_rew_only:
             vel_rew = - 3.0 * np.abs(self.target_vel - np.mean(self.vel_cache))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.1
 
         action_pen = self.energy_weight * np.abs(a).sum()# + 5e-2 * np.abs(a*self.robot_skeleton.dq[6:]).sum()
         deviation_pen = 3 * abs(side_deviation)
@@ -271,7 +273,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         return ob, reward, done, {'broke_sim': broke_sim, 'vel_rew': vel_rew, 'action_pen': action_pen,
                                   'deviation_pen': deviation_pen, 'curriculum_id': self.curriculum_id,
                                   'curriculum_candidates': self.spd_kp_candidates, 'done_return': done,
-                                  'dyn_model_id': 0, 'state_index': 0}
+                                  'dyn_model_id': 0, 'state_index': 0, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):
         state = np.concatenate([

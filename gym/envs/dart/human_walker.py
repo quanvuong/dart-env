@@ -15,16 +15,16 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.5
-        self.tv_endtime = 1.5
+        self.final_tv = 5.0
+        self.tv_endtime = 3.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -33,8 +33,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.push_timeout = 1000.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 750.0]], [6.0, [1125, 562.5]]]
+        self.push_timeout = 100.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = []#[[0.0, [2000, 1000]], [3.0, [1500, 750]], [6.0, [1125, 562.5]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -407,7 +407,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enforce_target_vel = True
 
-        alive_bonus = 4.0
+        alive_bonus = 4.0#1.5 + self.final_tv * 0.5 * self.vel_reward_weight
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
         if self.pos_spd:
@@ -455,7 +455,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
+        spine_pen = 0.8 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 1.5 * np.abs(self.robot_skeleton.q[3] + self.robot_skeleton.q[19])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
@@ -463,7 +463,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         #torso_vel_pen = 0.15*np.abs(self.robot_skeleton.bodynode('thorax').com_spatial_velocity()[0:3]).sum()
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen*0 - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
 
