@@ -218,8 +218,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_upright \
                       + reward_clothdeformation * 5 \
                       + reward_restPose \
-                      + reward_rightTarget \
-                      + reward_leftTarget
+                      + reward_rightTarget*3 \
+                      + reward_leftTarget*2
         return self.reward
 
     def _get_obs(self):
@@ -343,7 +343,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.recomputeOffsets()
 
-        self.rightTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        self.rightTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
 
 
         if self.simulateCloth:
@@ -369,6 +369,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        renderUtils.drawLines(pyutils.getRobotLinks(self.robot_skeleton,self.restPose))
 
         #render targets
         fingertip = np.array([0,-0.095,0])

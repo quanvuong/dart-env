@@ -36,6 +36,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.lockSpine = False
         self.additionalAction = np.zeros(22) #added to input action for step
 
+        #output for rendering controls
+        self.recordForRendering = False
+        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtR"
+
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
 
@@ -347,6 +351,15 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         startTime = time.time()
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
+
+        #save state for rendering
+        if self.recordForRendering:
+            fname = self.recordForRenderingOutputPrefix
+            objfname_ix = fname + "%05d" % self.numSteps
+            charfname_ix = fname + "_char%05d" % self.numSteps
+            self.saveObjState(filename=objfname_ix)
+            self.saveCharacterRenderState(filename=charfname_ix)
+
         #try:
         if self.graphViolation:
             if self.numSteps%self.violationGraphFrequency == 0:
