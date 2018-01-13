@@ -330,3 +330,4 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
+
