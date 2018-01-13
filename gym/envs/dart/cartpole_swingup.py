@@ -21,6 +21,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         self.avg_div = 0
         self.param_manager = CartPoleManager(self)
 
+        self.use_disc_ref_policy = False
+        self.disc_ref_weight = 0.001
+        self.disc_funcs = [] # vfunc, obs_disc, act_disc
+
         self.split_task_test = False
         self.tasks = TaskList(3)
         self.tasks.add_world_choice_tasks([0,1,2])
@@ -67,10 +71,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
-        # if a[0] > self.control_bounds[0][0] or a[0] < self.control_bounds[1][0]:
-        #    a[0] = np.sign(a[0])
-        # if np.abs(a[0]) > 1:
-        #    a[0] = np.sign(a[0])
+        prev_obs = self._get_obs()
 
         clamped_control = np.copy(a)
         for i in range(len(clamped_control)):
@@ -136,6 +137,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         reward = alive_bonus - ang_cost - quad_ctrl_cost - com_cost
         if ang_proc < 0.5:
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3 - np.abs(self.robot_skeleton.dq[1]), 0])
+
+        if self.use_disc_ref_policy:
+            if self.disc_funcs[1](self._get_obs()) in self.disc_funcs[0]:
+                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())]
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
@@ -204,8 +209,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
     def reset_model(self):
         self.total_dist = []
         self.dart_world.reset()
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qpos = self.robot_skeleton.q# + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq# + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         if self.np_random.uniform(0, 1) > 0.5:
             qpos[1] += np.pi
         else:

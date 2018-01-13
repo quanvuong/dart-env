@@ -15,16 +15,17 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 150, 60, 100, 80, 60, 60, 150, 60, 100, 80, 60, 150, 150, 100, 15,90,15, 30, 15,90,15, 30])
+        self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.5
-        self.tv_endtime = 1.0
+        self.final_tv = 5.0
+        self.tv_endtime = 3.0
+        self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
         self.running_avg_rew_only = True
@@ -32,8 +33,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.push_timeout = 30.0  # do not provide pushing assistance after certain time
-        self.stage_learning = False
+        self.push_timeout = 0.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1500, 750.0]], [7.0, [1125, 562.5]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -55,7 +56,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.2
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -88,6 +89,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.spd_kp_candidates = None
 
         self.vel_reward_weight = 3.0
+        self.stride_weight = 0.0
 
         self.init_qs = [
             np.array( [  5.15273987e+01, -8.04763020e-02,  3.86921801e-02, -1.78539281e-01,
@@ -173,11 +175,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.use_ref_policy = False
         self.ref_policy = None
-        self.ref_policy_curriculum = np.array([500, 250])
+        self.ref_policy_curriculum = np.array([2000, 1000])
         self.ref_strength_q = 0.005
         self.ref_strength_dq = 0.0005
-        self.ref_feat_strength = 0.2
-        self.ref_dfeat_strength = 0.02
+        self.ref_feat_strength = 0.25
+        self.ref_dfeat_strength = 0.025
         self.ref_trajs = []
         self.ref_features = []
         self.chosen_traj = [0, 0]
@@ -224,7 +226,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            if self.constrain_2d:
+            force = 0
+            if self.constrain_2d and (self.t < self.push_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
 
@@ -234,7 +237,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     tvel += self.treadmill_vel
                 if self.const_force is None:
                     force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.vel_enforce_kp, 0,
-                                           tvel)
+                                           tvel * self.tvel_diff_perc)
+                    #if force < 0:
+                    #    force = 0
                 else:
                     if self.robot_skeleton.bodynode(self.push_target).dC[0] < tvel*0.5:
                         force = self.const_force
@@ -243,6 +248,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 self.push_forces.append(force)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
             self.total_act_force += np.linalg.norm(tau)
+
             self.total_ass_force += np.abs(force)
 
             self.robot_skeleton.set_forces(tau)
@@ -292,6 +298,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.treadmill_vel = (np.min([self.t, self.treadmill_tv_endtime]) / self.treadmill_tv_endtime) * (
                     self.treadmill_final_tv - self.treadmill_init_tv) + self.treadmill_init_tv
 
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
 
         '''if self.use_ref_policy:
             current_q = np.copy(self.robot_skeleton.q)
@@ -329,23 +343,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynode('head').com()[2]
         angle = self.robot_skeleton.q[3]
 
-        #pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd #+ (
-                                             #        self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
-        self.vel_enforce_kp = self.init_vel_pd #+ (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
-
-        if self.stage_learning:
-            # reduce spd gain at 5 second and 10 second
-            #if self.t > self.tv_endtime:
-            #    self.vel_enforce_kp *= (15.0 - self.t) / (15.0 - self.tv_endtime)
-            if self.t > 6:
-                self.current_pd *= 0.5
-                self.vel_enforce_kp *= 0.5
-
-            if self.t > 11:
-                self.current_pd *= 0.5
-                self.vel_enforce_kp *= 0.5
-
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('head').to_world(
             np.array([0, 1, 0])) - self.robot_skeleton.bodynode('head').to_world(np.array([0, 0, 0]))
@@ -373,6 +370,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         stride_reward = 0.0
         l_foot_force = np.array([0.0, 0, 0])
         r_foot_force = np.array([0.0, 0, 0])
+        in_contact = False
         for contact in contacts:
             if contact.skel_id1 == contact.skel_id2:
                 self_colliding = True
@@ -382,11 +380,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[0] = 1
                     total_force_mag += np.linalg.norm(contact.force)
                     l_foot_force += contact.force
+                    in_contact = True
                     if self.t > self.tv_endtime:
                         if len(self.contact_locations[0]) > 0 and np.linalg.norm(self.contact_locations[0][-1] - self.robot_skeleton.bodynode('l-foot').C) > 0.2:
                             self.contact_locations[0].append(self.robot_skeleton.bodynode('l-foot').C)
-                            stride_reward = 5.0*(0.15 - np.abs(
-                                np.linalg.norm(self.contact_locations[0][-1] - self.contact_locations[0][-2]) - 3.2))
+                            stride_reward = self.stride_weight*(- np.abs(
+                                np.linalg.norm(self.contact_locations[0][-1] - self.contact_locations[0][-2]) - 1.2))
                         if len(self.contact_locations[0]) == 0:
                             self.contact_locations[0].append(self.robot_skeleton.bodynode('l-foot').C)
                 if contact.bodynode1 == self.robot_skeleton.bodynode(
@@ -394,20 +393,22 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[1] = 1
                     total_force_mag += np.linalg.norm(contact.force)
                     r_foot_force += contact.force
+                    in_contact = True
                     if self.t > self.tv_endtime:
                         if len(self.contact_locations[1]) > 0 and np.linalg.norm(self.contact_locations[1][-1] - self.robot_skeleton.bodynode('r-foot').C) > 0.2:
                             self.contact_locations[1].append(self.robot_skeleton.bodynode('r-foot').C)
-                            stride_reward = 5.0 * (0.15 - np.abs(
-                                np.linalg.norm(self.contact_locations[1][-1] - self.contact_locations[1][-2]) - 3.2))
+                            stride_reward = self.stride_weight * (- np.abs(
+                                np.linalg.norm(self.contact_locations[1][-1] - self.contact_locations[1][-2]) - 1.2))
 
                         if len(self.contact_locations[1]) == 0:
                             self.contact_locations[1].append(self.robot_skeleton.bodynode('r-foot').C)
-        if l_foot_force[0] + r_foot_force[0] < 0.0:
+        if in_contact:
             self.enforce_target_vel = True
         else:
             self.enforce_target_vel = True
 
-        alive_bonus = 4.0
+        alive_bonus = 9.0#np.max([1.5 + self.final_tv * 0.5 * self.vel_reward_weight, 4.0])
+
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
         if self.pos_spd:
@@ -422,7 +423,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 self.avg_rew_weighting.append(1)
 
         vel_rew_scale = 1.0
-        if len(self.vel_cache) > int(1.0/self.dt) and (self.running_average_velocity or self.running_avg_rew_only):
+        if len(self.vel_cache) > int(2.0/self.dt) and (self.running_average_velocity or self.running_avg_rew_only):
             self.vel_cache.pop(0)
             self.avg_rew_weighting.pop(0)
             self.target_vel_cache.pop(0)
@@ -433,8 +434,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.reference_trajectory is not None:
                 vel_rew = - np.exp(3.0*(np.abs(self.reference_trajectory[self.cur_step][0] - self.robot_skeleton.com()[0]**2)))
             elif self.running_average_velocity or self.running_avg_rew_only:
-                append_vel = np.zeros(int(1.0/self.dt) - len(self.vel_cache))
-                vel_rew = -3.0 * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+                vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
             else:
                 vel_diff = np.abs(self.target_vel - vel)
                 vel_rew = -3.0 * vel_diff
@@ -444,23 +444,27 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 vel_rew = -3.0 *vel_rew_scale* (np.abs(self.target_vel + self.treadmill_vel - np.mean(np.append(self.vel_cache, append_vel))))
             else:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.1
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
         # action_pen += 0.02 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 0.1 * (abs(ang_cos_uwd)) + 0.1 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
+        contact_pen = 0.5 * np.square(np.clip(l_foot_force, -2000, 2000)/ 1000.0).sum()+np.square(np.clip(r_foot_force, -2000, 2000)/ 1000.0).sum()
+
+        rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
+        spine_pen = 0.8 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3])
 
-        spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
+        #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
-        dq_pen = 0.000 * np.sum(np.square(self.robot_skeleton.dq[6:]))
+        dq_pen = 0.0 * np.sum(np.square(self.robot_skeleton.dq[6:]))
 
 
         #torso_vel_pen = 0.15*np.abs(self.robot_skeleton.bodynode('thorax').com_spatial_velocity()[0:3]).sum()
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen - dq_pen# + stride_reward# - torso_vel_pen
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen*0 - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
 
@@ -495,9 +499,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 ref_feat_rew -= self.ref_strength_dq * weight * np.sum(np.square(self.robot_skeleton.bodynode(k).dC - self.ref_features[self.chosen_traj[0]][self.chosen_traj[1] + self.cur_step][k][1]))
             reward += 1.0 + ref_reward + ref_feat_rew
 
-        height_in_range = (height - self.init_height > -0.4) and (height - self.init_height < 1.0)
-        ang_in_range = (abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0) and np.abs(angle) < 1.3 and np.abs(
-            self.robot_skeleton.q[5]) < 0.4
+
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height - self.init_height > -0.3) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.3)
@@ -521,8 +523,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                   'curriculum_candidates': self.spd_kp_candidates, 'done_return': done,
                                   'dyn_model_id': 0, 'state_index': 0, 'com': self.robot_skeleton.com(),
                                   'pos_rew': pos_rew, 'neg_pen': neg_pen, 'contact_locations':self.contact_locations,
-                                  'contact_force_x': l_foot_force[0] + r_foot_force[0],
-                                  'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew}
+                                  'contact_force': l_foot_force + r_foot_force,
+                                  'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):
         state = np.concatenate([
@@ -555,8 +557,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = init_q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = init_dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         s = np.sign(np.random.random()-0.5) * self.np_random.uniform(low=.005, high=.05)
-        qpos[1] += s
-        qpos[7] -= s
+        #qpos[1] += s
+        #qpos[7] -= s
 
         if self.rand_target_vel:
             self.target_vel = np.random.uniform(0.8, 2.5)
@@ -648,7 +650,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 self.use_ref_policy = True
                 self.reset()
             self.chosen_traj[0] = np.random.randint(len(self.ref_trajs))
-            self.chosen_traj[1] = np.random.randint(len(self.ref_trajs[self.chosen_traj[0]]) - self.max_eps_step_ref-1)
+            select_from_transit = np.random.randint(2) == 0
+            if select_from_transit:
+                self.chosen_traj[1] = np.random.randint(int(self.tv_endtime / self.dt))
+            else:
+                self.chosen_traj[1] = np.random.randint(int(self.tv_endtime / self.dt), len(self.ref_trajs[self.chosen_traj[0]]) - self.max_eps_step_ref-1)
             self.set_state_vector(self.ref_trajs[self.chosen_traj[0]][self.chosen_traj[1]])
             self.t = self.chosen_traj[1] * self.dt
 
@@ -658,3 +664,4 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.disableViewer:
             # self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
+

@@ -377,10 +377,10 @@
                 <transformation>0.03 0.47075 0.0 0 1.570796 0</transformation>
                 <inertia>
                     <mass>0.76</mass>
-                    <offset>0 0.0 -0.07</offset>
+                    <offset>0 0.0 0.07</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 -0.07 0 0 0</transformation>
+                    <transformation>0.0 0.0 0.07 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>r-clavicle.dae</file_name>
@@ -465,7 +465,7 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.8</lower>
+                        <lower>-2.3</lower>
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
@@ -516,7 +516,9 @@
                     </limit>
                     <dynamics>
                         <damping>5.0</damping>
-                        <stiffness>0.0</stiffness>
+                        <spring_rest_position>0.0</spring_rest_position>
+	                    <spring_stiffness>50.0</spring_stiffness>
+	                    <spring_damping>2.0</spring_damping>
                     </dynamics>
                 </axis>
                 <axis2>
@@ -551,7 +553,7 @@
                 </axis>
                 <axis2>
                     <limit>
-                        <lower>-1.8</lower>
+                        <lower>-2.3</lower>
                         <upper>0.6</upper>
                     </limit>
                     <dynamics>
@@ -603,6 +605,9 @@
                     <dynamics>
                         <damping>5.0</damping>
                         <stiffness>0.0</stiffness>
+                        <spring_rest_position>0.0</spring_rest_position>
+	                    <spring_stiffness>50.0</spring_stiffness>
+	                    <spring_damping>2.0</spring_damping>
                     </dynamics>
                 </axis>
                 <axis2>
@@ -732,7 +737,7 @@
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>1.5</init_pos>
+                <init_pos>0.0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
 
@@ -795,7 +800,7 @@
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
-                <init_pos>1.5</init_pos>
+                <init_pos>0.0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
         </skeleton>

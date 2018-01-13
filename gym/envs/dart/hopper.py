@@ -12,15 +12,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0])
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         self.avg_div = 0
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
+
+        self.use_disc_ref_policy = True
+        self.disc_ref_weight = 0.03
+        self.disc_funcs = []  # vfunc, obs_disc, act_disc
 
         self.state_index = 0
 
@@ -208,6 +212,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
+
+        if self.use_disc_ref_policy:
+            print(self.disc_funcs[0])
+            abc
+            if self.disc_funcs[1](self._get_obs()) in self.disc_funcs[0]:
+                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())]
+                print(self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())])
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
