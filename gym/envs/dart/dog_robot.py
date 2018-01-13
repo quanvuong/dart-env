@@ -11,20 +11,21 @@ from gym.envs.dart.parameter_managers import *
 class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 16, [-1.0] * 16])
-        self.action_scale = np.array([80,150,120,100, 80,150,120,100, 40.0, 130, 80, 60, 40,130,80, 60])
-        self.action_scale *= 1.3
+        self.action_scale = np.array([80,200,90,30, 80,200,90,30, 40.0, 170, 90, 30, 40,170,90, 30])
+        self.action_scale *= 1.5
 
         obs_dim = 43
 
         self.t = 0
-        self.target_vel = 2.0
+        self.target_vel = 1.0
         self.init_tv = 0.0
-        self.final_tv = 6.0
-        self.tv_endtime = 6.0
+        self.final_tv = 2.0
+        self.tv_endtime = 1.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
+        self.assist_timeout = 300.0
 
         self.init_push = False
 
@@ -33,7 +34,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.treadmill_vel = -self.init_tv
         self.treadmill_init_tv = -0.0
         self.treadmill_final_tv = -2.5
-        self.treadmill_tv_endtime = 3.0
+        self.treadmill_tv_endtime = 1.0
 
         self.running_avg_rew_only = True
 
@@ -69,7 +70,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
 
-        self.vel_reward_weight = 0.0
+        self.vel_reward_weight = 3.0
 
         dart_env.DartEnv.__init__(self, 'dog/dog_robot.skel', 15, obs_dim, self.control_bounds,
                                   disableViewer=True, dt=0.002)
@@ -125,12 +126,14 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            if self.constrain_2d:
+            if self.constrain_2d:# and self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
 
-            if self.enforce_target_vel:
+            if self.enforce_target_vel and self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.vel_enforce_kp, 0, self.target_vel)
+                #if force < 0.0:
+                #    force = 0.0
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([force, 0, 0]))
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -167,7 +170,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         posbefore = self.robot_skeleton.bodynode('h_torso').com()[0]
         self.advance(np.copy(a))
         posafter = self.robot_skeleton.bodynode('h_torso').com()[0]
-        height = self.robot_skeleton.bodynode('h_torso').com()[1]
+        height = self.robot_skeleton.bodynode('h_head').com()[1]
         side_deviation = self.robot_skeleton.bodynode('h_torso').com()[2]
         angle = self.robot_skeleton.q[3]
 
@@ -207,6 +210,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         total_force_mag = 0
         self.contact_info = np.array([0, 0, 0, 0])
         body_hit_ground = False
+        in_contact = False
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
             if contact.skel_id1 == contact.skel_id2:
@@ -226,26 +230,33 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[3] = 1
                 else:
                     body_hit_ground = True
+                in_contact = True
+        if in_contact:
+            self.enforce_target_vel = True
+        else:
+            self.enforce_target_vel = True
 
-        alive_bonus = 4.0
+        alive_bonus = 3.0
         vel = (posafter - posbefore) / self.dt
 
         self.vel_cache.append(vel)
         self.target_vel_cache.append(self.target_vel)
-        if len(self.vel_cache) > int(0.5 / self.dt):
+        if len(self.vel_cache) > int(1.0 / self.dt):
             self.vel_cache.pop(0)
             self.target_vel_cache.pop(0)
 
         vel_diff = np.abs(self.target_vel - vel)
         vel_rew = - 0.2 * self.vel_reward_weight * vel_diff
         if self.running_avg_rew_only:
-            vel_rew = - 3.0 * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+            vel_rew = - self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.1
 
         action_pen = self.energy_weight * np.abs(a).sum()# + 5e-2 * np.abs(a*self.robot_skeleton.dq[6:]).sum()
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 0.5 * (abs(ang_cos_uwd)) + 0.5 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
-        dq_pen = 0.0001 * np.sum(np.square(self.robot_skeleton.dq[6:]))
+        rot_pen = 0.5 * (abs(ang_cos_fwd))
+        dq_pen = 0.0 * np.sum(np.square(self.robot_skeleton.dq[6:]))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - dq_pen
 
         self.t += self.dt
@@ -254,7 +265,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.2) and (height - self.init_height < 1.0) and (
+                    (height - self.init_height > -0.25) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9 and not body_hit_ground)
         self.stepwise_rewards.append(reward)
@@ -288,7 +299,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reset_model(self):
         self.dart_world.reset()
-        self.init_height = self.robot_skeleton.bodynode('h_torso').C[1]
+        self.init_height = self.robot_skeleton.bodynode('h_head').C[1]
 
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
