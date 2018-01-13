@@ -17,15 +17,16 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 47
 
         self.t = 0
-        self.target_vel = 1.0
+        self.target_vel = 2.0
         self.init_tv = 0.0
-        self.final_tv = 2.0
+        self.final_tv = 4.0
         self.tv_endtime = 2.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
-        self.assist_timeout = 2.0
+        self.assist_timeout = 300.0
+        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125, 1125]]]
 
         self.init_push = False
 
@@ -44,14 +45,14 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.09
+        self.energy_weight = 0.3
 
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 1000])
+        self.anchor_kp = np.array([2000, 2000])
 
         # state related
         self.contact_info = np.array([0, 0, 0, 0, 0, 0])
@@ -150,6 +151,19 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
+            self.final_tv - self.init_tv) + self.init_tv
+
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
+
         if self.t < self.freefloat:
             self.dart_world.set_gravity(np.array([0, -(self.t / self.freefloat) * 9.8, 0]))
         else:
@@ -161,15 +175,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         side_deviation = self.robot_skeleton.bodynode('h_torso').com()[2]
         angle = self.robot_skeleton.q[3]
 
-        pos_val = np.min([np.max([0, posafter]), self.pd_vary_end])
-        self.current_pd = self.init_balance_pd# + (
-                                               #      self.end_balance_pd - self.init_balance_pd) / self.pd_vary_end * pos_val
-        self.vel_enforce_kp = self.init_vel_pd# + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end * pos_val
-        # print(self.current_pd)
-        # smoothly increase the target velocity
-        if self.smooth_tv_change:
-            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
-            self.final_tv - self.init_tv) + self.init_tv
+
 
         upward = np.array([0, 1, 0])
         upward_world = self.robot_skeleton.bodynode('h_torso').to_world(
@@ -223,11 +229,11 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
                 else:
                     body_hit_ground = True
 
-        alive_bonus = 2.0
+        alive_bonus = 7.0
         vel = (posafter - posbefore) / self.dt
 
         self.vel_cache.append(vel)
-        if len(self.vel_cache) > int(0.5 / self.dt):
+        if len(self.vel_cache) > int(2.0 / self.dt):
             self.vel_cache.pop(0)
 
         vel_diff = np.abs(self.target_vel - vel)
@@ -243,13 +249,14 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         rot_pen = 1.0 * (abs(ang_cos_uwd)) + 1.0 * (abs(ang_cos_fwd))  # + 0.5 * (abs(ang_cos_ltl))
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
+
         self.t += self.dt
         self.cur_step += 1
 
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (not body_hit_ground) and (height - self.init_height < 1.0) and (
+                    (not body_hit_ground or self.t < 0.5) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
                     and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
         self.stepwise_rewards.append(reward)
@@ -266,7 +273,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         return ob, reward, done, {'broke_sim': broke_sim, 'vel_rew': vel_rew, 'action_pen': action_pen,
                                   'deviation_pen': deviation_pen, 'curriculum_id': self.curriculum_id,
                                   'curriculum_candidates': self.spd_kp_candidates, 'done_return': done,
-                                  'dyn_model_id': 0, 'state_index': 0}
+                                  'dyn_model_id': 0, 'state_index': 0, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):
         state = np.concatenate([
@@ -323,3 +330,4 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[2] = -5.5
+

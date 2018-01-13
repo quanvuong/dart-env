@@ -34,7 +34,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
         self.push_timeout = 1000.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1600, 800.0]], [7.0, [1280, 640.0]]]
+        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1500, 750.0]], [7.0, [1125, 562.5]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -455,7 +455,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 0.01 * np.abs(self.robot_skeleton.q[20])
+        spine_pen = 0.8 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
@@ -463,7 +463,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         #torso_vel_pen = 0.15*np.abs(self.robot_skeleton.bodynode('thorax').com_spatial_velocity()[0:3]).sum()
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen*0 - spine_pen - dq_pen# - contact_pen #+ stride_reward # - torso_vel_pen
         pos_rew = vel_rew + alive_bonus - deviation_pen - rot_pen - spine_pen
         neg_pen = - action_pen
 
