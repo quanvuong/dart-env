@@ -39,6 +39,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
+        self.rightTargetAltitudeReward  = True #penalize right hand lower than target
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -212,6 +213,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
 
+        reward_rightTargetAltitude = 0
+        if self.rightTargetAltitudeReward:
+            reward_rightTargetAltitude = -(self.rightTarget[1]-wRFingertip2[1])
+            if reward_rightTargetAltitude > 0:
+                reward_rightTargetAltitude = 0
+            #print(reward_rightTargetAltitude)
+
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
@@ -219,7 +227,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_clothdeformation * 5 \
                       + reward_restPose \
                       + reward_rightTarget*3 \
-                      + reward_leftTarget*2
+                      + reward_leftTarget*2 \
+                      + reward_rightTargetAltitude*3
         return self.reward
 
     def _get_obs(self):
