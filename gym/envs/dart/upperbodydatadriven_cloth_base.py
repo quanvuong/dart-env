@@ -38,7 +38,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #output for rendering controls
         self.recordForRendering = False
-        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtR"
+        self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset

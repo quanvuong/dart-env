@@ -218,6 +218,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             reward_rightTargetAltitude = -(self.rightTarget[1]-wRFingertip2[1])
             if reward_rightTargetAltitude > 0:
                 reward_rightTargetAltitude = 0
+            else:
+                reward_rightTargetAltitude -= 0.5
             #print(reward_rightTargetAltitude)
 
         #print("reward_restPose: " + str(reward_restPose))
@@ -225,7 +227,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
                       + reward_clothdeformation * 5 \
-                      + reward_restPose \
+                      + reward_restPose*0.5 \
                       + reward_rightTarget*3 \
                       + reward_leftTarget*2 \
                       + reward_rightTargetAltitude*3

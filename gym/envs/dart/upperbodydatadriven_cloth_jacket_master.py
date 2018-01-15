@@ -264,10 +264,6 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
     def _getFile(self):
         return __file__
 
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
-
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         #update features

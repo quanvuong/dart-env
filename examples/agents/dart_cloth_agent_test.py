@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2018_01_13_phaseinterpolatejacket_clothplace_warm"
     #trial = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
-    trial = "experiment_2018_01_13_matchgrip_dist_warm2"
+    #trial = "experiment_2018_01_14_matchgrip_dist_warm3"
 
     #trial = "experiment_2018_01_12_jacketL_dist_warm"
     #trial = "experiment_2018_01_12_matchgrip_dist_warm"
