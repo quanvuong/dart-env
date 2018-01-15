@@ -226,11 +226,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 5 \
-                      + reward_restPose*0.5 \
-                      + reward_rightTarget*3 \
+                      + reward_clothdeformation * 3 \
+                      + reward_restPose*0.3 \
+                      + reward_rightTarget*4 \
                       + reward_leftTarget*2 \
-                      + reward_rightTargetAltitude*3
+                      + reward_rightTargetAltitude*4
         return self.reward
 
     def _get_obs(self):
