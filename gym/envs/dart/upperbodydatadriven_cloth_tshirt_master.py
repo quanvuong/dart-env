@@ -137,7 +137,8 @@ class LeftTuckController(Controller):
 class MatchGripController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,172)]
-        policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
+        #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
+        policyfilename = "experiment_2018_01_14_matchgrip_dist_lowpose"
         name="Match Grip"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
@@ -204,6 +205,48 @@ class RightSleeveController(Controller):
             self.env.handleNode.step()
         #limb progress
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.env.sleeveRSeamFeature)
+        a=0
+
+class LeftSleeveController(Controller):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        obs_subset = [(0,132), (172, 9), (132, 22)]
+        #policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
+        policyfilename = "experiment_2017_12_08_2ndSleeve_cont"
+        name="Left Sleeve"
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+    def setup(self):
+        self.env.fingertip = np.array([0, -0.065, 0])
+        #setup cloth handle
+        self.env.updateHandleNodeFrom = 7
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles()
+        self.env.handleNode = HandleNode(self.env.clothScene, org=np.array([0.05, 0.034, -0.975]))
+        self.env.handleNode.addVertices(verts=self.env.targetGripVertices)
+        self.env.handleNode.setOrgToCentroid()
+        self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+        self.env.handleNode.recomputeOffsets()
+
+        #geodesic
+        self.env.separatedMesh.initSeparatedMeshGraph()
+        self.env.separatedMesh.updateWeights()
+        self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveLMidFeature, oneSided=True, side=0, normalSide=0)
+
+        #feature/oracle setup
+        self.env.focusFeature = self.env.sleeveLMidFeature  # if set, this feature centroid is used to get the "feature" obs
+        self.env.focusFeatureNode = 12  # if set, this body node is used to fill feature displacement obs
+        self.env.progressFeature = self.env.sleeveLSeamFeature  # if set, this feature is used to fill oracle normal and check arm progress
+        self.env.contactSensorIX = 21
+
+        a=0
+
+    def update(self):
+        if self.env.handleNode is not None:
+            if self.env.updateHandleNodeFrom >= 0:
+                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+            self.env.handleNode.step()
+        #limb progress
+        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.env.sleeveLSeamFeature)
         a=0
 
 class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
@@ -285,7 +328,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             RightTuckController(self),
             RightSleeveController(self),
             MatchGripController(self),
-            LeftTuckController(self)
+            LeftTuckController(self),
+            RightSleeveController(self)
         ]
         self.currentController = None
         self.stepsSinceControlSwitch = 0
