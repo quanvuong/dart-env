@@ -546,6 +546,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         csVars12 = np.array([0.04, -1, -1, 0,0,0])
         csVars13 = np.array([0.046, -1, -1, 0,0,0])
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
+
+        #inflate collision objects
+        #for i in range(int(len(collisionSpheresInfo)/9)):
+        #    collisionSpheresInfo[i*9 + 3] *= 1.15
+
         self.collisionSphereInfo = np.array(collisionSpheresInfo)
         #collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
         if np.isnan(np.sum(collisionSpheresInfo)): #this will keep nans from propagating into PhysX resulting in segfault on reset()

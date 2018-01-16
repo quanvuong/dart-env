@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering =  False
         clothSimulation = True
         renderCloth = True
 
@@ -39,6 +39,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
+        self.efTargetRewardTiering      = True
         self.rightTargetAltitudeReward  = True #penalize right hand lower than target
 
         #other flags
@@ -139,15 +140,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -1500
+            return True, -2500
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -2500
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 #print("collar term")
-                return True, -1500
+                return True, -2500
 
         return False, 0
 
@@ -199,19 +200,28 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
-        reward_rightTarget = 0
-        if self.rightTargetReward:
-            rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
-            reward_rightTarget = -rDist - rDist**2
-            '''if rDist < 0.02:
-                reward_rightTarget += 0.25'''
-
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
-            reward_leftTarget = -lDist - lDist**2
+            reward_leftTarget = -lDist - lDist ** 2
+            if self.efTargetRewardTiering:
+                if lDist > 0.1:
+                    reward_leftTarget -= 0.5
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
+
+        reward_rightTarget = 0
+        if self.rightTargetReward:
+            lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
+            rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
+            reward_rightTarget = -rDist - rDist**2
+            if self.efTargetRewardTiering:
+                if lDist > 0.1:
+                    reward_rightTarget = -1
+                elif rDist > 0.1:
+                    reward_rightTarget = -0.5
+            '''if rDist < 0.02:
+                reward_rightTarget += 0.25'''
 
         reward_rightTargetAltitude = 0
         if self.rightTargetAltitudeReward:
@@ -226,7 +236,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 3 \
+                      + reward_clothdeformation * 5 \
                       + reward_restPose*0.3 \
                       + reward_rightTarget*4 \
                       + reward_leftTarget*2 \
@@ -388,12 +398,14 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             renderUtils.setColor(color=[1.0,0,0])
+            renderUtils.drawSphere(pos=self.rightTarget,rad=0.1, solid=False)
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
             efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
+            renderUtils.drawSphere(pos=self.leftTarget,rad=0.1, solid=False)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         textHeight = 15
