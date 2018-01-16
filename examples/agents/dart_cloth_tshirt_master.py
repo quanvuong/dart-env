@@ -21,7 +21,7 @@ if __name__ == '__main__':
         o = env.reset()
         env.render()
 
-        rolloutHorizon = 2000
+        rolloutHorizon = 20000
         startTime = time.time()
         for j in range(rolloutHorizon):
             a = np.zeros(22) #placeholder action since master env contains its own policy
