@@ -246,7 +246,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             try:
                 print("trying to save state")
                 #fname = self.env.state_save_directory + self.env.controllers[self.env.currentController].name
-                fname = self.env.state_save_directory + "jacketTransition"
+                fname = self.env.state_save_directory + "matchgrip"
                 print(fname)
                 count = 0
                 objfname_ix = fname + "%05d" % count

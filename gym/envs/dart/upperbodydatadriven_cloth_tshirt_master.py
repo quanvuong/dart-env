@@ -68,8 +68,13 @@ class DropGripController(Controller):
     def transition(self):
         efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
         dist = np.linalg.norm(self.env.leftTarget - efL)
+<<<<<<< HEAD
         print("dist: " + str(dist))
         if dist < 0.035:
+=======
+        #print("dist: " + str(dist))
+        if dist < 0.03:
+>>>>>>> 8c245cbfacf9bb7fc340f16aefb1c84b932c7645
             return True
         return False
 
@@ -362,7 +367,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             RightSleeveController(self),
             MatchGripController(self),
             LeftTuckController(self),
-            RightSleeveController(self)
+            LeftSleeveController(self)
         ]
         self.currentController = None
         self.stepsSinceControlSwitch = 0

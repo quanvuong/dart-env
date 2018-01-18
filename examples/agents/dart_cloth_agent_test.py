@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2018_01_15_matchgrip_tiering"
     #trial = "experiment_2018_01_15_matchgrip_dist_xlowpose"
-    #trial = "experiment_2018_01_14_matchgrip_dist_lowpose"
+    #trial = "experiment_2018_01_14_matchgrip_dist_lowpose" #***
 
     #trial = "experiment_2018_01_13_phaseinterpolatejacket_clothplace_warm"
     #trial = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont" #***
 
     #trial = "experiment_2018_01_04_jacketR_cont"
-    #trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"      #***
+    trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"      #***
 
     #trial = "experiment_2018_01_04_jacketR"
     #trial = "experiment_2018_01_04_phaseinterpolate_toL"
