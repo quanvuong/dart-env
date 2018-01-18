@@ -87,6 +87,11 @@ class JacketRController(Controller):
             self.env.handleNode.step()
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.095,0])), feature=self.env.sleeveRFeature)
 
+    def transition(self):
+        if self.env.limbProgress > 0.7:
+            return True
+        return False
+
 class JacketLController(Controller):
     def __init__(self, env):
         obs_subset = [(0, 163)]
@@ -115,6 +120,11 @@ class JacketLController(Controller):
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.095,0])), feature=self.env.sleeveLFeature)
         a=0
 
+    def transition(self):
+        if self.env.limbProgress > 0.7:
+            return True
+        return False
+
 class PhaseInterpolateController(Controller):
     def __init__(self, env):
         obs_subset = [(0, 132), (141, 40)]
@@ -131,6 +141,17 @@ class PhaseInterpolateController(Controller):
 
     def update(self):
         a=0
+
+    def transition(self):
+        efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
+        efL = self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip)
+        distR = np.linalg.norm(efR-self.env.rightTarget)
+        distL = np.linalg.norm(efL-self.env.leftTarget)
+        distP = np.linalg.norm(self.env.restPose - self.env.robot_skeleton.q)
+        #print("distR " + str(distR) + " | distR " + str(distL) + " | distP " + str(distP))
+        if distR < 0.05 and distL < 0.05 and distP < 5.0:
+            return True
+        return False
 
 class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):

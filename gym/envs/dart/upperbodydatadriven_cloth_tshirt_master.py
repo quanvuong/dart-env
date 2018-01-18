@@ -69,7 +69,7 @@ class DropGripController(Controller):
         efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
         dist = np.linalg.norm(self.env.leftTarget - efL)
         print("dist: " + str(dist))
-        if dist < 0.03:
+        if dist < 0.035:
             return True
         return False
 
@@ -95,6 +95,7 @@ class RightTuckController(Controller):
         #setup ef targets
         self.rightTarget = np.array([-0.09569568,  0.14657749, -0.17376665])
         self.leftTarget = np.array([-0.07484753,  0.21876009, -0.26294776])
+        self.env.contactSensorIX = None
         a=0
 
     def update(self):
@@ -104,6 +105,26 @@ class RightTuckController(Controller):
             self.env.handleNode.step()
         a=0
 
+    def transition(self):
+        efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
+        efL = self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip)
+        shoulderR0 = self.env.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+        shoulderR1 = self.env.robot_skeleton.bodynodes[3].to_world(np.zeros(3))
+        shoulderR = (shoulderR0+shoulderR1)/2.0
+        v0 = efR-shoulderR
+        v1 = efL-shoulderR
+        v0Len = np.linalg.norm(v0)
+        v1Len = np.linalg.norm(v1)
+        v0 = v0/v0Len
+        v1 = v1/v1Len
+        CIDS = self.env.clothScene.getHapticSensorContactIDs()
+        print("v0.dot(v1): " + str(v0.dot(v1)) + " | v1Len > v2Len: " + str(v1Len > v0Len) + " | CID: " + str(CIDS[12]))
+        if v0.dot(v1) > 0.9:
+            if v1Len > v0Len+0.05:
+                if CIDS[12] >= 0.8:
+                    return True
+        return False
+
 class LeftTuckController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,172)]
@@ -112,6 +133,7 @@ class LeftTuckController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
+        self.env.contactSensorIX = None
         self.env.fingertip = np.array([0, -0.065, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
@@ -125,6 +147,7 @@ class LeftTuckController(Controller):
         #setup ef targets
         self.rightTarget = np.array([ 0.07219914,  0.02462782, -0.37559271])
         self.leftTarget = np.array([ 0.06795917, -0.02272099, -0.12309984])
+        #self.env.contactSensorIX = 21
         a=0
 
     def update(self):
@@ -207,6 +230,11 @@ class RightSleeveController(Controller):
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.env.sleeveRSeamFeature)
         a=0
 
+    def transition(self):
+        if self.env.limbProgress > 0.6:
+            return True
+        return False
+
 class LeftSleeveController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,132), (172, 9), (132, 22)]
@@ -248,6 +276,11 @@ class LeftSleeveController(Controller):
         #limb progress
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.env.sleeveLSeamFeature)
         a=0
+
+    def transition(self):
+        if self.env.limbProgress > 0.7:
+            return True
+        return False
 
 class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
