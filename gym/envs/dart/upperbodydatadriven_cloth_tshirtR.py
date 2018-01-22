@@ -264,6 +264,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         #penalize pose drift
         reward_SPD_smoothing = 0
         if self.SPDActionSpace and self.prevTau is not None:
+            #print("prevTau: " + str(self.prevTau))
             reward_SPD_smoothing = -np.linalg.norm(self.prevTau[:len(self.robot_skeleton.q)]-tau[:len(self.robot_skeleton.q)])
 
         #penalize recurrency drift
@@ -374,7 +375,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.prevTau = None
         self.SPDTarget = None
 
-        if self.resetStateFromDistribution or True:
+        if self.resetStateFromDistribution:
             if self.reset_number == 0: #load the distribution
                 count = 0
                 objfname_ix = self.resetDistributionPrefix + "%05d" % count
@@ -389,10 +390,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
-            #self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
-            self.restPose = np.array(self.robot_skeleton.q)
-            self.set_state(qpos, qvel)
+            #self.restPose = np.array(self.robot_skeleton.q)
+            #self.set_state(qpos, qvel)
         else:
             self.set_state(qpos, qvel)
 
