@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -114,6 +114,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         if self.SPDActionSpace:
             self.SPDTarget = self.restPose
+            print("SPDTarget: " + str(self.SPDTarget))
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
