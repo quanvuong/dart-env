@@ -414,6 +414,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return 0
 
     def _step(self, a):
+        print("a: " + str(a))
         startTime = time.time()
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
