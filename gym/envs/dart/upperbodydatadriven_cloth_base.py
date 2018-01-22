@@ -48,7 +48,7 @@ class SPDController():
         self.qhat = np.array(self.target)
         if self.qhat is None:
             return np.zeros(self.skel.ndofs)
-        print("pose: " + str(self.skel.q) + " | target: " + str(self.qhat))
+        #print("pose: " + str(self.skel.q) + " | target: " + str(self.qhat))
         skel = self.skel
         p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
         d = -self.Kd.dot(skel.dq)
@@ -60,7 +60,7 @@ class SPDController():
         #invM = np.linalg.inv(A)
         #x = invM.dot(b)
         tau = p + d - self.Kd.dot(x) * self.h
-        print("tau_out: " + str(tau))
+        #print("tau_out: " + str(tau))
         return tau
 
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
@@ -419,7 +419,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return 0
 
     def _step(self, a):
-        print("a: " + str(a))
+        #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number == 0 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
@@ -455,14 +455,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #print(self.additionalAction)
         else:
             full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
-        print("full_control = " + str(full_control))
+        #print("full_control = " + str(full_control))
         clamped_control = np.array(full_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
-        print("clamped_control = " + str(clamped_control))
+        #print("clamped_control = " + str(clamped_control))
 
         if self.recordROMPoints:
             violation = self.dart_world.getMaxConstraintViolation()
@@ -496,7 +496,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         startTime2 = time.time()
         if self.SPDTarget is not None and self.SPD is not None:
             #print(self.additionalAction)
-            print("Additional Action: " + str(self.additionalAction))
+            #print("Additional Action: " + str(self.additionalAction))
             self.do_simulation(self.additionalAction, self.frame_skip)
         else:
             self.do_simulation(tau[:len(self.robot_skeleton.q)], self.frame_skip)

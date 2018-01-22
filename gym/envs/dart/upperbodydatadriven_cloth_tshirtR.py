@@ -149,7 +149,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 self.SPDTarget = np.array(self.prevTau[:len(self.robot_skeleton.q)])
             else:
                 self.SPDTarget = np.array(self.robot_skeleton.q)
-            print("SPDTarget: " + str(self.SPDTarget))
+            #print("SPDTarget: " + str(self.SPDTarget))
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -274,7 +274,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
 
         self.prevTau = np.array(tau)
-        print("tau: " + str(tau))
+        #print("tau: " + str(tau))
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
