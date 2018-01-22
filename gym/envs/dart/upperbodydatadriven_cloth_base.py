@@ -181,7 +181,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #rescaling actions for SPD
         if SPDActionSpace:
             for ix, dof in enumerate(self.robot_skeleton.dofs):
-                if dof.has_position_limit:
+                if dof.has_position_limit():
                     self.action_scale[ix] = 1.0
                     self.control_bounds[0][ix] = dof.position_upper_limit()
                     self.control_bounds[1][ix] = dof.position_lower_limit()
