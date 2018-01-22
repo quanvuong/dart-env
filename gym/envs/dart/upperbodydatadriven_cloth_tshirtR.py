@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -32,6 +32,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.contactIDInObs = False  # if true, contact ids are in obs
         self.hapticsInObs   = False # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
+        self.recurrency     = 0 #if > 0, specifies the number of recurrent features
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
@@ -43,6 +44,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.restPoseReward             = False
 
         #other flags
+        self.SPDActionSpace             = False  #if true, actions are SPD targets
         self.hapticsAware               = True  # if false, 0's for haptic input
         self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
@@ -52,7 +54,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.state_save_directory = "saved_control_states/"
 
         #other variables
-        self.prevTau = None
+        self.prevTau = None #previous action
         self.elbowFlairNode = 10
         self.maxDeformation = 30.0
         self.restPose = None
@@ -77,6 +79,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.contactIDInObs:
             observation_size += 22
 
+        observation_size += self.recurrency #add any recurrent stuff on the end
+
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=(1080,720),
@@ -85,7 +89,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=1.4,
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          recurrency=self.recurrency,
+                                                          SPDActionSpace=self.SPDActionSpace)
 
         #clothing features
         self.sleeveRVerts = [2580, 2495, 2508, 2586, 2518, 2560, 2621, 2529, 2559, 2593, 272, 2561, 2658, 2582, 2666, 2575, 2584, 2625, 2616, 2453, 2500, 2598, 2466]
@@ -105,6 +111,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.clothScene.renderClothFill = False
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
+
+        if self.SPDActionSpace:
+            self.SPDTarget = self.restPose
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -132,6 +141,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         fingertip = np.array([0.0, -0.065, 0.0])
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
+
+        if self.SPDActionSpace:
+            #self.SPDTarget = np.array(self.restPose)
+            if self.prevTau is not None:
+                self.SPDTarget = np.array(self.prevTau[:len(self.robot_skeleton.q)])
+            else:
+                self.SPDTarget = np.array(self.robot_skeleton.q)
+            #print(self.SPDTarget)
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -165,7 +182,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
 
-        self.prevTau = tau
+        #self.SPDTarget = tau[:len(tau)-self.recurrency]
+        #self.SPDTarget = np.zeros(len(self.robot_skeleton.q))
+
+        #print("prevTau: " + str(self.prevTau))
 
         reward_elbow_flair = 0
         if self.elbowFlairReward:
@@ -241,6 +261,18 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
+        #penalize pose drift
+        reward_SPD_smoothing = 0
+        if self.SPDActionSpace:
+            reward_SPD_smoothing = -np.linalg.norm(self.prevTau[:len(self.robot_skeleton.q)]-tau[:len(self.robot_skeleton.q)])
+
+        #penalize recurrency drift
+        reward_recurrency_stability = 0
+        if self.recurrency > 0:
+            reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
+
+        self.prevTau = np.array(tau)
+
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
                       + reward_limbprogress * 10 \
@@ -248,7 +280,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                       + reward_clothdeformation * 5 \
                       + reward_oracleDisplacement * 50 \
                       + reward_elbow_flair \
-                      + reward_restPose
+                      + reward_restPose \
+                      + reward_SPD_smoothing \
+                      + reward_recurrency_stability
         return self.reward
 
     def _get_obs(self):
@@ -314,6 +348,13 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             HSIDs = self.clothScene.getHapticSensorContactIDs()
             obs = np.concatenate([obs, HSIDs]).ravel()
 
+        #add recurrency if any
+        if self.recurrency > 0:
+            if self.prevTau is None:
+                obs = np.concatenate([obs, np.zeros(self.recurrency)]).ravel()
+            else:
+                obs = np.concatenate([obs, self.prevTau[-self.recurrency:]]).ravel()
+
         return obs
 
     def additionalResets(self):
@@ -330,8 +371,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.set_state(qpos, qvel)
         #self.loadCharacterState(filename="characterState_1starmin")
         self.restPose = qpos
+        self.prevTau = None
+        self.SPDTarget = None
 
-        if self.resetStateFromDistribution:
+        if self.resetStateFromDistribution or True:
             if self.reset_number == 0: #load the distribution
                 count = 0
                 objfname_ix = self.resetDistributionPrefix + "%05d" % count
@@ -346,9 +389,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
-            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            #self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
-
+            self.restPose = np.array(self.robot_skeleton.q)
+            self.set_state(qpos, qvel)
         else:
             self.set_state(qpos, qvel)
 
@@ -384,6 +428,11 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        # SPD pose rendering
+        if self.SPDTarget is not None:
+            links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.SPDTarget)
+            renderUtils.drawLines(lines=links)
 
         if self.CP0Feature is not None:
             self.CP0Feature.drawProjectionPoly()

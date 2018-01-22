@@ -19,6 +19,8 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
+from scipy.optimize import minimize
+
 import pickle
 
 class Controller(object):
@@ -29,7 +31,9 @@ class Controller(object):
         prefix = os.path.join(prefix, '../../../../rllab/data/local/experiment/')
         if name is None:
             self.name = policyfilename
-        self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
+        self.policy = None
+        if policyfilename is not None:
+            self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
         self.obs_subset = obs_subset #list of index,length tuples to slice obs for input
 
     def query(self, obs):
@@ -282,6 +286,166 @@ class LeftSleeveController(Controller):
             return True
         return False
 
+class SPDController(Controller):
+    def __init__(self, env, target=None):
+        obs_subset = []
+        policyfilename = None
+        name = "SPD"
+        self.target = target
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+        self.h = 0.02
+        self.skel = env.robot_skeleton
+        ndofs = self.skel.ndofs
+        self.qhat = self.skel.q
+        self.Kp = np.diagflat([400.0] * (ndofs))
+        self.Kd = np.diagflat([40.0] * (ndofs))
+        self.preoffset = 0.0
+
+    def setup(self):
+        #reset the target
+        cur_q = np.array(self.skel.q)
+        self.env.loadCharacterState(filename="characterState_regrip")
+        self.env.restPose = np.array(self.skel.q)
+        self.target = np.array(self.skel.q)
+        self.env.robot_skeleton.set_positions(cur_q)
+        a=0
+
+    def update(self):
+        if self.env.handleNode is not None:
+            if self.env.updateHandleNodeFrom >= 0:
+                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+            self.env.handleNode.step()
+        a=0
+
+    def transition(self):
+        pDist = np.linalg.norm(self.skel.q - self.env.restPose)
+        print(pDist)
+        if pDist < 0.1:
+            return True
+        return False
+
+    def query(self, obs):
+        #SPD
+        self.qhat = self.target
+        skel = self.skel
+        p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq)
+        b = -skel.c + p + d + skel.constraint_forces()
+        A = skel.M + self.Kd * self.h
+
+        x = np.linalg.solve(A, b)
+
+        #invM = np.linalg.inv(A)
+        #x = invM.dot(b)
+        tau = p + d - self.Kd.dot(x) * self.h
+        return tau
+
+class SPDIKController(Controller):
+    def __init__(self, env, target=None):
+        obs_subset = []
+        policyfilename = None
+        name = "SPDIK"
+        self.target = target
+        self.efL_target = None
+        self.efR_target = None
+        self.efL_start = None
+        self.efR_start = None
+        self.referencePose = None
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+        self.h = 0.02
+        self.skel = env.robot_skeleton
+        ndofs = self.skel.ndofs
+        self.qhat = self.skel.q
+        self.Kp = np.diagflat([400.0] * (ndofs))
+        self.Kd = np.diagflat([40.0] * (ndofs))
+        self.preoffset = 0.0
+
+    def setup(self):
+        #reset the target
+        cur_q = np.array(self.skel.q)
+        self.env.loadCharacterState(filename="characterState_regrip")
+        self.env.restPose = np.array(self.skel.q)
+        self.target = np.array(self.skel.q)
+        self.referencePose = np.array(self.skel.q)
+        self.efL_target = self.skel.bodynodes[12].to_world(self.env.fingertip)
+        self.efR_target = self.skel.bodynodes[7].to_world(self.env.fingertip)
+        self.env.robot_skeleton.set_positions(cur_q)
+        self.efL_start = self.skel.bodynodes[12].to_world(self.env.fingertip)
+        self.efR_start = self.skel.bodynodes[7].to_world(self.env.fingertip)
+        a=0
+
+    def f(self, x):
+        self.skel.set_positions(x)
+
+        lhsL = self.skel.bodynodes[12].to_world(self.env.fingertip)
+        rhsL = self.efL_start + (self.efL_target - self.efL_start) * min(self.env.stepsSinceControlSwitch / 100.0, 1.0)
+        self.env.leftTarget = rhsL
+
+        lhsR = self.skel.bodynodes[7].to_world(self.env.fingertip)
+        rhsR = self.efR_start + (self.efR_target - self.efR_start) * min(self.env.stepsSinceControlSwitch / 100.0, 1.0)
+        self.env.rightTarget = rhsR
+
+        return 0.5 * np.linalg.norm(lhsL - rhsL) ** 2 + 0.5 * np.linalg.norm(lhsR - rhsR) ** 2
+
+    def g(self, x):
+        self.skel.set_positions(x)
+
+        lhsL = self.skel.bodynodes[12].to_world(self.env.fingertip)
+        rhsL = self.efL_target
+        JL = self.skel.bodynodes[12].linear_jacobian()
+        gL = (lhsL - rhsL).dot(JL)
+
+        lhsR = self.skel.bodynodes[7].to_world(self.env.fingertip)
+        rhsR = self.efR_target
+        JR = self.skel.bodynodes[7].linear_jacobian()
+        gR = (lhsR - rhsR).dot(JR)
+
+        return gR+gL
+
+    def update(self):
+        if self.env.handleNode is not None:
+            if self.env.updateHandleNodeFrom >= 0:
+                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+            self.env.handleNode.step()
+
+        c_q = np.array(self.skel.q)
+        #TODO: IK to set self.target
+        res = minimize(self.f,
+                       x0=self.skel.positions(),
+                       jac=self.g,
+                       method="SLSQP")
+
+        self.target = np.array(self.skel.q)
+        self.target[:2] = self.referencePose[:2]
+        self.env.restPose = np.array(self.skel.q)
+        self.skel.set_positions(c_q)
+        a=0
+
+    def transition(self):
+        pDist = np.linalg.norm(self.skel.q - self.env.restPose)
+        #print(pDist)
+        #if pDist < 0.1:
+        #    return True
+        return False
+
+    def query(self, obs):
+        #SPD
+        self.qhat = self.target
+        skel = self.skel
+        p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq)
+        b = -skel.c + p + d + skel.constraint_forces()
+        A = skel.M + self.Kd * self.h
+
+        x = np.linalg.solve(A, b)
+
+        #invM = np.linalg.inv(A)
+        #x = invM.dot(b)
+        tau = p + d - self.Kd.dot(x) * self.h
+        return tau
+
 class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
@@ -360,7 +524,9 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             DropGripController(self),
             RightTuckController(self),
             RightSleeveController(self),
-            MatchGripController(self),
+            SPDController(self),
+            #SPDIKController(self),
+            #MatchGripController(self),
             LeftTuckController(self),
             LeftSleeveController(self)
         ]
@@ -530,6 +696,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
+        self.controllers[self.currentController].setup()
+
         if self.simulateCloth:
             self.collarFeature.fitPlane()
             self.sleeveRSeamFeature.fitPlane()
@@ -562,6 +730,11 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+
+        #restPose rendering
+        links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+        renderUtils.drawLines(lines=links)
 
         #render targets
         #fingertip = np.array([0,-0.065,0])

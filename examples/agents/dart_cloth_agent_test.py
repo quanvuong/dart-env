@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_01_16_Ltuck_warm_dist"
+    #trial = "experiment_2018_01_16_Ltuck_warm_dist"
 
     #trial = "experiment_2018_01_15_matchgrip_tiering"
     #trial = "experiment_2018_01_15_matchgrip_dist_xlowpose"
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont" #***
 
     #trial = "experiment_2018_01_04_jacketR_cont"
-    trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"      #***
+    #trial = "experiment_2018_01_04_phaseinterpolate_toL_cont"      #***
 
     #trial = "experiment_2018_01_04_jacketR"
     #trial = "experiment_2018_01_04_phaseinterpolate_toL"
@@ -123,13 +123,13 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
@@ -159,10 +159,10 @@ if __name__ == '__main__':
         for j in range(rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
-            a = np.zeros(22) #22 dof upper body
+            a = np.zeros(22+env.recurrency) #22 dof upper body
 
             #a = np.ones(22)
-            #a += np.random.uniform(-1,1,len(a))
+            a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''

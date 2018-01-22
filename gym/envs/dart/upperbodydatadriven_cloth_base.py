@@ -18,8 +18,53 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
+class SPDController():
+    def __init__(self, env, target=None):
+        self.name = "SPD"
+        self.target = target
+        self.env = env
+        self.h = 0.08
+        print(env)
+        self.skel = env.robot_skeleton
+        ndofs = self.skel.ndofs
+        self.qhat = self.skel.q
+        #self.Kp = np.diagflat([400.0] * (ndofs))
+        self.Kp = np.diagflat([200.0] * (ndofs))
+        #self.Kd = np.diagflat([40.0] * (ndofs))
+        self.Kd = np.diagflat([10.0] * (ndofs))
+        self.preoffset = 0.0
+
+    def setup(self):
+        #reset the target
+        cur_q = np.array(self.skel.q)
+        self.env.loadCharacterState(filename="characterState_regrip")
+        self.env.restPose = np.array(self.skel.q)
+        self.target = np.array(self.skel.q)
+        self.env.robot_skeleton.set_positions(cur_q)
+        a=0
+
+    def query(self):
+        #SPD
+        self.qhat = np.array(self.target)
+        if self.qhat is None:
+            return np.zeros(self.skel.ndofs)
+        #print("pose: " + str(self.skel.q) + " | target: " + str(self.qhat))
+        skel = self.skel
+        p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq)
+        b = -skel.c + p + d + skel.constraint_forces()
+        A = skel.M + self.Kd * self.h
+
+        x = np.linalg.solve(A, b)
+
+        #invM = np.linalg.inv(A)
+        #x = invM.dot(b)
+        tau = p + d - self.Kd.dot(x) * self.h
+        #print(tau)
+        return tau
+
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -35,6 +80,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.lockTorso = False
         self.lockSpine = False
         self.additionalAction = np.zeros(22) #added to input action for step
+        self.SPD = None #no target yet
+        self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
+        self.recurrency = recurrency
 
         #output for rendering controls
         self.recordForRendering = False
@@ -80,13 +128,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
 
         #22 dof upper body
-        self.action_scale = np.ones(len(self.actuatedDofs))*12
-        if 0 in self.actuatedDofs:
-            self.action_scale[self.actuatedDofs.tolist().index(0)] = 50
-        if 1 in self.actuatedDofs:
-            self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
+        self.action_scale = np.ones(len(self.actuatedDofs))
+        if not SPDActionSpace:
+            self.action_scale *= 12
+            if 0 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(0)] = 50
+            if 1 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
 
-        self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
+        if self.recurrency > 0:
+            self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
+
+        self.control_bounds = np.array([np.ones(len(self.actuatedDofs)+self.recurrency), np.ones(len(self.actuatedDofs)+self.recurrency)*-1])
 
         self.reset_number = 0 #debugging
         self.numSteps = 0
@@ -124,6 +177,19 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
+
+        #rescaling actions for SPD
+        if SPDActionSpace:
+            for ix, dof in enumerate(self.robot_skeleton.dofs):
+                if dof.has_position_limit:
+                    self.action_scale[ix] = 1
+                    self.control_bounds[0][ix] = dof.position_upper_limit()
+                    self.control_bounds[1][ix] = dof.position_lower_limit()
+                else:
+                    self.action_scale[ix] = 3.14
+                    self.control_bounds[0][ix] = 1
+                    self.control_bounds[1][ix] = -1
+            self.action_space = spaces.Box(self.control_bounds[1], self.control_bounds[0])
 
         #setup data-driven joint limits
         if self.dataDrivenJointLimts:
@@ -366,6 +432,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.graphJointConstraintViolation(counting=True)
 
         startTime2 = time.time()
+        self.additionalAction = np.zeros(len(self.robot_skeleton.q))
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation
         # print("updateBeforeSimulation took " + str(time.time() - startTime2))
@@ -374,8 +441,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
+        full_control = np.array(a)
 
-        full_control = a + self.additionalAction
+        if self.SPDTarget is not None and self.SPD is not None:
+            self.SPD.target = np.array(self.SPDTarget)
+            self.additionalAction += self.SPD.query()
+            #print(self.additionalAction)
+        else:
+            full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
         clamped_control = np.array(full_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -413,7 +486,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 tau[dof] = newtau[ix]
 
         startTime2 = time.time()
-        self.do_simulation(tau, self.frame_skip)
+        if self.SPDTarget is not None and self.SPD is not None:
+            #print(self.additionalAction)
+            self.do_simulation(self.additionalAction, self.frame_skip)
+        else:
+            self.do_simulation(tau[:len(self.robot_skeleton.q)], self.frame_skip)
         #print("do_simulation took " + str(time.time() - startTime2))
         try:
             self.avgtimings["do_simulation"] += time.time() - startTime2
@@ -491,6 +568,12 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.setSelfCollisionDistance(0.03)
 
         self.additionalResets()
+
+        #SPD
+        if self.SPD is None:
+            self.SPD = SPDController(env=self)
+        if self.SPDTarget is not None:
+            self.SPD.setup()
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
@@ -617,6 +700,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         textHeight = 15
         textLines = 2
+
+        # SPD pose rendering
+        if self.SPDTarget is not None:
+            links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.SPDTarget)
+            renderUtils.drawLines(lines=links)
 
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
