@@ -488,6 +488,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         startTime2 = time.time()
         if self.SPDTarget is not None and self.SPD is not None:
             #print(self.additionalAction)
+            print("Additional Action: " + str(self.additionalAction))
             self.do_simulation(self.additionalAction, self.frame_skip)
         else:
             self.do_simulation(tau[:len(self.robot_skeleton.q)], self.frame_skip)
