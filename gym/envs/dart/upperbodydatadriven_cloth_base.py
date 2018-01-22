@@ -60,7 +60,7 @@ class SPDController():
         #invM = np.linalg.inv(A)
         #x = invM.dot(b)
         tau = p + d - self.Kd.dot(x) * self.h
-        #print(tau)
+        print("tau_out: " + str(tau))
         return tau
 
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
