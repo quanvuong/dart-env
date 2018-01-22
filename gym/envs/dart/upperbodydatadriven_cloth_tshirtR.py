@@ -44,7 +44,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.restPoseReward             = False
 
         #other flags
-        self.SPDActionSpace             = False  #if true, actions are SPD targets
+        self.SPDActionSpace             = True  #if true, actions are SPD targets
         self.hapticsAware               = True  # if false, 0's for haptic input
         self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
@@ -263,12 +263,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         #penalize pose drift
         reward_SPD_smoothing = 0
-        if self.SPDActionSpace:
+        if self.SPDActionSpace and self.prevTau is not None:
             reward_SPD_smoothing = -np.linalg.norm(self.prevTau[:len(self.robot_skeleton.q)]-tau[:len(self.robot_skeleton.q)])
 
         #penalize recurrency drift
         reward_recurrency_stability = 0
-        if self.recurrency > 0:
+        if self.recurrency > 0 and self.prevTau is not None:
             reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
 
         self.prevTau = np.array(tau)
