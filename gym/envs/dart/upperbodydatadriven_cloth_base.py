@@ -449,12 +449,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #print(self.additionalAction)
         else:
             full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
+        print("full_control = " + str(full_control))
         clamped_control = np.array(full_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+        print("clamped_control = " + str(clamped_control))
 
         if self.recordROMPoints:
             violation = self.dart_world.getMaxConstraintViolation()
