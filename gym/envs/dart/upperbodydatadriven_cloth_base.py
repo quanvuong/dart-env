@@ -182,14 +182,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if SPDActionSpace:
             for ix, dof in enumerate(self.robot_skeleton.dofs):
                 if dof.has_position_limit:
-                    self.action_scale[ix] = 1
+                    self.action_scale[ix] = 1.0
                     self.control_bounds[0][ix] = dof.position_upper_limit()
                     self.control_bounds[1][ix] = dof.position_lower_limit()
                 else:
                     self.action_scale[ix] = 3.14
-                    self.control_bounds[0][ix] = 1
-                    self.control_bounds[1][ix] = -1
+                    self.control_bounds[0][ix] = 1.0
+                    self.control_bounds[1][ix] = -1.0
             self.action_space = spaces.Box(self.control_bounds[1], self.control_bounds[0])
+
+        print("action_space: " + str(self.action_space))
+        print("action_scale: " + str(self.action_scale))
+        print("control_bounds: " + str(self.control_bounds))
 
         #setup data-driven joint limits
         if self.dataDrivenJointLimts:
