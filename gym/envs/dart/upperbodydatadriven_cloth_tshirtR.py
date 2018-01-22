@@ -114,7 +114,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         if self.SPDActionSpace:
             self.SPDTarget = self.restPose
-            print("SPDTarget: " + str(self.SPDTarget))
+            #print("SPDTarget: " + str(self.SPDTarget))
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -149,7 +149,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 self.SPDTarget = np.array(self.prevTau[:len(self.robot_skeleton.q)])
             else:
                 self.SPDTarget = np.array(self.robot_skeleton.q)
-            #print(self.SPDTarget)
+            print("SPDTarget: " + str(self.SPDTarget))
         a=0
 
     def checkTermination(self, tau, s, obs):
