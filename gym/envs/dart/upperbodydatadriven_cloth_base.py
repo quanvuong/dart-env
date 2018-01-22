@@ -185,6 +185,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     self.action_scale[ix] = 1.0
                     self.control_bounds[0][ix] = dof.position_upper_limit()
                     self.control_bounds[1][ix] = dof.position_lower_limit()
+                    print("ix: " + str(ix) + " | control_bounds["+str(ix)+"]: " + str(self.control_bounds[0][ix]) + ", " + str(str(self.control_bounds[0][ix])))
                 else:
                     self.action_scale[ix] = 3.14
                     self.control_bounds[0][ix] = 1.0
