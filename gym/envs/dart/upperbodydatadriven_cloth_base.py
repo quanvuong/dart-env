@@ -48,7 +48,7 @@ class SPDController():
         self.qhat = np.array(self.target)
         if self.qhat is None:
             return np.zeros(self.skel.ndofs)
-        #print("pose: " + str(self.skel.q) + " | target: " + str(self.qhat))
+        print("pose: " + str(self.skel.q) + " | target: " + str(self.qhat))
         skel = self.skel
         p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
         d = -self.Kd.dot(skel.dq)
