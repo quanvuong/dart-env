@@ -274,6 +274,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
 
         self.prevTau = np.array(tau)
+        print("tau: " + str(tau))
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
