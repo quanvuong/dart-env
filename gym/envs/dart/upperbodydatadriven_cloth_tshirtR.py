@@ -160,20 +160,20 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -2000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -500
+            return True, -2000
         elif self.collarTermination and self.simulateCloth:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                                                  self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-                return True, -500
+                return True, -2000
         elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
             limbInsertionError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
                                                   offset=np.array([0, -0.065, 0])), feature=self.CP1Feature)
             if limbInsertionError > 0:
-                return True, -500
+                return True, -2000
         return False, 0
 
     def computeReward(self, tau):
