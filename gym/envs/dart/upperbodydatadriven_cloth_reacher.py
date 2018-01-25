@@ -37,13 +37,14 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.deformationPenalty         = False
         self.restPoseReward             = False
         self.rightTargetReward          = True
-        self.leftTargetReward           = True
+        self.leftTargetReward           = False
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
-        self.loadTargetsFromROMPositions = True
+        self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = True
         self.resetTime = 0
+        lockTorso = True #propogates to base init
 
         #other variables
         self.prevTau = None
@@ -54,6 +55,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
+        self.fingertip = np.array([0, -0.085, 0])
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -75,7 +77,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
                                                           #clothMeshStateFile = "tshirt_regrip5.obj",
                                                           clothScale=1.4,
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          lockTorso=lockTorso)
 
         self.simulateCloth = clothSimulation
         if not renderCloth:
@@ -86,16 +89,10 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
     def _getFile(self):
         return __file__
 
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
-
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
         a=0
@@ -113,9 +110,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
@@ -185,8 +181,6 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.065, 0.0])
-
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
         if self.prevTauObs:
@@ -205,21 +199,20 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
 
         return obs
 
     def additionalResets(self):
-        if self.resetTime > 0:
-            print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
+        #if self.resetTime > 0:
+        #    print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
@@ -229,6 +222,14 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
              -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
              -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
+        qpos = np.array(
+            [0.0, 0.0, 0.0, 0.0417594612642, -0.216284422731, -1.14434488306, -0.613819847484, -0.19183661181,
+             1.64144533307, -0.366033264149, 0.440320836661, 0.184004919565, -0.167344589737, 2.60562699827,
+             -2.25772194447, -0.704638070998, 0.836143731572, 0.601288853361, 0.34710833857, -0.0757870058661,
+             0.583700049691, 0.518503405051]
+        )
+        self.set_state(qpos, qvel)
+        #print(self.robot_skeleton.bodynodes[7].to_world(self.fingertip))
 
         if self.resetPoseFromROMPoints and len(self.ROMPoints) > 0:
             poseFound = False
@@ -258,6 +259,10 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
                 self.leftTarget = self.ROMPositions[ix][-3:] + self.np_random.uniform(low=-0.01, high=0.01, size=3)
                 if self.rightTarget[2] < 0 and self.leftTarget[2] < 0: #half-plane constraint on end effectors
                     targetFound = True
+        else:
+            #set explicit targets
+            self.rightTarget = np.array([-0.00612863, -0.00767233, -0.50477243])
+            a=0
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
@@ -275,14 +280,13 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render targets
-        fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
