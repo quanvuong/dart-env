@@ -37,14 +37,15 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.deformationPenalty         = False
         self.restPoseReward             = False
         self.rightTargetReward          = True
-        self.leftTargetReward           = False
+        self.leftTargetReward           = True
+        self.precision_bonus            = True #extra reward for precision on both arms
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = True
         self.resetTime = 0
-        lockTorso = True #propogates to base init
+        lockTorso = False #propogates to base init
 
         #other variables
         self.prevTau = None
@@ -154,22 +155,29 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
             reward_rightTarget = -rDist - rDist**2
-            if rDist < 0.02:
-                reward_rightTarget += 0.25
+            if rDist < 0.035:
+                reward_rightTarget += 1.
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             reward_leftTarget = -lDist - lDist**2
-            if lDist < 0.02:
-                reward_leftTarget += 0.25
+            if lDist < 0.035:
+                reward_leftTarget += 1.
+
+        #bonus reward for both targets
+        reward_bonus = 0
+        if self.precision_bonus:
+            if reward_rightTarget > 0 and reward_leftTarget > 0:
+                reward_bonus += 0.25
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
                       + reward_clothdeformation * 3 \
                       + reward_restPose \
                       + reward_rightTarget \
-                      + reward_leftTarget
+                      + reward_leftTarget \
+                      + reward_bonus
         return self.reward
 
     def _get_obs(self):
@@ -262,6 +270,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         else:
             #set explicit targets
             self.rightTarget = np.array([-0.00612863, -0.00767233, -0.50477243])
+            self.leftTarget = np.array([-0.01547349, -0.234461, -0.31316764])
             a=0
         self.set_state(qpos, qvel)
         self.restPose = qpos
@@ -283,12 +292,12 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
-            renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
+            renderUtils.drawSphere(pos=self.rightTarget,rad=0.035)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
             efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
-            renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
+            renderUtils.drawSphere(pos=self.leftTarget,rad=0.035)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         textHeight = 15

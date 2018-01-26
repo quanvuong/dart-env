@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_01_25_reacher_locked"
+    #trial = "experiment_2018_01_25_reacher_locked_R"
+
     #trial = "DartClothUpperBodyDataDrivenReacher-v1"
     #trial = "experiment_2018_01_24_SPD_test"
     #trial = "experiment_2018_01_22_timingtest"
