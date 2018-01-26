@@ -145,6 +145,7 @@ if __name__ == '__main__':
     policy = None
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
+        print(policy)
 
     print("about to run")
     paused = False
@@ -184,7 +185,10 @@ if __name__ == '__main__':
             '''
             #print(a)
             if policy is not None:
-                a, a_info = policy.get_action(o)
+                action, a_info = policy.get_action(o)
+                #print(a_info['mean'])
+                a = action
+                #a = a_info['mean']
             done = False
             if not paused or j==0:
                 s_info = env.step(a)
