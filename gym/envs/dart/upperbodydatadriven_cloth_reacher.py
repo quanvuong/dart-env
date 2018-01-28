@@ -32,13 +32,13 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.prevTauObs     = False  # if true, previous action in observation
 
         #reward flags
-        self.uprightReward              = False  #if true, rewarded for 0 torso angle from vertical
+        self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
         self.elbowFlairReward           = False
         self.deformationPenalty         = False
         self.restPoseReward             = False
         self.rightTargetReward          = True
         self.leftTargetReward           = True
-        self.precision_bonus            = True #extra reward for precision on both arms
+        self.precision_bonus            = False #extra reward for precision on both arms
         self.SPD_action_smoothing       = False #if true, penalize distance of action from previous action
         self.SPD_state_smoothing        = False #if true, penalize distance of action from current pose
 
@@ -48,7 +48,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = True
         self.resetTime = 0
-        lockTorso = True #propogates to base init
+        lockTorso = False #propogates to base init
 
         #other variables
         self.prevTau = None
@@ -145,6 +145,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         reward_upright = 0
         if self.uprightReward:
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+            reward_upright *= 80
 
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
@@ -158,8 +159,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         reward_rightTarget = 0
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
-            reward_rightTarget = -rDist - rDist**2
-            #reward_rightTarget = -rDist*100
+            #reward_rightTarget = -rDist - rDist**2
+            reward_rightTarget = -rDist*100
             if self.precision_bonus:
                 if rDist < 0.035:
                     reward_rightTarget += 1.
@@ -167,8 +168,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
-            reward_leftTarget = -lDist - lDist**2
-            #reward_leftTarget = -lDist*100
+            #reward_leftTarget = -lDist - lDist**2
+            reward_leftTarget = -lDist*100
             if self.precision_bonus:
                 if lDist < 0.035:
                     reward_leftTarget += 1.
@@ -178,6 +179,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if self.precision_bonus:
             if reward_rightTarget > 0 and reward_leftTarget > 0:
                 reward_bonus += 0.25
+
+        #print("rewards: upright="+str(reward_upright)+" | efL="+str(reward_leftTarget) + " | efR="+str(reward_rightTarget))
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright \

@@ -20,7 +20,11 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_01_25_reacher_locked"
+    #trial = "experiment_2018_01_26_2armreacher_unlocked_precise"
+    #trial = "experiment_2018_01_26_2armreacher_locked_precise"
+    trial = "experiment_2018_01_26_2armreacher_locked_superlinear"
+
+    #trial = "experiment_2018_01_25_reacher_locked"
     #trial = "experiment_2018_01_25_reacher_locked_R"
 
     #trial = "DartClothUpperBodyDataDrivenReacher-v1"
@@ -188,7 +192,7 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                #a = a_info['mean']
+                a = a_info['mean']
             done = False
             if not paused or j==0:
                 s_info = env.step(a)
