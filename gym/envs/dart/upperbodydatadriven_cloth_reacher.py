@@ -49,6 +49,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         self.resetPoseFromROMPoints = True
         self.resetTime = 0
         lockTorso = False #propogates to base init
+        gravity  = True
 
         #other variables
         self.prevTau = None
@@ -83,7 +84,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           SPDActionSpace=self.SPDActionSpace,
-                                                          lockTorso=lockTorso)
+                                                          lockTorso=lockTorso,
+                                                          gravity=gravity)
 
         self.simulateCloth = clothSimulation
         if not renderCloth:

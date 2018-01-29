@@ -20,9 +20,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_01_28_2armreacher_unlocked_upright"
+
     #trial = "experiment_2018_01_26_2armreacher_unlocked_precise"
     #trial = "experiment_2018_01_26_2armreacher_locked_precise"
-    trial = "experiment_2018_01_26_2armreacher_locked_superlinear"
+    #trial = "experiment_2018_01_26_2armreacher_locked_superlinear"
 
     #trial = "experiment_2018_01_25_reacher_locked"
     #trial = "experiment_2018_01_25_reacher_locked_R"

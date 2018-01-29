@@ -64,7 +64,7 @@ class SPDController():
         return tau
 
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -75,7 +75,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.avgtimings = {}
 
         #sim variables
-        self.gravity = False
+        self.gravity = gravity
         self.dataDrivenJointLimts = True
         self.lockTorso = lockTorso
         self.lockSpine = lockTorso
