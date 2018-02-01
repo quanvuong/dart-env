@@ -11,22 +11,22 @@ from gym.envs.dart.parameter_managers import *
 class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 16, [-1.0] * 16])
-        self.action_scale = np.array([80,200,90,30, 80,200,90,30, 40.0, 170, 90, 30, 40,170,90, 30])
-        self.action_scale *= 1.5
+        self.action_scale = np.array([80,200,160,30, 80,200,160,30, 40.0, 170, 160, 30, 40,170,160, 30])
+        self.action_scale *= 1.0
 
         obs_dim = 43
 
         self.t = 0
         self.target_vel = 1.0
         self.init_tv = 0.0
-        self.final_tv = 2.0
-        self.tv_endtime = 2.0
+        self.final_tv = 7.0
+        self.tv_endtime = 3.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
-        self.assist_timeout = 300.0
-        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 750.0]], [6.0, [1125, 562.5]]]
+        self.assist_timeout = 0.0
+        self.assist_schedule = [[0.0, [2000, 2000]], [4.5, [1500, 1500.0]], [7.5, [1125, 1125]]]
 
         self.init_push = False
 
@@ -50,7 +50,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         self.constrain_dcontrol = 1.0
         self.previous_control = None
 
-        self.energy_weight = 0.2
+        self.energy_weight = 0.35
 
         self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
@@ -127,7 +127,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            if self.constrain_2d:# and self.t < self.assist_timeout:
+            if self.constrain_2d and self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_torso'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('h_torso').add_ext_force(np.array([0, 0, force]))
 
@@ -241,7 +241,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enforce_target_vel = True
 
-        alive_bonus = 3.0
+        alive_bonus = 11.0
         vel = (posafter - posbefore) / self.dt
 
         self.vel_cache.append(vel)
@@ -255,12 +255,12 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         if self.running_avg_rew_only:
             vel_rew = - self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
         if self.t < self.tv_endtime:
-            vel_rew *= 0.1
+            vel_rew *= 0.5
 
         action_pen = self.energy_weight * np.abs(a).sum()
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 0.0 * (abs(ang_cos_fwd))
+        rot_pen = 1.5 * abs(self.robot_skeleton.q[3]) + 0.1 * abs(self.robot_skeleton.q[4]) + 0.8 * abs(self.robot_skeleton.q[5])
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
 
         self.t += self.dt
@@ -269,9 +269,11 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.25) and (height - self.init_height < 1.0) and (
-                    abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 2.0)
-                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9 and not body_hit_ground)
+                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
+                    abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
+                    and np.abs(angle) < 1.3
+                    and np.abs(self.robot_skeleton.q[3]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[5]) < 1.2
+                    and np.abs(side_deviation) < 0.9 and not body_hit_ground)
         self.stepwise_rewards.append(reward)
 
         ob = self._get_obs()

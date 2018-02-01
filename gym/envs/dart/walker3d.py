@@ -18,8 +18,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 1.0
         self.init_tv = 0.0
-        self.final_tv = 5.0
-        self.tv_endtime = 3.0
+        self.final_tv = 1.0
+        self.tv_endtime = 1.0
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
@@ -28,9 +28,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.avg_rew_weighting = []
         self.vel_cache = []
 
-        self.assist_timeout = 100.0
+        self.assist_timeout = 0.0
         self.assist_prob = 1.0 # probability of providing assistance
-        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1000, 500]], [7.5, [500, 250.0]]]
+        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [2000, 1000]], [6.0, [1125, 1125.0]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -53,11 +53,21 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.4
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True
-        self.anchor_kp = np.array([2000, 1000]) * 1.0
+        self.anchor_kp = np.array([0, 0]) * 1.0
+
+        self.learns_turning = True
+        self.observation_permutation = np.array(
+            [0.0001, -1, 2, -3, -4, -5, -6, 7, 14, -15, -16, 17, 18, -19, 8,
+             -9, -10, 11, 12, -13,
+             20, 21, -22, 23, -24, -25, -26, -27, 28, 35, -36, -37, 38, 39,
+             -40, 29, -30, -31, 32, 33,
+             -34, 42, 41, 43]),
+        self.action_permutation = np.array(
+            [-0.0001, -1, 2, 9, -10, -11, 12, 13, -14, 3, -4, -5, 6, 7, -8])
 
         # state related
         self.contact_info = np.array([0, 0])
@@ -95,6 +105,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 shapesize = bn.shapenodes[0].shape.size()
                 print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
         print('Total mass: ', self.robot_skeleton.mass())
+
+
 
         utils.EzPickle.__init__(self)
 
@@ -216,7 +228,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     self.contact_info[1] = 1
                     r_foot_force += contact.force
 
-        alive_bonus = 7.0
+        alive_bonus = 4.0
         vel = (posafter - posbefore) / self.dt
         self.vel_cache.append(vel)
         self.target_vel_cache.append(self.target_vel)
@@ -230,7 +242,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if self.running_avg_rew_only:
                 vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
                 if self.t < self.tv_endtime:
-                    vel_rew *= 0.1
+                    vel_rew *= 0.5
             else:
                 vel_rew = -self.vel_reward_weight * np.abs(self.target_vel - vel).sum()
         else:
@@ -269,8 +281,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 2.0) and (abs(ang_cos_fwd) < 2.0)
-                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
+                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
+                    and np.abs(angle) < 1.1 and np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(side_deviation) < 0.9)
 
         self.stepwise_rewards.append(reward)
 
@@ -291,9 +303,10 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         ob = self._get_obs()
  
         return ob, reward, done, {'pos_rew':pos_rew, 'neg_pen': neg_pen, 'broke_sim':broke_sim, 'pre_state':pre_state,
-                                  'vel_rew':vel_rew, 'action_pen':action_pen, 'deviation_pen':deviation_pen,
+                                  'vel_rew':vel_rew, 'action_pen':action_pen/self.energy_weight, 'deviation_pen':deviation_pen,
                                   'curriculum_id':self.curriculum_id, 'curriculum_candidates':self.spd_kp_candidates,
                                   'done_return':done, 'dyn_model_id':0, 'state_index':0,
+                                  'contact_forces': [l_foot_force, r_foot_force],
                                   'contact_force': l_foot_force + r_foot_force, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):

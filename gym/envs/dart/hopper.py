@@ -22,7 +22,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 11
         self.param_manager = hopperContactMassManager(self)
 
-        self.use_disc_ref_policy = True
+        self.use_disc_ref_policy = False
         self.disc_ref_weight = 0.03
         self.disc_funcs = []  # vfunc, obs_disc, act_disc
 
@@ -213,13 +213,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
 
-        if self.use_disc_ref_policy:
-            print(self.disc_funcs[0])
-            abc
-            if self.disc_funcs[1](self._get_obs()) in self.disc_funcs[0]:
-                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())]
-                print(self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())])
-
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
                     (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .2 or self.learn_acro))
@@ -266,8 +259,18 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step += 1
 
-        return ob, reward, done, {'model_parameters':self.param_manager.get_simulator_parameters(), 'vel_rew':(posafter - posbefore) / self.dt, 'action_rew':1e-3 * np.square(a).sum(), 'forcemag':1e-7*total_force_mag, 'done_return':done,
-                                  'state_act': state_act, 'next_state':self.state_vector()-state_pre, 'dyn_model_id':self.dyn_model_id, 'state_index':self.state_index}
+        envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(), 'vel_rew': (posafter - posbefore) / self.dt,
+         'action_rew': 1e-3 * np.square(a).sum(), 'forcemag': 1e-7 * total_force_mag, 'done_return': done,
+         'state_act': state_act, 'next_state': self.state_vector() - state_pre, 'dyn_model_id': self.dyn_model_id,
+         'state_index': self.state_index}
+        if self.use_disc_ref_policy:
+            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
+                ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
+                envinfo['sub_disc_ref_reward'] = ref_reward
+                reward += ref_reward
+                print(ref_reward/self.disc_ref_weight)
+
+        return ob, reward, done, envinfo
 
     def _get_obs(self):
         state =  np.concatenate([

@@ -23,7 +23,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         self.use_disc_ref_policy = False
         self.disc_ref_weight = 0.001
-        self.disc_funcs = [] # vfunc, obs_disc, act_disc
+        self.disc_funcs = [] # vfunc, obs_disc, act_disc, state_filter, state_unfilter
 
         self.split_task_test = False
         self.tasks = TaskList(3)
@@ -139,8 +139,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3 - np.abs(self.robot_skeleton.dq[1]), 0])
 
         if self.use_disc_ref_policy:
-            if self.disc_funcs[1](self._get_obs()) in self.disc_funcs[0]:
-                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self._get_obs())]
+            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
+                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
@@ -170,9 +170,16 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
             self.dart_world.skeletons[2].set_positions(self.jug_pos2)
             self.dart_world.skeletons[2].set_velocities(self.jug_vel2)
 
-        return ob, reward, done, {'model_parameters': self.param_manager.get_simulator_parameters(),
+        envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(),
                                   'state_act': state_act, 'next_state': self.state_vector() - state_pre
             , 'dyn_model_id': self.dyn_model_id, 'state_index': self.state_index}
+
+        if self.use_disc_ref_policy:
+            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
+                ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
+                envinfo['sub_disc_ref_reward'] = ref_reward
+
+        return ob, reward, done, envinfo
 
     def _get_obs(self):
         state = np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]).ravel()

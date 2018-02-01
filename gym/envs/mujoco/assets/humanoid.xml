@@ -25,7 +25,13 @@
         <geom condim="3" friction="1 .1 .1" material="MatPlane" name="floor" pos="0 0 0" rgba="0.8 0.9 0.8 1" size="20 20 0.125" type="plane"/>
         <!-- <geom condim="3" material="MatPlane" name="floor" pos="0 0 0" size="10 10 0.125" type="plane"/>-->
         <body name="torso" pos="0 0 1.4">
-            <joint armature="0" damping="0" limited="false" name="root" pos="0 0 0" stiffness="0" type="free"/>
+            <!-- <joint armature="0" damping="0" limited="false" name="root" pos="0 0 0" stiffness="0" type="free"/> -->
+            <joint axis="1 0 0" armature="0"  damping="0" name="root_sx" limited="false" stiffness="0" type="slide"/>
+            <joint axis="0 1 0" armature="0"  damping="0" name="root_sy" limited="false" stiffness="0" type="slide"/>
+            <joint axis="0 0 1" armature="0"  damping="0" name="root_sz" limited="false" ref="1.4" stiffness="0" type="slide"/>
+            <joint axis="1 0 0" armature="0"  damping="0" name="root_rx" limited="false" pos="0 0 1.4" stiffness="0" type="hinge"/>
+            <joint axis="0 1 0" armature="0"  damping="0" name="root_ry" limited="false" pos="0 0 1.4" stiffness="0" type="hinge"/>
+            <joint axis="0 0 1" armature="0"  damping="0" name="root_rz" limited="false" pos="0 0 1.4" stiffness="0" type="hinge"/>
             <geom fromto="0 -.07 0 0 .07 0" name="torso1" size="0.07" type="capsule"/>
             <geom name="head" pos="0 0 .19" size=".09" type="sphere" user="258"/>
             <geom fromto="-.01 -.06 -.12 -.01 .06 -.12" name="uwaist" size="0.06" type="capsule"/>

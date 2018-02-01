@@ -13,11 +13,11 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
-        obs_dim=21
+        obs_dim=16
         self.train_UP = False
         self.perturb_MP = False
         self.state_index = 0
-        self.split_task_test = True
+        self.split_task_test = False
         self.tasks = TaskList(3)
         self.tasks.add_world_choice_tasks([0, 1, 2])
         #self.tasks.add_world_choice_tasks([0, 0, 1, 1])
@@ -27,10 +27,10 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         if self.split_task_test:
             obs_dim += self.tasks.task_input_dim()
 
-        dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel']\
+        dart_env.DartEnv.__init__(self, ['reacher.skel']\
                                   , 4, obs_dim, self.control_bounds, disableViewer=True)
 
-        for world in self.dart_worlds:
+        '''for world in self.dart_worlds:
             for i, joint in enumerate(world.skeletons[-1].joints):
                 if i == 0:
                     limit = 6.20
@@ -38,7 +38,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
                     limit = 6.14
                 for dof in range(joint.num_dofs()):
                     joint.set_position_upper_limit(dof, limit)
-                    joint.set_position_lower_limit(dof, -limit)
+                    joint.set_position_lower_limit(dof, -limit)'''
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -74,7 +74,8 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         theta = self.robot_skeleton.q
         vec = self.robot_skeleton.bodynodes[-1].C - self.target
-        state = np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
+        #state = np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
+        state = np.concatenate([theta, self.robot_skeleton.dq, self.target, vec]).ravel()
 
         if self.split_task_test:
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
@@ -119,6 +120,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         fixed_targets = [np.array([0.7, 0, 0]), np.array([-0.4, 0, 0]), np.array([0, -0.6, 0]), np.array([0, 0.2, 0]), \
                          np.array([0, 0, -0.23]), np.array([0, 0, 0.95])]
         self.target = fixed_targets[np.random.randint(6)]
+        self.target = fixed_targets[0]
 
         self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
         

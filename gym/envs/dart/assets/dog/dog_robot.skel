@@ -80,7 +80,7 @@
                     <transformation>0.0 0 0.0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.4 0.18 0.12</size>
+                            <size>0.4 0.15 0.12</size>
                         </box>
                     </geometry>
                 </visualization_shape>
@@ -88,7 +88,31 @@
                     <transformation>0.0 0 0.0 0 0 0</transformation>
                     <geometry>
                         <box>
-                            <size>0.4 0.18 0.12</size>
+                            <size>0.4 0.15 0.12</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+            </body>
+
+            <body name="h_head2">
+                <transformation>0.75 1.17 0 0 0 0.0</transformation>
+                <inertia>
+                    <mass>0.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.35 0.18 0.12</size>
+                        </box>
+                    </geometry>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>0.35 0.18 0.12</size>
                         </box>
                     </geometry>
                 </collision_shape>
@@ -608,6 +632,10 @@
                 <child>h_head</child>
             </joint>
 
+            <joint type="weld" name = 'j_head2'>
+                <parent>h_head</parent>
+                <child>h_head2</child>
+            </joint>
 
             <!-- JOINT: Rear Right Leg -->
             <joint type="universal" name="j_rear_upper">
@@ -627,7 +655,7 @@
                 <axis2>
                     <xyz>0 0 1</xyz>
 		            <limit>
-                    	<lower>-0.8</lower>
+                    	<lower>-0.3</lower>
                     	<upper>1.4</upper>
                     </limit>
                     <dynamics>
@@ -701,7 +729,7 @@
                 <axis2>
                     <xyz>0 0 1</xyz>
 		            <limit>
-                    	<lower>-0.8</lower>
+                    	<lower>-0.3</lower>
                     	<upper>1.4</upper>
                     </limit>
                     <dynamics>

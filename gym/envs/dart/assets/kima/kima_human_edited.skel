@@ -380,7 +380,7 @@
                     <offset>0 0.0 0.07</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.0 0.07 0 0 0</transformation>
+                    <transformation>0.0 0.0 0.09 0 0 0</transformation>
                     <geometry>
                         <mesh>
                             <file_name>r-clavicle.dae</file_name>
@@ -430,6 +430,22 @@
                                 <position>0 -0.126875 0</position>
                             </sphere>
                         </multi_sphere>
+                    </geometry>
+                </visualization_shape>
+            </body>
+
+            <body name="r-attachment">
+                <transformation>0.205 -0.11375 0.0 0 0 0</transformation>
+                <inertia>
+                    <mass>0.0</mass>
+                    <offset>0 0.0 0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 -0.0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.0025 0.0025 0.0025</size>
+                        </ellipsoid>
                     </geometry>
                 </visualization_shape>
             </body>
@@ -803,6 +819,15 @@
                 <init_pos>0.0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
+
+
+            <joint name="j_forearm_right_attach" type="weld">
+                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
+                <parent>r-lowerarm</parent>
+                <child>r-attachment</child>
+            </joint>
+
+
         </skeleton>
     </world>
 </skel>

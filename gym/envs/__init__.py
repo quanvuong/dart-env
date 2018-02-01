@@ -322,6 +322,12 @@ register(
 )
 
 register(
+    id='DartPendulum-v1',
+    entry_point='gym.envs.dart:DartPendulumEnv',
+    max_episode_steps=500,
+)
+
+register(
     id='DartWalker2d-v1',
     entry_point='gym.envs.dart:DartWalker2dEnv',
     max_episode_steps=1000,

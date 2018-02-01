@@ -17,14 +17,14 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
         self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 5.0
-        self.tv_endtime = 3.0
+        self.final_tv = 1.5
+        self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -34,7 +34,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
         self.push_timeout = 0.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [2000, 1000]], [4.0, [1500, 750.0]], [7.0, [1125, 562.5]]]
+        self.assist_schedule = [[0.0, [8, 8]], [3.0, [6, 6.0]], [6.0, [0, 0]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -56,7 +56,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.2
+        self.energy_weight = 0.3
+        self.alive_bonus_rew = 9.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -405,7 +406,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enforce_target_vel = True
 
-        alive_bonus = 9.0#np.max([1.5 + self.final_tv * 0.5 * self.vel_reward_weight, 4.0])
+        alive_bonus = self.alive_bonus_rew#np.max([1.5 + self.final_tv * 0.5 * self.vel_reward_weight, 4.0])
 
         vel = (posafter - posbefore) / self.dt
         vel_rew = 0.0
@@ -443,7 +444,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             else:
                 vel_rew = -3.0 * (np.abs(self.target_vel + self.treadmill_vel - vel))
         if self.t < self.tv_endtime:
-            vel_rew *= 0.1
+            vel_rew *= 0.5
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
@@ -454,7 +455,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 0.8 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3])
+        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 0.8 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
@@ -499,9 +500,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.3) and (height - self.init_height < 1.0) and (
-                    abs(ang_cos_uwd) < 1.0) and (abs(ang_cos_fwd) < 1.3)
-                    and np.abs(angle) < 1.3 and np.abs(self.robot_skeleton.q[5]) < 0.4 and np.abs(side_deviation) < 0.9)
+                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
+                    abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
+                    and np.abs(angle) < 1.2 and
+                    np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2
+                    and np.abs(side_deviation) < 0.9)
 
         if self.use_ref_policy and self.cur_step > self.max_eps_step_ref:
             done = True
@@ -522,6 +525,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                   'dyn_model_id': 0, 'state_index': 0, 'com': self.robot_skeleton.com(),
                                   'pos_rew': pos_rew, 'neg_pen': neg_pen, 'contact_locations':self.contact_locations,
                                   'contact_force': l_foot_force + r_foot_force,
+                                  'contact_forces':[l_foot_force,r_foot_force],
                                   'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew, 'avg_vel':np.mean(self.vel_cache)}
 
     def _get_obs(self):
