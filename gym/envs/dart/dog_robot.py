@@ -260,7 +260,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
         action_pen = self.energy_weight * np.abs(a).sum()
         deviation_pen = 3 * abs(side_deviation)
 
-        rot_pen = 1.5 * abs(self.robot_skeleton.q[3]) + 0.1 * abs(self.robot_skeleton.q[4]) + 0.8 * abs(self.robot_skeleton.q[5])
+        rot_pen = 1.0 * abs(self.robot_skeleton.q[3]) + 0.5 * abs(self.robot_skeleton.q[4]) + 1.5 * abs(self.robot_skeleton.q[5])
         reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
 
         self.t += self.dt
@@ -274,6 +274,7 @@ class DartDogRobotEnv(dart_env.DartEnv, utils.EzPickle):
                     and np.abs(angle) < 1.3
                     and np.abs(self.robot_skeleton.q[3]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[5]) < 1.2
                     and np.abs(side_deviation) < 0.9 and not body_hit_ground)
+
         self.stepwise_rewards.append(reward)
 
         ob = self._get_obs()
