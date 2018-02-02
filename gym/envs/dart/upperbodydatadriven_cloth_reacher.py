@@ -102,6 +102,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
+        #print(self.numSteps)
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -113,6 +114,8 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             return True, -500
+        elif self.numSteps >= 100:
+            return True, 0
         return False, 0
 
     def computeReward(self, tau):
@@ -230,6 +233,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         return obs
 
     def additionalResets(self):
+        print("reset: " + str(self.reset_number))
         #if self.resetTime > 0:
         #    print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         self.resetTime = time.time()

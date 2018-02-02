@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_01_28_2armreacher_unlocked_upright"
+    #trial = "experiment_2018_01_28_2armreacher_unlocked_upright"
 
     #trial = "experiment_2018_01_26_2armreacher_unlocked_precise"
     #trial = "experiment_2018_01_26_2armreacher_locked_precise"
@@ -138,8 +138,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
-    env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
@@ -158,14 +158,14 @@ if __name__ == '__main__':
     time.sleep(0.5)
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
-    for i in range(50):
+    for i in range(100):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 100
+        rolloutHorizon = 30
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

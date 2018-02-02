@@ -77,7 +77,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
-        #reward -= 5e-1 * joint_limit_penalty
+        reward -= 5e-1 * joint_limit_penalty
         #reward -= 1e-7 * total_force_mag
 
         s = self.state_vector()
@@ -128,4 +128,5 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         return state
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -5.5
+        a=0
+        #self._get_viewer().scene.tb.trans[2] = -5.5
