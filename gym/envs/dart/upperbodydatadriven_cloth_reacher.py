@@ -110,10 +110,10 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -12000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -500
+            return True, -12000
         elif self.numSteps >= 100:
             return True, 0
         return False, 0
