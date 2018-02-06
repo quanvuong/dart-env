@@ -16,6 +16,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = False
         self.avg_div = 0
 
+        self.enforce_task_id = None
+        self.append_taskid = False
+
         self.resample_MP = False  # whether to resample the model paraeters
         self.train_mp_sel = False
         self.perturb_MP = False
@@ -37,17 +40,18 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.action_scale /= 2.0
 
 
-        self.split_task_test = False
+        self.split_task_test = True
         self.learn_diff_style = False
-        self.learn_forwardbackward = False
-        self.tasks = TaskList(1)
-        #self.tasks.add_world_choice_tasks([1,1])
+
+        self.learn_forwardbackward = True
+        self.tasks = TaskList(2)
+        self.tasks.add_world_choice_tasks([0,0])
         #self.tasks.add_fix_param_tasks([0, [0.1, 1.0]])
         #self.tasks.add_fix_param_tasks([1, [0.3, 0.0]])
         #self.tasks.add_fix_param_tasks([2, [0.3, 0.6]])
         #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
 
-        self.tasks.add_range_param_tasks([2, [[0.0, 1.0]]], expand=0.0)
+        #self.tasks.add_range_param_tasks([2, [[0.0, 1.0]]], expand=0.0)
         #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
         #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
         self.task_expand_flag = False
@@ -63,10 +67,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
             obs_dim += 1
-        if self.split_task_test:
-            obs_dim += self.tasks.task_input_dim()
         if self.avg_div > 1:
             obs_dim += self.avg_div
+        if self.append_taskid and self.split_task_test:
+            obs_dim += self.tasks.task_num
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -78,7 +82,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
@@ -262,7 +266,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(), 'vel_rew': (posafter - posbefore) / self.dt,
          'action_rew': 1e-3 * np.square(a).sum(), 'forcemag': 1e-7 * total_force_mag, 'done_return': done,
          'state_act': state_act, 'next_state': self.state_vector() - state_pre, 'dyn_model_id': self.dyn_model_id,
-         'state_index': self.state_index}
+         'task_id': self.state_index}
         if self.use_disc_ref_policy:
             if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
                 ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
@@ -285,14 +289,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_mp_sel:
             state = np.concatenate([state, [np.random.random()]])
 
-        if self.split_task_test:
-            state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
-
-        if self.avg_div > 1:
-            return_state = np.zeros(len(state) + self.avg_div)
-            return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1
-            return return_state
+        if self.split_task_test and self.append_taskid:
+            append = np.zeros(self.tasks.task_num)
+            append[self.state_index] = 1.0
+            state = np.concatenate([state, append])
 
         return state
 
@@ -328,6 +328,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.tasks.expand_range_param_tasks()
                 self.task_expand_flag = False
             self.state_index = np.random.randint(self.tasks.task_num)
+            if self.enforce_task_id is not None:
+                self.state_index = self.enforce_task_id
             world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
@@ -343,8 +345,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
                 self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
 
-        if self.learn_forwardbackward:
-            self.state_index = np.random.randint(2)
+        #if self.learn_forwardbackward:
+        #    self.state_index = np.random.randint(2)
 
         self.state_action_buffer = [] # for UPOSI
 

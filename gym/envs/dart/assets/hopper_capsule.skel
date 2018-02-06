@@ -6,7 +6,7 @@
             <gravity>0 -9.81 0</gravity>
             <collision_detector>bullet</collision_detector>
         </physics>
-        
+
         <skeleton name="ground skeleton">
             <mobile>false</mobile>
             <body name="ground">
@@ -27,13 +27,13 @@
                             <size>500.0 0.05 5.0</size>
                         </box>
                     </geometry>
-                </collision_shape>                                
+                </collision_shape>
             </body>
             <joint type="free" name="joint 1">
                 <parent>world</parent>
                 <child>ground</child>
             </joint>
-        </skeleton>	
+        </skeleton>
 
         <skeleton name="hopper">
             <transformation>0 0.0 0 0 0 0</transformation>
@@ -60,25 +60,25 @@
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
-                </collision_shape>                                
+                </collision_shape>
             </body>
 
             <body name="h_pelvis_aux">
-                <transformation> 0.0 1.25 0 0 0 0</transformation>     
+                <transformation> 0.0 1.25 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
-                </inertia>                           
+                </inertia>
             </body>
 
             <body name="h_pelvis_aux2">
-                <transformation> 0.0 1.25 0 0 0 0</transformation>     
+                <transformation> 0.0 1.25 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
-                </inertia>                            
+                </inertia>
             </body>
-            
+
             <!-- Right Leg -->
             <body name="h_thigh">
                 <transformation>0.0 1.05 0.0 0.0 0.0 0.0</transformation>
@@ -103,7 +103,7 @@
                             <radius>0.05</radius>
                         </capsule>
                     </geometry>
-                </collision_shape>                                
+                </collision_shape>
             </body>
 
             <body name="h_shin">
@@ -129,7 +129,7 @@
                             <radius>0.04</radius>
                         </capsule>
                     </geometry>
-                </collision_shape>                                
+                </collision_shape>
             </body>
 
             <body name="h_foot">
@@ -156,10 +156,10 @@
                             <radius>0.06</radius>
                         </capsule>
                     </geometry>
-                </collision_shape>                                
+                </collision_shape>
             </body>
 
-            
+
             <!-- JOINT: Pelvis -->
             <joint type="prismatic" name="j_pelvis_x">
                 <parent>world</parent>
@@ -190,7 +190,7 @@
                 <init_pos>0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
-            
+
 
             <!-- JOINT: Leg -->
             <joint type="revolute" name="j_thigh">
@@ -202,7 +202,7 @@
 		     <limit>
                     	<lower>-2.61799</lower>
                     	<upper>0.0</upper>
-                    </limit> 
+                    </limit>
                     <dynamics>
                         <damping>1.0</damping>
                         <friction>0.0</friction>
@@ -240,7 +240,7 @@
 		     <limit>
                     	<lower>-0.785398</lower>
                     	<upper>0.785398</upper>
-                    </limit> 
+                    </limit>
                     <dynamics>
                         <damping>1.0</damping>
                         <friction>0.0</friction>
@@ -251,7 +251,7 @@
             </joint>
 
 
-        </skeleton>	
+        </skeleton>
 
     </world>
 </skel>
