@@ -233,7 +233,7 @@ class DartClothUpperBodyDataDrivenClothReacherEnv(DartClothUpperBodyDataDrivenCl
         return obs
 
     def additionalResets(self):
-        print("reset: " + str(self.reset_number))
+        #print("reset: " + str(self.reset_number))
         #if self.resetTime > 0:
         #    print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         self.resetTime = time.time()
