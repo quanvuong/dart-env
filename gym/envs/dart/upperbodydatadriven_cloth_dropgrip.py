@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -33,11 +33,13 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = True
+        self.elbowFlairReward           = False
         self.deformationPenalty         = True
-        self.restPoseReward             = True
+        self.restPoseReward             = False
         self.rightTargetReward          = False
         self.leftTargetReward           = True
+        self.rightOrientationTargetReward = False
+        self.leftOrientationTargetReward = True
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -55,7 +57,11 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.localLeftEfShoulder1 = None
         self.rightTarget = np.zeros(3)
         self.leftTarget = np.zeros(3)
+        self.rightOrientationTarget = np.zeros(3)
+        self.leftOrientationTarget = np.zeros(3)
+        self.localLeftOrientationTarget = np.zeros(3) #local in gripLFeature frame
         self.prevErrors = None #stores the errors taken from DART each iteration
+        self.fingertip = np.array([0, -0.085, 0])
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -69,6 +75,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             observation_size += 9
         if self.leftTargetReward:
             observation_size += 9
+        if self.rightOrientationTargetReward:
+            observation_size += 6
+        if self.leftOrientationTargetReward:
+            observation_size += 6
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -103,18 +113,19 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
-        self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
-        #TODO: convert to feature based update for the frame
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
+
+        #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
+        self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal*0.03
+        self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
 
         a=0
 
@@ -127,23 +138,22 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -20000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -500
+            return True, -20000
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 print("collar term")
-                return True, -500
+                return True, -20000
 
         return False, 0
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
@@ -188,25 +198,35 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         reward_rightTarget = 0
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
-            reward_rightTarget = -rDist - rDist**2
-            if rDist < 0.02:
-                reward_rightTarget += 0.25
+            reward_rightTarget = -rDist
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
-            reward_leftTarget = -lDist - lDist**2
-            if lDist < 0.02:
-                reward_leftTarget += 0.25
+            reward_leftTarget = -lDist
 
-        #print("reward_restPose: " + str(reward_restPose))
-        #print("reward_leftTarget: " + str(reward_leftTarget))
+        reward_rightOrientationTarget = 0
+        if self.rightOrientationTargetReward:
+            wRZero = self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))
+            efRV = wRFingertip2-wRZero
+            efRDir = efRV/np.linalg.norm(efRV)
+            reward_rightOrientationTarget = -(1 - self.rightOrientationTarget.dot(efRDir)) / 2.0 #[-1,0]
+
+        reward_leftOrientationTarget = 0
+        if self.leftOrientationTargetReward:
+            wLZero = self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))
+            efLV = wLFingertip2 - wLZero
+            efLDir = efLV / np.linalg.norm(efLV)
+            reward_leftOrientationTarget = -(1 - self.leftOrientationTarget.dot(efLDir)) / 2.0  # [-1,0]
+
         self.reward = reward_ctrl * 0 \
-                      + reward_upright \
-                      + reward_clothdeformation * 4 \
+                      + reward_upright*10 \
+                      + reward_clothdeformation * 400 \
                       + reward_restPose*0.3 \
                       + reward_rightTarget \
-                      + reward_leftTarget*5.0
+                      + reward_leftTarget*100.0 \
+                      + reward_leftOrientationTarget*10.0 \
+                      + reward_rightOrientationTarget*10.0
         return self.reward
 
     def _get_obs(self):
@@ -217,8 +237,6 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         for ix, dof in enumerate(self.actuatedDofs):
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
-
-        fingertip = np.array([0.0, -0.065, 0.0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -238,12 +256,22 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
+
+        if self.rightOrientationTargetReward:
+            efRV = self.robot_skeleton.bodynodes[7].to_world(self.fingertip) - self.robot_skeleton.bodynodes[7].to_world(np.zeros(3))
+            efRDir = efRV / np.linalg.norm(efRV)
+            obs = np.concatenate([obs, self.rightOrientationTarget, efRDir]).ravel()
+
+        if self.leftOrientationTargetReward:
+            efLV = self.robot_skeleton.bodynodes[12].to_world(self.fingertip) - self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))
+            efLDir = efLV / np.linalg.norm(efLV)
+            obs = np.concatenate([obs, self.leftOrientationTarget, efLDir]).ravel()
 
         return obs
 
@@ -253,7 +281,6 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         '''
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
         if self.simulateCloth:
             up = np.array([0,1.0,0])
             '''vDir = pyutils.sampleDirections(num=1)[0]
@@ -311,8 +338,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         if self.simulateCloth:
             self.collarFeature.fitPlane()
-            self.gripFeatureL.fitPlane(normhint=np.array([0,0,-1.0]))
-            self.gripFeatureR.fitPlane(normhint=np.array([0,0,-1.0]))
+            self.gripFeatureL.fitPlane(normhint=np.array([0, 0, -1.0]))
+            self.gripFeatureR.fitPlane(normhint=np.array([0, 0, -1.0]))
+            self.localLeftOrientationTarget = np.array([0.0, -1.0, 0.0])
 
         a=0
 
@@ -339,17 +367,40 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render targets
-        fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
-        if self.leftTargetReward and False:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        if self.leftTargetReward:
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
+
+
+        #get end effector frame orientation and position error
+        orientationError = 0
+        efLV = self.robot_skeleton.bodynodes[12].to_world(self.fingertip) - self.robot_skeleton.bodynodes[12].to_world(np.zeros(3))
+        efLDir = efLV/np.linalg.norm(efLV)
+        efLDirLocal = self.gripFeatureL.plane.toLocal(efLDir)
+        efLDirWorld = self.gripFeatureL.plane.toWorld(efLDirLocal)
+
+        '''print("efLDir" + str(efLDir))
+        print("efLDirLocal" + str(efLDirLocal))
+        print("efLDirWorld" + str(efLDirWorld))
+        print("error = " + str(np.linalg.norm(efLDirWorld-efLDir)))
+        print("--------------")'''
+
+        worldVec = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
+        renderUtils.setColor([0, 0.7, 0.7])
+        renderUtils.drawArrow(p0=self.gripFeatureL.plane.org, p1=self.gripFeatureL.plane.org+worldVec*0.5)
+        renderUtils.setColor([0.7, 0.0, 0.4])
+        renderUtils.drawArrow(p0=self.gripFeatureL.plane.org, p1=self.gripFeatureL.plane.org+efLDirWorld*0.5)
+
+        orientationError = (1-worldVec.dot(efLDirWorld))/2.0
+
+        #print("orientation error = " + str(orientationError))
 
         textHeight = 15
         textLines = 2
