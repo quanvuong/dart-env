@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_02_07_dropgrip_align"
+
     #trial = "experiment_2018_01_30_2armreacher_unlocked_upright_grav_ppo"
 
     #trial = "experiment_2018_01_28_2armreacher_unlocked_upright"

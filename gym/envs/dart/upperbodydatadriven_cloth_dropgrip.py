@@ -48,6 +48,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
+        self.graphTaskSuccess = False
+        self.taskSuccessGraph = None
+        if self.graphTaskSuccess:
+            self.taskSuccessGraph = pyutils.LineGrapher(title="Task Success", numPlots=2)
 
         #other variables
         self.prevTau = None
@@ -219,6 +223,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             efLDir = efLV / np.linalg.norm(efLV)
             reward_leftOrientationTarget = -(1 - self.leftOrientationTarget.dot(efLDir)) / 2.0  # [-1,0]
 
+        if self.graphTaskSuccess:
+            self.taskSuccessGraph.addToLinePlot([-reward_leftTarget,-reward_leftOrientationTarget])
+
         self.reward = reward_ctrl * 0 \
                       + reward_upright*10 \
                       + reward_clothdeformation * 400 \
@@ -280,6 +287,13 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         '''
         self.resetTime = time.time()
+
+        if self.graphTaskSuccess:
+            self.taskSuccessGraph.xdata = []
+            self.taskSuccessGraph.yData = [[],[]]
+            #self.taskSuccessGraph.close()
+            #self.taskSuccessGraph = pyutils.LineGrapher(title="Task Success", numPlots=2)
+
         #do any additional resetting here
         if self.simulateCloth:
             up = np.array([0,1.0,0])
@@ -341,6 +355,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             self.gripFeatureL.fitPlane(normhint=np.array([0, 0, -1.0]))
             self.gripFeatureR.fitPlane(normhint=np.array([0, 0, -1.0]))
             self.localLeftOrientationTarget = np.array([0.0, -1.0, 0.0])
+            self.localLeftOrientationTarget = np.array([1.0, -1.0, -1.0])
+            self.localLeftOrientationTarget /= np.linalg.norm(self.localLeftOrientationTarget)
 
         a=0
 
@@ -359,8 +375,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
 
-        self.gripFeatureL.drawProjectionPoly(fill=False, fillColor=[0.0, 0.75, 0.75], vecLenScale=0.5)
-        self.gripFeatureR.drawProjectionPoly(fill=False, fillColor=[1.0, 0.0, 1.0], vecLenScale=0.5)
+        self.gripFeatureL.drawProjectionPoly(fill=False, fillColor=[0.0, 0.75, 0.75], vecLenScale=0.25)
+        self.gripFeatureR.drawProjectionPoly(fill=False, fillColor=[1.0, 0.0, 1.0], vecLenScale=0.5, renderNormal=False, renderBasis=False)
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
@@ -400,7 +416,22 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         orientationError = (1-worldVec.dot(efLDirWorld))/2.0
 
+        # render a spherical fixed point above the character
+        renderUtils.setColor([0.0, 1.0, 1.0])
+        fixedPoint = np.array([0, 0.65, 0])
+        renderUtils.drawSphere(pos=fixedPoint, rad=0.045)
+
+        #numCollisions = self.clothScene.getNumSelfCollisions()
+        collisionLocations = self.clothScene.getSelfCollisionLocations(recompute=False)
+        #print(collisionLocations)
+        lines = []
+        for i in range(int(len(collisionLocations)/3)):
+            lines.append([fixedPoint, np.array(collisionLocations[i*3:i*3+3])])
+        renderUtils.drawLines(lines)
+
         #print("orientation error = " + str(orientationError))
+
+        renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=orientationError, color=[0.0, 3.0, 0])
 
         textHeight = 15
         textLines = 2

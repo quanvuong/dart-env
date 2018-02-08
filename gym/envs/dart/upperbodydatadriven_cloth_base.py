@@ -95,6 +95,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.graphViolation = False
         self.violationGraphFrequency = 1
 
+        #cloth "badness" graphing
+        self.graphClothViolation = False
+        self.clothViolationGraph = None
+        if self.graphClothViolation:
+            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
+
+
         #record character range of motion through random exploration
         self.recordROMPoints = False
         self.loadROMPoints = True
@@ -437,6 +444,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if self.numSteps%self.violationGraphFrequency == 0:
                 self.graphJointConstraintViolation(counting=True)
 
+        if self.graphClothViolation:
+            clothViolation = self.clothScene.getNumSelfCollisions()
+            self.clothViolationGraph.addToLinePlot(data=[clothViolation])
+
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.robot_skeleton.q))
         #self.additionalAction should be set in updateBeforeSimulation
@@ -566,6 +577,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        if self.graphClothViolation:
+            self.clothViolationGraph.close()
+            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
+
         self.rewardTrajectory = []
         startTime = time.time()
         #try:
