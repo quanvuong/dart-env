@@ -39,8 +39,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
-        self.efTargetRewardTiering      = True
-        self.rightTargetAltitudeReward  = True #penalize right hand lower than target
+        self.efTargetRewardTiering      = False
+        self.rightTargetAltitudeReward  = True #penalize right hand lower than target #TODO: necessary?
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -203,7 +203,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
-            reward_leftTarget = -lDist - lDist ** 2
+            #reward_leftTarget = -lDist - lDist ** 2
+            reward_leftTarget = -lDist
             if self.efTargetRewardTiering:
                 if lDist > 0.1:
                     reward_leftTarget -= 0.5
@@ -214,7 +215,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         if self.rightTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
-            reward_rightTarget = -rDist - rDist**2
+            #reward_rightTarget = -rDist - rDist**2
+            reward_rightTarget = -rDist
             if self.efTargetRewardTiering:
                 if lDist > 0.1:
                     reward_rightTarget = -1
@@ -237,10 +239,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
                       + reward_clothdeformation * 5 \
-                      + reward_restPose*0.3 \
-                      + reward_rightTarget*4 \
-                      + reward_leftTarget*2 \
+                      + reward_restPose \
+                      + reward_rightTarget*100 \
+                      + reward_leftTarget*100 \
                       + reward_rightTargetAltitude*4
+        # TODO: revisit the deformation penalty
         return self.reward
 
     def _get_obs(self):

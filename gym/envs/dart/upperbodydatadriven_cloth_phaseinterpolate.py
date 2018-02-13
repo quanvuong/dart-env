@@ -202,14 +202,16 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         reward_rightTarget = 0
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget - wRFingertip2)
-            reward_rightTarget = -rDist - rDist**2
+            #reward_rightTarget = -rDist - rDist**2
+            reward_rightTarget = -rDist
             '''if rDist < 0.02:
                 reward_rightTarget += 0.25'''
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
-            reward_leftTarget = -lDist - lDist**2
+            #reward_leftTarget = -lDist - lDist**2
+            reward_leftTarget = -lDist
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
 
@@ -219,8 +221,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                       + reward_upright \
                       + reward_clothdeformation * 5 \
                       + reward_restPose \
-                      + reward_rightTarget \
-                      + reward_leftTarget
+                      + reward_rightTarget*100 \
+                      + reward_leftTarget*100
+        # TODO: revisit cloth deformation penalty
         return self.reward
 
     def _get_obs(self):
