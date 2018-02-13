@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_02_11_dropgrip_noalign" #no orientation target
+    #trial = "experiment_2018_02_08_dropgrip_align2"
     #trial = "experiment_2018_02_07_dropgrip_align"
 
     #trial = "experiment_2018_01_30_2armreacher_unlocked_upright_grav_ppo"
@@ -169,7 +171,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 10000
+        rolloutHorizon = 100
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
@@ -198,7 +200,7 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                #a = a_info['mean']
+                a = a_info['mean']
             done = False
             if not paused or j==0:
                 s_info = env.step(a)

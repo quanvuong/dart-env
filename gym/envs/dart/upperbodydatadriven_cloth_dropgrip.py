@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -39,7 +39,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.rightTargetReward          = False
         self.leftTargetReward           = True
         self.rightOrientationTargetReward = False
-        self.leftOrientationTargetReward = True
+        self.leftOrientationTargetReward = False
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -48,7 +48,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
-        self.graphTaskSuccess = False
+        self.graphTaskSuccess = True
         self.taskSuccessGraph = None
         if self.graphTaskSuccess:
             self.taskSuccessGraph = pyutils.LineGrapher(title="Task Success", numPlots=2)
@@ -432,6 +432,31 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         #print("orientation error = " + str(orientationError))
 
         renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=orientationError, color=[0.0, 3.0, 0])
+
+        #draw surface sample points:
+        '''csInfo = self.clothScene.getCollisionSpheresInfo()
+        ccInfo = self.clothScene.getCollisionCapsuleInfo()
+
+        capsules = []
+        for ixr,row in enumerate(ccInfo):
+            for ixc,col in enumerate(row):
+                if col > 0:
+                    capsules.append([ixr, ixc])
+
+        #print(capsules)
+        totalSamples = []
+        for capsule in capsules:
+            samples = pyutils.getSurfaceSamples(samplesPerUnitArea=1000, _p0=csInfo[capsule[0]*9:capsule[0]*9+3], _p1=csInfo[capsule[1]*9:capsule[1]*9+3],_r0=csInfo[capsule[0]*9+3], _r1=csInfo[capsule[1]*9+3])
+            totalSamples = totalSamples+samples
+            break
+        #print(samples)
+        offset = np.array([1.5,0,0])
+        for s in totalSamples:
+            renderUtils.drawSphere(pos=s+offset, rad=0.005)'''
+
+        #print("csInfo: " + str(csInfo))
+        #print("ccInfo: " + str(ccInfo))
+        #print("-----------")
 
         textHeight = 15
         textLines = 2
