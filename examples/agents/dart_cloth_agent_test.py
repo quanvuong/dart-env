@@ -169,7 +169,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
-    for i in range(13):
+    for i in range(100):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                #a = a_info['mean']
+                a = a_info['mean']
             done = False
             if not paused or j==0:
                 s_info = env.step(a)

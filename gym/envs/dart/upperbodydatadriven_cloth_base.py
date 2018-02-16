@@ -632,12 +632,12 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             seed = self.reset_number
             #print("all given seeds simulated")
-        #seed = 8
+        seed = 8
         #print("rollout: " + str(self.reset_number) +", seed: " + str(seed))
         #random.seed(seed)
         #self.np_random.seed(seed)
         #np.random.seed(seed)
-        #self.clothScene.seedRandom(seed)
+        #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))
         #print("np.random.random: " + str(np.random.random()))
