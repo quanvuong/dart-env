@@ -113,7 +113,14 @@ class DartEnv(gym.Env):
 
 
     def _seed(self, seed=None):
+        #print("--------------------")
+        #print("---seed = "+str(seed)+"-------")
+        #print("--------------------")
         self.np_random, seed = seeding.np_random(seed)
+        if seed is None:
+            #this ensures that if global numpy was seeded and no seed is provided some seed transfers here (necessary for multi-threaded variation)
+            state = np.random.get_state()
+            self.np_random.set_state(state)
         return [seed]
 
     # methods to override:

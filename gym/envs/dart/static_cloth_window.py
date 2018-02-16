@@ -292,6 +292,22 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             print("self.capturing: " + str(self.capturing))
             #self.captureToFile(directory="/home/alexander/Documents/frame_capture_output")
             return
+        if keycode == 102: #'f' apply force to garment particles
+            force = np.array([1.0,1.0,1.0])
+            force = np.random.uniform(low=-1, high=1, size=3)
+            force /= np.linalg.norm(force)
+            force *= 0.5 #scale
+            if self.env is not None:
+                numParticles = self.env.clothScene.getNumVertices(cid=0)
+                forces = np.zeros(numParticles*3)
+                for i in range(numParticles):
+                    forces[i*3] = force[0]
+                    forces[i*3 + 1] = force[1]
+                    forces[i*3 + 2] = force[2]
+                self.env.clothScene.addAccelerationToParticles(cid=0, a=forces)
+                print("applied " + str(force) + " force to cloth.")
+
+            return
         if keycode == 112: #'p'
             print("Camera data:")
             print("trans: " + str(self.scene.tb.trans))

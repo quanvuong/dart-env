@@ -83,6 +83,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPD = None #no target yet
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.recurrency = recurrency
+        self.actionTrajectory = []
 
         #output for rendering controls
         self.recordForRendering = False
@@ -100,6 +101,15 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.clothViolationGraph = None
         if self.graphClothViolation:
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
+
+        #randomness graphing
+        self.initialRand = 0
+        self.initialnpRand = 0
+        self.initialselfnpRand = 0
+        self.graphingRandomness = False
+        self.randomnessGraph = None
+        if self.graphingRandomness:
+            self.randomnessGraph = pyutils.LineGrapher(title="Randomness")
 
 
         #record character range of motion through random exploration
@@ -148,7 +158,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)+self.recurrency), np.ones(len(self.actuatedDofs)+self.recurrency)*-1])
 
-        self.reset_number = 0 #debugging
+        self.reset_number = 0
         self.numSteps = 0
 
         #create cloth scene
@@ -273,6 +283,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.ROMPositions = pyutils.positionsFromPoses(self.robot_skeleton, poses=self.ROMPoints,nodes=[7,12], offsets=[np.array([0,-0.065,0]),np.array([0,-0.065,0])])
         if self.processROMPoints:
             self._processROMPoints()
+
+        self.clothScene.setSelfCollisionDistance(distance=0.03)
+        self.clothScene.step()
+        self.clothScene.reset()
 
     def _getFile(self):
         return __file__
@@ -428,7 +442,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
     def _step(self, a):
         #print("a: " + str(a))
         startTime = time.time()
-        if self.reset_number == 0 or not self.simulating:
+        if self.reset_number < 1 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
 
         #save state for rendering
@@ -448,6 +462,15 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             clothViolation = self.clothScene.getNumSelfCollisions()
             self.clothViolationGraph.addToLinePlot(data=[clothViolation])
 
+        if self.graphingRandomness:
+            if len(self.randomnessGraph.xdata) > 0:
+                self.initialRand += random.random()
+                self.initialnpRand += np.random.random()
+                self.initialselfnpRand += self.np_random.uniform()
+                self.randomnessGraph.yData[-3][self.numSteps] = self.initialRand
+                self.randomnessGraph.yData[-2][self.numSteps] = self.initialnpRand
+                self.randomnessGraph.yData[-1][self.numSteps] = self.initialselfnpRand
+                self.randomnessGraph.update()
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.robot_skeleton.q))
         #self.additionalAction should be set in updateBeforeSimulation
@@ -510,7 +533,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #print("Additional Action: " + str(self.additionalAction))
             self.do_simulation(self.additionalAction, self.frame_skip)
         else:
+            #if len(self.actionTrajectory) == 0:
+            #    self.actionTrajectory = pyutils.loadListOfVecs(filename="actionTraj.txt")
+            #if self.reset_number < 2:
+                #if self.reset_number == 1:
+                #    self.actionTrajectory.append(np.array(tau))
             self.do_simulation(tau[:len(self.robot_skeleton.q)], self.frame_skip)
+            #else:
+                #pyutils.saveList(list=self.actionTrajectory, filename="actionTraj.txt", listoflists=True)
+                #exit()
+            #print(self.actionTrajectory)
+            #self.do_simulation(self.actionTrajectory[self.numSteps][:len(self.robot_skeleton.q)], self.frame_skip)
+
         #print("do_simulation took " + str(time.time() - startTime2))
         try:
             self.avgtimings["do_simulation"] += time.time() - startTime2
@@ -577,6 +611,37 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        if self.graphingRandomness:
+            self.initialRand = 0
+            self.initialnpRand = 0
+            self.initialselfnpRand = 0
+            self.randomnessGraph.xdata = np.arange(100)
+            self.randomnessGraph.plotData(ydata=np.zeros(100))
+            self.randomnessGraph.plotData(ydata=np.zeros(100))
+            self.randomnessGraph.plotData(ydata=np.zeros(100))
+
+        seeds=[]
+        #seeds = [0, 2, 5, 8, 11, 20, 27, 35, 36, 47, 50, 51] #success seeds for stochastic policy
+        #seeds = [0, 1, 2, 3, 5, 8, 11, 12, 13, 14, 18, 19, 20, 23, 27, 35, 38, 50] #success seeds for mean policy
+        #difficultySeeds = [37, 39, 42]
+        #seeds = seeds+difficultySeeds
+        #seed = self.reset_number
+        #print(seeds)
+        try:
+            seed = seeds[self.reset_number]
+        except:
+            seed = self.reset_number
+            #print("all given seeds simulated")
+        #seed = 8
+        #print("rollout: " + str(self.reset_number) +", seed: " + str(seed))
+        #random.seed(seed)
+        #self.np_random.seed(seed)
+        #np.random.seed(seed)
+        #self.clothScene.seedRandom(seed)
+
+        #print("random.random(): " + str(random.random()))
+        #print("np.random.random: " + str(np.random.random()))
+        #print("self.np_random.random: " + str(self.np_random.uniform() ))
         if self.graphClothViolation:
             self.clothViolationGraph.close()
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
@@ -587,9 +652,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print("reset")
         self.cumulativeReward = 0
         self.dart_world.reset()
-        self.clothScene.reset()
-
         self.clothScene.setSelfCollisionDistance(0.03)
+        self.clothScene.reset()
 
         self.additionalResets()
 
@@ -615,6 +679,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.avgtimings = {}
         self.reset_number += 1
         self.numSteps = 0
+
+        #if self.reset_number == 1:
+        #    self.reset()
+        #print("now entering rollout reset_number: " + str(self.reset_number))
         return self._get_obs()
         #except:
         #    print("Failed on reset " + str(self.reset_number))

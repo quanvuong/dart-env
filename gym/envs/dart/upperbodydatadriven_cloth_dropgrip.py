@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -39,7 +39,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.rightTargetReward          = False
         self.leftTargetReward           = True
         self.rightOrientationTargetReward = False
-        self.leftOrientationTargetReward = False
+        self.leftOrientationTargetReward = True
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -48,12 +48,18 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
-        self.graphTaskSuccess = True
-        self.taskSuccessGraph = None
+        self.graphTaskSuccess = False
+        self.successfulSeeds = []
+        self.numSavedStates = 0
+        self.positionTaskSuccessGraph = None
+        self.orientationTaskSuccessGraph = None
         if self.graphTaskSuccess:
-            self.taskSuccessGraph = pyutils.LineGrapher(title="Task Success", numPlots=2)
+            self.positionTaskSuccessGraph = pyutils.LineGrapher(title="Position Task Success", numPlots=2)
+            self.orientationTaskSuccessGraph = pyutils.LineGrapher(title="Orientation Task Success", numPlots=2)
 
         #other variables
+        self.simStepsInReset = 90
+        self.initialPerturbationScale = 0.35 #if >0, accelerate cloth particles in random direction with this magnitude
         self.prevTau = None
         self.maxDeformation = 30.0
         self.restPose = None
@@ -66,6 +72,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.localLeftOrientationTarget = np.zeros(3) #local in gripLFeature frame
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.fingertip = np.array([0, -0.085, 0])
+        self.prevOrientationError = 0
+        self.prevPositionError = 0
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -111,11 +119,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
     def _getFile(self):
         return __file__
 
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
-
     def updateBeforeSimulation(self):
+        #print("update before sim")
         #any pre-sim updates should happen here
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
@@ -138,6 +143,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
         bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
         bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
+        efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        #print("transition criteria: " + str(self.prevPositionError) + ", " + str(self.prevOrientationError))
 
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
@@ -151,6 +158,28 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 print("collar term")
                 return True, -20000
+        #Transition criteria
+        if self.prevPositionError < 0.05:
+            if self.prevOrientationError < 0.1:
+                #print("here?")
+                if self.graphTaskSuccess:
+                    self.successfulSeeds.append(self.reset_number-1)
+                    pyutils.saveList(list=self.successfulSeeds, filename="successfulSeeds.txt")
+                    if self.reset_number == 1:
+                        for i in range(self.numSteps, 99):
+                            self.positionTaskSuccessGraph.addToLinePlot([0.05, -0.2])
+                            self.orientationTaskSuccessGraph.addToLinePlot([0.1, -0.2])
+                    else:
+                        for i in range(self.numSteps, 100):
+                            self.orientationTaskSuccessGraph.yData[-1][i] = -0.2
+                            self.positionTaskSuccessGraph.yData[-1][i] = -0.2
+                            #self.taskSuccessGraph.xdata = np.arange(100).tolist()
+                            self.positionTaskSuccessGraph.update()
+                            self.orientationTaskSuccessGraph.update()
+                #TODO: save the successful state
+                #state_prefix = "end_dropgrip_distribution/" + "_char%05d" % count
+                #self.saveCharacterState(filename="end_dropgrip_distribution/")
+                return True, 1
 
         return False, 0
 
@@ -208,6 +237,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             reward_leftTarget = -lDist
+            self.prevPositionError = lDist
 
         reward_rightOrientationTarget = 0
         if self.rightOrientationTargetReward:
@@ -222,9 +252,22 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             efLV = wLFingertip2 - wLZero
             efLDir = efLV / np.linalg.norm(efLV)
             reward_leftOrientationTarget = -(1 - self.leftOrientationTarget.dot(efLDir)) / 2.0  # [-1,0]
+            self.prevOrientationError = -reward_leftOrientationTarget
 
-        if self.graphTaskSuccess:
-            self.taskSuccessGraph.addToLinePlot([-reward_leftTarget,-reward_leftOrientationTarget])
+        #poseMag = np.linalg.norm(self.robot_skeleton.q)
+        #clothState = self.clothScene.getVertPosSum()
+        if self.graphTaskSuccess and self.reset_number < 2:
+            self.positionTaskSuccessGraph.addToLinePlot([0.05, -reward_leftTarget])
+            self.orientationTaskSuccessGraph.addToLinePlot([0.1, -reward_leftOrientationTarget])
+            #self.taskSuccessGraph.addToLinePlot([clothState,poseMag])
+        elif self.graphTaskSuccess:
+            self.positionTaskSuccessGraph.yData[-1][self.numSteps] = -reward_leftTarget
+            self.orientationTaskSuccessGraph.yData[-1][self.numSteps] = -reward_leftOrientationTarget
+            #self.taskSuccessGraph.yData[-2][self.numSteps] = clothState
+            #self.taskSuccessGraph.yData[-1][self.numSteps] = poseMag
+            self.positionTaskSuccessGraph.update()
+            self.orientationTaskSuccessGraph.update()
+
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright*10 \
@@ -288,31 +331,46 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         '''
         self.resetTime = time.time()
 
-        if self.graphTaskSuccess:
-            self.taskSuccessGraph.xdata = []
-            self.taskSuccessGraph.yData = [[],[]]
+        if self.graphTaskSuccess and self.reset_number <1:
+            self.orientationTaskSuccessGraph.xdata = []
+            self.positionTaskSuccessGraph.xdata = []
+            self.orientationTaskSuccessGraph.yData = [[],[]]
+            self.positionTaskSuccessGraph.yData = [[],[]]
+
             #self.taskSuccessGraph.close()
             #self.taskSuccessGraph = pyutils.LineGrapher(title="Task Success", numPlots=2)
+        elif self.graphTaskSuccess:
+            #self.taskSuccessGraph.yData = self.taskSuccessGraph.yData + [np.zeros(100), np.zeros(100)]
+            '''for i in range(int(len(self.taskSuccessGraph.yData)/2)):
+                error1 = 0
+                error2 = 0
+                for s in range(100):
+                    error1 += abs(self.taskSuccessGraph.yData[i*2][s] - self.taskSuccessGraph.yData[0][s])
+                    error2 += abs(self.taskSuccessGraph.yData[i*2+1][s] - self.taskSuccessGraph.yData[1][s])
+                print("error " + str(i) + ": [" + str(error1) +","+str(error2)+"]")
+            '''
+            self.positionTaskSuccessGraph.save(filename="positionTaskSuccessGraph")
+            self.orientationTaskSuccessGraph.save(filename="orientationTaskSuccessGraph")
+            self.positionTaskSuccessGraph.plotData(ydata=np.zeros(100))
+            self.orientationTaskSuccessGraph.plotData(ydata=np.zeros(100))
 
         #do any additional resetting here
-        if self.simulateCloth:
+        '''if self.simulateCloth:
             up = np.array([0,1.0,0])
-            '''vDir = pyutils.sampleDirections(num=1)[0]
-            tries = 0
-            while vDir.dot(up) < 0.95:
-                tries += 1
-                vDir = pyutils.sampleDirections(num=1)[0]
-            print("took " + str(tries) + " tries to sample")
-            varianceR = self.clothScene.rotateTo(v1=up, v2=vDir)'''
-            varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
+            varianceAngle = ((random.random()-0.5)*2.0)*0.3
+            #varianceAngle = -0.23856667449388155
+            varianceR = pyutils.rotateY(varianceAngle)
+            print("varianceAngle: " + str(varianceAngle))
             adjustR = pyutils.rotateY(0.2)
             R = self.clothScene.rotateTo(v1=np.array([0,0,1.0]), v2=up)
             self.clothScene.translateCloth(0, np.array([-0.01, 0.0255, 0]))
             self.clothScene.rotateCloth(cid=0, R=R)
             self.clothScene.rotateCloth(cid=0, R=adjustR)
-            self.clothScene.rotateCloth(cid=0, R=varianceR)
+            self.clothScene.rotateCloth(cid=0, R=varianceR)'''
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        print(qvel[0])
         #qpos = np.array(
         #    [-0.0483053659505, 0.0321213273351, 0.0173036909392, 0.00486290205677, -0.00284350018845, -0.634602301004,
         #     -0.359172622713, 0.0792754054027, 2.66867203095, 0.00489456931428, 0.000476966442889, 0.0234663491334,
@@ -357,6 +415,52 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             self.localLeftOrientationTarget = np.array([0.0, -1.0, 0.0])
             self.localLeftOrientationTarget = np.array([1.0, -1.0, -1.0])
             self.localLeftOrientationTarget /= np.linalg.norm(self.localLeftOrientationTarget)
+
+            # update physx capsules
+            self.updateClothCollisionStructures(hapticSensors=True)
+            self.clothScene.clearInterpolation()
+
+            self.clothScene.reset()
+            up = np.array([0, 1.0, 0])
+            #varianceAngle = ((random.random() - 0.5) * 2.0) * 0.3
+            # varianceAngle = -0.23856667449388155
+            varianceAngle = 0.27737702150062965 #chosen for good state
+            varianceR = pyutils.rotateY(varianceAngle)
+            #print("varianceAngle: " + str(varianceAngle))
+            adjustR = pyutils.rotateY(0.2)
+            R = self.clothScene.rotateTo(v1=np.array([0, 0, 1.0]), v2=up)
+            self.clothScene.translateCloth(0, np.array([-0.01, 0.0255, 0]))
+            self.clothScene.rotateCloth(cid=0, R=R)
+            self.clothScene.rotateCloth(cid=0, R=adjustR)
+            self.clothScene.rotateCloth(cid=0, R=varianceR)
+
+            for i in range(self.simStepsInReset):
+                self.clothScene.step()
+                self.collarFeature.fitPlane()
+                self.gripFeatureL.fitPlane()
+                self.gripFeatureR.fitPlane()
+
+            #check for inverted frames
+            if self.gripFeatureL.plane.normal.dot(np.array([0,0,-1.0])) < 0:
+                #TODO: trash these and reset again
+                print("INVERSION")
+
+            #apply random force to the garment to introduce initial state variation
+            if self.initialPerturbationScale > 0:
+                force = np.random.uniform(low=-1, high=1, size=3)
+                force /= np.linalg.norm(force)
+                force *= 0.5  # scale
+                numParticles = self.clothScene.getNumVertices(cid=0)
+                forces = np.zeros(numParticles * 3)
+                for i in range(numParticles):
+                    forces[i * 3] = force[0]
+                    forces[i * 3 + 1] = force[1]
+                    forces[i * 3 + 2] = force[2]
+                self.clothScene.addAccelerationToParticles(cid=0, a=forces)
+                #print("applied " + str(force) + " force to cloth.")
+
+        self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal * 0.03
+        self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
 
         a=0
 
@@ -468,6 +572,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="position target error = " + str(self.prevPositionError), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="orientation target error = " + str(self.prevOrientationError), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)

@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_02_11_dropgrip_noalign" #no orientation target
-    #trial = "experiment_2018_02_08_dropgrip_align2"
+    #trial = "experiment_2018_02_11_dropgrip_noalign" #no orientation target
+    trial = "experiment_2018_02_08_dropgrip_align2"
     #trial = "experiment_2018_02_07_dropgrip_align"
 
     #trial = "experiment_2018_01_30_2armreacher_unlocked_upright_grav_ppo"
@@ -164,7 +164,12 @@ if __name__ == '__main__':
     time.sleep(0.5)
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
-    for i in range(100):
+    successfulTrials = 0
+    failureTrials = 0
+    env.render()
+    #time.sleep(30.0) #window setup time for recording
+    #o = env.reset()
+    for i in range(13):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
@@ -200,12 +205,13 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                a = a_info['mean']
+                #a = a_info['mean']
             done = False
             if not paused or j==0:
                 s_info = env.step(a)
                 o = s_info[0]
                 done = s_info[2]
+                #print(s_info)
                 #print(o)
             env.render()
             if done is True:
@@ -213,6 +219,7 @@ if __name__ == '__main__':
                 cumulativeFPS += (j+1)/(time.time()-startTime)
                 print("framerate = " + str((j+1) / (time.time() - startTime)))
                 print("average FPS: " + str(cumulativeFPS / (i + 1)))
+                #if
                 time.sleep(0.5)
                 break
             if j == rolloutHorizon-1:
