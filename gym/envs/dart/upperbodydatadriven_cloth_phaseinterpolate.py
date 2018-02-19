@@ -38,6 +38,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
+        self.contactSurfaceReward       = True #reward for end effector touching inside cloth
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -47,8 +48,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/DropGrip"
-        self.resetDistributionSize = 16
+        #self.resetDistributionPrefix = "saved_control_states_old/DropGrip"
+        self.resetDistributionPrefix = "saved_control_states/dropgrip"
+        self.resetDistributionSize = 17
 
         #other variables
         self.handleNode = None
@@ -93,8 +95,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         # clothing features
         self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
-        self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
+        self.targetGripVerticesL = [46, 437, 955, 1185, 47, 285, 711, 677, 48, 905, 1041, 49, 741, 889, 45]
+        self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
+        #self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
+        self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
+        self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
+
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -123,6 +130,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
 
         # update handle nodes
         if self.handleNode is not None:
@@ -141,13 +150,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -1500
+            return True, -20000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -20000
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
-                return True, -1500
+                return True, -20000
 
         return False, 0
 
@@ -179,6 +188,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
         self.previousDeformationReward = reward_clothdeformation
+
+        reward_contact_surface = 0
+        if self.contactSurfaceReward:
+            CID = self.clothScene.getHapticSensorContactIDs()[12]
+            #if CID > 0:
+            #    reward_contact_surface = 1.0
+            #print(CID)
+            reward_contact_surface = CID #-1.0 for full outside, 1.0 for full inside
+
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
@@ -219,10 +237,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 5 \
+                      + reward_clothdeformation * 10 \
                       + reward_restPose \
                       + reward_rightTarget*100 \
-                      + reward_leftTarget*100
+                      + reward_leftTarget*100 \
+                      + reward_contact_surface * 3
         # TODO: revisit cloth deformation penalty
         return self.reward
 
@@ -347,7 +366,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
-            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+            self.handleNode.addVertices(verts=self.targetGripVerticesL)
             self.handleNode.setOrgToCentroid()
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
@@ -356,6 +375,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         if self.simulateCloth:
             self.collarFeature.fitPlane()
+            self.gripFeatureL.fitPlane()
+            self.gripFeatureR.fitPlane()
 
         a=0
 
@@ -372,7 +393,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         renderUtils.drawLineStrip(points=[bottomNeck, bottomHead, topHead])
         if self.collarFeature is not None:
-            self.collarFeature.drawProjectionPoly()
+            self.collarFeature.drawProjectionPoly(renderBasis=False, renderNormal=False)
+        self.gripFeatureL.drawProjectionPoly(renderBasis=False, renderNormal=False)
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])

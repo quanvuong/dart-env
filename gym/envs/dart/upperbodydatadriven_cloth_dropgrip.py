@@ -22,10 +22,10 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
-        self.transitionCriteriaActive = False
+        self.transitionCriteriaActive = True
 
         #observation terms
         self.contactIDInObs = True  # if true, contact ids are in obs
@@ -49,7 +49,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
-        self.graphTaskSuccess = False
+        self.graphTaskSuccess = True
         self.successfulSeeds = []
         self.numSavedStates = 0
         self.positionTaskSuccessGraph = None
@@ -117,6 +117,8 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        self.state_save_directory = "saved_control_states/"
+
     def _getFile(self):
         return __file__
 
@@ -179,6 +181,19 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                                 self.positionTaskSuccessGraph.update()
                                 self.orientationTaskSuccessGraph.update()
                     #TODO: save the successful state
+                    #save the successful states:
+                    fname = self.state_save_directory + "dropgrip"
+                    print(fname)
+                    count = 0
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                    while os.path.isfile(objfname_ix + ".obj"):
+                        count += 1
+                        objfname_ix = fname + "%05d" % count
+                        charfname_ix = fname + "_char%05d" % count
+                    print(objfname_ix)
+                    self.saveObjState(filename=objfname_ix)
+                    self.saveCharacterState(filename=charfname_ix)
                     #state_prefix = "end_dropgrip_distribution/" + "_char%05d" % count
                     #self.saveCharacterState(filename="end_dropgrip_distribution/")
                     return True, 1
