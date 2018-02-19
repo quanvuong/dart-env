@@ -38,7 +38,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
-        self.contactSurfaceReward       = True #reward for end effector touching inside cloth
+        self.contactSurfaceReward       = False #reward for end effector touching inside cloth
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
