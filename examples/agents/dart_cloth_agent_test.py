@@ -20,7 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2018_02_16_dropgrip_alignspecific" ***2
+    trial = "experiment_2018_02_19_tuckR_noCID" #this actually has CID (go figure)
+    #trial = "experiment_2018_02_19_tuckR_noCIDreal" #this actually does not have CID (hm)
+
+    #trial = "experiment_2018_02_16_dropgrip_alignspecific" #***2
     #trial = "experiment_2018_02_16_dropgrip_alignspecific_warm"
 
     #trial = "experiment_2018_02_11_dropgrip_noalign" #no orientation target

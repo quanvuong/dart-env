@@ -98,9 +98,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #cloth "badness" graphing
         self.graphClothViolation = False
+        self.saveClothViolationGraphOnReset = True
         self.clothViolationGraph = None
         if self.graphClothViolation:
-            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
+            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
 
         #randomness graphing
         self.initialRand = 0
@@ -460,7 +461,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         if self.graphClothViolation:
             clothViolation = self.clothScene.getNumSelfCollisions()
-            self.clothViolationGraph.addToLinePlot(data=[clothViolation])
+            maxDef, minDef, avgDef, variance, ratios = self.clothScene.getAllDeformationStats(cid=0)
+            defPenalty = (math.tanh(0.14 * (maxDef - 25)) + 1) / 2.0 #taken from reward in envs
+            #print(maxDef)
+            #print(avgDef)
+            self.clothViolationGraph.addToLinePlot(data=[clothViolation/5.0, maxDef, defPenalty*10])
 
         if self.graphingRandomness:
             if len(self.randomnessGraph.xdata) > 0:
@@ -643,8 +648,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print("np.random.random: " + str(np.random.random()))
         #print("self.np_random.random: " + str(self.np_random.uniform() ))
         if self.graphClothViolation:
+            if self.saveClothViolationGraphOnReset:
+                self.clothViolationGraph.save(filename="clothViolationGraphRS"+str(self.reset_number))
             self.clothViolationGraph.close()
-            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=1)
+            self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
 
         self.rewardTrajectory = []
         startTime = time.time()

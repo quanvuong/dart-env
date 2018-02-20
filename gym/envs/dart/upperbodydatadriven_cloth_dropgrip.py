@@ -49,7 +49,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.loadTargetsFromROMPositions = False
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
-        self.graphTaskSuccess = True
+        self.graphTaskSuccess = False
         self.successfulSeeds = []
         self.numSavedStates = 0
         self.positionTaskSuccessGraph = None
@@ -61,6 +61,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         #other variables
         self.simStepsInReset = 90
         self.initialPerturbationScale = 0.35 #if >0, accelerate cloth particles in random direction with this magnitude
+        self.simStepsAfterPerturbation = 60
         self.prevTau = None
         self.maxDeformation = 30.0
         self.restPose = None
@@ -180,9 +181,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                                 #self.taskSuccessGraph.xdata = np.arange(100).tolist()
                                 self.positionTaskSuccessGraph.update()
                                 self.orientationTaskSuccessGraph.update()
-                    #TODO: save the successful state
+
                     #save the successful states:
-                    fname = self.state_save_directory + "dropgrip"
+                    '''fname = self.state_save_directory + "dropgrip"
                     print(fname)
                     count = 0
                     objfname_ix = fname + "%05d" % count
@@ -196,6 +197,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                     self.saveCharacterState(filename=charfname_ix)
                     #state_prefix = "end_dropgrip_distribution/" + "_char%05d" % count
                     #self.saveCharacterState(filename="end_dropgrip_distribution/")
+                    '''
                     return True, 1
 
         return False, 0
@@ -470,8 +472,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                 #check for inverted frames
                 if self.gripFeatureL.plane.normal.dot(np.array([0,0,-1.0])) < 0:
                     #TODO: trash these and reset again
-                    print("INVERSION")
-                    #repeat = True
+                    print("INVERSION 1")
+                    repeat = True
+                    continue
 
                 #apply random force to the garment to introduce initial state variation
                 if self.initialPerturbationScale > 0:
@@ -486,6 +489,18 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
                         forces[i * 3 + 2] = force[2]
                     self.clothScene.addAccelerationToParticles(cid=0, a=forces)
                     #print("applied " + str(force) + " force to cloth.")
+
+                    for i in range(self.simStepsAfterPerturbation):
+                        self.clothScene.step()
+                        self.collarFeature.fitPlane()
+                        self.gripFeatureL.fitPlane()
+                        self.gripFeatureR.fitPlane()
+                        # check for inverted frames
+                if self.gripFeatureL.plane.normal.dot(np.array([0, 0, -1.0])) < 0:
+                    # TODO: trash these and reset again
+                    print("INVERSION 2")
+                    repeat = True
+                    continue
 
         self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal * 0.03
         self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)

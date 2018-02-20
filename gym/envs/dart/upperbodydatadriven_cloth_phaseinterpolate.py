@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -354,7 +354,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                     #print(objfname_ix)
                     self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
-
+                if count != self.resetDistributionSize:
+                    print("Distribution size is not synced! " + str(count)+"/"+str(self.resetDistributionSize))
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 0
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
