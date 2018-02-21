@@ -22,15 +22,15 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = False  # if true, contact ids are in obs
-        self.hapticsInObs   = False # if true, haptics are in observation
+        self.contactIDInObs = True  # if true, contact ids are in obs
+        self.hapticsInObs   = True # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
         self.recurrency     = 0 #if > 0, specifies the number of recurrent features
 
@@ -44,13 +44,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.restPoseReward             = False
 
         #other flags
-        self.SPDActionSpace             = True  #if true, actions are SPD targets
+        self.SPDActionSpace             = False  #if true, actions are SPD targets
         self.hapticsAware               = True  # if false, 0's for haptic input
         self.collarTermination          = True  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
-        self.resetStateFromDistribution = False
-        self.resetDistributionPrefix = "saved_control_states/Right Tuck"
-        self.resetDistributionSize = 16
+        self.resetStateFromDistribution = True
+        #self.resetDistributionPrefix = "saved_control_states/Right Tuck"
+        self.resetDistributionPrefix = "saved_control_states/rtuck"
+        self.resetDistributionSize = 17
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -94,6 +95,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                                                           SPDActionSpace=self.SPDActionSpace)
 
         #clothing features
+        self.targetGripVerticesL = [46, 437, 955, 1185, 47, 285, 711, 677, 48, 905, 1041, 49, 741, 889, 45]
+        self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
         self.sleeveRVerts = [2580, 2495, 2508, 2586, 2518, 2560, 2621, 2529, 2559, 2593, 272, 2561, 2658, 2582, 2666, 2575, 2584, 2625, 2616, 2453, 2500, 2598, 2466]
         self.sleeveRMidVerts = [2556, 2646, 2641, 2574, 2478, 2647, 2650, 269, 2630, 2528, 2607, 2662, 2581, 2458, 2516, 2499, 2555, 2644, 2482, 2653, 2507, 2648, 2573, 2601, 2645]
         self.sleeveREndVerts = [252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 10, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251]
@@ -102,6 +105,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.CP1Feature = ClothFeature(verts=self.sleeveREndVerts, clothScene=self.clothScene)
         self.CP2Feature = ClothFeature(verts=self.sleeveRMidVerts, clothScene=self.clothScene)
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
+        self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
+        self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
+
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -132,6 +138,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.CP2Feature.fitPlane()
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
 
         #update handle nodes
         if self.handleNode is not None:
@@ -392,6 +400,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            #print(charfname_ix)
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
             #self.restPose = np.array(self.robot_skeleton.q)
@@ -401,7 +410,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
-            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+            self.handleNode.addVertices(verts=self.targetGripVerticesL)
             self.handleNode.setOrgToCentroid()
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
@@ -412,6 +421,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.CP1Feature.fitPlane()
             self.CP2Feature.fitPlane()
             self.collarFeature.fitPlane()
+            self.gripFeatureL.fitPlane()
+            self.gripFeatureR.fitPlane()
             if self.reset_number == 0:
                 self.separatedMesh.initSeparatedMeshGraph()
                 self.separatedMesh.updateWeights()
@@ -438,13 +449,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             renderUtils.drawLines(lines=links)
 
         if self.CP0Feature is not None:
-            self.CP0Feature.drawProjectionPoly()
+            self.CP0Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         if self.CP1Feature is not None:
-            self.CP1Feature.drawProjectionPoly()
+            self.CP1Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         if self.CP2Feature is not None:
-            self.CP2Feature.drawProjectionPoly()
+            self.CP2Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         if self.collarFeature is not None:
-            self.collarFeature.drawProjectionPoly()
+            self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+        self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
 
         textHeight = 15
         textLines = 2

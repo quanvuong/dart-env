@@ -112,12 +112,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        self.state_save_directory = "saved_control_states/"
+        self.saveStateOnReset = False
+
     def _getFile(self):
         return __file__
-
-    def saveObjState(self):
-        print("Trying to save the object state")
-        self.clothScene.saveObjState("objState", 0)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
@@ -157,6 +156,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 return True, -20000
+
+        if self.numSteps == 99:
+            if self.saveStateOnReset and self.reset_number > 0:
+                fname = self.state_save_directory + "rtuck"
+                print(fname)
+                count = 0
+                objfname_ix = fname + "%05d" % count
+                charfname_ix = fname + "_char%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                print(objfname_ix)
+                self.saveObjState(filename=objfname_ix)
+                self.saveCharacterState(filename=charfname_ix)
 
         return False, 0
 
@@ -287,6 +301,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         '''if self.resetTime > 0:
             print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         '''
+
         self.resetTime = time.time()
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])

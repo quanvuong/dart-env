@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_02_19_tuckR_noCID" #this actually has CID (go figure)
+    #trial = "experiment_2018_02_19_tuckR_noCID" #this actually has CID (go figure)
     #trial = "experiment_2018_02_19_tuckR_noCIDreal" #this actually does not have CID (hm)
 
     #trial = "experiment_2018_02_16_dropgrip_alignspecific" #***2
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_01_01_dropgrip"
 
     #trial = "experiment_2017_12_12_halfplane_reacher_cont3"
-    #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"  #***
+    trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"  #***
 
 
     #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont"
@@ -148,11 +148,11 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
@@ -182,7 +182,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 100
+        rolloutHorizon = 10000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
