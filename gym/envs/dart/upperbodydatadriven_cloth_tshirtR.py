@@ -63,6 +63,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.localRightEfShoulder1 = None
         self.limbProgress = 0
         self.previousDeformationReward = 0
+        self.previousContactGeo = 0
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -226,6 +227,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 for c in contactInfo:
                     avgContactGeodesic += c[1]
                 avgContactGeodesic /= len(contactInfo)
+        self.previousContactGeo = avgContactGeodesic
 
         reward_contactGeo = 0
         if self.contactGeoReward and self.simulateCloth:
@@ -426,7 +428,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             if self.reset_number == 0:
                 self.separatedMesh.initSeparatedMeshGraph()
                 self.separatedMesh.updateWeights()
-                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
+                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=1)
 
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
@@ -442,6 +444,20 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        # render geodesic
+        '''
+        for v in range(self.clothScene.getNumVertices()):
+            side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+            side0geo = self.separatedMesh.nodes[v].geodesic
+
+            pos = self.clothScene.getVertexPos(vid=v)
+            norm = self.clothScene.getVertNormal(vid=v)
+            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
+            renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
+            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
+            renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+        '''
 
         # SPD pose rendering
         if self.SPDTarget is not None:
@@ -476,6 +492,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
             textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
+            textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
@@ -483,3 +501,5 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=maxDeformation/50.0, color=[1.0, 0.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 45], h=16, w=60, progress=sumSquaredDeformation/1000.0, color=[1.0, 0.0, 0])
+            if self.previousContactGeo is not None:
+                renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 60], h=16, w=60, progress=1.0-self.previousContactGeo, color=[0.0, 0.0, 1.00])

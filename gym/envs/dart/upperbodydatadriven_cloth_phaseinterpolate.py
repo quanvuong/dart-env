@@ -19,6 +19,93 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
+class OpennessMetricObject(object):
+    '''a polygonal region from shoulders to grip feature'''
+    def __init__(self, clothScene, nL, nM, nR, vR, vL):
+        self.clothScene = clothScene
+        self.nL = nL
+        self.nM = nM
+        self.nR = nR
+        self.vL = vL
+        self.vR = vR
+        self.area = 0
+        self.sortedArea = 0 #area of sorted polygon
+        self.triangleArea = 0 #area method 2: sum of 3 triangle areas
+        self.plane = Plane()
+        self.projectedPoints = []
+        self.points = []
+
+    def update(self):
+        npL = self.nL.to_world(np.zeros(3))
+        npM = self.nM.to_world(np.zeros(3))
+        npR = self.nR.to_world(np.zeros(3))
+        vpL = self.clothScene.getVertexPos(vid=self.vL)
+        vpR = self.clothScene.getVertexPos(vid=self.vR)
+        self.points = [npL, npM, npR, vpR, vpL]
+        self.plane = fitPlane(points=[npL, npR, vpR, vpL], normhint=self.plane.normal, basis1hint=self.plane.basis1, basis2hint=self.plane.basis2)
+        #project points to plane
+        points = [npL, npR, vpR, vpL]
+        self.projectedPoints = []
+        points2D = []
+        sortedPoints2D = []
+        for p in points:
+            self.projectedPoints.append(self.plane.projectPoint(p))
+            points2D.append(self.plane.get2D(self.projectedPoints[-1],project=False))
+        #now get the area
+        self.area = 0
+        prev = points2D[-1]
+        sorted = True
+        for ix,p in enumerate(points2D):
+            det = p[0]*prev[1] + p[1]*(-prev[0])
+            if det > 0:
+                sorted = False
+                #print("     "+str(ix)+": clockwise")
+            self.area -= ((prev[0] + p[0]) * (prev[1] - p[1]))
+            prev = p
+
+        #print("sorted: " + str(sorted))
+
+        sortedPoints2D.append(points2D[0])
+        sortedPoints2D.append(points2D[1])
+        if sorted:
+            sortedPoints2D.append(points2D[2])
+            sortedPoints2D.append(points2D[3])
+        else:
+            sortedPoints2D.append(points2D[3])
+            sortedPoints2D.append(points2D[2])
+
+        self.sortedArea = 0
+        prev = sortedPoints2D[-1]
+        for p in sortedPoints2D:
+            det = p[0] * prev[1] + p[1] * (-prev[0])
+            if det > 0:
+                print("still wrong")
+            self.sortedArea -= ((prev[0]+p[0]) * (prev[1]-p[1]))
+            prev = p
+
+        #calculate triangle based area
+        v0 = npL-vpL
+        v1 = npM-vpL
+        v2 = npR-vpR
+        v3 = npM-vpR
+        self.triangleArea = 0.5 * (np.linalg.norm(np.cross(v0,v1)) + np.linalg.norm(np.cross(v2,v3)) + np.linalg.norm(np.cross(-v1,-v3)))
+
+    def drawRegion(self, fillColor=[0.8,0.2,0.2]):
+        renderUtils.setColor([0.0, 0., 0.])
+        for p in self.projectedPoints:
+            renderUtils.drawSphere(p, rad=0.0025)
+
+        renderUtils.drawPolygon(points=self.projectedPoints, filled=True, fillColor=fillColor)
+
+        #renderUtils.drawArrow(p0=self.plane.org, p1=self.plane.org+self.plane.normal)
+        #self.plane.draw()
+
+        renderUtils.setColor([0.0, 0., 1.])
+        if len(self.points) > 0:
+            renderUtils.drawTriangle(p0=self.points[0], p1=self.points[1], p2=self.points[4])
+            renderUtils.drawTriangle(p0=self.points[1], p1=self.points[3], p2=self.points[4])
+            renderUtils.drawTriangle(p0=self.points[1], p1=self.points[2], p2=self.points[3])
+
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
@@ -65,6 +152,26 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
 
+        #grid sampling / local points
+        self.localPointGrid = None #set in reset
+        #front body only
+        self.clothContainmentHeuristicVerts = [960, 690, 1012, 776, 821, 930, 1029, 971, 520, 951, 946, 1000, 978, 1203, 1159, 863, 443, 1127, 992, 609]
+        #front and side body
+        #self.clothContainmentHeuristicVerts = [960, 690, 1012, 776, 821, 930, 1029, 971, 520, 951, 946, 1000, 978, 1203, 1159, 863, 443, 1127, 992, 609, 1706, 2138, 1715, 1629, 87, 81, 1431, 71, 68]
+        #front, back and side body
+        #self.clothContainmentHeuristicVerts = [960, 690, 1012, 776, 821, 930, 1029, 971, 520, 951, 946, 1000, 978, 1203, 1159, 863, 443, 1127, 992, 609, 1706, 2138, 1715, 1629, 87, 81, 1431, 71, 68, 1641, 1967, 2097, 1601, 2056, 1895, 2193, 1941, 1946, 1553, 2042, 2176]
+        #front,side,back body and shoulders/collar
+        #self.clothContainmentHeuristicVerts = [960, 690, 1012, 776, 821, 930, 1029, 971, 520, 951, 946, 1000, 978, 1203, 1159, 863, 443, 1127, 992, 609, 1706, 2138, 1715, 1629, 87, 81, 1431, 71, 68, 1641, 1967, 2097, 1601, 2056, 1895, 2193, 1941, 1946, 1553, 2042, 2176, 2667, 480, 1133, 342, 1167, 832, 2587, 124, 1447, 1289, 2457, 1793, 1259]
+        self.clothContainmentHeuristic = None #set in reset
+        self.clothContainmentRecord = []
+        self.clothContainmentMethod = 2
+        self.clothOpennessMetric = None #also set in reset
+        self.graphClothOpenness = False
+        self.clothOpennessGraph = None
+        self.graphContainmentHeuristic = True
+        self.containmentHeuristicGraph = None
+        self.saveGraphsOnReset = True
+
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
         if self.prevTauObs:
@@ -98,10 +205,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.targetGripVerticesL = [46, 437, 955, 1185, 47, 285, 711, 677, 48, 905, 1041, 49, 741, 889, 45]
         self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
         #self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
+        self.waistVertices = [0, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 1, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170]
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
-
+        self.waistFeature = ClothFeature(verts=self.waistVertices, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -131,6 +239,31 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.collarFeature.fitPlane()
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
+        self.waistFeature.fitPlane()
+
+        if self.clothOpennessMetric is not None:
+            self.clothOpennessMetric.update()
+
+        if self.graphClothOpenness and self.clothOpennessGraph is not None:
+            self.clothOpennessGraph.addToLinePlot([self.clothOpennessMetric.area, self.clothOpennessMetric.sortedArea, self.clothOpennessMetric.triangleArea ])
+
+        efcontainment = 0
+        if self.clothContainmentHeuristic is not None:
+            efcontainment = self.clothContainmentHeuristic.contained(point=self.robot_skeleton.bodynodes[7].to_world(np.array([0,-0.075, 0])), method=self.clothContainmentMethod)
+            if self.localPointGrid is not None:
+                points = self.localPointGrid.getWorldPoints()
+                self.clothContainmentRecord = self.clothContainmentHeuristic.setContained(points=points, method=self.clothContainmentMethod)
+
+        if self.graphContainmentHeuristic and len(self.clothContainmentRecord) > 0 and self.containmentHeuristicGraph is not None:
+            containedPercent = 0
+            for r in self.clothContainmentRecord:
+                if r:
+                    containedPercent += 1
+            containedPercent /= len(self.clothContainmentRecord)
+            #end effector containment
+            self.containmentHeuristicGraph.addToLinePlot([containedPercent, efcontainment])
+
+
 
         # update handle nodes
         if self.handleNode is not None:
@@ -305,6 +438,38 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.resetTime = time.time()
         #do any additional resetting here
         fingertip = np.array([0, -0.065, 0])
+
+        if self.localPointGrid is None:
+            points = pyutils.gridSample(dimSamples=np.ones(3)*4, org=np.array([0, 0, -0.2]), dimensions=np.ones(3)*0.15)
+            self.localPointGrid = pyutils.localPointSet(node=self.robot_skeleton.bodynodes[2], points=points)
+            self.localPointGrid.worldPoints = points
+            self.localPointGrid.updateLocal()
+        if self.clothContainmentHeuristic is None:
+            self.clothContainmentHeuristic = pyutils.clothContainmentHeuristic(clothScene=self.clothScene,verts=self.clothContainmentHeuristicVerts)#, constraintFeatures=[self.waistFeature])
+
+        #if self.clothOpennessMetric is None:
+        nL = self.robot_skeleton.bodynodes[9]
+        nR = self.robot_skeleton.bodynodes[4]
+        nM = self.robot_skeleton.bodynodes[2]
+        vL = 889
+        vR = 1041
+        self.clothOpennessMetric = OpennessMetricObject(self.clothScene, nL=nL, nM=nM, nR=nR, vR=vR, vL=vL)
+
+        if self.graphClothOpenness:
+            if self.saveGraphsOnReset and self.clothOpennessGraph is not None:
+                self.clothOpennessGraph.save(filename="clothOpennessGraph"+str(self.reset_number))
+            print(self.clothOpennessGraph)
+            if self.clothOpennessGraph is not None:
+                self.clothOpennessGraph.close()
+            self.clothOpennessGraph = pyutils.LineGrapher(title="Cloth Openness", numPlots=3)
+
+        if self.graphContainmentHeuristic:
+            if self.saveGraphsOnReset and self.containmentHeuristicGraph is not None:
+                self.containmentHeuristicGraph.save(filename="containmentHeuristicGraph2m"+str(self.reset_number))
+            if self.containmentHeuristicGraph is not None:
+                self.containmentHeuristicGraph.close()
+            self.containmentHeuristicGraph = pyutils.LineGrapher(title="Cloth Containment (method 2)", numPlots=2)
+
         '''if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -374,8 +539,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 0
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
-            self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
+            # update physx capsules
+            self.updateClothCollisionStructures(hapticSensors=True)
+            self.clothScene.clearInterpolation()
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
 
         else:
             self.loadCharacterState(filename="characterState_endDropGrip1")
@@ -393,6 +561,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
+            self.waistFeature.fitPlane(normhint=np.array([0,1.0,0]))
 
         a=0
 
@@ -411,22 +580,49 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderBasis=False, renderNormal=False)
         self.gripFeatureL.drawProjectionPoly(renderBasis=False, renderNormal=False)
+        self.waistFeature.drawProjectionPoly(renderBasis=False)
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        #test grid sampling
+        #print("render")
+        #self.timeToTest = time.time()
+        if self.localPointGrid is not None:
+            points = self.localPointGrid.getWorldPoints()
+            #renderUtils.drawLineStrip(points=points)
+            if len(self.clothContainmentRecord) == len(points):
+                containment = self.clothContainmentRecord
+                #self.timeToTest = time.time()-self.timeToTest
+                self.clothContainmentHeuristic.drawVerts()
+                for pix,p in enumerate(points):
+                    if containment[pix]:
+                        renderUtils.setColor(color=[0,0.8,0])
+                        renderUtils.drawSphere(pos=p, rad=0.02)
+                    else:
+                        renderUtils.setColor(color=[0.8, 0.0, 0])
+                        renderUtils.drawTetrahedron(pos=p, rad=0.02, solid=False)
+                        #renderUtils.drawSphere(pos=p, rad=0.02, solid=False)
+            else:
+                for p in points:
+                    renderUtils.drawSphere(pos=p, rad=0.02)
+
+        #trapezoidal openness metric
+        #if self.clothOpennessMetric is not None:
+        #    self.clothOpennessMetric.drawRegion()
 
         #render targets
         fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
             renderUtils.setColor(color=[1.0,0,0])
-            renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
+            #renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
             efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
-            renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
+            #renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         textHeight = 15
@@ -436,10 +632,17 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             renderUtils.setColor(color=[0.,0,0])
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
             textLines += 1
+            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Rollout ID = " + str(self.reset_number), color=(0., 0, 0))
+            textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
+            #if self.clothOpennessMetric is not None:
+            #    self.clothScene.drawText(x=15., y=textLines * textHeight, text="Trapezoid Area = " + str(self.clothOpennessMetric.area), color=(0., 0, 0))
+            #    textLines += 1
+            #self.clothScene.drawText(x=15., y=textLines * textHeight, text="Containment Test Time = " + str(self.timeToTest), color=(0., 0, 0))
+            #textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 

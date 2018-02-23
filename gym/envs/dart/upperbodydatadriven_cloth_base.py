@@ -112,6 +112,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if self.graphingRandomness:
             self.randomnessGraph = pyutils.LineGrapher(title="Randomness")
 
+        #graphing character pose sum for control determinism tracking
+        self.graphPoseSum = False
+        if self.graphPoseSum:
+            self.poseSumGraph = pyutils.LineGrapher(title="Pose Sum")
 
         #record character range of motion through random exploration
         self.recordROMPoints = False
@@ -476,6 +480,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.randomnessGraph.yData[-2][self.numSteps] = self.initialnpRand
                 self.randomnessGraph.yData[-1][self.numSteps] = self.initialselfnpRand
                 self.randomnessGraph.update()
+
+        if self.graphPoseSum:
+            if len(self.poseSumGraph.xdata) > 0:
+                poseSum = np.linalg.norm(self.robot_skeleton.q)
+                self.poseSumGraph.yData[-1][self.numSteps] = poseSum
+                self.poseSumGraph.update()
+
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.robot_skeleton.q))
         #self.additionalAction should be set in updateBeforeSimulation
@@ -625,6 +636,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.randomnessGraph.plotData(ydata=np.zeros(100))
             self.randomnessGraph.plotData(ydata=np.zeros(100))
 
+        if self.graphPoseSum:
+            self.poseSumGraph.xdata = np.arange(100)
+            self.poseSumGraph.plotData(ydata=np.zeros(100))
+
         seeds=[]
         #seeds = [0, 2, 5, 8, 11, 20, 27, 35, 36, 47, 50, 51] #success seeds for stochastic policy
         #seeds = [0, 1, 2, 3, 5, 8, 11, 12, 13, 14, 18, 19, 20, 23, 27, 35, 38, 50] #success seeds for mean policy
@@ -637,11 +652,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             seed = self.reset_number
             #print("all given seeds simulated")
-        seed = 8
-        #print("rollout: " + str(self.reset_number) +", seed: " + str(seed))
-        #random.seed(seed)
-        #self.np_random.seed(seed)
-        #np.random.seed(seed)
+        #seed = 8
+        print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
+        random.seed(seed)
+        self.np_random.seed(seed)
+        np.random.seed(seed)
         #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))
@@ -678,11 +693,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if len(self.ROMPoints) > 1:
                 pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-        '''if self.numSteps > 0:
+        if self.numSteps > 0:
             print("reset_model took " + str(time.time()-startTime))
             for item in self.avgtimings.items():
                 print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
-        '''
+
         self.avgtimings = {}
         self.reset_number += 1
         self.numSteps = 0

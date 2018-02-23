@@ -20,7 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2018_02_19_tuckR_noCID" #this actually has CID (go figure)
+    #trial = "experiment_2018_02_21_1stsleeve"
+
+    #trial = "experiment_2018_02_19_tuckR_noCID" #***this actually has CID (go figure)
     #trial = "experiment_2018_02_19_tuckR_noCIDreal" #this actually does not have CID (hm)
 
     #trial = "experiment_2018_02_16_dropgrip_alignspecific" #***2
@@ -88,7 +90,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_01_01_dropgrip"
 
     #trial = "experiment_2017_12_12_halfplane_reacher_cont3"
-    trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"  #***
+    #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"  #***
 
 
     #trial = "experiment_2017_12_12_1sdSleeve_progressfocus_cont"
