@@ -653,10 +653,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             seed = self.reset_number
             #print("all given seeds simulated")
         #seed = 8
-        print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
-        random.seed(seed)
-        self.np_random.seed(seed)
-        np.random.seed(seed)
+        #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
+        #random.seed(seed)
+        #self.np_random.seed(seed)
+        #np.random.seed(seed)
         #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))
@@ -693,10 +693,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if len(self.ROMPoints) > 1:
                 pyutils.saveList(self.ROMPoints, filename="ROMPoints", listoflists=True)
 
-        if self.numSteps > 0:
+        '''if self.numSteps > 0:
             print("reset_model took " + str(time.time()-startTime))
             for item in self.avgtimings.items():
                 print("    " + str(item[0] + " took " + str(item[1]/self.numSteps)))
+        '''
 
         self.avgtimings = {}
         self.reset_number += 1
