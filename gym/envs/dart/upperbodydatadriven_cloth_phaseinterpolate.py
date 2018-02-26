@@ -109,7 +109,7 @@ class OpennessMetricObject(object):
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -123,9 +123,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
-        self.rightTargetReward          = True
-        self.leftTargetReward           = True
-        self.contactSurfaceReward       = False #reward for end effector touching inside cloth
+        self.rightTargetReward          = False
+        self.leftTargetReward           = False
+        self.contactSurfaceReward       = True #reward for end effector touching inside cloth
+        self.opennessReward             = False #use openness metric for reward
+        self.containmentReward          = True #use containment percentage as reward
+        self.efContainmentReward        = True #use end effector containment as reward (binary)
+        self.elbowHandElevationReward   = True #penalize elbow above the hand (tuck elbow down)
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -151,6 +155,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
+        self.fingertip = np.array([0, -0.075, 0])
 
         #grid sampling / local points
         self.localPointGrid = None #set in reset
@@ -165,12 +170,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.clothContainmentHeuristic = None #set in reset
         self.clothContainmentRecord = []
         self.clothContainmentMethod = 2
-        self.clothOpennessMetric = None #also set in reset
+        self.clothOpennessMetric = None #also set in reset (off)
         self.graphClothOpenness = False
         self.clothOpennessGraph = None
-        self.graphContainmentHeuristic = True
+        self.graphContainmentHeuristic = False
         self.containmentHeuristicGraph = None
-        self.saveGraphsOnReset = True
+        self.saveGraphsOnReset = False
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -228,9 +233,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
         #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
@@ -240,12 +244,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
         self.waistFeature.fitPlane()
+        self.waistFeature.computeArea()
 
         if self.clothOpennessMetric is not None:
             self.clothOpennessMetric.update()
 
         if self.graphClothOpenness and self.clothOpennessGraph is not None:
-            self.clothOpennessGraph.addToLinePlot([self.clothOpennessMetric.area, self.clothOpennessMetric.sortedArea, self.clothOpennessMetric.triangleArea ])
+            self.clothOpennessGraph.addToLinePlot([self.waistFeature.area, self.clothOpennessMetric.sortedArea, self.clothOpennessMetric.triangleArea ])
 
         efcontainment = 0
         if self.clothContainmentHeuristic is not None:
@@ -309,9 +314,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
@@ -343,7 +347,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             #    reward_contact_surface = 1.0
             #print(CID)
             reward_contact_surface = CID #-1.0 for full outside, 1.0 for full inside
-
+            #print(reward_contact_surface)
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
@@ -380,15 +384,48 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
 
+        #penalty for elbow above the hand (may reduce the elbow flair)
+        reward_elbowHandElevation = 0
+        if self.elbowHandElevationReward:
+            elbow = self.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+            if wRFingertip2[1] < elbow[1]:
+                reward_elbowHandElevation = wRFingertip2[1] - elbow[1]
+
+        #reward percentage of point grid contained
+        reward_containment = 0
+        if self.containmentReward:
+            containedPercent = 0
+            for r in self.clothContainmentRecord:
+                if r:
+                    containedPercent += 1
+            containedPercent /= len(self.clothContainmentRecord)
+            reward_containment = containedPercent
+
+        #binary reward signal for end effector containment
+        reward_efContainment = 0
+        if self.efContainmentReward:
+            efcontainment = self.clothContainmentHeuristic.contained(point=self.robot_skeleton.bodynodes[7].to_world(self.fingertip), method=self.clothContainmentMethod)
+            if efcontainment:
+                reward_efContainment = 1
+
+        reward_openness = 0
+        if self.opennessReward:
+            #reward_openness = self.clothOpennessMetric.sortedArea
+            reward_openness = self.waistFeature.area
+
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 10 \
+                      + reward_clothdeformation * 20 \
                       + reward_restPose \
                       + reward_rightTarget*100 \
                       + reward_leftTarget*100 \
-                      + reward_contact_surface * 3
+                      + reward_contact_surface * 3 \
+                      + reward_openness \
+                      + reward_containment*10 \
+                      + reward_efContainment*10 \
+                      + reward_elbowHandElevation*5
         # TODO: revisit cloth deformation penalty
         return self.reward
 
@@ -400,8 +437,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         for ix, dof in enumerate(self.actuatedDofs):
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
-
-        fingertip = np.array([0.0, -0.065, 0.0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -421,11 +456,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
 
         return obs
@@ -437,23 +472,25 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
 
         if self.localPointGrid is None:
-            points = pyutils.gridSample(dimSamples=np.ones(3)*4, org=np.array([0, 0, -0.2]), dimensions=np.ones(3)*0.15)
+            gridDimensions = np.array([0.1,0.05,0.08])
+            gridSamples = np.array([3,2,3])
+            points = pyutils.gridSample(dimSamples=gridSamples, org=np.array([0, 0, -0.2]), dimensions=gridDimensions)
             self.localPointGrid = pyutils.localPointSet(node=self.robot_skeleton.bodynodes[2], points=points)
             self.localPointGrid.worldPoints = points
             self.localPointGrid.updateLocal()
         if self.clothContainmentHeuristic is None:
-            self.clothContainmentHeuristic = pyutils.clothContainmentHeuristic(clothScene=self.clothScene,verts=self.clothContainmentHeuristicVerts)#, constraintFeatures=[self.waistFeature])
+            self.clothContainmentHeuristic = pyutils.clothContainmentHeuristic(clothScene=self.clothScene,verts=self.clothContainmentHeuristicVerts, constraintFeatures=[self.waistFeature])
 
         #if self.clothOpennessMetric is None:
-        nL = self.robot_skeleton.bodynodes[9]
+        '''nL = self.robot_skeleton.bodynodes[9]
         nR = self.robot_skeleton.bodynodes[4]
         nM = self.robot_skeleton.bodynodes[2]
         vL = 889
         vR = 1041
         self.clothOpennessMetric = OpennessMetricObject(self.clothScene, nL=nL, nM=nM, nR=nR, vR=vR, vL=vL)
+        '''
 
         if self.graphClothOpenness:
             if self.saveGraphsOnReset and self.clothOpennessGraph is not None:
@@ -518,9 +555,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.set_state(qpos, qvel)
 
         #find end effector targets and set restPose from solution
-        fingertip = np.array([0.0, -0.065, 0.0])
-        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         #print("right target: " + str(self.rightTarget))
         #print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
@@ -586,6 +622,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
+        renderUtils.drawLines(lines=pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.restPose))
+
         #test grid sampling
         #print("render")
         #self.timeToTest = time.time()
@@ -613,14 +651,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         #    self.clothOpennessMetric.drawRegion()
 
         #render targets
-        fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             #renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             #renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
