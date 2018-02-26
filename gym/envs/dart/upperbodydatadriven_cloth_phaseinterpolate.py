@@ -126,8 +126,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.rightTargetReward          = False
         self.leftTargetReward           = False
         self.contactSurfaceReward       = True #reward for end effector touching inside cloth
-        self.opennessReward             = False #use openness metric for reward
-        self.containmentReward          = True #use containment percentage as reward
+        self.opennessReward             = True #use openness metric for reward
+        self.containmentReward          = False #use containment percentage as reward
         self.efContainmentReward        = True #use end effector containment as reward (binary)
         self.elbowHandElevationReward   = True #penalize elbow above the hand (tuck elbow down)
 
@@ -422,7 +422,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                       + reward_rightTarget*100 \
                       + reward_leftTarget*100 \
                       + reward_contact_surface * 3 \
-                      + reward_openness \
+                      + reward_openness*10 \
                       + reward_containment*10 \
                       + reward_efContainment*10 \
                       + reward_elbowHandElevation*5
