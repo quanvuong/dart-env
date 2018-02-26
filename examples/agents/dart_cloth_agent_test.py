@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_02_23_1stsleeve"
     #trial = "experiment_2018_02_21_1stsleeve"
 
     #trial = "experiment_2018_02_19_tuckR_noCID" #***this actually has CID (go figure)

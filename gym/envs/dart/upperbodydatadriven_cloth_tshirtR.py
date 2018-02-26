@@ -64,6 +64,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.limbProgress = 0
         self.previousDeformationReward = 0
         self.previousContactGeo = 0
+        self.fingertip = np.array([0,-0.075,0])
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -148,8 +149,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
 
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
 
         if self.SPDActionSpace:
@@ -187,9 +187,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
 
         #self.SPDTarget = tau[:len(tau)-self.recurrency]
@@ -307,8 +306,6 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.065, 0.0])
-
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
         if self.prevTauObs:
@@ -324,7 +321,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         if self.featureInObs and self.simulateCloth:
             centroid = self.CP2Feature.plane.org
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             disp = centroid-efR
             obs = np.concatenate([obs, centroid, disp]).ravel()
 
@@ -341,7 +338,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                                                                                      returnOnlyGeo=False)
                 if minGeoVix is None:
                     #oracle points to the garment when ef not in contact
-                    efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+                    efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
                     #closeVert = self.clothScene.getCloseVertex(p=efR)
                     #target = self.clothScene.getVertexPos(vid=closeVert)
                     centroid = self.CP2Feature.plane.org
@@ -398,7 +395,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
-            #resetStateNumber = 0
+            resetStateNumber = 7
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
@@ -458,6 +455,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
             renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
         '''
+
+        efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
 
         # SPD pose rendering
         if self.SPDTarget is not None:
