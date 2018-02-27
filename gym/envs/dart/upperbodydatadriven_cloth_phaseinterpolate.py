@@ -109,7 +109,7 @@ class OpennessMetricObject(object):
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -155,6 +155,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
+        self.previousEfContainment = 0
         self.fingertip = np.array([0, -0.075, 0])
 
         #grid sampling / local points
@@ -407,6 +408,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             efcontainment = self.clothContainmentHeuristic.contained(point=self.robot_skeleton.bodynodes[7].to_world(self.fingertip), method=self.clothContainmentMethod)
             if efcontainment:
                 reward_efContainment = 1
+        self.previousEfContainment = reward_efContainment
 
         reward_openness = 0
         if self.opennessReward:
@@ -650,6 +652,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         #if self.clothOpennessMetric is not None:
         #    self.clothOpennessMetric.drawRegion()
 
+        if self.efContainmentReward:
+            renderUtils.setColor([1.0,0,0])
+            if self.previousEfContainment:
+                renderUtils.setColor([0,1.0,0])
+            renderUtils.drawSphere(pos=np.array([0,0.5,0]),rad=0.05)
+
         #render targets
         if self.rightTargetReward:
             efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
@@ -681,6 +689,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             #self.clothScene.drawText(x=15., y=textLines * textHeight, text="Containment Test Time = " + str(self.timeToTest), color=(0., 0, 0))
             #textLines += 1
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
