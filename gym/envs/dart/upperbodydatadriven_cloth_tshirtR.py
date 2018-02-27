@@ -394,7 +394,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                     self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
-            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             resetStateNumber = 7
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
@@ -425,7 +425,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             if self.reset_number == 0:
                 self.separatedMesh.initSeparatedMeshGraph()
                 self.separatedMesh.updateWeights()
-                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=1)
+                #TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
+                #option: maybe compute this before setting the cloth state at all in initialization?
+                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
 
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
