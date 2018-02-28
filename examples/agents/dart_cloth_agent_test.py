@@ -21,7 +21,7 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_02_26_tuckR_openness"
-    trial = "experiment_2018_02_26_tuckR_containment"
+    #trial = "experiment_2018_02_26_tuckR_containment"
     #trial = "experiment_2018_02_26_1stsleeve_narrow7"
 
     #trial = "experiment_2018_02_23_1stsleeve"
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 100
+        rolloutHorizon = 1000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
