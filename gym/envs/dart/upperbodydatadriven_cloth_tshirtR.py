@@ -42,6 +42,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
+        self.sleeveForwardReward        = True #penalize sleeve for being behind the character
 
         #other flags
         self.SPDActionSpace             = False  #if true, actions are SPD targets
@@ -65,6 +66,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.previousDeformationReward = 0
         self.previousContactGeo = 0
         self.fingertip = np.array([0,-0.075,0])
+        self.characterFrontBackPlane = Plane()
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -159,6 +161,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             else:
                 self.SPDTarget = np.array(self.robot_skeleton.q)
             #print("SPDTarget: " + str(self.SPDTarget))
+
+        spineCenter = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+        characterForward = self.robot_skeleton.bodynodes[2].to_world(np.array([0.0,0.0,-1.0]))-spineCenter
+        self.characterFrontBackPlane = Plane(org=spineCenter, normal=characterForward)
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -282,6 +288,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.recurrency > 0 and self.prevTau is not None:
             reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
 
+        reward_sleeveForward = 0
+        if self.sleeveForwardReward and self.limbProgress < 0:
+            vec = self.characterFrontBackPlane.org-self.CP0Feature.plane.org
+            dist = vec.dot(self.characterFrontBackPlane.normal)
+            if dist > 0:
+                reward_sleeveForward = -dist
+            #print(reward_sleeveForward)
+
         self.prevTau = np.array(tau)
         #print("tau: " + str(tau))
 
@@ -294,7 +308,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                       + reward_elbow_flair \
                       + reward_restPose \
                       + reward_SPD_smoothing \
-                      + reward_recurrency_stability
+                      + reward_recurrency_stability \
+                      + reward_sleeveForward * 20
         return self.reward
 
     def _get_obs(self):
@@ -475,6 +490,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
+
+        self.characterFrontBackPlane.draw()
 
         textHeight = 15
         textLines = 2
