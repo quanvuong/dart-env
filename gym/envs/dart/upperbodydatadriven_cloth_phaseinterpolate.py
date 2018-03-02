@@ -131,8 +131,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.efContainmentReward        = False #use end effector containment as reward (binary)
         self.elbowHandElevationReward   = False #penalize elbow above the hand (tuck elbow down)
         self.triangleContainmentReward  = True #active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
-        self.triangleAlignmentReward    = True #dot product reward between triangle normal and character torso vector
-        self.sleeveForwardReward        = True # penalize sleeve for being behind the character
+        self.triangleAlignmentReward    = False #dot product reward between triangle normal and character torso vector
+        self.sleeveForwardReward        = False # penalize sleeve for being behind the character
         self.efForwardReward            = False # penalize ef for being behind the character
 
         #other flags
