@@ -132,6 +132,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.elbowHandElevationReward   = False #penalize elbow above the hand (tuck elbow down)
         self.triangleContainmentReward  = True #active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
         self.triangleAlignmentReward    = True #dot product reward between triangle normal and character torso vector
+        self.sleeveForwardReward        = False # penalize sleeve for being behind the character
+        self.efForwardReward            = False # penalize ef for being behind the character
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -160,6 +162,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.previousEfContainment = 0
         self.fingertip = np.array([0, -0.075, 0])
         self.previousContainmentTriangle = [np.zeros(3),np.zeros(3),np.zeros(3)]
+        self.characterFrontBackPlane = Plane()
 
         #grid sampling / local points
         self.localPointGrid = None #set in reset
@@ -215,10 +218,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
         #self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
         self.waistVertices = [0, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 1, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170]
+        self.sleeveRMidVerts = [2556, 2646, 2641, 2574, 2478, 2647, 2650, 269, 2630, 2528, 2607, 2662, 2581, 2458, 2516, 2499, 2555, 2644, 2482, 2653, 2507, 2648, 2573, 2601, 2645]
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
         self.waistFeature = ClothFeature(verts=self.waistVertices, clothScene=self.clothScene)
+        self.CP2Feature = ClothFeature(verts=self.sleeveRMidVerts, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -248,6 +253,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
         self.waistFeature.fitPlane()
+        self.CP2Feature.fitPlane()
         if self.opennessReward:
             self.waistFeature.computeArea()
 
@@ -286,6 +292,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.step()
+
+        spineCenter = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+        characterForward = self.robot_skeleton.bodynodes[2].to_world(np.array([0.0, 0.0, -1.0])) - spineCenter
+        self.characterFrontBackPlane = Plane(org=spineCenter, normal=characterForward)
 
         a=0
 
@@ -437,6 +447,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             for l in lines:
                 hit,dist,pos,aligned = pyutils.triangleLineSegmentIntersection(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],l0=l[0], l1=l[1])
                 if hit:
+                    #print("hit: " + str(dist) + " | " + str(pos) + " | " + str(aligned))
                     intersect = True
                     aligned = aligned
                     break
@@ -448,6 +459,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             else:
                 #if no intersection, get distance
                 dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
+                #print(dist)
                 reward_triangleContainment = -dist
 
         reward_triangleAlignment = 0
@@ -463,6 +475,24 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
             reward_triangleAlignment = -tnorm.dot(torsoV)
 
+        reward_sleeveForward = 0
+        if self.sleeveForwardReward:
+            vec = self.characterFrontBackPlane.org - self.CP2Feature.plane.org
+            dist = vec.dot(self.characterFrontBackPlane.normal)
+            if dist > 0:
+                reward_sleeveForward = -dist
+
+        reward_efForward = 0
+        if self.efForwardReward:
+            vec = self.characterFrontBackPlane.org - wRFingertip2
+            dist = vec.dot(self.characterFrontBackPlane.normal)
+            if dist > 0:
+                reward_efForward = -dist
+
+        #print("reward_sleeveForward " + str(reward_sleeveForward))
+        #print("reward_efForward " + str(reward_efForward))
+        #print("reward_triangleContainment " + str(reward_triangleContainment))
+
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
@@ -477,7 +507,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                       + reward_efContainment*10 \
                       + reward_elbowHandElevation*5 \
                       + reward_triangleContainment*10 \
-                      + reward_triangleAlignment * 2
+                      + reward_triangleAlignment * 2 \
+                      + reward_sleeveForward * 5 \
+                      + reward_efForward * 15
         # TODO: revisit cloth deformation penalty
         return self.reward
 
@@ -649,6 +681,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
+            self.CP2Feature.fitPlane()
             self.waistFeature.fitPlane(normhint=np.array([0,1.0,0]))
 
         a=0
@@ -677,6 +710,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         renderUtils.drawLines(lines=pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.restPose))
 
+        #self.characterFrontBackPlane.draw()
+
         if self.triangleContainmentReward:
             renderUtils.setColor([1.0, 1.0, 0])
             renderUtils.drawTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2])
@@ -687,31 +722,22 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             tnorm /= np.linalg.norm(tnorm)
             centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
             renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
+
         #triangle intersect/distance testing
-        '''
-        l0 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        l1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip + np.array([0,-0.1,0]))
-        renderUtils.drawLines(lines=[[l0,l1]])
-        renderUtils.drawSphere(pos=l1,rad=0.01)
-
-        c0 = np.array([0.1, 0, -0.3])
-        c1 = np.array([-0.2, 0.1, -0.2])
-        c2 = np.array([-0.05, -0.1, -0.4])
-        renderUtils.setColor([1.0,1.0,0])
-        renderUtils.drawTriangle(c0,c1,c2)
-
-        d2t, ctp = pyutils.distToTriangle(c0,c1,c2,l1)
-        renderUtils.setColor([0.0, 0.0, 0.4])
-        renderUtils.drawLines(lines=[[ctp, l1]])
-        renderUtils.drawSphere(pos=ctp, rad=0.01)
-
-        hit, dist, point, aligned = pyutils.triangleLineSegmentIntersection(c0,c1,c2,l0,l1)
-        if hit:
-            renderUtils.setColor([1.0,0,0])
-            if aligned:
-                renderUtils.setColor([0.0, 1.0, 0])
-            renderUtils.drawSphere(pos=point, rad=0.01)
-        '''
+        '''lines = [
+            [self.robot_skeleton.bodynodes[7].to_world(self.fingertip),
+             self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))],
+            [self.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
+             self.robot_skeleton.bodynodes[5].to_world(np.zeros(3))]
+        ]
+        for l in lines:
+            hit, dist, pos, aligned = pyutils.triangleLineSegmentIntersection(self.previousContainmentTriangle[0],
+                                                                          self.previousContainmentTriangle[1],
+                                                                          self.previousContainmentTriangle[2], l0=l[0],
+                                                                          l1=l[1])
+        dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0], self.previousContainmentTriangle[1],
+                                           self.previousContainmentTriangle[2], p=lines[0][0])
+        renderUtils.drawLines(lines=[[lines[0][0], pos]])'''
 
         #test grid sampling
         #print("render")
@@ -771,6 +797,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
+            #self.clothScene.drawText(x=15., y=textLines * textHeight, text="triangle dist = " + str(dist), color=(0., 0, 0))
+            #textLines += 1
+
             #if self.clothOpennessMetric is not None:
             #    self.clothScene.drawText(x=15., y=textLines * textHeight, text="Trapezoid Area = " + str(self.clothOpennessMetric.area), color=(0., 0, 0))
             #    textLines += 1
