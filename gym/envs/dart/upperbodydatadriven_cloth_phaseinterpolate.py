@@ -131,9 +131,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.efContainmentReward        = False #use end effector containment as reward (binary)
         self.elbowHandElevationReward   = False #penalize elbow above the hand (tuck elbow down)
         self.triangleContainmentReward  = True #active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
-        self.triangleAlignmentReward    = False #dot product reward between triangle normal and character torso vector
-        self.sleeveForwardReward        = False # penalize sleeve for being behind the character
-        self.efForwardReward            = False # penalize ef for being behind the character
+        self.triangleAlignmentReward    = True #dot product reward between triangle normal and character torso vector
+        self.sleeveForwardReward        = True # penalize sleeve for being behind the character
+        self.efForwardReward            = True # penalize ef for being behind the character
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -458,7 +458,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
                     reward_triangleContainment = -1
             else:
                 #if no intersection, get distance
-                dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
+                triangleCentroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
+                dist = np.linalg.norm(lines[0][0] - triangleCentroid)
+                #dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
                 #print(dist)
                 reward_triangleContainment = -dist
 
