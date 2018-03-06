@@ -109,7 +109,7 @@ class OpennessMetricObject(object):
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -163,6 +163,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.fingertip = np.array([0, -0.075, 0])
         self.previousContainmentTriangle = [np.zeros(3),np.zeros(3),np.zeros(3)]
         self.characterFrontBackPlane = Plane()
+        self.samplePoints = [] #store sample points for debugging purposes
 
         #grid sampling / local points
         self.localPointGrid = None #set in reset
@@ -557,6 +558,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         '''
 
         self.resetTime = time.time()
+        self.samplePoints = []
         #do any additional resetting here
 
         if self.localPointGrid is None and self.containmentReward:
@@ -711,6 +713,33 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         renderUtils.drawLines(lines=pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.restPose))
+
+        #test capsule projection
+        c0 = np.array([0, 0.1, -0.5])
+        r0 = 0.05
+        c1 = np.array([0, -0.1, -0.5])
+        r1 = 0.025
+
+        renderUtils.setColor([0.8,0,0.8])
+        renderUtils.drawSphere(pos=c0, rad=r0)
+        renderUtils.drawSphere(pos=c1, rad=r1)
+        renderUtils.drawLines(lines=[[c0,c1]])
+
+        if len(self.samplePoints) == 0:
+            for i in range(50):
+                p = np.random.uniform(low=-0.2, high=0.2, size=3)
+                p += np.array([0, 0, -0.5])
+                self.samplePoints.append(p)
+
+        self.samplePoints = pyutils.relaxCapsulePoints(self.samplePoints,c0,c1,r0,r1)
+
+        for p in self.samplePoints:
+            renderUtils.setColor([0.0, 0, 0.8])
+            renderUtils.drawSphere(pos=p, rad=0.005)
+            #pos, dist = pyutils.projectToCapsule(p, c0,c1,r0,r1)
+            #renderUtils.drawLines(lines=[[p, pos]])
+            #renderUtils.setColor([0.0, 0.8, 0])
+            #renderUtils.drawSphere(pos=pos, rad=0.01)
 
         #self.characterFrontBackPlane.draw()
 
