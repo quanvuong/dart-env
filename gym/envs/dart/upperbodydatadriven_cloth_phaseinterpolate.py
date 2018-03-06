@@ -146,6 +146,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         #self.resetDistributionPrefix = "saved_control_states_old/DropGrip"
         self.resetDistributionPrefix = "saved_control_states/dropgrip"
         self.resetDistributionSize = 17
+        self.testingCapsuleRelaxation = False
 
         #other variables
         self.handleNode = None
@@ -319,7 +320,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         if self.numSteps == 99:
             if self.saveStateOnReset and self.reset_number > 0:
-                fname = self.state_save_directory + "rtuck"
+                fname = self.state_save_directory + "triangle_rtuck"
                 print(fname)
                 count = 0
                 objfname_ix = fname + "%05d" % count
@@ -714,32 +715,47 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         renderUtils.drawLines(lines=pyutils.getRobotLinks(robot=self.robot_skeleton, pose=self.restPose))
 
-        #test capsule projection
-        c0 = np.array([0, 0.1, -0.5])
-        r0 = 0.05
-        c1 = np.array([0, -0.1, -0.5])
-        r1 = 0.025
+        reward_sleeveForward = 0
+        if self.sleeveForwardReward:
+            vec = self.characterFrontBackPlane.org - self.CP2Feature.plane.org
+            dist = vec.dot(self.characterFrontBackPlane.normal)
+            renderUtils.setColor([0,1.0,0])
+            if dist > 0:
+                reward_sleeveForward = -dist
+                renderUtils.setColor([1.0, 0, 0])
 
-        renderUtils.setColor([0.8,0,0.8])
-        renderUtils.drawSphere(pos=c0, rad=r0)
-        renderUtils.drawSphere(pos=c1, rad=r1)
-        renderUtils.drawLines(lines=[[c0,c1]])
+            cp = self.characterFrontBackPlane.projectPoint(self.CP2Feature.plane.org)
+            renderUtils.drawSphere(pos=cp,rad=0.01)
+            renderUtils.drawSphere(pos=self.characterFrontBackPlane.org,rad=0.01)
+            renderUtils.drawLines(lines=[[cp,self.CP2Feature.plane.org]])
 
-        if len(self.samplePoints) == 0:
-            for i in range(50):
-                p = np.random.uniform(low=-0.2, high=0.2, size=3)
-                p += np.array([0, 0, -0.5])
-                self.samplePoints.append(p)
+        if self.testingCapsuleRelaxation:
+            # test capsule projection
+            c0 = np.array([0, 0.1, -0.5])
+            r0 = 0.05
+            c1 = np.array([0, -0.1, -0.5])
+            r1 = 0.025
 
-        self.samplePoints = pyutils.relaxCapsulePoints(self.samplePoints,c0,c1,r0,r1)
+            renderUtils.setColor([0.8, 0, 0.8])
+            renderUtils.drawSphere(pos=c0, rad=r0)
+            renderUtils.drawSphere(pos=c1, rad=r1)
+            renderUtils.drawLines(lines=[[c0, c1]])
 
-        for p in self.samplePoints:
-            renderUtils.setColor([0.0, 0, 0.8])
-            renderUtils.drawSphere(pos=p, rad=0.005)
-            #pos, dist = pyutils.projectToCapsule(p, c0,c1,r0,r1)
-            #renderUtils.drawLines(lines=[[p, pos]])
-            #renderUtils.setColor([0.0, 0.8, 0])
-            #renderUtils.drawSphere(pos=pos, rad=0.01)
+            if len(self.samplePoints) == 0:
+                for i in range(50):
+                    p = np.random.uniform(low=-0.2, high=0.2, size=3)
+                    p += np.array([0, 0, -0.5])
+                    self.samplePoints.append(p)
+
+            self.samplePoints = pyutils.relaxCapsulePoints(self.samplePoints,c0,c1,r0,r1)
+
+            for p in self.samplePoints:
+                renderUtils.setColor([0.0, 0, 0.8])
+                renderUtils.drawSphere(pos=p, rad=0.005)
+                #pos, dist = pyutils.projectToCapsule(p, c0,c1,r0,r1)
+                #renderUtils.drawLines(lines=[[p, pos]])
+                #renderUtils.setColor([0.0, 0.8, 0])
+                #renderUtils.drawSphere(pos=pos, rad=0.01)
 
         #self.characterFrontBackPlane.draw()
 
@@ -827,6 +843,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sleeve Forward Reward = " + str(reward_sleeveForward), color=(0., 0, 0))
             textLines += 1
             #self.clothScene.drawText(x=15., y=textLines * textHeight, text="triangle dist = " + str(dist), color=(0., 0, 0))
             #textLines += 1

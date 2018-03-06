@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -51,7 +51,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.sleeveEndTerm              = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.resetStateFromDistribution = True
         #self.resetDistributionPrefix = "saved_control_states/Right Tuck"
-        self.resetDistributionPrefix = "saved_control_states/rtuck"
+        #self.resetDistributionPrefix = "saved_control_states/rtuck"
+        self.resetDistributionPrefix = "saved_control_states/triangle_rtuck"
         self.resetDistributionSize = 17
         self.state_save_directory = "saved_control_states/"
 
@@ -290,7 +291,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         reward_sleeveForward = 0
         if self.sleeveForwardReward and self.limbProgress < 0:
-            vec = self.characterFrontBackPlane.org-self.CP0Feature.plane.org
+            vec = self.characterFrontBackPlane.org-self.CP2Feature.plane.org
             dist = vec.dot(self.characterFrontBackPlane.normal)
             if dist > 0:
                 reward_sleeveForward = -dist
@@ -384,6 +385,15 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
     def additionalResets(self):
         #do any additional resetting here
+
+        if self.reset_number == 0 and self.simulateCloth:
+            self.CP2Feature.fitPlane()
+            self.separatedMesh.initSeparatedMeshGraph()
+            self.separatedMesh.updateWeights()
+            # TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
+            # option: maybe compute this before setting the cloth state at all in initialization?
+            self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
+
         #if self.simulateCloth:
         #    self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
@@ -409,8 +419,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                     self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
-            #resetStateNumber = random.randint(0,self.resetDistributionSize-1)
-            resetStateNumber = 7
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = 7 #best in the rtuck set?
+            resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
@@ -437,12 +448,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
-            if self.reset_number == 0:
+            '''if self.reset_number == 0:
                 self.separatedMesh.initSeparatedMeshGraph()
                 self.separatedMesh.updateWeights()
                 #TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
                 #option: maybe compute this before setting the cloth state at all in initialization?
-                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
+                self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)'''
 
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
@@ -460,21 +471,21 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         # render geodesic
-        '''
-        for v in range(self.clothScene.getNumVertices()):
-            side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
-            side0geo = self.separatedMesh.nodes[v].geodesic
+        if False:
+            for v in range(self.clothScene.getNumVertices()):
+                side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+                side0geo = self.separatedMesh.nodes[v].geodesic
 
-            pos = self.clothScene.getVertexPos(vid=v)
-            norm = self.clothScene.getVertNormal(vid=v)
-            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
-            renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
-            renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
-            renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
-        '''
+                pos = self.clothScene.getVertexPos(vid=v)
+                norm = self.clothScene.getVertNormal(vid=v)
+                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
+                renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
+                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
+                renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
 
-        efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
+
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+            renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
 
         # SPD pose rendering
         if self.SPDTarget is not None:
