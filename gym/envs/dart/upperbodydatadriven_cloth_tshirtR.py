@@ -440,7 +440,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 7 #best in the rtuck set?
-            #resetStateNumber = 0 #best in the triangle_rtuck set?
+            resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
