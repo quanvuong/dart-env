@@ -21,6 +21,10 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_03_05_tuckR_triangle_forward"
+    trial = "experiment_2018_03_06_sleeveR_narrow0"
+    #trial = "experiment_2018_03_06_sleeveR_wide"
+
+    #trial = "experiment_2018_03_05_tuckR_triangle_forward"
 
     #trial = "experiment_2018_03_02_tuckR_triangle_noalign"
     #trial = "experiment_2018_03_02_tuckR_triangle"
@@ -199,7 +203,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 1000
+        rolloutHorizon = 200
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

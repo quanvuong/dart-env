@@ -803,6 +803,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         pyutils.inputGenie(domain=self, repeat=repeat)
 
     def extraRenderFunction(self):
+        '''This function is overwritten by child classes'''
         renderUtils.setColor(color=[0.0, 0.0, 0])
         GL.glBegin(GL.GL_LINES)
         GL.glVertex3d(0,0,0)

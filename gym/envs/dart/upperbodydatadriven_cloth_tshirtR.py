@@ -68,6 +68,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.previousContactGeo = 0
         self.fingertip = np.array([0,-0.075,0])
         self.characterFrontBackPlane = Plane()
+        self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -166,6 +167,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         spineCenter = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
         characterForward = self.robot_skeleton.bodynodes[2].to_world(np.array([0.0,0.0,-1.0]))-spineCenter
         self.characterFrontBackPlane = Plane(org=spineCenter, normal=characterForward)
+
+        self.previousContainmentTriangle = [
+            self.robot_skeleton.bodynodes[9].to_world(np.zeros(3)),
+            self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
+            self.gripFeatureL.plane.org
+            # self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        ]
+
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -180,14 +189,15 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             return True, -2000
-        elif self.collarTermination and self.simulateCloth:
+        if self.collarTermination and self.simulateCloth:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                                                  self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 return True, -2000
-        elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
+        if self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
             limbInsertionError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP1Feature)
+                                                  offset=self.fingertip), feature=self.CP1Feature)
+            #print(limbInsertionError)
             if limbInsertionError > 0:
                 return True, -2000
         return False, 0
@@ -354,13 +364,22 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                                                                                      returnOnlyGeo=False)
                 if minGeoVix is None:
                     #oracle points to the garment when ef not in contact
-                    efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+                    '''efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
                     #closeVert = self.clothScene.getCloseVertex(p=efR)
                     #target = self.clothScene.getVertexPos(vid=closeVert)
                     centroid = self.CP2Feature.plane.org
                     target = centroid
                     vec = target - efR
-                    oracle = vec/np.linalg.norm(vec)
+                    oracle = vec/np.linalg.norm(vec)'''
+
+                    #new: oracle points to the tuck triangle centroid when not in contact with cloth
+                    target = np.zeros(3)
+                    for c in self.previousContainmentTriangle:
+                        target += c
+                    target /= 3.0
+                    efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+                    vec = target - efR
+                    oracle = vec / np.linalg.norm(vec)
                 else:
                     vixSide = 0
                     if _side:
