@@ -42,7 +42,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
-        self.sleeveForwardReward        = True #penalize sleeve for being behind the character
+        self.sleeveForwardReward        = False #penalize sleeve for being behind the character
 
         #other flags
         self.SPDActionSpace             = False  #if true, actions are SPD targets
