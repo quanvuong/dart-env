@@ -72,6 +72,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.screenSize = screensize
         self.renderDARTWorld = True
         self.renderUI = True
+        self.renderRewardsData = True
         self.avgtimings = {}
 
         #sim variables
@@ -84,6 +85,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.recurrency = recurrency
         self.actionTrajectory = []
+
+        #rewards data tracking
+        self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
         #output for rendering controls
         self.recordForRendering = False
@@ -627,6 +631,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        self.rewardsData.reset()
+
         if self.graphingRandomness:
             self.initialRand = 0
             self.initialnpRand = 0

@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -42,7 +42,17 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
-        self.sleeveForwardReward        = False #penalize sleeve for being behind the character
+        self.sleeveForwardReward        = True #penalize sleeve for being behind the character
+
+        #reward weights
+        self.uprightRewardWeight            = 1
+        self.elbowFlairRewardWeight         = 1
+        self.limbProgressRewardWeight       = 10
+        self.oracleDisplacementRewardWeight = 50
+        self.contactGeoRewardWeight         = 2
+        self.deformationPenaltyWeight       = 5
+        self.restPoseRewardWeight           = 1
+        self.sleeveForwardRewardWeight      = 20
 
         #other flags
         self.SPDActionSpace             = False  #if true, actions are SPD targets
@@ -90,7 +100,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1080,720),
+                                                          screensize=(1280,720),
                                                           clothMeshFile="tshirt_m.obj",
                                                           clothMeshStateFile = "tshirt_regrip5.obj",
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
@@ -127,6 +137,31 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.SPDActionSpace:
             self.SPDTarget = self.restPose
             #print("SPDTarget: " + str(self.SPDTarget))
+
+        #load rewards into the RewardsData structure
+        if self.uprightReward:
+            self.rewardsData.addReward(label="upright",rmin=-2.5,rmax=0,rval=0, rweight=self.uprightRewardWeight)
+
+        if self.elbowFlairReward:
+            self.rewardsData.addReward(label="elbow flair", rmin=-1.0, rmax=0, rval=0, rweight=self.elbowFlairRewardWeight)
+
+        if self.limbProgressReward:
+            self.rewardsData.addReward(label="limb progress", rmin=0.0, rmax=1.0, rval=0, rweight=self.limbProgressRewardWeight)
+
+        if self.contactGeoReward:
+            self.rewardsData.addReward(label="contact geo", rmin=0, rmax=1.0, rval=0, rweight=self.contactGeoRewardWeight)
+
+        if self.deformationPenalty:
+            self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
+
+        if self.oracleDisplacementReward:
+            self.rewardsData.addReward(label="oracle", rmin=-0.1, rmax=0.1, rval=0, rweight=self.oracleDisplacementRewardWeight)
+
+        if self.restPoseReward:
+            self.rewardsData.addReward(label="rest pose", rmin=-1.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+
+        if self.sleeveForwardReward:
+            self.rewardsData.addReward(label="sleeve forward", rmin=-1.0, rmax=0, rval=0, rweight=self.sleeveForwardRewardWeight)
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -212,6 +247,13 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         #self.SPDTarget = np.zeros(len(self.robot_skeleton.q))
 
         #print("prevTau: " + str(self.prevTau))
+        reward_record = []
+
+        # reward for maintaining posture
+        reward_upright = 0
+        if self.uprightReward:
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+            reward_record.append(reward_upright)
 
         reward_elbow_flair = 0
         if self.elbowFlairReward:
@@ -224,15 +266,18 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             l = 0.2
             reward_elbow_flair = -(1 - (z * math.tanh(s * (dist - l)) + z))
             # print("reward_elbow_flair: " + str(reward_elbow_flair))
+            reward_record.append(reward_elbow_flair)
 
         reward_limbprogress = 0
-        if self.limbProgressReward and self.simulateCloth:
-            self.limbProgress = pyutils.limbFeatureProgress(
-                limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
-            reward_limbprogress = self.limbProgress
-            if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
-                reward_limbprogress = 0
+        if self.limbProgressReward:
+            if self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
+                                                      offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
+                reward_limbprogress = self.limbProgress
+                if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
+                    reward_limbprogress = 0
+            reward_record.append(reward_limbprogress)
 
         avgContactGeodesic = None
         if self.numSteps > 0 and self.simulateCloth:
@@ -246,12 +291,15 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.previousContactGeo = avgContactGeodesic
 
         reward_contactGeo = 0
-        if self.contactGeoReward and self.simulateCloth:
-            if self.limbProgress > 0:
-                reward_contactGeo = 1.0
-            elif avgContactGeodesic is not None:
-                reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
-                # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+        if self.contactGeoReward:
+            if self.simulateCloth:
+                if self.limbProgress > 0:
+                    reward_contactGeo = 1.0
+                elif avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+            reward_record.append(reward_contactGeo)
+        #print(reward_contactGeo)
 
         clothDeformation = 0
         if self.simulateCloth:
@@ -262,31 +310,31 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.deformationPenalty is True:
             #reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             reward_clothdeformation = -(math.tanh(0.14*(clothDeformation-25)) + 1)/2.0 # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_record.append(reward_clothdeformation)
         self.previousDeformationReward = reward_clothdeformation
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
 
-        # reward for maintaining posture
-        reward_upright = 0
-        if self.uprightReward:
-            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
-
         reward_oracleDisplacement = 0
-        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
-            # world_ef_displacement = wRFingertip2 - wRFingertip1
-            relative_displacement = localRightEfShoulder2 - self.localRightEfShoulder1
-            oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2 + self.prevOracle) - localRightEfShoulder2
-            # oracle0 = oracle0/np.linalg.norm(oracle0)
-            reward_oracleDisplacement += relative_displacement.dot(oracle0)
+        if self.oracleDisplacementReward:
+            if np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
+                # world_ef_displacement = wRFingertip2 - wRFingertip1
+                relative_displacement = localRightEfShoulder2 - self.localRightEfShoulder1
+                oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2 + self.prevOracle) - localRightEfShoulder2
+                # oracle0 = oracle0/np.linalg.norm(oracle0)
+                reward_oracleDisplacement += relative_displacement.dot(oracle0)
+            reward_record.append(reward_oracleDisplacement)
 
         reward_restPose = 0
-        if self.restPoseReward and self.restPose is not None:
-            z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
-            s = 1.0  # steepness (higher is steeper)
-            l = 4.2  # translation
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
-            # print("distance: " + str(dist) + " -> " + str(reward_restPose))
+        if self.restPoseReward:
+            if self.restPose is not None:
+                z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
+                s = 1.0  # steepness (higher is steeper)
+                l = 4.2  # translation
+                dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+                # print("distance: " + str(dist) + " -> " + str(reward_restPose))
+            reward_record.append(reward_restPose)
 
         #penalize pose drift
         reward_SPD_smoothing = 0
@@ -300,27 +348,32 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             reward_recurrency_stability = -np.linalg.norm(self.prevTau[-self.recurrency:]-tau[-self.recurrency:])
 
         reward_sleeveForward = 0
-        if self.sleeveForwardReward and self.limbProgress < 0:
-            vec = self.characterFrontBackPlane.org-self.CP2Feature.plane.org
-            dist = vec.dot(self.characterFrontBackPlane.normal)
-            if dist > 0:
-                reward_sleeveForward = -dist
-            #print(reward_sleeveForward)
+        if self.sleeveForwardReward:
+            if self.limbProgress < 0:
+                vec = self.characterFrontBackPlane.org-self.CP2Feature.plane.org
+                dist = vec.dot(self.characterFrontBackPlane.normal)
+                if dist > 0:
+                    reward_sleeveForward = -dist
+                #print(reward_sleeveForward)
+            reward_record.append(reward_sleeveForward)
 
         self.prevTau = np.array(tau)
         #print("tau: " + str(tau))
 
+        #update the reward data storage
+        self.rewardsData.update(rewards=reward_record)
+
         self.reward = reward_ctrl * 0 \
-                      + reward_upright \
-                      + reward_limbprogress * 10 \
-                      + reward_contactGeo * 2 \
-                      + reward_clothdeformation * 5 \
-                      + reward_oracleDisplacement * 50 \
-                      + reward_elbow_flair \
-                      + reward_restPose \
+                      + reward_upright * self.uprightRewardWeight \
+                      + reward_limbprogress * self.limbProgressRewardWeight \
+                      + reward_contactGeo * self.contactGeoRewardWeight \
+                      + reward_clothdeformation * self.deformationPenaltyWeight \
+                      + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
+                      + reward_elbow_flair * self.elbowFlairRewardWeight\
+                      + reward_restPose * self.restPoseRewardWeight\
                       + reward_SPD_smoothing \
                       + reward_recurrency_stability \
-                      + reward_sleeveForward * 20
+                      + reward_sleeveForward * self.sleeveForwardRewardWeight
         return self.reward
 
     def _get_obs(self):
@@ -503,8 +556,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
 
 
-            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-            renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
+        efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
 
         # SPD pose rendering
         if self.SPDTarget is not None:
@@ -522,6 +575,10 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
 
         self.characterFrontBackPlane.draw()
+
+        m_viewport = self.viewer.viewport
+        #print(m_viewport)
+        self.rewardsData.render(topLeft=[m_viewport[2]-410,m_viewport[3]-15], dimensions=[400, -m_viewport[3]+30])
 
         textHeight = 15
         textLines = 2

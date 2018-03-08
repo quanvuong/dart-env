@@ -20,9 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2018_03_05_tuckR_triangle_forward"
-    trial = "experiment_2018_03_06_sleeveR_narrow0"
-    #trial = "experiment_2018_03_06_sleeveR_wide"
+    #trial = "experiment_2018_03_05_tuckR_triangle_forward" #***
+    #trial = "experiment_2018_03_07_sleeveR_narrow0"
+    trial = "experiment_2018_03_07_sleeveR_narrow0forward"
+    #trial = "experiment_2018_03_07_sleeveR_wide"
 
     #trial = "experiment_2018_03_05_tuckR_triangle_forward"
 
