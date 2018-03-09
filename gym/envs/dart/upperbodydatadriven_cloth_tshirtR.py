@@ -43,6 +43,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.sleeveForwardReward        = False #penalize sleeve for being behind the character
+        self.dynamicEfReward            = True #penalize static end effector
 
         #reward weights
         self.uprightRewardWeight            = 1
@@ -53,6 +54,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.deformationPenaltyWeight       = 5
         self.restPoseRewardWeight           = 1
         self.sleeveForwardRewardWeight      = 20
+        self.dynamicEfRewardWeight          = 1
 
         #other flags
         self.SPDActionSpace             = False  #if true, actions are SPD targets
@@ -79,6 +81,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.fingertip = np.array([0,-0.075,0])
         self.characterFrontBackPlane = Plane()
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
+        self.efHistory = []
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -163,6 +166,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.sleeveForwardReward:
             self.rewardsData.addReward(label="sleeve forward", rmin=-1.0, rmax=0, rval=0, rweight=self.sleeveForwardRewardWeight)
 
+        if self.dynamicEfReward:
+            self.rewardsData.addReward(label="dynamic ef", rmin=0.0, rmax=1.0, rval=0, rweight=self.dynamicEfRewardWeight)
+
         #self.loadCharacterState(filename="characterState_1starmin")
 
     def _getFile(self):
@@ -190,6 +196,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
+        self.efHistory.append(self.localRightEfShoulder1) #store the ef in shoulder space history
 
         if self.SPDActionSpace:
             #self.SPDTarget = np.array(self.restPose)
@@ -357,6 +364,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                 #print(reward_sleeveForward)
             reward_record.append(reward_sleeveForward)
 
+        reward_dynamicef = 0
+        if self.dynamicEfReward:
+            if len(self.efHistory) >= 10:
+                reward_dynamicef = np.linalg.norm(self.efHistory[-10]-self.efHistory[-1])
+            else:
+                reward_dynamicef = np.linalg.norm(self.efHistory[0] - self.efHistory[-1])
+            reward_record.append(reward_dynamicef)
+
         self.prevTau = np.array(tau)
         #print("tau: " + str(tau))
 
@@ -373,7 +388,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                       + reward_restPose * self.restPoseRewardWeight\
                       + reward_SPD_smoothing \
                       + reward_recurrency_stability \
-                      + reward_sleeveForward * self.sleeveForwardRewardWeight
+                      + reward_sleeveForward * self.sleeveForwardRewardWeight \
+                      + reward_dynamicef * self.dynamicEfRewardWeight
         return self.reward
 
     def _get_obs(self):
@@ -457,6 +473,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
     def additionalResets(self):
         #do any additional resetting here
+        self.efHistory = []
 
         if self.reset_number == 0 and self.simulateCloth:
             self.CP2Feature.fitPlane()
@@ -573,6 +590,16 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
+
+        if self.dynamicEfReward:
+            lines = []
+            prev = np.zeros(3)
+            for i in range(min(10, len(self.efHistory))):
+                next = self.robot_skeleton.bodynodes[3].to_world(self.efHistory[-(i+1)])
+                if i>0:
+                    lines.append([prev,next])
+                prev = next
+            renderUtils.drawLines(lines)
 
         #self.characterFrontBackPlane.draw()
 
