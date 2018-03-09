@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -36,7 +36,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = True
+        self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
@@ -49,7 +49,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.elbowFlairRewardWeight         = 1
         self.limbProgressRewardWeight       = 10
         self.oracleDisplacementRewardWeight = 50
-        self.contactGeoRewardWeight         = 2
+        self.contactGeoRewardWeight         = 4
         self.deformationPenaltyWeight       = 5
         self.restPoseRewardWeight           = 1
         self.sleeveForwardRewardWeight      = 20
@@ -574,7 +574,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
 
-        self.characterFrontBackPlane.draw()
+        #self.characterFrontBackPlane.draw()
 
         m_viewport = self.viewer.viewport
         #print(m_viewport)
