@@ -42,8 +42,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
-        self.sleeveForwardReward        = False #penalize sleeve for being behind the character
-        self.dynamicEfReward            = True #penalize static end effector
+        self.sleeveForwardReward        = True #penalize sleeve for being behind the character
+        self.dynamicEfReward            = False #penalize static end effector
 
         #reward weights
         self.uprightRewardWeight            = 1
@@ -51,7 +51,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.limbProgressRewardWeight       = 10
         self.oracleDisplacementRewardWeight = 50
         self.contactGeoRewardWeight         = 4
-        self.deformationPenaltyWeight       = 5
+        self.deformationPenaltyWeight       = 1 #was 5...
         self.restPoseRewardWeight           = 1
         self.sleeveForwardRewardWeight      = 20
         self.dynamicEfRewardWeight          = 1
