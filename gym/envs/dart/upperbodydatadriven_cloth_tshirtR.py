@@ -78,7 +78,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.limbProgress = 0
         self.previousDeformationReward = 0
         self.previousContactGeo = 0
-        self.fingertip = np.array([0,-0.075,0])
+        self.fingertip = np.array([0,-0.08,0])
         self.characterFrontBackPlane = Plane()
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
         self.efHistory = []
@@ -510,7 +510,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 7 #best in the rtuck set?
-            #resetStateNumber = 0 #best in the triangle_rtuck set?
+            resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
@@ -531,9 +531,9 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.handleNode.recomputeOffsets()
 
         if self.simulateCloth:
-            self.CP0Feature.fitPlane()
-            self.CP1Feature.fitPlane()
-            self.CP2Feature.fitPlane()
+            self.CP0Feature.fitPlane(normhint=np.array([-1.,0,0]))
+            self.CP1Feature.fitPlane(normhint=np.array([1.,0,0]))
+            self.CP2Feature.fitPlane(normhint=np.array([1.,0,0]))
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
@@ -582,11 +582,11 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             renderUtils.drawLines(lines=links)
 
         if self.CP0Feature is not None:
-            self.CP0Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+            self.CP0Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.CP1Feature is not None:
-            self.CP1Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+            self.CP1Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.CP2Feature is not None:
-            self.CP2Feature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+            self.CP2Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)

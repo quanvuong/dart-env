@@ -20,9 +20,13 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_03_14_sleeveR_narrow0_lowdef_trpo"
+    #trial = "experiment_2018_03_14_sleeveR_wide_lowdef_trpo"
+
     #trial = "experiment_2018_03_12_sleeveR_narrow0_lowdef_for"
     #trial = "experiment_2018_03_12_sleeveR_narrow0_lowdef_for_trpo"
-    trial = "experiment_2018_03_12_sleeveR_narrow0_lowdef_for_warm"
+    #trial = "experiment_2018_03_12_sleeveR_narrow0_lowdef_for_trpo_cont"
+    #trial = "experiment_2018_03_12_sleeveR_narrow0_lowdef_for_warm"
 
     #trial = "experiment_2018_03_05_tuckR_triangle_forward" #***
     #trial = "experiment_2018_03_09_sleeveR_narrow0"
