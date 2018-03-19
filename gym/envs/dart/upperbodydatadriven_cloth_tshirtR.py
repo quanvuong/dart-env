@@ -475,13 +475,33 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         #do any additional resetting here
         self.efHistory = []
 
-        if self.reset_number == 0 and self.simulateCloth:
+        if self.simulateCloth:
+            self.CP0Feature.fitPlane()
+            self.CP1Feature.fitPlane()
             self.CP2Feature.fitPlane()
+            #ensure relative correctness of normals
+            CP2_CP1 = self.CP1Feature.plane.org - self.CP2Feature.plane.org
+            CP2_CP0 = self.CP0Feature.plane.org - self.CP2Feature.plane.org
+
+            # if CP2 normal is not facing the sleeve end invert it
+            if CP2_CP1.dot(self.CP2Feature.plane.normal) < 0:
+                self.CP2Feature.plane.normal *= -1.0
+
+            # if CP1 normal is facing the sleeve middle invert it
+            if CP2_CP1.dot(self.CP1Feature.plane.normal) < 0:
+                self.CP1Feature.plane.normal *= -1.0
+
+            # if CP0 normal is not facing sleeve middle invert it
+            if CP2_CP0.dot(self.CP0Feature.plane.normal) > 0:
+                self.CP0Feature.plane.normal *= -1.0
+
+
+        if self.reset_number == 0 and self.simulateCloth:
             self.separatedMesh.initSeparatedMeshGraph()
             self.separatedMesh.updateWeights()
             # TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
             # option: maybe compute this before setting the cloth state at all in initialization?
-            self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
+            self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=1)
 
         #if self.simulateCloth:
         #    self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
@@ -531,9 +551,24 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             self.handleNode.recomputeOffsets()
 
         if self.simulateCloth:
-            self.CP0Feature.fitPlane(normhint=np.array([-1.,0,0]))
-            self.CP1Feature.fitPlane(normhint=np.array([1.,0,0]))
-            self.CP2Feature.fitPlane(normhint=np.array([1.,0,0]))
+            self.CP0Feature.fitPlane()
+            self.CP1Feature.fitPlane()
+            self.CP2Feature.fitPlane()
+            # ensure relative correctness of normals
+            CP2_CP1 = self.CP1Feature.plane.org - self.CP2Feature.plane.org
+            CP2_CP0 = self.CP0Feature.plane.org - self.CP2Feature.plane.org
+
+            # if CP2 normal is not facing the sleeve end invert it
+            if CP2_CP1.dot(self.CP2Feature.plane.normal) < 0:
+                self.CP2Feature.plane.normal *= -1.0
+
+            # if CP1 normal is facing the sleeve middle invert it
+            if CP2_CP1.dot(self.CP1Feature.plane.normal) < 0:
+                self.CP1Feature.plane.normal *= -1.0
+
+            # if CP0 normal is not facing sleeve middle invert it
+            if CP2_CP0.dot(self.CP0Feature.plane.normal) > 0:
+                self.CP0Feature.plane.normal *= -1.0
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()

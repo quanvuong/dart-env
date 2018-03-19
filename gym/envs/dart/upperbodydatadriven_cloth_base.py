@@ -682,6 +682,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.dart_world.reset()
         self.clothScene.setSelfCollisionDistance(0.03)
         self.clothScene.reset()
+        #self.clothScene.setFriction(0, 0.4)
 
         self.additionalResets()
 
