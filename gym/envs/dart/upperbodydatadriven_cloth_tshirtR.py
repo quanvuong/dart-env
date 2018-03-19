@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -169,6 +169,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         if self.dynamicEfReward:
             self.rewardsData.addReward(label="dynamic ef", rmin=0.0, rmax=1.0, rval=0, rweight=self.dynamicEfRewardWeight)
 
+        self.state_save_directory = "saved_control_states/"
+        self.saveStateOnReset = False
         #self.loadCharacterState(filename="characterState_1starmin")
 
     def _getFile(self):
@@ -242,6 +244,22 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #print(limbInsertionError)
             if limbInsertionError > 0:
                 return True, -2000
+
+        if self.numSteps == 140:
+            if self.saveStateOnReset and self.reset_number > 0:
+                fname = self.state_save_directory + "sleeveR"
+                print(fname)
+                count = 0
+                objfname_ix = fname + "%05d" % count
+                charfname_ix = fname + "_char%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                print(objfname_ix)
+                self.saveObjState(filename=objfname_ix)
+                self.saveCharacterState(filename=charfname_ix)
+
         return False, 0
 
     def computeReward(self, tau):
@@ -530,7 +548,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 7 #best in the rtuck set?
-            #resetStateNumber = 0 #best in the triangle_rtuck set?
+            resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
