@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -37,8 +37,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
-        self.rightTargetReward          = True
-        self.leftTargetReward           = True
+        self.rightTargetReward          = False
+        self.leftTargetReward           = False
+        self.contactSurfaceReward       = True  # reward for end effector touching inside cloth
+        self.triangleContainmentReward  = True  # active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
+        self.triangleAlignmentReward    = True  # dot product reward between triangle normal and character torso vector
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -49,7 +52,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.resetTime = 0
         self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states/matchgrip"
-        self.resetDistributionSize = 16
+        self.resetDistributionSize = 3
 
         #other variables
         self.handleNode = None
@@ -64,6 +67,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
         self.previousSelfCollisions = 0
+        self.fingertip = np.array([0, -0.075, 0])
+        self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -89,8 +94,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         # clothing features
         self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
-        self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
+        self.targetGripVerticesL = [46, 437, 955, 1185, 47, 285, 711, 677, 48, 905, 1041, 49, 741, 889, 45]
+        self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
+        #self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
+        self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
+        self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
+
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -101,20 +111,32 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        self.state_save_directory = "saved_control_states/"
+        self.saveStateOnReset = False
+
     def _getFile(self):
         return __file__
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
         #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
+
+        if self.triangleContainmentReward:
+            self.previousContainmentTriangle = [
+                self.robot_skeleton.bodynodes[9].to_world(np.zeros(3)),
+                self.robot_skeleton.bodynodes[4].to_world(np.zeros(3)),
+                self.gripFeatureR.plane.org
+                #self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            ]
 
         # update handle nodes
         if self.handleNode is not None:
@@ -143,13 +165,27 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 #print("collar term")
                 return True, -1500
 
+        if self.numSteps == 99:
+            if self.saveStateOnReset and self.reset_number > 0:
+                fname = self.state_save_directory + "triangle_ltuck"
+                print(fname)
+                count = 0
+                objfname_ix = fname + "%05d" % count
+                charfname_ix = fname + "_char%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                print(objfname_ix)
+                self.saveObjState(filename=objfname_ix)
+                self.saveCharacterState(filename=charfname_ix)
+
         return False, 0
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
@@ -184,6 +220,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
 
         self.previousDeformationReward = reward_clothdeformation
+
+        reward_contact_surface = 0
+        if self.contactSurfaceReward:
+            CID = self.clothScene.getHapticSensorContactIDs()[21]
+            # if CID > 0:
+            #    reward_contact_surface = 1.0
+            # print(CID)
+            reward_contact_surface = CID  # -1.0 for full outside, 1.0 for full inside
+            # print(reward_contact_surface)
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
@@ -226,15 +271,67 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             '''if lDist < 0.02:
                 reward_leftTarget += 0.25'''
 
+        reward_triangleContainment = 0
+        if self.triangleContainmentReward:
+            # check intersection
+            lines = [
+                [self.robot_skeleton.bodynodes[12].to_world(self.fingertip),
+                 self.robot_skeleton.bodynodes[11].to_world(np.zeros(3))],
+                [self.robot_skeleton.bodynodes[11].to_world(np.zeros(3)),
+                 self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))]
+            ]
+            intersect = False
+            aligned = False
+            for l in lines:
+                hit, dist, pos, aligned = pyutils.triangleLineSegmentIntersection(self.previousContainmentTriangle[0],
+                                                                                  self.previousContainmentTriangle[1],
+                                                                                  self.previousContainmentTriangle[2],
+                                                                                  l0=l[0], l1=l[1])
+                if hit:
+                    # print("hit: " + str(dist) + " | " + str(pos) + " | " + str(aligned))
+                    intersect = True
+                    aligned = aligned
+                    break
+            if intersect:
+                if aligned:
+                    reward_triangleContainment = 1
+                else:
+                    reward_triangleContainment = -1
+            else:
+                # if no intersection, get distance
+                triangleCentroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] +
+                                    self.previousContainmentTriangle[2]) / 3.0
+                dist = np.linalg.norm(lines[0][0] - triangleCentroid)
+                # dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
+                # print(dist)
+                reward_triangleContainment = -dist
+
+        reward_triangleAlignment = 0
+        if self.triangleAlignmentReward:
+            U = self.previousContainmentTriangle[1] - self.previousContainmentTriangle[0]
+            V = self.previousContainmentTriangle[2] - self.previousContainmentTriangle[0]
+
+            tnorm = np.cross(U, V)
+            tnorm /= np.linalg.norm(tnorm)
+
+            torsoV = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3)) - self.robot_skeleton.bodynodes[
+                1].to_world(np.zeros(3))
+            torsoV /= np.linalg.norm(torsoV)
+
+            reward_triangleAlignment = -tnorm.dot(torsoV)
+
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright \
-                      + reward_clothdeformation * 5 \
+                      + reward_clothdeformation * 10 \
                       + reward_restPose \
                       + reward_rightTarget*100 \
-                      + reward_leftTarget*100
-        # TODO: revisit deformation penalty
+                      + reward_leftTarget*100 \
+                      + reward_contact_surface * 3 \
+                      + reward_triangleContainment * 10 \
+                      + reward_triangleAlignment * 2
+            # TODO: revisit deformation penalty
         return self.reward
 
     def _get_obs(self):
@@ -245,8 +342,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         for ix, dof in enumerate(self.actuatedDofs):
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
-
-        fingertip = np.array([0.0, -0.065, 0.0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -266,11 +361,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
 
         return obs
@@ -281,7 +376,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         '''
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
         '''if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -326,9 +420,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.loadCharacterState(filename="characterState_startarm2")
 
         #find end effector targets and set restPose from solution
-        fingertip = np.array([0.0, -0.065, 0.0])
-        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
-        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         #print("right target: " + str(self.rightTarget))
         #print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
@@ -356,7 +449,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
-            self.handleNode.addVertices(verts=[570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55])
+            self.handleNode.addVertices(verts=self.targetGripVerticesR)
             self.handleNode.setOrgToCentroid()
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
@@ -364,6 +457,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         if self.simulateCloth:
             self.collarFeature.fitPlane()
+            self.gripFeatureL.fitPlane()
+            self.gripFeatureR.fitPlane()
 
         a=0
 
@@ -380,21 +475,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         renderUtils.drawLineStrip(points=[bottomNeck, bottomHead, topHead])
         if self.collarFeature is not None:
-            self.collarFeature.drawProjectionPoly()
+            self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+        self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0,1,0])
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #render targets
-        fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
@@ -402,6 +497,17 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         if self.restPoseReward:
             links = pyutils.getRobotLinks(self.robot_skeleton,pose=self.restPose)
             renderUtils.drawLines(lines=links)
+
+        if self.triangleContainmentReward:
+            renderUtils.setColor([1.0, 1.0, 0])
+            renderUtils.drawTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2])
+            U = self.previousContainmentTriangle[1] - self.previousContainmentTriangle[0]
+            V = self.previousContainmentTriangle[2] - self.previousContainmentTriangle[0]
+
+            tnorm = np.cross(U, V)
+            tnorm /= np.linalg.norm(tnorm)
+            centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
+            renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
 
         textHeight = 15
         textLines = 2

@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -179,7 +179,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 #print("collar term")
                 return True, -2500
 
-        if self.numSteps == 135:
+        if self.numSteps == 99:
             if self.saveStateOnReset and self.reset_number > 0:
                 fname = self.state_save_directory + "matchgrip"
                 print(fname)
