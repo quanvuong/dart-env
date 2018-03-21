@@ -59,7 +59,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.resetTime = 0
         self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states/sleeveR"
-        self.resetDistributionSize = 2
+        self.resetDistributionSize = 17
 
         #other variables
         self.handleNode = None
@@ -132,6 +132,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         if self.rightTargetReward:
             self.rewardsData.addReward(label="efR", rmin=-1.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
 
+        self.state_save_directory = "saved_control_states/"
+        self.saveStateOnReset = False
 
     def _getFile(self):
         return __file__
@@ -176,6 +178,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 #print("collar term")
                 return True, -2500
+
+        if self.numSteps == 135:
+            if self.saveStateOnReset and self.reset_number > 0:
+                fname = self.state_save_directory + "matchgrip"
+                print(fname)
+                count = 0
+                objfname_ix = fname + "%05d" % count
+                charfname_ix = fname + "_char%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    objfname_ix = fname + "%05d" % count
+                    charfname_ix = fname + "_char%05d" % count
+                print(objfname_ix)
+                self.saveObjState(filename=objfname_ix)
+                self.saveCharacterState(filename=charfname_ix)
 
         return False, 0
 
@@ -382,7 +399,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
-            #resetStateNumber = 0
+            #resetStateNumber = self.reset_number % self.resetDistributionSize
+            #resetStateNumber = 15
+            #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
