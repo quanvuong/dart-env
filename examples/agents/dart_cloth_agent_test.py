@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_03_21_ltuck_narrow" #does not find the inside of the garment
+
     #trial = "experiment_2018_03_19_sleeveR_wide_lowdef_trpo"
     #trial = "experiment_2018_03_19_matchgrip_narrow" #***
     #trial = "experiment_2018_03_19_sleeveR_narrow2wide_lowdef_trpo"

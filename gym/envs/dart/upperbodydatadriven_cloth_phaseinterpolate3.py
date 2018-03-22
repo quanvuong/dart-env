@@ -42,6 +42,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.contactSurfaceReward       = True  # reward for end effector touching inside cloth
         self.triangleContainmentReward  = True  # active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
         self.triangleAlignmentReward    = True  # dot product reward between triangle normal and character torso vector
+        self.tieredTuckReward           = True  # if true, no reward given for containment unless contact is achieved.
+        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if touching feature).
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -100,7 +102,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
-
+        self.interiorTuckFeature = ClothFeature(verts=[1032], clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -230,6 +232,25 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             reward_contact_surface = CID  # -1.0 for full outside, 1.0 for full inside
             # print(reward_contact_surface)
 
+        avgContactGeodesic = None
+        if self.numSteps > 0 and self.simulateCloth:
+            contactInfo = pyutils.getContactIXGeoSide(sensorix=21, clothscene=self.clothScene,
+                                                      meshgraph=self.separatedMesh)
+            if len(contactInfo) > 0:
+                avgContactGeodesic = 0
+                for c in contactInfo:
+                    avgContactGeodesic += c[1]
+                avgContactGeodesic /= len(contactInfo)
+        self.previousContactGeo = avgContactGeodesic
+
+        reward_contactGeo = 0
+        if self.contactGeoReward:
+            if self.simulateCloth:
+                if avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+            #reward_record.append(reward_contactGeo)
+
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
 
@@ -273,38 +294,41 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         reward_triangleContainment = 0
         if self.triangleContainmentReward:
-            # check intersection
-            lines = [
-                [self.robot_skeleton.bodynodes[12].to_world(self.fingertip),
-                 self.robot_skeleton.bodynodes[11].to_world(np.zeros(3))],
-                [self.robot_skeleton.bodynodes[11].to_world(np.zeros(3)),
-                 self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))]
-            ]
-            intersect = False
-            aligned = False
-            for l in lines:
-                hit, dist, pos, aligned = pyutils.triangleLineSegmentIntersection(self.previousContainmentTriangle[0],
-                                                                                  self.previousContainmentTriangle[1],
-                                                                                  self.previousContainmentTriangle[2],
-                                                                                  l0=l[0], l1=l[1])
-                if hit:
-                    # print("hit: " + str(dist) + " | " + str(pos) + " | " + str(aligned))
-                    intersect = True
-                    aligned = aligned
-                    break
-            if intersect:
-                if aligned:
-                    reward_triangleContainment = 1
+            if not self.tieredTuckReward or not self.contactSurfaceReward or reward_contact_surface > 0:
+                # check intersection
+                lines = [
+                    [self.robot_skeleton.bodynodes[12].to_world(self.fingertip),
+                     self.robot_skeleton.bodynodes[11].to_world(np.zeros(3))],
+                    [self.robot_skeleton.bodynodes[11].to_world(np.zeros(3)),
+                     self.robot_skeleton.bodynodes[10].to_world(np.zeros(3))]
+                ]
+                intersect = False
+                aligned = False
+                for l in lines:
+                    hit, dist, pos, aligned = pyutils.triangleLineSegmentIntersection(self.previousContainmentTriangle[0],
+                                                                                      self.previousContainmentTriangle[1],
+                                                                                      self.previousContainmentTriangle[2],
+                                                                                      l0=l[0], l1=l[1])
+                    if hit:
+                        # print("hit: " + str(dist) + " | " + str(pos) + " | " + str(aligned))
+                        intersect = True
+                        aligned = aligned
+                        break
+                if intersect:
+                    if aligned:
+                        reward_triangleContainment = 1
+                    else:
+                        reward_triangleContainment = -1
                 else:
-                    reward_triangleContainment = -1
+                    # if no intersection, get distance
+                    triangleCentroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] +
+                                        self.previousContainmentTriangle[2]) / 3.0
+                    dist = np.linalg.norm(lines[0][0] - triangleCentroid)
+                    # dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
+                    # print(dist)
+                    reward_triangleContainment = -dist
             else:
-                # if no intersection, get distance
-                triangleCentroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] +
-                                    self.previousContainmentTriangle[2]) / 3.0
-                dist = np.linalg.norm(lines[0][0] - triangleCentroid)
-                # dist, pos = pyutils.distToTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2],p=lines[0][0])
-                # print(dist)
-                reward_triangleContainment = -dist
+                reward_triangleContainment = -1
 
         reward_triangleAlignment = 0
         if self.triangleAlignmentReward:
@@ -330,7 +354,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                       + reward_leftTarget*100 \
                       + reward_contact_surface * 3 \
                       + reward_triangleContainment * 10 \
-                      + reward_triangleAlignment * 2
+                      + reward_triangleAlignment * 2 \
+                      + reward_contactGeo * 5
             # TODO: revisit deformation penalty
         return self.reward
 
@@ -375,6 +400,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             print("reset " + str(self.reset_number) + " after " + str(time.time()-self.resetTime))
         '''
         self.resetTime = time.time()
+
+        if self.reset_number == 0 and self.simulateCloth:
+            self.separatedMesh.initSeparatedMeshGraph()
+            self.separatedMesh.updateWeights()
+            # TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
+            # option: maybe compute this before setting the cloth state at all in initialization?
+            self.separatedMesh.computeGeodesic(feature=self.interiorTuckFeature, oneSided=False, side=0)
+
+
         #do any additional resetting here
         '''if self.simulateCloth:
             up = np.array([0,1.0,0])
@@ -508,6 +542,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             tnorm /= np.linalg.norm(tnorm)
             centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
             renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
+
+        # render geodesic
+        if False:
+            for v in range(self.clothScene.getNumVertices()):
+                side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+                side0geo = self.separatedMesh.nodes[v].geodesic
+
+                pos = self.clothScene.getVertexPos(vid=v)
+                norm = self.clothScene.getVertNormal(vid=v)
+                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
+                                                                    value=self.separatedMesh.maxGeo - side0geo))
+                renderUtils.drawSphere(pos=pos - norm * 0.01, rad=0.01)
+                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
+                                                                    value=self.separatedMesh.maxGeo - side1geo))
+                renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
 
         textHeight = 15
         textLines = 2
