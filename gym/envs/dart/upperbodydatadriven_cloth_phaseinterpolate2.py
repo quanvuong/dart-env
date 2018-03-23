@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -38,14 +38,14 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = True
-        self.leftTargetReward           = True
+        self.leftTargetReward           = False
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
 
         # reward weights
-        self.uprightRewardWeight = 1
+        self.uprightRewardWeight = 2
         self.elbowFlairRewardWeight = 1
-        self.deformationPenaltyWeight = 5  # was 5...
+        self.deformationPenaltyWeight = 10  # was 5...
         self.restPoseRewardWeight = 1
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
@@ -148,6 +148,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
 
         # update handle nodes
         if self.handleNode is not None:
@@ -422,7 +424,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         if self.simulateCloth:
             self.collarFeature.fitPlane()
-
+            self.gripFeatureL.fitPlane(normhint=np.array([0,0,1]))
+            self.gripFeatureR.fitPlane(normhint=np.array([0,0,1]))
         a=0
 
     def extraRenderFunction(self):
@@ -482,6 +485,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -34,16 +34,25 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = False
         self.leftTargetReward           = False
         self.contactSurfaceReward       = True  # reward for end effector touching inside cloth
+        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if touching feature).
         self.triangleContainmentReward  = True  # active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
         self.triangleAlignmentReward    = True  # dot product reward between triangle normal and character torso vector
         self.tieredTuckReward           = True  # if true, no reward given for containment unless contact is achieved.
-        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if touching feature).
+
+        #reward weights
+        self.uprightRewardWeight = 1
+        self.deformationPenaltyWeight = 10  # was 5...
+        self.restPoseRewardWeight = 1
+        self.contactSurfaceRewardWeight = 3
+        self.contactGeoRewardWeight = 5
+        self.triangleContainmentRewardWeight = 10
+        self.triangleAlignmentRewardWeight = 2
+
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -87,7 +96,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1080,720),
+                                                          screensize=(1280,720),
                                                           clothMeshFile="tshirt_m.obj",
                                                           clothMeshStateFile = "objFile_regrip.obj",
                                                           clothScale=1.4,
@@ -112,6 +121,29 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             self.clothScene.renderClothFill = False
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
+
+        # load rewards into the RewardsData structure
+        if self.uprightReward:
+            self.rewardsData.addReward(label="upright",rmin=-2.5,rmax=0,rval=0, rweight=self.uprightRewardWeight)
+
+        if self.deformationPenalty:
+            self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
+
+        if self.restPoseReward:
+            self.rewardsData.addReward(label="rest pose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+
+        if self.contactSurfaceReward:
+            self.rewardsData.addReward(label="contact surface", rmin=-1, rmax=1.0, rval=0, rweight=self.contactSurfaceRewardWeight)
+
+        if self.contactGeoReward:
+            self.rewardsData.addReward(label="contact geo", rmin=0, rmax=1.0, rval=0, rweight=self.contactGeoRewardWeight)
+
+        if self.triangleContainmentReward:
+            self.rewardsData.addReward(label="tri contain", rmin=-1.0, rmax=1.0, rval=0, rweight=self.triangleContainmentRewardWeight)
+
+        if self.triangleAlignmentReward:
+            self.rewardsData.addReward(label="tri align", rmin=-1.0, rmax=1.0, rval=0, rweight=self.triangleAlignmentRewardWeight)
+
 
         self.state_save_directory = "saved_control_states/"
         self.saveStateOnReset = False
@@ -199,6 +231,14 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         self.prevTau = tau
 
+        reward_record = []
+
+        # reward for maintaining posture
+        reward_upright = 0
+        if self.uprightReward:
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+            reward_record.append(reward_upright)
+
         #startTime = time.time()
         clothDeformation = 0
         if self.simulateCloth:
@@ -220,8 +260,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             reward_clothdeformation = -(math.tanh(
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_record.append(reward_clothdeformation)
 
         self.previousDeformationReward = reward_clothdeformation
+
+        reward_restPose = 0
+        if self.restPoseReward and self.restPose is not None:
+            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+            reward_restPose = max(-51, -dist)
+            reward_record.append(reward_restPose)
 
         reward_contact_surface = 0
         if self.contactSurfaceReward:
@@ -231,6 +278,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             # print(CID)
             reward_contact_surface = CID  # -1.0 for full outside, 1.0 for full inside
             # print(reward_contact_surface)
+            reward_record.append(reward_contact_surface)
 
         avgContactGeodesic = None
         if self.numSteps > 0 and self.simulateCloth:
@@ -250,31 +298,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                     reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
                     # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
             #reward_record.append(reward_contactGeo)
+            reward_record.append(reward_contactGeo)
 
         # force magnitude penalty
         reward_ctrl = -np.square(tau).sum()
-
-        # reward for maintaining posture
-        reward_upright = 0
-        if self.uprightReward:
-            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
-
-        '''totalFreedom = 0
-        for dof in range(len(self.robot_skeleton.q)):
-            if self.robot_skeleton.dof(dof).has_position_limit():
-                totalFreedom += self.robot_skeleton.dof(dof).position_upper_limit()-self.robot_skeleton.dof(dof).position_lower_limit()
-        print("totalFreedom: " + str(totalFreedom))'''
-
-        reward_restPose = 0
-        if self.restPoseReward and self.restPose is not None:
-            '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
-            s = 1.0  # steepness (higher is steeper)
-            l = 4.2  # translation
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = max(-51, -dist)
-            # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
         reward_rightTarget = 0
         if self.rightTargetReward:
@@ -329,6 +356,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                     reward_triangleContainment = -dist
             else:
                 reward_triangleContainment = -1
+            reward_record.append(reward_triangleContainment)
 
         reward_triangleAlignment = 0
         if self.triangleAlignmentReward:
@@ -343,19 +371,23 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             torsoV /= np.linalg.norm(torsoV)
 
             reward_triangleAlignment = -tnorm.dot(torsoV)
+            reward_record.append(reward_triangleAlignment)
+
+        # update the reward data storage
+        self.rewardsData.update(rewards=reward_record)
 
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
-                      + reward_upright \
-                      + reward_clothdeformation * 10 \
-                      + reward_restPose \
+                      + reward_upright * self.uprightRewardWeight \
+                      + reward_clothdeformation * self.deformationPenaltyWeight \
+                      + reward_restPose * self.restPoseRewardWeight\
                       + reward_rightTarget*100 \
                       + reward_leftTarget*100 \
-                      + reward_contact_surface * 3 \
-                      + reward_triangleContainment * 10 \
-                      + reward_triangleAlignment * 2 \
-                      + reward_contactGeo * 5
+                      + reward_contact_surface * self.contactSurfaceRewardWeight \
+                      + reward_triangleContainment * self.triangleContainmentRewardWeight \
+                      + reward_triangleAlignment * self.triangleAlignmentRewardWeight \
+                      + reward_contactGeo * self.contactGeoRewardWeight
             # TODO: revisit deformation penalty
         return self.reward
 
@@ -557,6 +589,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
                                                                     value=self.separatedMesh.maxGeo - side1geo))
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+
+        m_viewport = self.viewer.viewport
+        self.rewardsData.render(topLeft=[m_viewport[2]-410,m_viewport[3]-15], dimensions=[400, -m_viewport[3]+30])
 
         textHeight = 15
         textLines = 2
