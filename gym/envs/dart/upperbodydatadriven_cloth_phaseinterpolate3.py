@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -62,10 +62,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/matchgrip_reduced"
-        self.resetDistributionSize = 17 #3
-        #self.resetDistributionPrefix = "saved_control_states/matchgrip"
-        #self.resetDistributionSize = 3
+        #self.resetDistributionPrefix = "saved_control_states/matchgrip_reduced"
+        #self.resetDistributionSize = 17 #3
+        self.resetDistributionPrefix = "saved_control_states/matchgrip"
+        self.resetDistributionSize = 3
 
         #other variables
         self.handleNode = None
@@ -201,9 +201,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 #print("collar term")
                 return True, -1500
 
-        if self.numSteps == 99:
+        if self.numSteps == 60:
             if self.saveStateOnReset and self.reset_number > 0:
-                fname = self.state_save_directory + "triangle_ltuck"
+                fname = self.state_save_directory + "ltuck_narrow"
                 print(fname)
                 count = 0
                 objfname_ix = fname + "%05d" % count
