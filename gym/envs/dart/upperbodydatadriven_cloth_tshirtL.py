@@ -57,8 +57,10 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
 
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
-        self.resetDistributionSize = 3
+        #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
+        #self.resetDistributionSize = 3
+        self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
+        self.resetDistributionSize = 17
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -534,6 +536,12 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
                 renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
                 renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+
+
+        m_viewport = self.viewer.viewport
+        # print(m_viewport)
+        self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
+                                dimensions=[400, -m_viewport[3] + 30])
 
         textHeight = 15
         textLines = 2

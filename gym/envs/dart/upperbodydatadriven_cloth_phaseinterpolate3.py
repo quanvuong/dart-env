@@ -62,10 +62,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        #self.resetDistributionPrefix = "saved_control_states/matchgrip_reduced"
-        #self.resetDistributionSize = 17 #3
-        self.resetDistributionPrefix = "saved_control_states/matchgrip"
-        self.resetDistributionSize = 3
+        self.resetDistributionPrefix = "saved_control_states/matchgrip_reduced"
+        self.resetDistributionSize = 17 #3
+        #self.resetDistributionPrefix = "saved_control_states/matchgrip"
+        #self.resetDistributionSize = 3
 
         #other variables
         self.handleNode = None
@@ -148,7 +148,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
 
         self.state_save_directory = "saved_control_states/"
-        self.saveStateOnReset = False
+        self.saveStateOnReset = True
 
     def _getFile(self):
         return __file__
@@ -201,9 +201,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 #print("collar term")
                 return True, -1500
 
-        if self.numSteps == 60:
+        if self.numSteps == 70:
             if self.saveStateOnReset and self.reset_number > 0:
-                fname = self.state_save_directory + "ltuck_narrow"
+                fname = self.state_save_directory + "ltuck_wide"
                 print(fname)
                 count = 0
                 objfname_ix = fname + "%05d" % count

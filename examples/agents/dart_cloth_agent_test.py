@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_03_26_ltuck_wide_warm"
+    #trial = "experiment_2018_03_26_ltuck_wide"
+
     #trial = "experiment_2018_03_23_matchgrip_reducedwide"
     #trial = "experiment_2018_03_22_matchgrip_narrow2wide"
     #trial = "experiment_2018_03_22_ltuck_narrow_geo"
