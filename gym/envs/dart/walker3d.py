@@ -41,17 +41,12 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.treadmill_final_tv = -1.2
         self.treadmill_tv_endtime = 0.04
 
-        self.base_policy = None
-        modelpath = os.path.join(os.path.dirname(__file__), "models")
         self.cur_step = 0
         self.stepwise_rewards = []
         self.conseq_limit_pen = 0 # number of steps lying on the wall
         self.constrain_2d = True
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
-        self.end_balance_pd = 2000.0
-        self.end_vel_pd = 2000.0
-        self.pd_vary_end = self.target_vel * 6.0
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
@@ -61,15 +56,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.local_spd_curriculum = True
         self.anchor_kp = np.array([0, 0]) * 1.0
 
-        self.learns_turning = True
-        self.observation_permutation = np.array(
-            [0.0001, -1, 2, -3, -4, -5, -6, 7, 14, -15, -16, 17, 18, -19, 8,
-             -9, -10, 11, 12, -13,
-             20, 21, -22, 23, -24, -25, -26, -27, 28, 35, -36, -37, 38, 39,
-             -40, 29, -30, -31, 32, 33,
-             -34, 42, 41, 43]),
-        self.action_permutation = np.array(
-            [-0.0001, -1, 2, 9, -10, -11, 12, 13, -14, 3, -4, -5, 6, 7, -8])
+        self.learns_turning = False
 
         # state related
         self.contact_info = np.array([0, 0])
@@ -89,16 +76,16 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
-        #self.dart_world.set_collision_detector(3)
+        #self.dart_world.set_collision_detector(3) # uncomment if using ODE collision detector
         self.robot_skeleton.set_self_collision_check(True)
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
 
         for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(1)
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(5)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
-            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(1)
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(5)
 
         self.sim_dt = self.dt / self.frame_skip
 
@@ -107,8 +94,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 shapesize = bn.shapenodes[0].shape.size()
                 print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
         print('Total mass: ', self.robot_skeleton.mass())
-
-
 
         utils.EzPickle.__init__(self)
 
@@ -128,7 +113,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         qddot = invM * (-bn.C[dof] + p + d)
         tau = p + d - self.Kd * (qddot) * self.sim_dt
         return tau
-
 
 
     def do_simulation(self, tau, n_frames):
@@ -152,12 +136,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                 break
 
     def advance(self, a):
-        if self.base_policy is not None:
-            full_a = np.zeros(np.max([len(self.base_action_indices), len(self.delta_action_indices)]))
-            base_action = self.base_policy.get_action(self._get_obs())[1]['mean']
-            full_a[self.base_action_indices] += base_action
-            full_a[self.delta_action_indices] += a
-            a = np.copy(full_a)
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -184,8 +162,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.treadmill_vel = (np.min([self.t, self.treadmill_tv_endtime]) / self.treadmill_tv_endtime) * (
                     self.treadmill_final_tv - self.treadmill_init_tv) + self.treadmill_init_tv
 
-        self.current_pd = self.init_balance_pd  # + (self.end_balance_pd - self.init_balance_pd)/self.pd_vary_end*pos_val
-        self.vel_enforce_kp = self.init_vel_pd  # + (self.end_vel_pd - self.init_vel_pd) / self.pd_vary_end*pos_val
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
 
         if len(self.assist_schedule) > 0:
             for sch in self.assist_schedule:
@@ -261,11 +239,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.t < self.tv_endtime:
             vel_rew *= 1.0
 
-        '''if self.t < 1.0:
-            self.energy_weight = 0.3
-        else:
-            self.energy_weight = 0.5'''
-
         if self.target_ang is not None:
             print(self.robot_skeleton.q[4])
             ang_vel_rew = - 3.0 * np.abs(np.abs(self.target_ang) - np.abs(self.robot_skeleton.q[4]))
@@ -273,10 +246,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             ang_vel_rew = 0
 
         action_pen = self.energy_weight * np.abs(a).sum()
-        #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
-        contact_pen = 0.2 * np.square(np.clip(l_foot_force, -1000, 1000) / 500.0).sum() + np.square(
-            np.clip(r_foot_force, -1000, 1000) / 500.0).sum()
 
         rot_pen = 1.0 * np.abs(self.robot_skeleton.q[3]) + 0.0 * np.abs(self.robot_skeleton.q[4]) + \
                   1.0 * np.abs(self.robot_skeleton.q[5])
@@ -288,12 +258,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         pos_rew = alive_bonus - deviation_pen
         neg_pen = vel_rew - action_pen
 
-
-        #reward -= 1e-7 * total_force_mag
-
-        #div = self.get_div()
-        #reward -= 1e-1 * np.min([(div**2), 10])
-
         self.t += self.dt
         self.cur_step += 1
 
@@ -303,16 +267,6 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
                     and np.abs(angle) < 100000.1 and np.abs(self.robot_skeleton.q[5]) < 100000.2 and np.abs(side_deviation) < 900000.9)
 
         self.stepwise_rewards.append(reward)
-
-        '''if self.treadmill:
-            if np.abs(self.robot_skeleton.q[0]) > 0.4:
-                done = True'''
-
-        #if self.conseq_limit_pen > 20:
-        #    done = True
-
-        #if done:
-        #    reward = 0
 
         broke_sim = False
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
@@ -344,30 +298,16 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.05, high=.05, size=self.robot_skeleton.ndofs)
-        sign = np.sign(np.random.uniform(-1, 1))
-        #qpos[9] = sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
-        #qpos[15] = -sign * self.np_random.uniform(low=0.1, high=0.15, size=1)
-        #qpos[11] = sign * self.np_random.uniform(low=-0.1, high=-0.05, size=1)
-        #qpos[17] = -sign * self.np_random.uniform(low=0.05, high=0.1, size=1)
 
         if self.rand_target_vel:
             self.target_vel = np.random.uniform(0.8, 2.5)
 
         if self.local_spd_curriculum:
             self.spd_kp_candidates = [self.anchor_kp]
-            #axis1_cand = np.max([0, self.anchor_kp[0] - self.min_curriculum_step + np.random.uniform(-5, 5)])#self.anchor_kp[0] - np.min([self.min_curriculum_step, self.anchor_kp[0] * (self.curriculum_step_size+np.random.uniform(-0.01, 0.01))])
-            #axis2_cand = np.max([0, self.anchor_kp[1] - self.min_curriculum_step + np.random.uniform(-5, 5)])#self.anchor_kp[1] - np.min([self.min_curriculum_step, self.anchor_kp[1] * (self.curriculum_step_size + np.random.uniform(-0.01, 0.01))])
-            #self.spd_kp_candidates.append(np.array([self.anchor_kp[0], axis2_cand]))
-            #self.spd_kp_candidates.append(np.array([axis1_cand, self.anchor_kp[1]]))
-            #self.spd_kp_candidates.append(np.array([axis1_cand, axis2_cand]))
-            #if np.linalg.norm(self.anchor_kp) < self.min_curriculum_step:
-            #    self.spd_kp_candidates.append(np.array([0, 0]))
             self.curriculum_id = np.random.randint(len(self.spd_kp_candidates))
             chosen_curriculum = self.spd_kp_candidates[self.curriculum_id]
             self.init_balance_pd = chosen_curriculum[0]
-            self.end_balance_pd = chosen_curriculum[0]
             self.init_vel_pd = chosen_curriculum[1]
-            self.end_vel_pd = chosen_curriculum[1]
 
         if self.init_push:
             qpos[0] = self.target_vel
@@ -396,6 +336,5 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         if not self.disableViewer:
-            #self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
 
