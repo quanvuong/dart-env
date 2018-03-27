@@ -60,7 +60,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
         #self.resetDistributionSize = 3
         self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
-        self.resetDistributionSize = 17
+        self.resetDistributionSize = 3
         self.state_save_directory = "saved_control_states/"
 
         #other variables
