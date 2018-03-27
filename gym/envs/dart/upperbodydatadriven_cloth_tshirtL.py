@@ -57,10 +57,10 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
 
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
-        self.resetDistributionSize = 3
-        #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
-        #self.resetDistributionSize = 17
+        #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
+        #self.resetDistributionSize = 3
+        self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
+        self.resetDistributionSize = 17
         self.state_save_directory = "saved_control_states/"
 
         #other variables
