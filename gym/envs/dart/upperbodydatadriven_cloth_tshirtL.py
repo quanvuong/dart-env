@@ -57,10 +57,10 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
 
         self.resetStateFromDistribution = True
-        #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
-        #self.resetDistributionSize = 3
-        self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
-        self.resetDistributionSize = 17
+        self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
+        self.resetDistributionSize = 3
+        #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
+        #self.resetDistributionSize = 17
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -260,13 +260,14 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             # print("reward_elbow_flair: " + str(reward_elbow_flair))
 
         reward_limbprogress = 0
-        if self.limbProgressReward and self.simulateCloth:
-            self.limbProgress = pyutils.limbFeatureProgress(
-                limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
-            reward_limbprogress = self.limbProgress
-            if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
-                reward_limbprogress = 0
+        if self.limbProgressReward:
+            if self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
+                                                      offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
+                reward_limbprogress = self.limbProgress
+                if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
+                    reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
 
         avgContactGeodesic = None
@@ -280,12 +281,13 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
                 avgContactGeodesic /= len(contactInfo)
 
         reward_contactGeo = 0
-        if self.contactGeoReward and self.simulateCloth:
-            if self.limbProgress > 0:
-                reward_contactGeo = 1.0
-            elif avgContactGeodesic is not None:
-                reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
-                # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+        if self.contactGeoReward:
+            if self.simulateCloth:
+                if self.limbProgress > 0:
+                    reward_contactGeo = 1.0
+                elif avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
             reward_record.append(reward_contactGeo)
 
         clothDeformation = 0
@@ -303,22 +305,24 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         reward_ctrl = -np.square(tau).sum()
 
         reward_oracleDisplacement = 0
-        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localLeftEfShoulder1 is not None:
-            # world_ef_displacement = wRFingertip2 - wRFingertip1
-            relative_displacement = localLeftEfShoulder2 - self.localLeftEfShoulder1
-            oracle0 = self.robot_skeleton.bodynodes[3].to_local(wLFingertip2 + self.prevOracle) - localLeftEfShoulder2
-            # oracle0 = oracle0/np.linalg.norm(oracle0)
-            reward_oracleDisplacement += relative_displacement.dot(oracle0)
+        if self.oracleDisplacementReward:
+            if np.linalg.norm(self.prevOracle) > 0 and self.localLeftEfShoulder1 is not None:
+                # world_ef_displacement = wRFingertip2 - wRFingertip1
+                relative_displacement = localLeftEfShoulder2 - self.localLeftEfShoulder1
+                oracle0 = self.robot_skeleton.bodynodes[3].to_local(wLFingertip2 + self.prevOracle) - localLeftEfShoulder2
+                # oracle0 = oracle0/np.linalg.norm(oracle0)
+                reward_oracleDisplacement += relative_displacement.dot(oracle0)
             reward_record.append(reward_oracleDisplacement)
 
         reward_restPose = 0
-        if self.restPoseReward and self.restPose is not None:
-            z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
-            s = 1.0  # steepness (higher is steeper)
-            l = 4.2  # translation
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
-            # print("distance: " + str(dist) + " -> " + str(reward_restPose))
+        if self.restPoseReward:
+            if self.restPose is not None:
+                z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
+                s = 1.0  # steepness (higher is steeper)
+                l = 4.2  # translation
+                dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+                # print("distance: " + str(dist) + " -> " + str(reward_restPose))
             reward_record.append(reward_restPose)
 
         # update the reward data storage
