@@ -33,8 +33,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.push_timeout = 0.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [8, 8]], [3.0, [6, 6.0]], [6.0, [0, 0]]]
+        self.push_timeout = 100.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500.0]], [60.0, [1125, 1125]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -519,6 +519,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             broke_sim = True
 
+        '''work = np.sum(np.abs(clamped_control * self.action_scale * self.robot_skeleton.dq[6:])) * self.dt
+        self.total_work += work
+        cot = self.total_work / (self.robot_skeleton.mass() * 9.81 * self.robot_skeleton.C[0])
+        print(cot)'''
+
         return ob, reward, done, {'broke_sim': broke_sim, 'vel_rew': vel_rew, 'action_pen': action_pen,
                                   'deviation_pen': deviation_pen, 'curriculum_id': self.curriculum_id,
                                   'curriculum_candidates': self.spd_kp_candidates, 'done_return': done,
@@ -526,7 +531,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                   'pos_rew': pos_rew, 'neg_pen': neg_pen, 'contact_locations':self.contact_locations,
                                   'contact_force': l_foot_force + r_foot_force,
                                   'contact_forces':[l_foot_force,r_foot_force],
-                                  'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew, 'avg_vel':np.mean(self.vel_cache)}
+                                  'ref_reward': ref_reward, 'ref_feat_rew':ref_feat_rew, 'avg_vel':np.mean(self.vel_cache),
+                                  }
 
     def _get_obs(self):
         state = np.concatenate([
@@ -548,6 +554,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def reset_model(self):
         #print('resetttt')
         self.dart_world.reset()
+        self.total_work = 0
 
         init_q = self.robot_skeleton.q
         init_dq = self.robot_skeleton.dq

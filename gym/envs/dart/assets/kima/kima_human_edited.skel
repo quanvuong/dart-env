@@ -434,10 +434,10 @@
                 </visualization_shape>
             </body>
 
-            <body name="r-attachment">
+            <!--<body name="r-attachment">
                 <transformation>0.205 -0.11375 0.0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.0</mass>
+                    <mass>0.00001</mass>
                     <offset>0 0.0 0</offset>
                 </inertia>
                 <visualization_shape>
@@ -448,7 +448,7 @@
                         </ellipsoid>
                     </geometry>
                 </visualization_shape>
-            </body>
+            </body>-->
 
             <!-- JOINT: Pelvis -->
             <joint type="translational" name="j_pelvis">
@@ -821,11 +821,11 @@
             </joint>
 
 
-            <joint name="j_forearm_right_attach" type="weld">
+            <!--<joint name="j_forearm_right_attach" type="weld">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>r-lowerarm</parent>
                 <child>r-attachment</child>
-            </joint>
+            </joint>-->
 
 
         </skeleton>

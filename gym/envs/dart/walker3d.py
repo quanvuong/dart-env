@@ -19,7 +19,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_vel = 1.0
         self.init_tv = 0.0
         self.final_tv = 1.0
-        self.tv_endtime = 1.0
+        self.tv_endtime = 0.5
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
@@ -28,9 +28,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.avg_rew_weighting = []
         self.vel_cache = []
 
-        self.assist_timeout = 0.0
+        self.target_ang = None
+
+        self.assist_timeout = 100.0
         self.assist_prob = 1.0 # probability of providing assistance
-        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [2000, 1000]], [6.0, [1125, 1125.0]]]
+        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500]], [60.0, [1125.0, 1125.0]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -53,7 +55,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.4
+        self.energy_weight = 0.3
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True
@@ -94,9 +96,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(0)
 
         for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(20)
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(1)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
-            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(1)
 
         self.sim_dt = self.dt / self.frame_skip
 
@@ -127,6 +129,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         tau = p + d - self.Kd * (qddot) * self.sim_dt
         return tau
 
+
+
     def do_simulation(self, tau, n_frames):
         provide_assist = np.random.random() < self.assist_prob
         for _ in range(n_frames):
@@ -137,6 +141,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             if self.enforce_target_vel and not self.hard_enforce and self.t < self.assist_timeout and provide_assist:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('h_pelvis'), self.vel_enforce_kp, 0, self.target_vel)
                 self.robot_skeleton.bodynode('h_pelvis').add_ext_force(np.array([force, 0, 0]))
+
+            if self.target_ang is not None:
+                tau[4] = self.vel_enforce_kp/100 * (self.target_ang - self.robot_skeleton.q[4])
 
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
@@ -258,15 +265,26 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
             self.energy_weight = 0.3
         else:
             self.energy_weight = 0.5'''
+
+        if self.target_ang is not None:
+            print(self.robot_skeleton.q[4])
+            ang_vel_rew = - 3.0 * np.abs(np.abs(self.target_ang) - np.abs(self.robot_skeleton.q[4]))
+        else:
+            ang_vel_rew = 0
+
         action_pen = self.energy_weight * np.abs(a).sum()
         #action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
         deviation_pen = 3 * abs(side_deviation)
         contact_pen = 0.2 * np.square(np.clip(l_foot_force, -1000, 1000) / 500.0).sum() + np.square(
             np.clip(r_foot_force, -1000, 1000) / 500.0).sum()
 
-        rot_pen = 0.0 * (abs(ang_cos_uwd))
+        rot_pen = 1.0 * np.abs(self.robot_skeleton.q[3]) + 0.0 * np.abs(self.robot_skeleton.q[4]) + \
+                  1.0 * np.abs(self.robot_skeleton.q[5])
 
-        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen# - contact_pen
+        jump_rew = 10.0 * np.max([(height - 1.3), 0])
+        foot_rew = 5*(np.max([self.robot_skeleton.bodynode('h_thigh').C[1], self.robot_skeleton.bodynode('h_thigh_left').C[1]])-0.8)
+
+        reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen# + jump_rew + ang_vel_rew# - contact_pen
         pos_rew = alive_bonus - deviation_pen
         neg_pen = vel_rew - action_pen
 
@@ -281,8 +299,8 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.0) and (height < 2.0) and (abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
-                    and np.abs(angle) < 1.1 and np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(side_deviation) < 0.9)
+                    (height > 1.0) and (height < 3.0) and (abs(ang_cos_uwd) < 100000.2) and (abs(ang_cos_fwd) < 100000.2)
+                    and np.abs(angle) < 100000.1 and np.abs(self.robot_skeleton.q[5]) < 100000.2 and np.abs(side_deviation) < 900000.9)
 
         self.stepwise_rewards.append(reward)
 
@@ -370,6 +388,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_enforce_kp = self.init_vel_pd
 
         self.contact_info = np.array([0, 0])
+
+        if self.target_ang is not None and np.random.random() < 0.5:
+            self.target_ang *= -1
 
         return self._get_obs()
 

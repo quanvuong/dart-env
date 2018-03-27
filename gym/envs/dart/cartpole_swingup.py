@@ -15,19 +15,24 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         self.control_bounds = np.array([[1.0], [-1.0]])
         self.action_scale = np.array([40])
         self.train_UP = False
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model parameters
         self.train_mp_sel = False
         self.perturb_MP = False
         self.avg_div = 0
         self.param_manager = CartPoleManager(self)
 
+        self.input_exp = 1 # dim of input exploration
+
         self.use_disc_ref_policy = False
         self.disc_ref_weight = 0.001
         self.disc_funcs = [] # vfunc, obs_disc, act_disc, state_filter, state_unfilter
+        self.disc_policy = None
+        self.disc_fit_policy = None
+        self.learn_additive_pol = False
 
         self.split_task_test = False
-        self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0,1,2])
+        self.tasks = TaskList(1)
+        self.tasks.add_world_choice_tasks([0])
         # self.tasks.add_range_param_tasks([0, [[0.0, 0.5], [0.5, 1.0], [0.0, 0.5], [0.5, 1.0]]])
         # self.tasks.add_range_param_tasks([2, [[0.0, 0.5], [0.5, 1.0], [0.5, 1.0], [0.0, 0.5]]])
 
@@ -36,7 +41,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         modelpath = os.path.join(os.path.dirname(__file__), "models")
         # self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_jug_sd9_mass_2seg.pkl'))
 
-        obs_dim = 4
+        obs_dim = 4 + self.input_exp
         if self.train_UP:
             obs_dim += self.param_manager.param_dim
         if self.train_mp_sel:
@@ -46,6 +51,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         if self.juggling:
             obs_dim += 4
             self.action_scale *= 2
+
+        if self.learn_additive_pol:
+            obs_dim += 1
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -138,9 +146,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         if ang_proc < 0.5:
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3 - np.abs(self.robot_skeleton.dq[1]), 0])
 
-        if self.use_disc_ref_policy:
-            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
-                reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
+        #if self.use_disc_ref_policy:
+        #    if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
+        #        reward += self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
 
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
 
@@ -174,10 +182,10 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
                                   'state_act': state_act, 'next_state': self.state_vector() - state_pre
             , 'dyn_model_id': self.dyn_model_id, 'state_index': self.state_index}
 
-        if self.use_disc_ref_policy:
-            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
-                ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
-                envinfo['sub_disc_ref_reward'] = ref_reward
+        #if self.use_disc_ref_policy:
+        #    if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
+        #        ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
+        #        envinfo['sub_disc_ref_reward'] = ref_reward
 
         return ob, reward, done, envinfo
 
@@ -205,11 +213,22 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         if self.split_task_test:
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
-        if self.avg_div >= 1:
-            return_state = np.zeros(len(state) + self.avg_div)
-            return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1.0
-            return return_state
+        if self.learn_additive_pol:
+            # take action predicted by discrete policy and append to the observation
+            if self.disc_fit_policy is not None:
+                st = self.disc_funcs[3](self.state_vector())
+                disc_act = self.disc_fit_policy.pred(st)[0]
+                state = np.concatenate([state, disc_act])
+            else:
+                if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_policy:
+                    sid = self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))
+                    disc_act = self.disc_funcs[2].get_midstate(self.disc_policy[sid])
+                    state = np.concatenate([state, disc_act])
+                else:
+                    state = np.concatenate([state, [0]])
+
+        if self.input_exp > 0:
+            state = np.concatenate([state, self.sampled_input_exp])
 
         return state
 
@@ -230,6 +249,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         self.current_param = self.param_manager.get_simulator_parameters()
         self.state_index = self.dyn_model_id
+
+        if self.input_exp > 0:
+            self.sampled_input_exp = np.random.random(self.input_exp) # uniform distribution
 
         if self.train_UP:
             self.state_index = 0

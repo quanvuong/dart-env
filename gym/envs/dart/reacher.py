@@ -6,28 +6,35 @@ from gym.envs.dart import dart_env
 from gym.envs.dart.sub_tasks import *
 from scipy.optimize import fmin
 
+
 class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([10, 10, 10, 10, 10])*2
-        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
+        self.target1 = np.array([0.8, -0.6, 0.6])
+        self.target2 = np.array([0.8, -0.6, 0.6])
+        self.target1_vel = np.array([0, 0, 0])
+
+        self.action_scale = np.array([10, 10, 10, 10, 10]) * 2
+        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.avg_div = 0
 
-        obs_dim=16
+        obs_dim = 21
         self.train_UP = False
         self.perturb_MP = False
         self.state_index = 0
-        self.split_task_test = False
-        self.tasks = TaskList(3)
-        self.tasks.add_world_choice_tasks([0, 1, 2])
-        #self.tasks.add_world_choice_tasks([0, 0, 1, 1])
-        #self.tasks.add_range_param_tasks([0, [[0, 0.7], [0.0, 0.7]]])
-        #self.tasks.add_range_param_tasks([1, [[0.0, 0.7],[-0.7, 0.0]]])
+        self.split_task_test = True
+        self.split_sample_quadrant = False
+        self.enforce_task_id = 1
+        self.append_taskid = False
+        self.tasks = TaskList(2)
+        self.tasks.add_world_choice_tasks([0, 1])
+        # self.tasks.add_world_choice_tasks([0, 0, 1, 1])
+        # self.tasks.add_range_param_tasks([0, [[0, 0.7], [0.0, 0.7]]])
+        # self.tasks.add_range_param_tasks([1, [[0.0, 0.7],[-0.7, 0.0]]])
 
-        if self.split_task_test:
+        if self.split_task_test and self.append_taskid:
             obs_dim += self.tasks.task_input_dim()
 
-        dart_env.DartEnv.__init__(self, ['reacher.skel']\
+        dart_env.DartEnv.__init__(self, ['reacher.skel', 'reacher_variation1.skel', 'reacher_variation2.skel'] \
                                   , 4, obs_dim, self.control_bounds, disableViewer=True)
 
         '''for world in self.dart_worlds:
@@ -40,12 +47,17 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
                     joint.set_position_upper_limit(dof, limit)
                     joint.set_position_lower_limit(dof, -limit)'''
 
-        self.dart_world=self.dart_worlds[0]
-        self.robot_skeleton=self.dart_world.skeletons[-1]
+        self.dart_world = self.dart_worlds[0]
+        self.robot_skeleton = self.dart_world.skeletons[-1]
 
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
+        self.target1 += self.target1_vel * self.dt
+        self.dart_world.skeletons[0].q = [0, 0, 0, self.target1[0], self.target1[1], self.target1[2]]
+
+        #if self.state_index == 1:
+        #    a = -a
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -54,10 +66,15 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
 
-        vec = self.robot_skeleton.bodynodes[-1].C - self.target
-        reward_dist = - np.linalg.norm(vec)
+        vec1 = self.robot_skeleton.bodynodes[-1].C - self.target1
+        vec2 = self.robot_skeleton.bodynodes[-1].C - self.target2
+        reward_dist = - np.linalg.norm(vec1)
+        '''if self.state_index == 0:
+            reward_dist -= np.linalg.norm(vec2) * 0.2
+        elif self.state_index == 1:
+            reward_dist += np.linalg.norm(vec2) * 0.2'''
         reward_ctrl = - np.square(tau).sum() * 0.001
-        alive_bonus = -0.4
+        alive_bonus = 1.0
         reward = reward_dist + reward_ctrl + alive_bonus
 
         self.do_simulation(tau, self.frame_skip)
@@ -66,18 +83,18 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         velocity = np.square(s[5:]).sum()
 
-        done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
-#        done = not (np.isfinite(s).all() and (-reward_dist > 0.01) and (velocity < 10000))
+        done = not (np.isfinite(s).all() and (-reward_dist < 0.2))
+        #        done = not (np.isfinite(s).all() and (-reward_dist > 0.01) and (velocity < 10000))
 
-        return ob, reward, done, {'state_index':self.state_index, 'dyn_model_id':0}
+        return ob, reward, done, {'state_index': self.state_index, 'dyn_model_id': 0}
 
     def _get_obs(self):
         theta = self.robot_skeleton.q
-        vec = self.robot_skeleton.bodynodes[-1].C - self.target
-        #state = np.concatenate([np.cos(theta), np.sin(theta), self.target, self.robot_skeleton.dq, vec]).ravel()
-        state = np.concatenate([theta, self.robot_skeleton.dq, self.target, vec]).ravel()
+        vec = self.robot_skeleton.bodynodes[-1].C - self.target1
+        state = np.concatenate([np.cos(theta), np.sin(theta), self.target1, self.target2, self.robot_skeleton.dq]).ravel()
+        #state = np.concatenate([theta, self.robot_skeleton.dq, self.target, vec]).ravel()
 
-        if self.split_task_test:
+        if self.split_task_test and self.append_taskid:
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
         if self.avg_div > 1:
@@ -96,12 +113,16 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.split_task_test:
             self.state_index = np.random.randint(self.tasks.task_num)
+            if self.enforce_task_id is not None:
+                self.state_index = self.enforce_task_id
             world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
                 self.robot_skeleton = self.dart_world.skeletons[-1]
-                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01,
+                                                                      size=self.robot_skeleton.ndofs)
+                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.01, high=.01,
+                                                                       size=self.robot_skeleton.ndofs)
                 self.set_state(qpos, qvel)
                 if not self.disableViewer:
                     self._get_viewer().sim = self.dart_world
@@ -111,19 +132,24 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
 
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
-            #print('target = ' + str(self.target))
+            # print('target = ' + str(self.target))
             if np.linalg.norm(self.target) < 1.2: break
         '''if self.np_random.uniform(low=-1, high=1) > 0:
             self.target = np.array([0.1,0.8,0.1])
         else:
             self.target = np.array([-0.1, -0.8, -0.1])'''
-        fixed_targets = [np.array([0.7, 0, 0]), np.array([-0.4, 0, 0]), np.array([0, -0.6, 0]), np.array([0, 0.2, 0]), \
-                         np.array([0, 0, -0.23]), np.array([0, 0, 0.95])]
-        self.target = fixed_targets[np.random.randint(6)]
-        self.target = fixed_targets[0]
 
-        self.dart_world.skeletons[0].q=[0, 0, 0, self.target[0], self.target[1], self.target[2]]
-        
+        perturb = self.np_random.uniform(low=-0.05, high=0.05, size=3)
+        self.target1 = np.array([0, 1.2, 0.0]) + perturb
+        self.dart_world.skeletons[0].q = [0, 0, 0, self.target1[0], self.target1[1], self.target1[2]]
+
+        perturb = self.np_random.uniform(low=-0.05, high=0.05, size=3)
+        self.target2 = np.array([0.0, 0.6, 0.0]) + perturb
+        self.dart_world.skeletons[1].q = [0, 0, 0, self.target2[0], self.target2[1], self.target2[2]]
+
+        self.target1 = self.robot_skeleton.bodynodes[-1].C
+        self.target1_vel = np.array([(np.random.random()-0.5)*0.05, 1.0, (np.random.random()-0.5)*0.05])
+
         return self._get_obs()
 
     def ik_obj(self, x):

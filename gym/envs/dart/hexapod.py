@@ -17,15 +17,15 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 47
 
         self.t = 0
-        self.target_vel = 2.0
+        self.target_vel = 3.0
         self.init_tv = 0.0
-        self.final_tv = 2.0
+        self.final_tv = 3.0
         self.tv_endtime = 2.0
         self.smooth_tv_change = True
         self.vel_cache = []
         self.init_pos = 0
         self.freefloat = 0.0
-        self.assist_timeout = 0.1
+        self.assist_timeout = 0.0
         self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125, 1125]]]
 
         self.init_push = False

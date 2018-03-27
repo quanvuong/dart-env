@@ -21,9 +21,9 @@ class DartWalker3dFullEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t = 0
         self.target_vel = 1.0
-        self.init_tv = 1.0
-        self.final_tv = 3.0
-        self.tv_endtime = 2.5
+        self.init_tv = 0.0
+        self.final_tv = 1.0
+        self.tv_endtime = 0.5
         self.smooth_tv_change = True
         self.rand_target_vel = False
         self.init_push = False
@@ -242,10 +242,12 @@ class DartWalker3dFullEnv(dart_env.DartEnv, utils.EzPickle):
                 vel_rew = 2 * (self.target_vel - np.abs(self.target_vel + self.treadmill_vel - vel))
             vel_rew *= 0
             # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
-            action_pen = 5e-1 * np.abs(a).sum()
+            action_pen = 4e-1 * np.abs(a).sum()
             # action_pen = 5e-3 * np.sum(np.square(a)* self.robot_skeleton.dq[6:]* actuator_pen_multiplier)
             deviation_pen = 3 * abs(side_deviation)
-            reward = vel_rew + alive_bonus - action_pen - deviation_pen
+            rot_pen = 1.0 * np.abs(self.robot_skeleton.q[3]) + 1.0 * np.abs(self.robot_skeleton.q[4]) + \
+                      1.0 * np.abs(self.robot_skeleton.q[5])
+            reward = vel_rew + alive_bonus - action_pen - deviation_pen - rot_pen
             pos_rew = alive_bonus - deviation_pen
             neg_pen = vel_rew - action_pen
         else:

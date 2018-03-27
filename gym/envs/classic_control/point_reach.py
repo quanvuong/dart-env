@@ -33,6 +33,8 @@ class PointReachEnv(gym.Env):
         self.state = self.state.clip(-10, 10)
 
         reward = -0.05 - np.min([np.linalg.norm(self.state - self.targets[0]), np.linalg.norm(self.state - self.targets[1])])
+        if np.linalg.norm(self.state - self.targets[0]) < 0.8:
+            reward += 25
 
         done = False
 
@@ -43,7 +45,7 @@ class PointReachEnv(gym.Env):
     def _reset(self):
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(2,))
 
-        self.targets = [np.array([3.0, 8.0]), np.array([-8.0, 3.0])]
+        self.targets = [np.array([9.5, 1.0]), np.array([-7.0, 1.0])]
         self.current_action = np.ones(2)
         return np.array(self.state)
 

@@ -79,7 +79,7 @@
             <body name="link 4">
                 <transformation>0 -1.55 0 0 0 0</transformation>
                 <inertia>
-                    <mass>0.2</mass>
+                    <mass>2.2</mass>
                     <offset>0 0 0</offset>
                 </inertia>
                 <visualization_shape>
@@ -135,8 +135,8 @@
                  </axis>
             </joint>
             <joint type="universal" name="joint 3">
-                <parent>link 1</parent>
-                <child>link 2</child>
+                <parent>link 2</parent>
+                <child>link 3</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>
  		            <limit>

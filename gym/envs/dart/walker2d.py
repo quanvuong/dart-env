@@ -17,14 +17,17 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.avg_div = 0
         self.target_vel = 0.9
-        self.split_task_test = False
+        self.split_task_test = True
         self.tasks = TaskList(2)
         self.tasks.add_world_choice_tasks([0, 0])
-        self.learn_forwardbackward = False
+        self.learn_forwardbackward = True
         self.task_expand_flag = False
         self.state_index = 0
 
-        if self.split_task_test:
+        self.enforce_task_id = None
+        self.append_taskid = False
+
+        if self.split_task_test and self.append_taskid:
             obs_dim += self.tasks.task_input_dim()
         if self.avg_div > 1:
             obs_dim += self.avg_div
@@ -69,10 +72,10 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         vel = (posafter - posbefore) / self.dt
-        #if self.state_index == 1 and self.learn_forwardbackward:
-        #    vel *= -1
-        vel_rew = 1 * (self.target_vel - np.abs(self.target_vel - vel))
-        reward = vel_rew#-(vel-1.0)**2
+        if self.state_index == 1 and self.learn_forwardbackward:
+            vel *= -1
+        #vel_rew = 1 * (self.target_vel - np.abs(self.target_vel - vel))
+        reward = vel
         reward += alive_bonus
         reward -= 1e-1 * np.square(a).sum()
 
@@ -107,14 +110,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.split_task_test:
+        if self.split_task_test and self.append_taskid:
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
-
-        if self.avg_div > 1:
-            return_state = np.zeros(len(state) + self.avg_div)
-            return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1
-            return return_state
 
         return state
 
@@ -129,6 +126,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                 self.tasks.expand_range_param_tasks()
                 self.task_expand_flag = False
             self.state_index = np.random.randint(self.tasks.task_num)
+            if self.enforce_task_id is not None:
+                self.state_index = self.enforce_task_id
             world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
