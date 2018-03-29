@@ -17,7 +17,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = False
         self.avg_div = 0
 
-        self.input_exp = 1  # dim of input exploration
+        self.input_exp = 0  # dim of input exploration
 
         self.enforce_task_id = None
         self.append_taskid = False
@@ -328,8 +328,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             #self.param_manager.set_simulator_parameters(mp)
 
         if self.input_exp > 0:
-            #self.sampled_input_exp = np.random.random(self.input_exp)  # uniform distribution
-            self.sampled_input_exp = np.random.normal(0, 1, self.input_exp)
+            self.sampled_input_exp = np.random.random(self.input_exp)  # uniform distribution
+            #self.sampled_input_exp = np.random.normal(0, 1, self.input_exp)
+            #self.sampled_input_exp = [np.random.randint(2)]
 
         # Split the mp space by left and right for now
         if self.train_UP:

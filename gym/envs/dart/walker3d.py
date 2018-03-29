@@ -30,7 +30,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_ang = None
 
-        self.assist_timeout = 100.0
+        self.assist_timeout = 0.0
         self.assist_prob = 1.0 # probability of providing assistance
         self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500]], [60.0, [1125.0, 1125.0]]]
 
