@@ -60,7 +60,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
         #self.resetDistributionSize = 3
         self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
-        self.resetDistributionSize = 3
+        self.resetDistributionSize = 3#17
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -110,9 +110,9 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.sleeveLVerts = [211, 2305, 2364, 2247, 2322, 2409, 2319, 2427, 2240, 2320, 2276, 2326, 2334, 2288, 2346, 2314, 2251, 2347, 2304, 2245, 2376, 2315]
         self.sleeveLMidVerts = [2379, 2357, 2293, 2272, 2253, 214, 2351, 2381, 2300, 2352, 2236, 2286, 2430, 2263, 2307, 2387, 2232, 2390, 2277, 2348, 2382, 2227, 2296, 2425]
         self.sleeveLEndVerts = [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 9, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231]
-        self.CP0Feature = ClothFeature(verts=self.sleeveLVerts, clothScene=self.clothScene)
-        self.CP1Feature = ClothFeature(verts=self.sleeveLEndVerts, clothScene=self.clothScene)
-        self.CP2Feature = ClothFeature(verts=self.sleeveLMidVerts, clothScene=self.clothScene)
+        self.sleeveLSeamFeature = ClothFeature(verts=self.sleeveLVerts, clothScene=self.clothScene)
+        self.sleeveLEndFeature = ClothFeature(verts=self.sleeveLEndVerts, clothScene=self.clothScene)
+        self.sleeveLMidFeature = ClothFeature(verts=self.sleeveLMidVerts, clothScene=self.clothScene)
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
@@ -165,12 +165,12 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #any pre-sim updates should happen here
 
         #update features
-        if self.CP0Feature is not None:
-            self.CP0Feature.fitPlane()
-        if self.CP1Feature is not None:
-            self.CP1Feature.fitPlane()
-        if self.CP2Feature is not None:
-            self.CP2Feature.fitPlane()
+        if self.sleeveLSeamFeature is not None:
+            self.sleeveLSeamFeature.fitPlane()
+        if self.sleeveLEndFeature is not None:
+            self.sleeveLEndFeature.fitPlane()
+        if self.sleeveLMidFeature is not None:
+            self.sleeveLMidFeature.fitPlane()
         if self.collarFeature is not None:
             self.collarFeature.fitPlane()
         self.gripFeatureL.fitPlane()
@@ -209,7 +209,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         if self.sleeveEndTerm and self.limbProgress <= 0:
             limbInsertionError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
-                                                  offset=np.array([0, -0.065, 0])), feature=self.CP1Feature)
+                                                  offset=np.array([0, -0.065, 0])), feature=self.sleeveLEndFeature)
             if limbInsertionError > 0:
                 return True, -500
 
@@ -264,7 +264,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             if self.simulateCloth:
                 self.limbProgress = pyutils.limbFeatureProgress(
                     limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
-                                                      offset=np.array([0, -0.065, 0])), feature=self.CP0Feature)
+                                                      offset=np.array([0, -0.065, 0])), feature=self.sleeveLSeamFeature)
                 reward_limbprogress = self.limbProgress
                 if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
                     reward_limbprogress = 0
@@ -362,7 +362,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             obs = np.concatenate([obs, f]).ravel()
 
         if self.featureInObs:
-            centroid = self.CP2Feature.plane.org
+            centroid = self.sleeveLMidFeature.plane.org
             efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             disp = centroid-efL
             obs = np.concatenate([obs, centroid, disp]).ravel()
@@ -372,7 +372,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             if self.reset_number == 0:
                 a=0 #nothing
             elif self.limbProgress > 0:
-                oracle = self.CP0Feature.plane.normal
+                oracle = self.sleeveLSeamFeature.plane.normal
             else:
                 minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,
                                                                                      clothscene=self.clothScene,
@@ -417,33 +417,33 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #do any additional resetting here
 
         if self.simulateCloth:
-            self.CP0Feature.fitPlane()
-            self.CP1Feature.fitPlane()
-            self.CP2Feature.fitPlane()
+            self.sleeveLSeamFeature.fitPlane()
+            self.sleeveLEndFeature.fitPlane()
+            self.sleeveLMidFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
             #ensure relative correctness of normals
-            CP2_CP1 = self.CP1Feature.plane.org - self.CP2Feature.plane.org
-            CP2_CP0 = self.CP0Feature.plane.org - self.CP2Feature.plane.org
+            CP2_CP1 = self.sleeveLEndFeature.plane.org - self.sleeveLMidFeature.plane.org
+            CP2_CP0 = self.sleeveLSeamFeature.plane.org - self.sleeveLMidFeature.plane.org
 
             # if CP2 normal is not facing the sleeve end invert it
-            if CP2_CP1.dot(self.CP2Feature.plane.normal) < 0:
-                self.CP2Feature.plane.normal *= -1.0
+            if CP2_CP1.dot(self.sleeveLMidFeature.plane.normal) < 0:
+                self.sleeveLMidFeature.plane.normal *= -1.0
 
             # if CP1 normal is facing the sleeve middle invert it
-            if CP2_CP1.dot(self.CP1Feature.plane.normal) < 0:
-                self.CP1Feature.plane.normal *= -1.0
+            if CP2_CP1.dot(self.sleeveLEndFeature.plane.normal) < 0:
+                self.sleeveLEndFeature.plane.normal *= -1.0
 
             # if CP0 normal is not facing sleeve middle invert it
-            if CP2_CP0.dot(self.CP0Feature.plane.normal) > 0:
-                self.CP0Feature.plane.normal *= -1.0
+            if CP2_CP0.dot(self.sleeveLSeamFeature.plane.normal) > 0:
+                self.sleeveLSeamFeature.plane.normal *= -1.0
 
         if self.reset_number == 0 and self.simulateCloth:
             self.separatedMesh.initSeparatedMeshGraph()
             self.separatedMesh.updateWeights()
             # TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
             # option: maybe compute this before setting the cloth state at all in initialization?
-            self.separatedMesh.computeGeodesic(feature=self.CP2Feature, oneSided=True, side=0, normalSide=0)
+            self.separatedMesh.computeGeodesic(feature=self.sleeveLMidFeature, oneSided=True, side=0, normalSide=0)
 
         #self.clothScene.translateCloth(0, np.array([0.05, 0.025, 0]))
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
@@ -494,15 +494,15 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             self.handleNode.recomputeOffsets()
 
         if self.simulateCloth:
-            self.CP0Feature.fitPlane()
-            self.CP1Feature.fitPlane()
-            self.CP2Feature.fitPlane()
+            self.sleeveLSeamFeature.fitPlane()
+            self.sleeveLEndFeature.fitPlane()
+            self.sleeveLMidFeature.fitPlane()
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
 
         if self.limbProgressReward:
-            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.CP0Feature)
+            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.sleeveLSeamFeature)
 
         a=0
 
@@ -517,12 +517,12 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
-        if self.CP0Feature is not None:
-            self.CP0Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.CP1Feature is not None:
-            self.CP1Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.CP2Feature is not None:
-            self.CP2Feature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        if self.sleeveLSeamFeature is not None:
+            self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        if self.sleeveLEndFeature is not None:
+            self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        if self.sleeveLMidFeature is not None:
+            self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.collarFeature is not None:
             self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
@@ -540,6 +540,9 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
                 renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01)
                 renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+
+        efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        renderUtils.drawArrow(p0=efL, p1=efL + self.prevOracle)
 
 
         m_viewport = self.viewer.viewport
