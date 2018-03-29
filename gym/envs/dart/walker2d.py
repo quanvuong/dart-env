@@ -9,7 +9,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
 
-        dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         utils.EzPickle.__init__(self)
 
@@ -61,7 +61,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
-            np.clip(self.robot_skeleton.dq,-10,10)
+            self.robot_skeleton.dq
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 

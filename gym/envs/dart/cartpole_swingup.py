@@ -21,7 +21,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         self.avg_div = 0
         self.param_manager = CartPoleManager(self)
 
-        self.input_exp = 1 # dim of input exploration
+        self.input_exp = 0 # dim of input exploration
 
         self.use_disc_ref_policy = False
         self.disc_ref_weight = 0.001
