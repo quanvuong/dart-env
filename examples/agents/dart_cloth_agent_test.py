@@ -20,10 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_03_27_lsleeve_narrow_new_cont"
+    #trial = "experiment_2018_03_27_lsleeve_narrow_new_cont"
     #trial = "experiment_2018_03_27_lsleeve_narrow_new"
     #trial = "experiment_2018_03_26_lsleeve_narrow" #works but wrong distribution
-    #trial = "experiment_2018_03_27_lsleeve_wide"
+    trial = "experiment_2018_03_27_lsleeve_wide"
 
     #trial = "experiment_2018_03_26_ltuck_wide_warm"
     #trial = "experiment_2018_03_26_ltuck_wide" #***
