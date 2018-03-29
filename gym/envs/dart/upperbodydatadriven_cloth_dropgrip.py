@@ -59,9 +59,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
             self.orientationTaskSuccessGraph = pyutils.LineGrapher(title="Orientation Task Success", numPlots=2)
 
         #other variables
-        self.simStepsInReset = 0#90
-        self.initialPerturbationScale = 0#0.35 #if >0, accelerate cloth particles in random direction with this magnitude
-        self.simStepsAfterPerturbation = 0#60
+        self.simStepsInReset = 90#90
+        self.initialPerturbationScale = 0.35#0.35 #if >0, accelerate cloth particles in random direction with this magnitude
+        self.simStepsAfterPerturbation = 60#60
         self.prevTau = None
         self.maxDeformation = 30.0
         self.restPose = None

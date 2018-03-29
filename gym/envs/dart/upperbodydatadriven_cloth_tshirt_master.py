@@ -67,11 +67,12 @@ class DropGripController(Controller):
 
     def setup(self):
         self.env.fingertip = np.array([0, -0.085, 0])
-        self.env.renderContainmentTriangle = False
-        self.env.renderGeodesic = False
-        self.env.renderOracle = False
-        self.env.renderRightTarget = False
-        self.env.renderLeftTarget = True
+        self.env.renderContainmentTriangle  = False
+        self.env.renderGeodesic             = False
+        self.env.renderOracle               = False
+        self.env.renderRightTarget          = False
+        self.env.renderLeftTarget           = True
+        self.env.renderRestPose             = False
         a=0
 
     def update(self):
@@ -131,6 +132,7 @@ class RightTuckController(Controller):
         self.env.renderOracle = False
         self.env.renderRightTarget = False
         self.env.renderLeftTarget = False
+        self.env.renderRestPose = True
         self.framesContained = 0
 
         a=0
@@ -193,15 +195,17 @@ class RightTuckController(Controller):
 
 class LeftTuckController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
-        obs_subset = [(0,172)]
+        obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_toL_cont"
         policyfilename = "experiment_2018_03_26_ltuck_wide"
         name="Left Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
+        self.framesContained = 0
 
     def setup(self):
+        self.framesContained = 0
         self.env.contactSensorIX = None
-        self.env.fingertip = np.array([0, -0.085, 0])
+        self.env.fingertip = np.array([0, -0.075, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
         if self.env.handleNode is not None:
@@ -212,8 +216,8 @@ class LeftTuckController(Controller):
         self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
         self.env.handleNode.recomputeOffsets()
         #setup ef targets
-        self.rightTarget = np.array([ 0.07219914,  0.02462782, -0.37559271])
-        self.leftTarget = np.array([ 0.06795917, -0.02272099, -0.12309984])
+        #self.rightTarget = np.array([ 0.07219914,  0.02462782, -0.37559271])
+        #self.leftTarget = np.array([ 0.06795917, -0.02272099, -0.12309984])
         self.env.focusGripFeature = self.env.gripFeatureR
         self.env.renderContainmentTriangle = True
         self.env.renderGeodesic = False
@@ -229,6 +233,41 @@ class LeftTuckController(Controller):
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
         a=0
+
+    def transition(self):
+        efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
+        efL = self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip)
+        shoulderR0 = self.env.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+        shoulderR1 = self.env.robot_skeleton.bodynodes[3].to_world(np.zeros(3))
+        shoulderR = (shoulderR0+shoulderR1)/2.0
+        #TODO: transition criteria
+
+        lines = [
+            [self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip),
+             self.env.robot_skeleton.bodynodes[6].to_world(np.zeros(3))],
+            [self.env.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
+             self.env.robot_skeleton.bodynodes[5].to_world(np.zeros(3))]
+        ]
+        intersect = False
+        aligned = False
+        for l in lines:
+            hit, dist, pos, aligned = pyutils.triangleLineSegmentIntersection(self.env.previousContainmentTriangle[0],
+                                                                              self.env.previousContainmentTriangle[1],
+                                                                              self.env.previousContainmentTriangle[2],
+                                                                              l0=l[0], l1=l[1])
+            if hit:
+                # print("hit: " + str(dist) + " | " + str(pos) + " | " + str(aligned))
+                intersect = True
+                aligned = aligned
+                break
+        if intersect:
+            if aligned:
+                self.framesContained += 1
+
+        if self.framesContained > 15:
+            return True
+
+        return False
 
 class MatchGripController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
@@ -267,7 +306,10 @@ class MatchGripController(Controller):
         a=0
 
     def transition(self):
-
+        efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.02:
+            return True
+        return False
         a=0
 
 class RightSleeveController(Controller):
@@ -280,6 +322,7 @@ class RightSleeveController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
+        #self.env.saveState(name="enter_seq_rsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 12
@@ -316,7 +359,7 @@ class RightSleeveController(Controller):
         self.env.contactSensorIX = 12
 
         self.env.renderContainmentTriangle = False
-        self.env.renderGeodesic = True
+        self.env.renderGeodesic = False
         self.env.renderOracle = True
         self.env.renderRightTarget = False
         self.env.renderLeftTarget = False
@@ -565,16 +608,17 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.resetTime = 0
         self.save_state_on_control_switch = False #if true, the cloth and character state is saved when controllers are switched
         self.state_save_directory = "saved_control_states/"
-        self.renderContainmentTriangle = False
-        self.renderGeodesic = False
-        self.renderOracle = False
-        self.renderLeftTarget = False
-        self.renderRightTarget = False
+        self.renderContainmentTriangle  = False
+        self.renderGeodesic             = False
+        self.renderOracle               = False
+        self.renderLeftTarget           = False
+        self.renderRightTarget          = False
+        self.renderRestPose             = False
 
         #other variables
-        self.simStepsInReset = 0  # 90
-        self.initialPerturbationScale = 0  # 0.35 #if >0, accelerate cloth particles in random direction with this magnitude
-        self.simStepsAfterPerturbation = 0  # 60
+        self.simStepsInReset = 90  # 90
+        self.initialPerturbationScale = 0.35  # 0.35 #if >0, accelerate cloth particles in random direction with this magnitude
+        self.simStepsAfterPerturbation = 60  # 60
         self.restPose = None
         self.localRightEfShoulder1 = None
         self.localLeftEfShoulder1 = None
@@ -656,6 +700,20 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
     def _getFile(self):
         return __file__
+
+    def saveState(self, name="unnamed"):
+        fname = self.state_save_directory + name
+        print(fname)
+        count = 0
+        objfname_ix = fname + "%05d" % count
+        charfname_ix = fname + "_char%05d" % count
+        while os.path.isfile(objfname_ix + ".obj"):
+            count += 1
+            objfname_ix = fname + "%05d" % count
+            charfname_ix = fname + "_char%05d" % count
+        print(objfname_ix)
+        self.saveObjState(filename=objfname_ix)
+        self.saveCharacterState(filename=charfname_ix)
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
@@ -829,6 +887,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         #do any additional resetting here
         #fingertip = np.array([0, -0.065, 0])
         self.currentController = 0
+        '''
         if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -838,6 +897,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             self.clothScene.rotateCloth(cid=0, R=R)
             self.clothScene.rotateCloth(cid=0, R=adjustR)
             self.clothScene.rotateCloth(cid=0, R=varianceR)
+        '''
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
@@ -909,12 +969,6 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                     for i in range(self.simStepsAfterPerturbation):
                         self.clothScene.step()
                         self.collarFeature.fitPlane()
-                        self.sleeveRSeamFeature.fitPlane()
-                        self.sleeveRMidFeature.fitPlane()
-                        self.sleeveREndFeature.fitPlane()
-                        self.sleeveLSeamFeature.fitPlane()
-                        self.sleeveLMidFeature.fitPlane()
-                        self.sleeveLEndFeature.fitPlane()
                         self.gripFeatureL.fitPlane()
                         self.gripFeatureR.fitPlane()
                         # check for inverted frames
@@ -1010,8 +1064,9 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #restPose rendering
-        links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
-        renderUtils.drawLines(lines=links)
+        if self.renderRestPose:
+            links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+            renderUtils.drawLines(lines=links)
 
         if self.renderGeodesic:
             for v in range(self.clothScene.getNumVertices()):
