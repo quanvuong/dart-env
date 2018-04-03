@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_03_27_lsleeve_widewarm_highdef"
+    #trial = "experiment_2018_03_29_rsleeve_seq"
+
     #trial = "experiment_2018_03_27_lsleeve_narrow_new_cont"
     #trial = "experiment_2018_03_27_lsleeve_narrow_new"
     #trial = "experiment_2018_03_26_lsleeve_narrow" #works but wrong distribution
@@ -37,7 +40,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_03_19_sleeveR_wide_lowdef_trpo_cont"
     #trial = "experiment_2018_03_19_sleeveR_wide_lowdef_trpo"
     #trial = "experiment_2018_03_19_matchgrip_narrow" #***
-    trial = "experiment_2018_03_19_sleeveR_narrow2wide_lowdef_trpo" #***
+    #trial = "experiment_2018_03_19_sleeveR_narrow2wide_lowdef_trpo" #***
 
     #trial = "experiment_2018_03_14_sleeveR_wide_lowdef_trpo_cont"
     #trial = "experiment_2018_03_14_sleeveR_narrow0_lowdef_trpo_cont" #***
@@ -202,8 +205,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right

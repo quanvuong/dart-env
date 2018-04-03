@@ -51,7 +51,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.limbProgressRewardWeight       = 10
         self.oracleDisplacementRewardWeight = 50
         self.contactGeoRewardWeight         = 4
-        self.deformationPenaltyWeight       = 1 #was 5...
+        self.deformationPenaltyWeight       = 5 #was 5...
         self.restPoseRewardWeight           = 1
         self.sleeveForwardRewardWeight      = 20
         self.dynamicEfRewardWeight          = 1
