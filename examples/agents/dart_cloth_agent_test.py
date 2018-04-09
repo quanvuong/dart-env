@@ -20,7 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_03_27_lsleeve_widewarm_highdef"
+    #trial = "experiment_2018_04_03_rsleeve_seq_highdef"
+    #trial = "experiment_2018_04_03_rsleeve_seq_highdefwarm"
+
+    #trial = "experiment_2018_03_27_lsleeve_widewarm_highdef"
     #trial = "experiment_2018_03_29_rsleeve_seq"
 
     #trial = "experiment_2018_03_27_lsleeve_narrow_new_cont"
@@ -206,11 +209,11 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
@@ -239,12 +242,13 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 200
+        rolloutHorizon = 100
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
         startTime = time.time()
-        for j in range(rolloutHorizon):
+        #for j in range(rolloutHorizon):
+        while(env.numSteps < rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
             a = np.zeros(22+env.recurrency) #22 dof upper body
@@ -270,13 +274,15 @@ if __name__ == '__main__':
                 a = action
                 a = a_info['mean']
             done = False
-            if not paused or j==0:
+            if not paused or env.numSteps == 0:# or j==0:
                 s_info = env.step(a)
                 o = s_info[0]
                 done = s_info[2]
                 #print(s_info)
                 #print(o)
             env.render()
+
+            j = env.numSteps
             if done is True:
                 print("killed at step " + str(j))
                 cumulativeFPS += (j+1)/(time.time()-startTime)

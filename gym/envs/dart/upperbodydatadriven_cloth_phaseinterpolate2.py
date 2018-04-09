@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -58,8 +58,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/sleeveR"
-        self.resetDistributionSize = 17#2
+        #self.resetDistributionPrefix = "saved_control_states/sleeveR"
+        #self.resetDistributionSize = 17#2
+        self.resetDistributionPrefix = "saved_control_states/enter_seq_match"
+        self.resetDistributionSize = 20
 
         #other variables
         self.handleNode = None
@@ -401,9 +403,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
-            #resetStateNumber = self.reset_number % self.resetDistributionSize
+            resetStateNumber = self.reset_number % self.resetDistributionSize
             #resetStateNumber = 15
-            #print("resetStateNumber: " + str(resetStateNumber))
+            print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)

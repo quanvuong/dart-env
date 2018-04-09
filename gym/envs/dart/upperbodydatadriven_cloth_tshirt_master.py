@@ -279,6 +279,8 @@ class MatchGripController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
+        self.env.saveState(name="enter_seq_match")
+
         self.env.fingertip = np.array([0, -0.09, 0])
         # setup cloth handle
         self.env.updateHandleNodeFrom = 12
@@ -318,7 +320,9 @@ class RightSleeveController(Controller):
         #policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
         #policyfilename = "experiment_2018_01_09_tshirtR_dist_warm"
         #policyfilename = "experiment_2018_03_19_sleeveR_narrow2wide_lowdef_trpo"
-        policyfilename = "experiment_2018_03_29_rsleeve_seq"
+        #policyfilename = "experiment_2018_03_29_rsleeve_seq"
+        policyfilename = "experiment_2018_04_03_rsleeve_seq_highdefwarm"
+        #policyfilename = "experiment_2018_04_03_rsleeve_seq_highdef"
         name="Right Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
