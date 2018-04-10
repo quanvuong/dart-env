@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -558,6 +558,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             #print(charfname_ix)
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
             #self.restPose = np.array(self.robot_skeleton.q)
             #self.set_state(qpos, qvel)
         else:

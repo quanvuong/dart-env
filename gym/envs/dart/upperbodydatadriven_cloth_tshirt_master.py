@@ -280,7 +280,7 @@ class MatchGripController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_match")
+        #self.env.saveState(name="enter_seq_match")
 
         self.env.fingertip = np.array([0, -0.09, 0])
         # setup cloth handle
@@ -328,7 +328,7 @@ class RightSleeveController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        #self.env.saveState(name="enter_seq_rsleeve")
+        self.env.saveState(name="enter_seq_rsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 12
