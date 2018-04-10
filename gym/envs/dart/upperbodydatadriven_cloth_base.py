@@ -325,6 +325,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if ix > 0:
                 f.write(" ")
             f.write(str(dof))
+
+        f.write("\n")
+
+        for ix,dof in enumerate(self.robot_skeleton.dq):
+            if ix > 0:
+                f.write(" ")
+            f.write(str(dof))
         f.close()
 
     def loadCharacterState(self, filename=None):
@@ -332,16 +339,25 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if filename is not None:
             openFile = filename
         f = open(openFile, 'r')
+        qpos = np.zeros(self.robot_skeleton.ndofs)
+        qvel = np.zeros(self.robot_skeleton.ndofs)
         for ix, line in enumerate(f):
-            if ix > 0: #only want the first file line
+            if ix > 1: #only want the first 2 file lines
                 break
             words = line.split()
             if(len(words) != self.robot_skeleton.ndofs):
                 break
-            qpos = np.zeros(self.robot_skeleton.ndofs)
-            for ixw, w in enumerate(words):
-                qpos[ixw] = float(w)
-            self.robot_skeleton.set_positions(qpos)
+            if(ix == 0): #position
+                qpos = np.zeros(self.robot_skeleton.ndofs)
+                for ixw, w in enumerate(words):
+                    qpos[ixw] = float(w)
+            else: #velocity (if available)
+                qvel = np.zeros(self.robot_skeleton.ndofs)
+                for ixw, w in enumerate(words):
+                    qvel[ixw] = float(w)
+
+        self.robot_skeleton.set_positions(qpos)
+        self.robot_skeleton.set_velocities(qvel)
         f.close()
 
     def saveCharacterRenderState(self, filename=None):

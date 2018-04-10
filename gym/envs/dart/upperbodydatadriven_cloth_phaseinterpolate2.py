@@ -38,6 +38,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = True
+        self.taskReward                 = True #if true, an additional reward is provided when the EF is within task success distance of the target
         self.leftTargetReward           = False
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
@@ -132,7 +133,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             self.rewardsData.addReward(label="efL", rmin=-1.0, rmax=0, rval=0, rweight=self.leftTargetRewardWeight)
 
         if self.rightTargetReward:
-            self.rewardsData.addReward(label="efR", rmin=-1.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
+            if self.taskReward:
+                self.rewardsData.addReward(label="efR(task)", rmin=-1.0, rmax=0.05, rval=0, rweight=self.rightTargetRewardWeight)
+            else:
+                self.rewardsData.addReward(label="efR", rmin=-1.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
 
         self.state_save_directory = "saved_control_states/"
         self.saveStateOnReset = False
@@ -269,6 +273,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             rDist = np.linalg.norm(self.rightTarget-wRFingertip2)
             #reward_rightTarget = -rDist - rDist**2
             reward_rightTarget = -rDist
+            if self.taskReward:
+                if rDist < 0.02:
+                    reward_rightTarget += 0.05
             if self.efTargetRewardTiering:
                 if lDist > 0.1:
                     reward_rightTarget = -1
@@ -409,6 +416,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
 
         else:
             self.loadCharacterState(filename="characterState_1starmin")

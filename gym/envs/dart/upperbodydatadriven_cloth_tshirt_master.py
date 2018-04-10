@@ -274,7 +274,8 @@ class MatchGripController(Controller):
         obs_subset = [(0,163)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
         #policyfilename = "experiment_2018_01_14_matchgrip_dist_lowpose"
-        policyfilename = "experiment_2018_03_23_matchgrip_reducedwide"
+        #policyfilename = "experiment_2018_03_23_matchgrip_reducedwide"
+        policyfilename = "experiment_2018_04_09_match_seqwarm"
         name="Match Grip"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
