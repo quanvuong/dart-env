@@ -513,7 +513,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
-
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
         else:
             self.loadCharacterState(filename="characterState_regrip")
 
