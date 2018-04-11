@@ -41,6 +41,7 @@ class Controller(object):
         for s in self.obs_subset:
             obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
         a, a_info = self.policy.get_action(obs_subset)
+        a = a_info['mean']
         return a
 
     def setup(self):
@@ -90,6 +91,13 @@ class DropGripController(Controller):
         reward_leftOrientationTarget = -(1 - self.env.leftOrientationTarget.dot(efLDir)) / 2.0  # [-1,0]
         self.prevOrientationError = -reward_leftOrientationTarget
 
+    def query(self, obs):
+        obs_subset = np.array([])
+        for s in self.obs_subset:
+            obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
+        a, a_info = self.policy.get_action(obs_subset)
+        #a = a_info['mean']
+        return a
 
     def transition(self):
         #efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
@@ -203,6 +211,7 @@ class LeftTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
+        #self.env.saveState(name="enter_seq_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
         self.env.fingertip = np.array([0, -0.075, 0])
@@ -275,7 +284,8 @@ class MatchGripController(Controller):
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
         #policyfilename = "experiment_2018_01_14_matchgrip_dist_lowpose"
         #policyfilename = "experiment_2018_03_23_matchgrip_reducedwide"
-        policyfilename = "experiment_2018_04_09_match_seqwarm"
+        #policyfilename = "experiment_2018_04_09_match_seqwarm"
+        policyfilename = "experiment_2018_04_10_match_seq_veltask"
         name="Match Grip"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
@@ -324,11 +334,14 @@ class RightSleeveController(Controller):
         #policyfilename = "experiment_2018_03_29_rsleeve_seq"
         policyfilename = "experiment_2018_04_03_rsleeve_seq_highdefwarm"
         #policyfilename = "experiment_2018_04_03_rsleeve_seq_highdef"
+
+        #policyfilename = "experiment_2018_04_10_rsleeve_seq_highdef_velwarm"
+
         name="Right Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_rsleeve")
+        #self.env.saveState(name="enter_seq_rsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 12
@@ -889,6 +902,16 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+        count = 0
+        recordForRenderingDirectory = "saved_render_states/tshirtseq" + str(count)
+        while(os.path.exists(recordForRenderingDirectory)):
+            count += 1
+            recordForRenderingDirectory = "saved_render_states/tshirtseq" + str(count)
+        self.recordForRenderingOutputPrefix = recordForRenderingDirectory+"/tshirtseq"
+        if self.recordForRendering:
+            if not os.path.exists(recordForRenderingDirectory):
+                os.makedirs(recordForRenderingDirectory)
+
         self.resetTime = time.time()
         #do any additional resetting here
         #fingertip = np.array([0, -0.065, 0])
