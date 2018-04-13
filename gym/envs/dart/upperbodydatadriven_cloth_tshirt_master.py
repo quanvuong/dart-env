@@ -77,8 +77,8 @@ class DropGripController(Controller):
         a=0
 
     def update(self):
-        #self.env.leftTarget = pyutils.getVertCentroid(verts=self.env.targetGripVertices, clothscene=self.env.clothScene) + pyutils.getVertAvgNorm(verts=self.env.targetGripVertices, clothscene=self.env.clothScene)*0.03
-        self.env.leftTarget = self.env.gripFeatureL.plane.org + self.env.gripFeatureL.plane.normal * 0.03
+        self.env.leftTarget = pyutils.getVertCentroid(verts=self.env.targetGripVerticesL, clothscene=self.env.clothScene) + pyutils.getVertAvgNorm(verts=self.env.targetGripVerticesL, clothscene=self.env.clothScene)*0.03
+        #self.env.leftTarget = self.env.gripFeatureL.plane.org + self.env.gripFeatureL.plane.normal * 0.03
         self.env.leftOrientationTarget = self.env.gripFeatureL.plane.toWorld(self.env.localLeftOrientationTarget)
 
         wLFingertip2 = self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip)
@@ -205,7 +205,8 @@ class LeftTuckController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_toL_cont"
-        policyfilename = "experiment_2018_03_26_ltuck_wide"
+        #policyfilename = "experiment_2018_03_26_ltuck_wide"
+        policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm"
         name="Left Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
         self.framesContained = 0
@@ -249,13 +250,14 @@ class LeftTuckController(Controller):
         shoulderR0 = self.env.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
         shoulderR1 = self.env.robot_skeleton.bodynodes[3].to_world(np.zeros(3))
         shoulderR = (shoulderR0+shoulderR1)/2.0
+        extended_fingertip = np.array([0, -0.09, 0])
         #TODO: transition criteria
 
         lines = [
-            [self.env.robot_skeleton.bodynodes[12].to_world(self.env.fingertip),
-             self.env.robot_skeleton.bodynodes[6].to_world(np.zeros(3))],
-            [self.env.robot_skeleton.bodynodes[6].to_world(np.zeros(3)),
-             self.env.robot_skeleton.bodynodes[5].to_world(np.zeros(3))]
+            [self.env.robot_skeleton.bodynodes[12].to_world(extended_fingertip),
+             self.env.robot_skeleton.bodynodes[11].to_world(np.zeros(3))],
+            [self.env.robot_skeleton.bodynodes[11].to_world(np.zeros(3)),
+             self.env.robot_skeleton.bodynodes[10].to_world(np.zeros(3))]
         ]
         intersect = False
         aligned = False
@@ -273,7 +275,10 @@ class LeftTuckController(Controller):
             if aligned:
                 self.framesContained += 1
 
-        if self.framesContained > 15:
+        CID = self.env.clothScene.getHapticSensorContactIDs()[21]
+        # -1.0 for full outside, 1.0 for full inside
+
+        if self.framesContained > 20 and CID == 1.0:
             return True
 
         return False
@@ -320,7 +325,7 @@ class MatchGripController(Controller):
 
     def transition(self):
         efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
-        if np.linalg.norm(efR-self.env.rightTarget) < 0.02:
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.04:
             return True
         return False
         a=0
@@ -403,19 +408,21 @@ class LeftSleeveController(Controller):
         obs_subset = [(0,132), (172, 9), (132, 22)]
         #policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
         #policyfilename = "experiment_2017_12_08_2ndSleeve_cont"
-        policyfilename = "experiment_2018_03_26_lsleeve_narrow"
+        #policyfilename = "experiment_2018_03_26_lsleeve_narrow"
+        policyfilename = "experiment_2018_03_27_lsleeve_widewarm_highdef"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.fingertip = np.array([0, -0.065, 0])
+        self.env.saveState(name="enter_seq_lsleeve")
+        self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
         if self.env.handleNode is not None:
             self.env.handleNode.clearHandles()
         self.env.handleNode = HandleNode(self.env.clothScene, org=np.array([0.05, 0.034, -0.975]))
-        self.env.handleNode.addVertices(verts=self.env.targetGripVertices)
+        self.env.handleNode.addVertices(verts=self.env.targetGripVerticesR)
         self.env.handleNode.setOrgToCentroid()
         self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
         self.env.handleNode.recomputeOffsets()
@@ -424,6 +431,18 @@ class LeftSleeveController(Controller):
         self.env.separatedMesh.initSeparatedMeshGraph()
         self.env.separatedMesh.updateWeights()
         self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveLMidFeature, oneSided=True, side=0, normalSide=1)
+
+        # check a relative geodesic value and invert the geodesic if necessary
+        vn1 = self.env.separatedMesh.nodes[ 2358 + self.env.separatedMesh.numv * 1]
+        vGeo1 = vn1.geodesic
+        vn2 = self.env.separatedMesh.nodes[ 2230 + self.env.separatedMesh.numv * 1]
+        vGeo2 = vn2.geodesic
+
+        if (vGeo1 < vGeo2):  # backwards
+            print("inverting geodesic")
+            self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveLMidFeature, oneSided=True, side=0, normalSide=0)
+
+        print("geos: [" + str(vGeo1) + "," + str(vGeo2) + "]")
 
         #feature/oracle setup
         self.env.focusFeature = self.env.sleeveLMidFeature  # if set, this feature centroid is used to get the "feature" obs
@@ -449,7 +468,7 @@ class LeftSleeveController(Controller):
         a=0
 
     def transition(self):
-        if self.env.limbProgress > 0.7:
+        if self.env.limbProgress > 0.6:
             return True
         return False
 
@@ -1062,7 +1081,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
         self.controllers[self.currentController].setup()
 
-
+        #print(self.clothScene.getFriction())
         a=0
 
     def extraRenderFunction(self):

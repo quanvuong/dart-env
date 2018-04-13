@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -59,8 +59,10 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.resetStateFromDistribution = True
         #self.resetDistributionPrefix = "saved_control_states/ltuck_narrow"
         #self.resetDistributionSize = 3
-        self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
-        self.resetDistributionSize = 17 #3
+        #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
+        #self.resetDistributionSize = 17 #3
+        self.resetDistributionPrefix = "saved_control_states/enter_seq_lsleeve"
+        self.resetDistributionSize = 20
         self.state_save_directory = "saved_control_states/"
 
         #other variables
