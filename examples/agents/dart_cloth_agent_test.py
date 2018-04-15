@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_04_13_lsleeve_seq_velwarm"
+
     #trial = "experiment_2018_04_11_ltuck_seq_velwarm"
 
     #trial = "experiment_2018_04_10_match_seq_veltask"
