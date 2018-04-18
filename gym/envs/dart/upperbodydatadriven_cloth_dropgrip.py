@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.transitionCriteriaActive = True
@@ -34,6 +34,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
+        self.stableHeadReward           = True #if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = False
@@ -41,6 +42,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.leftTargetReward           = True
         self.rightOrientationTargetReward = False
         self.leftOrientationTargetReward = True
+        self.rightHandFrontReward       = True #if true, right hand penalized for being behind the body split plane
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -76,6 +78,7 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.fingertip = np.array([0, -0.085, 0])
         self.prevOrientationError = 0
         self.prevPositionError = 0
+        self.characterFrontBackPlane = Plane()
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -139,6 +142,10 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
         self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal*0.03
         self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
+
+        spineCenter = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+        characterForward = self.robot_skeleton.bodynodes[2].to_world(np.array([0.0, 0.0, -1.0])) - spineCenter
+        self.characterFrontBackPlane = Plane(org=spineCenter, normal=characterForward)
 
         a=0
 
@@ -236,6 +243,18 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         if self.uprightReward:
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+
+        reward_rightHandFront = 0
+        if self.rightHandFrontReward:
+            vec = self.characterFrontBackPlane.org - wRFingertip2
+            dist = vec.dot(self.characterFrontBackPlane.normal)
+            if dist > 0:
+                reward_rightHandFront = -dist
+
+
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
             '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
@@ -290,12 +309,14 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright*10 \
+                      + reward_stableHead*3 \
                       + reward_clothdeformation * 400 \
                       + reward_restPose*0.3 \
                       + reward_rightTarget \
                       + reward_leftTarget*100.0 \
                       + reward_leftOrientationTarget*10.0 \
-                      + reward_rightOrientationTarget*10.0
+                      + reward_rightOrientationTarget*10.0 \
+                      + reward_rightHandFront*10.0
         return self.reward
 
     def _get_obs(self):

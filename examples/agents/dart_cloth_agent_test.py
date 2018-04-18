@@ -20,7 +20,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_04_13_lsleeve_seq_velwarm"
+    #trial = "experiment_2018_04_13_lsleeve_seq_velwarm"
+    #trial = "experiment_2018_04_15_lsleeve_seq_velwarm_cont"
 
     #trial = "experiment_2018_04_11_ltuck_seq_velwarm"
 
@@ -219,9 +220,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
@@ -252,7 +253,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 100
+        rolloutHorizon = 1000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

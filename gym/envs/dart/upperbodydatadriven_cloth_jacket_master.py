@@ -36,6 +36,8 @@ class Controller(object):
         for s in self.obs_subset:
             obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
         a, a_info = self.policy.get_action(obs_subset)
+        a = a_info['mean']
+        print("now using mean action...")
         return a
 
     def setup(self):

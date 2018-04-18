@@ -409,13 +409,15 @@ class LeftSleeveController(Controller):
         #policyfilename = "experiment_2017_12_12_1sdSleeve_progressfocus_cont2"
         #policyfilename = "experiment_2017_12_08_2ndSleeve_cont"
         #policyfilename = "experiment_2018_03_26_lsleeve_narrow"
-        policyfilename = "experiment_2018_03_27_lsleeve_widewarm_highdef"
+        #policyfilename = "experiment_2018_03_27_lsleeve_widewarm_highdef"
+        policyfilename = "experiment_2018_04_13_lsleeve_seq_velwarm"
+        #policyfilename = "experiment_2018_04_15_lsleeve_seq_velwarm_cont"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_lsleeve")
+        #self.env.saveState(name="enter_seq_lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
@@ -1129,8 +1131,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01, slices=3)
 
         if self.renderOracle:
-            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-            renderUtils.drawArrow(p0=efR, p1=efR + self.prevOracle)
+            ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
+            renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
 
 
         #render targets
