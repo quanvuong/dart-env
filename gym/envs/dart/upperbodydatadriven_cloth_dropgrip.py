@@ -140,7 +140,9 @@ class DartClothUpperBodyDataDrivenClothDropGripEnv(DartClothUpperBodyDataDrivenC
         self.gripFeatureR.fitPlane()
 
         #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
-        self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal*0.03
+        #self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal*0.03
+        self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
+
         self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
 
         spineCenter = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
