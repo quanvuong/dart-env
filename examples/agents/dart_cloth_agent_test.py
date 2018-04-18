@@ -20,6 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_04_18_dropgrip_stablehead" #***
+
+    #new sequence trials above
+
     #trial = "experiment_2018_04_13_lsleeve_seq_velwarm"
     #trial = "experiment_2018_04_15_lsleeve_seq_velwarm_cont"
 
@@ -222,8 +226,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
+    #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip

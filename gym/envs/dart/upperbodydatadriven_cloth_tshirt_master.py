@@ -61,7 +61,9 @@ class DropGripController(Controller):
         obs_subset = [(0,154), (163,9), (181,6)]
         name = "DropGrip"
         #policyfilename = "experiment_2018_01_02_dropgrip2"
-        policyfilename = "experiment_2018_02_16_dropgrip_alignspecific"
+        #policyfilename = "experiment_2018_02_16_dropgrip_alignspecific" #1st iteration
+        policyfilename = "experiment_2018_04_18_dropgrip_stablehead" #2nd iteration
+
         Controller.__init__(self, env, policyfilename, name, obs_subset)
         self.prevOrientationError = 0
         self.prevPositionError = 0
@@ -91,21 +93,14 @@ class DropGripController(Controller):
         reward_leftOrientationTarget = -(1 - self.env.leftOrientationTarget.dot(efLDir)) / 2.0  # [-1,0]
         self.prevOrientationError = -reward_leftOrientationTarget
 
-    def query(self, obs):
-        obs_subset = np.array([])
-        for s in self.obs_subset:
-            obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
-        a, a_info = self.policy.get_action(obs_subset)
-        #a = a_info['mean']
-        return a
-
     def transition(self):
-        #efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
-        #dist = np.linalg.norm(self.env.leftTarget - efL)
-        #print("dist: " + str(dist))
+        efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
+        dist = np.linalg.norm(self.env.leftTarget - efL)
+        print("dist: " + str(dist))
+
         #if dist < 0.035:
         if self.prevPositionError < 0.05:
-            if self.prevOrientationError < 0.1:
+            if self.prevOrientationError < 0.15: #slightly wider acceptance than training ...
                 return True
         return False
 
@@ -120,6 +115,7 @@ class RightTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
+        self.env.saveState(name="enter_seq_rtuck")
         self.env.fingertip = np.array([0, -0.085, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 12
@@ -482,33 +478,53 @@ class SPDController(Controller):
         self.target = target
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
-        self.h = 0.02
+        self.h = 0.01
         self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs
         self.qhat = self.skel.q
         self.Kp = np.diagflat([400.0] * (ndofs))
         self.Kd = np.diagflat([40.0] * (ndofs))
+
+        '''
+        for i in range(ndofs):
+            if i ==9 or i==10 or i==17 or i==18:
+                self.Kd[i][i] *= 0.01
+                self.Kp[i][i] *= 0.01
+        '''
+
+        #print(self.Kp)
         self.preoffset = 0.0
 
     def setup(self):
         #reset the target
-        cur_q = np.array(self.skel.q)
-        self.env.loadCharacterState(filename="characterState_regrip")
-        self.env.restPose = np.array(self.skel.q)
-        self.target = np.array(self.skel.q)
-        self.env.robot_skeleton.set_positions(cur_q)
+        #cur_q = np.array(self.skel.q)
+        #self.env.loadCharacterState(filename="characterState_regrip")
+        self.target = np.array([ 0., 0., 0., 0., 0., 0., 0., 0., 0.302, 0., 0., 0., 0., 0., 0., 0., 0.302, 0., 0., 0., 0., 0.])
+        self.env.restPose = np.array(self.target)
+        #self.target = np.array(self.skel.q)
+        #self.env.robot_skeleton.set_positions(cur_q)
+
+        #clear the handles
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles();
+            self.env.handleNode = None
+
+        self.skel.joint(6).set_damping_coefficient(0, 5)
+        self.skel.joint(6).set_damping_coefficient(1, 5)
+        self.skel.joint(11).set_damping_coefficient(0, 5)
+        self.skel.joint(11).set_damping_coefficient(1, 5)
+
         a=0
 
     def update(self):
-        if self.env.handleNode is not None:
-            if self.env.updateHandleNodeFrom >= 0:
-                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
-            self.env.handleNode.step()
+        #if self.env.handleNode is not None:
+        #    self.env.handleNode.clearHandles();
+        #    self.env.handleNode = None
         a=0
 
     def transition(self):
         pDist = np.linalg.norm(self.skel.q - self.env.restPose)
-        print(pDist)
+        #print(pDist)
         if pDist < 0.1:
             return True
         return False
@@ -519,14 +535,14 @@ class SPDController(Controller):
         skel = self.skel
         p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
         d = -self.Kd.dot(skel.dq)
-        b = -skel.c + p + d + skel.constraint_forces()
+        b = -skel.c + p + d #+ skel.constraint_forces()
         A = skel.M + self.Kd * self.h
 
         x = np.linalg.solve(A, b)
 
         #invM = np.linalg.inv(A)
         #x = invM.dot(b)
-        tau = p + d - self.Kd.dot(x) * self.h
+        tau = p - self.Kd.dot(skel.dq + x * self.h)
         return tau
 
 class SPDIKController(Controller):
@@ -669,6 +685,9 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.fingertip = np.array([0, -0.085, 0])
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
 
+        self.localLeftOrientationTarget = np.array([-0.5, -1.0, -1.0])
+        self.localLeftOrientationTarget /= np.linalg.norm(self.localLeftOrientationTarget)
+
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq #(0,66)
         observation_size += 66 #haptics                             #(66,66)
@@ -733,7 +752,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             #SPDIKController(self),
             #MatchGripController(self),
             LeftTuckController(self),
-            LeftSleeveController(self)
+            LeftSleeveController(self),
+            SPDController(self)
         ]
         self.currentController = None
         self.stepsSinceControlSwitch = 0
@@ -923,11 +943,18 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+
+        #reset these in case the SPD controller has already run...
+        self.robot_skeleton.joint(6).set_damping_coefficient(0, 1)
+        self.robot_skeleton.joint(6).set_damping_coefficient(1, 1)
+        self.robot_skeleton.joint(11).set_damping_coefficient(0, 1)
+        self.robot_skeleton.joint(11).set_damping_coefficient(1, 1)
+
         count = 0
-        recordForRenderingDirectory = "saved_render_states/tshirtseq" + str(count)
+        recordForRenderingDirectory = "saved_render_states/tshirtseq2" + str(count)
         while(os.path.exists(recordForRenderingDirectory)):
             count += 1
-            recordForRenderingDirectory = "saved_render_states/tshirtseq" + str(count)
+            recordForRenderingDirectory = "saved_render_states/tshirtseq2" + str(count)
         self.recordForRenderingOutputPrefix = recordForRenderingDirectory+"/tshirtseq"
         if self.recordForRendering:
             if not os.path.exists(recordForRenderingDirectory):
@@ -955,6 +982,10 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
         self.set_state(qpos, qvel)
         self.restPose = qpos
+
+        if self.handleNode is not None:
+            self.handleNode.clearHandles()
+            self.handleNode = None
 
         repeat = True
         if self.simulateCloth:
@@ -1065,23 +1096,21 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 if CP2_CP0.dot(self.sleeveLSeamFeature.plane.normal) > 0:
                     self.sleeveLSeamFeature.plane.normal *= -1.0
 
-                    if self.handleNode is not None:
-                        self.handleNode.clearHandles()
-                        self.handleNode = None
+                if self.handleNode is not None:
+                    self.handleNode.clearHandles()
+                    self.handleNode = None
+
                 if self.gripFeatureL.plane.normal.dot(np.array([0, 0, -1.0])) < 0:
                     # TODO: trash these and reset again
                     print("INVERSION 2")
                     repeat = True
                     continue
 
-        self.leftTarget = self.gripFeatureL.plane.org + self.gripFeatureL.plane.normal * 0.03
+        self.controllers[self.currentController].setup()
+
+        self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
         self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
 
-        if self.handleNode is not None:
-            self.handleNode.clearHandles()
-            self.handleNode = None
-
-        self.controllers[self.currentController].setup()
 
         #print(self.clothScene.getFriction())
         a=0
@@ -1173,7 +1202,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=self.renderRestPose)
 
             if self.stepsSinceControlSwitch < 50 and len(self.controllers) > 0:
                 label = self.controllers[self.currentController].name

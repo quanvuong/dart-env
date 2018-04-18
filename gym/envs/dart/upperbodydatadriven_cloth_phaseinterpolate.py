@@ -109,7 +109,7 @@ class OpennessMetricObject(object):
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -120,6 +120,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
+        self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
@@ -144,8 +145,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.resetTime = 0
         self.resetStateFromDistribution = True
         #self.resetDistributionPrefix = "saved_control_states_old/DropGrip"
-        self.resetDistributionPrefix = "saved_control_states/dropgrip"
-        self.resetDistributionSize = 17
+        self.resetDistributionPrefix = "saved_control_states/enter_seq_rtuck"
+        self.resetDistributionSize = 20
         self.testingCapsuleRelaxation = False
 
         #other variables
@@ -161,7 +162,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
         self.previousEfContainment = 0
-        self.fingertip = np.array([0, -0.075, 0])
+        self.fingertip = np.array([0, -0.085, 0])
         self.previousContainmentTriangle = [np.zeros(3),np.zeros(3),np.zeros(3)]
         self.characterFrontBackPlane = Plane()
         self.samplePoints = [] #store sample points for debugging purposes
@@ -380,6 +381,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         if self.uprightReward:
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
 
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
             '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
@@ -500,7 +505,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
-                      + reward_upright \
+                      + reward_upright * 2 \
+                      + reward_stableHead * 3 \
                       + reward_clothdeformation * 20 \
                       + reward_restPose \
                       + reward_rightTarget*100 \
@@ -669,6 +675,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateEnv(DartClothUpperBodyDat
             self.updateClothCollisionStructures(hapticSensors=True)
             self.clothScene.clearInterpolation()
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.1, high=0.1, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
 
         else:
             self.loadCharacterState(filename="characterState_endDropGrip1")

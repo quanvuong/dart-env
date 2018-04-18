@@ -92,7 +92,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #output for rendering controls
         self.recordForRendering = False
         #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
-        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtseq/tshirtseq"
+        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtseq_spd/tshirtseq"
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -281,8 +281,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print(self.robot_skeleton.dofs[i])
 
         #enable joint limits
-        #for i in range(len(self.robot_skeleton.joints)):
-        #    print(self.robot_skeleton.joints[i])
+        for i in range(len(self.robot_skeleton.joints)):
+            print(self.robot_skeleton.joints[i])
 
         #DART does not automatically limit joints with any unlimited dofs
         self.robot_skeleton.joints[4].set_position_limit_enforced(True)

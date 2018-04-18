@@ -17,11 +17,11 @@ if __name__ == '__main__':
 
     env = gym.make('DartClothUpperBodyDataDrivenTshirtMaster-v1') #master Tshirt dressing controller
 
-    for i in range(50):
+    for i in range(1000):
         o = env.reset()
         env.render()
 
-        rolloutHorizon = 20000
+        rolloutHorizon = 2000000
         startTime = time.time()
         for j in range(rolloutHorizon):
             a = np.zeros(22) #placeholder action since master env contains its own policy
