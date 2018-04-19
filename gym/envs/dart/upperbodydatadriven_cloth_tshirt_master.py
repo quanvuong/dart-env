@@ -96,7 +96,7 @@ class DropGripController(Controller):
     def transition(self):
         efL = self.env.robot_skeleton.bodynodes[12].to_world(np.array([0,-0.065,0]))
         dist = np.linalg.norm(self.env.leftTarget - efL)
-        print("dist: " + str(dist))
+        #print("dist: " + str(dist))
 
         #if dist < 0.035:
         if self.prevPositionError < 0.05:
@@ -109,13 +109,14 @@ class RightTuckController(Controller):
         obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_toR3_cont"
         #policyfilename = "experiment_2018_01_08_distribution_rightTuck_warm"
-        policyfilename = "experiment_2018_03_05_tuckR_triangle_forward"
+        #policyfilename = "experiment_2018_03_05_tuckR_triangle_forward" #sequence iteration 1
+        policyfilename = "experiment_2018_04_18_rtuck"
         name="Right Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
         self.framesContained = 0
 
     def setup(self):
-        self.env.saveState(name="enter_seq_rtuck")
+        #self.env.saveState(name="enter_seq_rtuck")
         self.env.fingertip = np.array([0, -0.085, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 12
