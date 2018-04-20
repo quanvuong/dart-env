@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -34,6 +34,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
+        self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = False
@@ -46,6 +47,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
 
         #reward weights
         self.uprightRewardWeight = 1
+        self.stableHeadRewardWeight = 2
         self.deformationPenaltyWeight = 10  # was 5...
         self.restPoseRewardWeight = 1
         self.contactSurfaceRewardWeight = 3
@@ -129,6 +131,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         # load rewards into the RewardsData structure
         if self.uprightReward:
             self.rewardsData.addReward(label="upright",rmin=-2.5,rmax=0,rval=0, rweight=self.uprightRewardWeight)
+
+        if self.stableHeadReward:
+            self.rewardsData.addReward(label="stable head",rmin=-1.2,rmax=0,rval=0, rweight=self.stableHeadRewardWeight)
 
         if self.deformationPenalty:
             self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
@@ -242,6 +247,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         if self.uprightReward:
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
             reward_record.append(reward_upright)
+
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+            reward_record.append(reward_stableHead)
 
         #startTime = time.time()
         clothDeformation = 0
@@ -384,6 +394,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
                       + reward_upright * self.uprightRewardWeight \
+                      + reward_stableHead * self.stableHeadRewardWeight \
                       + reward_clothdeformation * self.deformationPenaltyWeight \
                       + reward_restPose * self.restPoseRewardWeight\
                       + reward_rightTarget*100 \

@@ -1082,7 +1082,7 @@ class PoseInteractor(BaseInteractor):
         numWidth = 50.  # pixel width of the lower/upper bounds text
         barWidth = 90.
         barHeight = -15.
-        barSpace = -10.
+        barSpace = -5.
         #print("topLeft " + str(topLeft))
         self.boxRanges = []
         for i in range(len(skel.q)):

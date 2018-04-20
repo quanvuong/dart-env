@@ -19,7 +19,7 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
@@ -70,6 +70,15 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
     def computeReward(self, tau):
         #compute and return reward at the current state
         self.prevTau = tau
+
+        #reward more than 3 ground contact points
+
+        #reward COM over stability region
+
+        #reward rest pose standing
+
+
+
         self.reward = 0
         return self.reward
 

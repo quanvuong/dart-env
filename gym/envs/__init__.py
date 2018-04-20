@@ -483,6 +483,18 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothFullBodyDataDrivenClothSPDTest-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothSPDTestEnv',
+    #max_episode_steps=250,
+)
+
+register(
+    id='DartClothFullBodyDataDrivenClothStand-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothStandEnv',
+    #max_episode_steps=250,
+)
+
 
 #Multi-agent
 register(

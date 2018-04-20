@@ -203,7 +203,7 @@ class LeftTuckController(Controller):
         obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_toL_cont"
         #policyfilename = "experiment_2018_03_26_ltuck_wide"
-        policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm"
+        policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm" #seq iter 1
         name="Left Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
         self.framesContained = 0
@@ -212,7 +212,7 @@ class LeftTuckController(Controller):
         #self.env.saveState(name="enter_seq_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
-        self.env.fingertip = np.array([0, -0.075, 0])
+        self.env.fingertip = np.array([0, -0.085, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
         if self.env.handleNode is not None:
@@ -287,12 +287,15 @@ class MatchGripController(Controller):
         #policyfilename = "experiment_2018_01_14_matchgrip_dist_lowpose"
         #policyfilename = "experiment_2018_03_23_matchgrip_reducedwide"
         #policyfilename = "experiment_2018_04_09_match_seqwarm"
-        policyfilename = "experiment_2018_04_10_match_seq_veltask"
+        #policyfilename = "experiment_2018_04_10_match_seq_veltask" #seq iter 1
+
+        policyfilename = "experiment_2018_04_20_matchgrip_warm" #seq iter 2
+
         name="Match Grip"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_match")
+        #self.env.saveState(name="enter_seq_match")
 
         self.env.fingertip = np.array([0, -0.09, 0])
         # setup cloth handle

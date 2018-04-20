@@ -19,7 +19,7 @@ import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
 class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -33,12 +33,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #sim variables
         self.gravity = gravity
         self.dataDrivenJointLimts = True
-        self.additionalAction = np.zeros(40) #added to input action for step
+        self.additionalAction = np.zeros(34) #added to input action for step
         self.SPD = None #no target yet
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.recurrency = recurrency
         self.actionTrajectory = []
         self.totalTime = 0
+        self.locked_foot = True
 
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
@@ -62,16 +63,18 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if self.graphClothViolation:
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
 
-        self.actuatedDofs = np.arange(40) # full upper body
+        self.actuatedDofs = np.arange(34) # full upper body (discount the free root dofs)
+        for i in range(len(self.actuatedDofs)):
+            self.actuatedDofs[i] += 6
 
         #40 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
-            self.action_scale *= 12
-            if 0 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(0)] = 50
-            if 1 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
+            self.action_scale *= 50
+            if 6 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(6)] = 50
+            if 7 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(7)] = 50
 
         if self.recurrency > 0:
             self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
@@ -107,12 +110,15 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.obs_size = obs_size
         skelFile = 'FullBodyCapsules_datadriven.skel'
 
+        if self.locked_foot:
+            skelFile = 'FullBodyCapsules_datadriven_lockedfoot.skel'
+
         #intialize the parent env
         if self.useOpenGL is True:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=1,
                                   observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=1,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         #rescaling actions for SPD
@@ -190,12 +196,22 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
         #TODO: disable collisions between lower body interfering nodes
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                           self.robot_skeleton.bodynodes[15])  # torso to upper left leg
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                           self.robot_skeleton.bodynodes[18])  # torso to upper left leg
+
 
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
             
         for i in range(len(self.robot_skeleton.dofs)):
+            if(i > 5):
+                self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+                #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)
             print(self.robot_skeleton.dofs[i])
+            print("     damping:" + str(self.robot_skeleton.dofs[i].damping_coefficient()))
+            print("     stiffness:" + str(self.robot_skeleton.dofs[i].spring_stiffness()))
 
         #enable joint limits
         for i in range(len(self.robot_skeleton.joints)):
@@ -397,7 +413,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.clothViolationGraph.addToLinePlot(data=[clothViolation/5.0, maxDef, defPenalty*10])
 
         startTime2 = time.time()
-        self.additionalAction = np.zeros(len(self.robot_skeleton.q))
+        self.additionalAction = np.zeros(len(self.additionalAction))
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation
         # print("updateBeforeSimulation took " + str(time.time() - startTime2))
