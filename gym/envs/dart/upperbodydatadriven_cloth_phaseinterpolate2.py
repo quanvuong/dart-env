@@ -34,6 +34,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
+        self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
@@ -45,6 +46,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         # reward weights
         self.uprightRewardWeight = 2
+        self.stableHeadRewardWeight = 2
         self.elbowFlairRewardWeight = 1
         self.deformationPenaltyWeight = 10  # was 5...
         self.restPoseRewardWeight = 1
@@ -122,6 +124,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         # load rewards into the RewardsData structure
         if self.uprightReward:
             self.rewardsData.addReward(label="upright", rmin=-2.5, rmax=0, rval=0, rweight=self.uprightRewardWeight)
+
+        if self.stableHeadReward:
+            self.rewardsData.addReward(label="stable head",rmin=-1.2,rmax=0,rval=0, rweight=self.stableHeadRewardWeight)
 
         if self.deformationPenalty:
             self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
@@ -235,6 +240,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
             reward_record.append(reward_upright)
 
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+            reward_record.append(reward_stableHead)
+
         reward_clothdeformation = 0
         if self.deformationPenalty is True:
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
@@ -300,7 +310,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
-                      + reward_upright * self.uprightRewardWeight\
+                      + reward_upright * self.uprightRewardWeight \
+                      + reward_stableHead * self.stableHeadRewardWeight \
                       + reward_clothdeformation * self.deformationPenaltyWeight \
                       + reward_restPose * self.restPoseRewardWeight \
                       + reward_rightTarget * self.rightTargetRewardWeight \

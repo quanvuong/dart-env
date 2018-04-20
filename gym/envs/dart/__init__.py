@@ -27,6 +27,8 @@ from gym.envs.dart.gripped_tshirt_targetspline import DartClothGrippedTshirtSpli
 from gym.envs.dart.gripped_tshirt_targetspline_2ndarm import DartClothGrippedTshirtSpline2ndArmEnv
 from gym.envs.dart.endeffectordisplacer import DartClothEndEffectorDisplacerEnv
 from gym.envs.dart.jointlimitstest import DartClothJointLimitsTestEnv
+
+#upper body data driven envs:
 from gym.envs.dart.upperbodydatadriven import DartClothUpperBodyDataDrivenEnv
 from gym.envs.dart.upperbodydatadriven_tshirt import DartClothUpperBodyDataDrivenTshirtEnv
 from gym.envs.dart.upperbodydatadriven_cloth_tshirtR import DartClothUpperBodyDataDrivenClothTshirtREnv
@@ -41,6 +43,9 @@ from gym.envs.dart.upperbodydatadriven_cloth_jacketL import DartClothUpperBodyDa
 from gym.envs.dart.upperbodydatadriven_cloth_phaseinterpolatejacket1 import DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env
 from gym.envs.dart.upperbodydatadriven_cloth_tshirt_master import DartClothUpperBodyDataDrivenClothTshirtMasterEnv
 from gym.envs.dart.upperbodydatadriven_cloth_jacket_master import DartClothUpperBodyDataDrivenClothJacketMasterEnv
+
+#full body data driven envs
+from gym.envs.dart.fullbodydatadriven_cloth_test import DartClothFullBodyDataDrivenClothTestEnv
 
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv

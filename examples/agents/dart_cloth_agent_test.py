@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_04_19_rsleeve_warm"
+    #trial = "experiment_2018_04_19_rsleeve"
+
     #trial = "experiment_2018_04_18_rtuck" #***
     #trial = "experiment_2018_04_18_dropgrip_stablehead" #***
 
@@ -224,7 +227,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
@@ -234,6 +237,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
+
+    #Full Body Data Driven Envs
+    env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
 
 
     policy = None
@@ -267,7 +273,7 @@ if __name__ == '__main__':
         while(env.numSteps < rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
-            a = np.zeros(22+env.recurrency) #22 dof upper body
+            a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
 
             #a = np.ones(22)
             #a += np.random.uniform(-1,1,len(a))

@@ -387,6 +387,9 @@ register(
     #max_episode_steps=250,
 )
 
+# Upper Body Data Driven Envs
+#---------------------------------------------------
+
 register(
     id='DartClothUpperBodyDataDriven-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenEnv',
@@ -471,6 +474,14 @@ register(
     #max_episode_steps=250,
 )
 
+# Full Body Data Driven Envs
+#---------------------------------------------------
+
+register(
+    id='DartClothFullBodyDataDrivenClothTest-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothTestEnv',
+    #max_episode_steps=250,
+)
 
 
 #Multi-agent
