@@ -49,9 +49,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.uprightRewardWeight = 1
         self.stableHeadRewardWeight = 2
         self.deformationPenaltyWeight = 10  # was 5...
-        self.restPoseRewardWeight = 1
-        self.contactSurfaceRewardWeight = 3
-        self.contactGeoRewardWeight = 5
+        self.restPoseRewardWeight = 0.5
+        self.contactSurfaceRewardWeight = 6
+        self.contactGeoRewardWeight = 2
         self.triangleContainmentRewardWeight = 10
         self.triangleAlignmentRewardWeight = 2
 

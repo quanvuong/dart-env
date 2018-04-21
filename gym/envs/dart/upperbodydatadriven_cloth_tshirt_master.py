@@ -203,7 +203,10 @@ class LeftTuckController(Controller):
         obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_toL_cont"
         #policyfilename = "experiment_2018_03_26_ltuck_wide"
-        policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm" #seq iter 1
+        #policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm" #seq iter 1
+
+        policyfilename = "experiment_2018_04_20_ltuck"
+
         name="Left Tuck"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
         self.framesContained = 0
@@ -212,7 +215,8 @@ class LeftTuckController(Controller):
         #self.env.saveState(name="enter_seq_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
-        self.env.fingertip = np.array([0, -0.085, 0])
+        #self.env.fingertip = np.array([0, -0.085, 0])
+        self.fingertip = np.array([0, -0.075, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
         if self.env.handleNode is not None:
