@@ -239,14 +239,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         #foot contacts
         if self.lFootContact:
-            obs = np.concatenate([obs, [1.0]])
+            obs = np.concatenate([obs, [1.0]]).ravel()
         else:
-            obs = np.concatenate([obs, [0.0]])
+            obs = np.concatenate([obs, [0.0]]).ravel()
 
         if self.rFootContact:
-            obs = np.concatenate([obs, [1.0]])
+            obs = np.concatenate([obs, [1.0]]).ravel()
         else:
-            obs = np.concatenate([obs, [0.0]])
+            obs = np.concatenate([obs, [0.0]]).ravel()
 
         #print(obs)
 
