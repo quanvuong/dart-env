@@ -31,12 +31,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.stabilityCOMReward     = True
         self.contactReward          = True
         self.COMHeightReward        = True
+        self.aliveBonusReward       = True #rewards rollout duration to counter suicidal tendencies
 
         #reward weights
         self.restPoseRewardWeight       = 1
         self.stabilityCOMRewardWeight   = 1
         self.contactRewardWeight        = 1
         self.COMHeightRewardWeight      = 1
+        self.aliveBonusRewardWeight     = 5
 
         #other flags
         self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
@@ -89,6 +91,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         if self.COMHeightReward:
             self.rewardsData.addReward(label="COM height", rmin=-1.0, rmax=0, rval=0, rweight=self.COMHeightRewardWeight)
+
+        if self.aliveBonusReward:
+            self.rewardsData.addReward(label="alive", rmin=0, rmax=1.0, rval=0, rweight=self.aliveBonusRewardWeight)
 
 
     def _getFile(self):
@@ -157,18 +162,18 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -1500
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -500
+            return True, -1500
 
         #stability termination
         if(not self.stableCOM):
-            return True, -500
+            return True, -1500
 
         #contact termination
         if(self.nonFootContact):
-            return True, -500
+            return True, -1500
         return False, 0
 
     def computeReward(self, tau):
@@ -203,13 +208,19 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_COMHeight = self.COMHeight
             reward_record.append(reward_COMHeight)
 
+        reward_alive = 0
+        if self.aliveBonusReward:
+            reward_alive = 1.0
+            reward_record.append(reward_alive)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
         self.reward = reward_contact * self.contactRewardWeight \
                     + reward_stability * self.stabilityCOMRewardWeight \
                     + reward_restPose * self.restPoseRewardWeight \
-                    + reward_COMHeight * self.COMHeightRewardWeight
+                    + reward_COMHeight * self.COMHeightRewardWeight \
+                    + reward_alive * self.aliveBonusRewardWeight
 
         return self.reward
 
