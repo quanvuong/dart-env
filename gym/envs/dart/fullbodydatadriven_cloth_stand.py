@@ -26,6 +26,19 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         clothSimulation = False
         renderCloth = True
 
+        #reward flags
+        self.restPoseReward         = True
+        self.stabilityCOMReward     = True
+        self.contactReward          = True
+
+        #reward weights
+        self.restPoseRewardWeight       = 1
+        self.stabilityCOMRewardWeight   = 1
+        self.contactRewardWeight        = 1
+
+        #other flags
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+
         #other variables
         self.prevTau = None
         self.restPose = None
@@ -72,14 +85,28 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.prevTau = tau
 
         #reward more than 3 ground contact points
+        reward_contact = 0
+        if self.contactReward:
+            a=0
 
         #reward COM over stability region
+        reward_stability = 0
+        if self.stabilityCOMReward:
+            a=0
 
         #reward rest pose standing
+        reward_restPose = 0
+        if self.restPoseReward:
+            a=0
+
+        #reward COM height?
+        #TODO?
 
 
+        self.reward = reward_contact * self.contactRewardWeight \
+                    + reward_stability * self.stabilityCOMRewardWeight \
+                    + reward_restPose * self.restPoseRewardWeight
 
-        self.reward = 0
         return self.reward
 
     def _get_obs(self):

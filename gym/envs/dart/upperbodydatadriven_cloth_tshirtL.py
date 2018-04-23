@@ -35,6 +35,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
+        self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = True
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
@@ -44,6 +45,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         # reward weights
         self.uprightRewardWeight = 1
+        self.stableHeadRewardWeight = 2
         self.elbowFlairRewardWeight = 1
         self.limbProgressRewardWeight = 10
         self.oracleDisplacementRewardWeight = 50
@@ -132,6 +134,9 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         # load rewards into the RewardsData structure
         if self.uprightReward:
             self.rewardsData.addReward(label="upright", rmin=-2.5, rmax=0, rval=0, rweight=self.uprightRewardWeight)
+
+        if self.stableHeadReward:
+            self.rewardsData.addReward(label="stable head",rmin=-1.2,rmax=0,rval=0, rweight=self.stableHeadRewardWeight)
 
         if self.elbowFlairReward:
             self.rewardsData.addReward(label="elbow flair", rmin=-1.0, rmax=0, rval=0,
@@ -248,6 +253,11 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
             reward_record.append(reward_upright)
 
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+            reward_record.append(reward_stableHead)
+
         reward_elbow_flair = 0
         if self.elbowFlairReward:
             root = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
@@ -332,6 +342,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright * self.uprightRewardWeight \
+                      + reward_stableHead * self.stableHeadRewardWeight \
                       + reward_limbprogress * self.limbProgressRewardWeight \
                       + reward_contactGeo * self.contactGeoRewardWeight \
                       + reward_clothdeformation * self.deformationPenaltyWeight \
