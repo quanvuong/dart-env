@@ -10,7 +10,7 @@
         <skeleton name="ground">
            <mobile>false</mobile>
            <body name="link 1">
-                <transformation>0.0 -2.0 0.0 0 0 0</transformation>
+                <transformation>0.0 -1.92 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
                     <offset>0 0 0</offset>
@@ -565,11 +565,12 @@
                                 <position>0 0.214375 0</position>
                             </sphere>
                             <sphere>
-                                <radius>0.07</radius>
+                                <radius>0.065</radius>
                                 <position>0 -0.214375 0</position>
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
@@ -580,7 +581,7 @@
                                 <position>0 0.214375 0</position>
                             </sphere>
                             <sphere>
-                                <radius>0.07</radius>
+                                <radius>0.065</radius>
                                 <position>0 -0.214375 0</position>
                             </sphere>
                         </multi_sphere>
@@ -599,7 +600,7 @@
                     <geometry>
                         <multi_sphere>
                             <sphere>
-                                <radius>0.05775</radius>
+                                <radius>0.065</radius>
                                 <position>0 0.200375 0</position>
                             </sphere>
                             <sphere>
@@ -608,13 +609,14 @@
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
-                                <radius>0.05775</radius>
+                                <radius>0.065</radius>
                                 <position>0 0.200375 0</position>
                             </sphere>
                             <sphere>
@@ -650,6 +652,7 @@
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>-0.0 0.0 0 0 0 0</transformation>
@@ -688,11 +691,12 @@
                                 <position>0 0.214375 0</position>
                             </sphere>
                             <sphere>
-                                <radius>0.07</radius>
+                                <radius>0.065</radius>
                                 <position>0 -0.214375 0</position>
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
@@ -703,7 +707,7 @@
                                 <position>0 0.214375 0</position>
                             </sphere>
                             <sphere>
-                                <radius>0.07</radius>
+                                <radius>0.065</radius>
                                 <position>0 -0.214375 0</position>
                             </sphere>
                         </multi_sphere>
@@ -722,7 +726,7 @@
                     <geometry>
                         <multi_sphere>
                             <sphere>
-                                <radius>0.05775</radius>
+                                <radius>0.065</radius>
                                 <position>0 0.200375 0</position>
                             </sphere>
                             <sphere>
@@ -731,13 +735,14 @@
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
-                                <radius>0.05775</radius>
+                                <radius>0.065</radius>
                                 <position>0 0.200375 0</position>
                             </sphere>
                             <sphere>
@@ -773,6 +778,7 @@
                             </sphere>
                         </multi_sphere>
                     </geometry>
+                    <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
                     <transformation>-0.0 0.0 0 0 0 0</transformation>

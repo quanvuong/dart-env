@@ -30,21 +30,37 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.restPoseReward         = True
         self.stabilityCOMReward     = True
         self.contactReward          = True
+        self.COMHeightReward        = True
 
         #reward weights
         self.restPoseRewardWeight       = 1
         self.stabilityCOMRewardWeight   = 1
         self.contactRewardWeight        = 1
+        self.COMHeightRewardWeight      = 1
 
         #other flags
         self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+        self.contactTermiantion   = True #if anything except the feet touch the ground, terminate
 
         #other variables
         self.prevTau = None
         self.restPose = None
+        self.stabilityPolygon = [] #an ordered point set representing the stability region of the desired foot contacts
+        self.stabilityPolygonCentroid = np.zeros(3)
+        self.projectedCOM = np.zeros(3)
+        self.COMHeight = 0.0
+        self.stableCOM = True
+        self.numFootContacts = 0
+        self.lFootContact = False
+        self.rFootContact = False
+        self.nonFootContact = False #used for detection of failure
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
+        observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
+        observation_size += 3 # COM
+        observation_size += 2 # binary contact per foot with ground
+
 
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -62,11 +78,78 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        if self.restPoseReward:
+            self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+
+        if self.stabilityCOMReward:
+            self.rewardsData.addReward(label="stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
+
+        if self.contactReward:
+            self.rewardsData.addReward(label="contact", rmin=0, rmax=1.0, rval=0, rweight=self.contactRewardWeight)
+
+        if self.COMHeightReward:
+            self.rewardsData.addReward(label="COM height", rmin=-1.0, rmax=0, rval=0, rweight=self.COMHeightRewardWeight)
+
+
     def _getFile(self):
         return __file__
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
+        #update the stability polygon
+        points = [
+            self.robot_skeleton.bodynodes[17].to_world(np.array([-0.025, 0, 0.03])),  # l-foot_l-heel
+            self.robot_skeleton.bodynodes[17].to_world(np.array([0.025, 0, 0.03])),  # l-foot_r-heel
+            self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15])),  # l-foot_toe
+            self.robot_skeleton.bodynodes[20].to_world(np.array([-0.025, 0, 0.03])),  # r-foot_l-heel
+            self.robot_skeleton.bodynodes[20].to_world(np.array([0.025, 0, 0.03])),  # r-foot_r-heel
+            self.robot_skeleton.bodynodes[20].to_world(np.array([0, 0, -0.15])),  # r-foot_toe
+        ]
+        points2D = []
+        for point in points:
+            points2D.append(np.array([point[0], point[2]]))
+
+        hull = pyutils.convexHull2D(points2D)
+        self.stabilityPolygon = []
+        for point in hull:
+            self.stabilityPolygon.append(np.array([point[0], -1.3, point[1]]))
+
+        self.stabilityPolygonCentroid = pyutils.getCentroid(self.stabilityPolygon)
+
+        self.projectedCOM = self.robot_skeleton.com()
+        self.COMHeight = self.projectedCOM[1]
+        self.projectedCOM[1] = -1.3
+
+        #test COM containment
+        self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        #print("containedCOM: " + str(containedCOM))
+
+        #analyze contacts
+        self.lFootContact = False
+        self.rFootContact = False
+        self.numFootContacts = 0
+        self.nonFootContact = False
+        if self.dart_world is not None:
+            if self.dart_world.collision_result is not None:
+                for contact in self.dart_world.collision_result.contacts:
+                    if contact.skel_id1 == 0:
+                        if contact.bodynode_id2 == 17:
+                            self.numFootContacts += 1
+                            self.lFootContact = True
+                        elif contact.bodynode_id2 == 20:
+                            self.numFootContacts += 1
+                            self.rFootContact = True
+                        else:
+                            self.nonFootContact = True
+                    if contact.skel_id2 == 0:
+                        if contact.bodynode_id2 == 17:
+                            self.numFootContacts += 1
+                            self.lFootContact = True
+                        elif contact.bodynode_id2 == 20:
+                            self.numFootContacts += 1
+                            self.rFootContact = True
+                        else:
+                            self.nonFootContact = True
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -78,39 +161,84 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
             return True, -500
+
+        #stability termination
+        if(not self.stableCOM):
+            return True, -500
+
+        #contact termination
+        if(self.nonFootContact):
+            return True, -500
         return False, 0
 
     def computeReward(self, tau):
         #compute and return reward at the current state
         self.prevTau = tau
 
-        #reward more than 3 ground contact points
-        reward_contact = 0
-        if self.contactReward:
-            a=0
+        reward_record = []
+
+        # reward rest pose standing
+        reward_restPose = 0
+        if self.restPoseReward and self.restPose is not None:
+            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+            reward_restPose = max(-51, -dist)
+            reward_record.append(reward_restPose)
 
         #reward COM over stability region
         reward_stability = 0
         if self.stabilityCOMReward:
-            a=0
+            #penalty for distance from projected COM to stability centroid
+            reward_stability = -np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM)
+            reward_record.append(reward_stability)
 
-        #reward rest pose standing
-        reward_restPose = 0
-        if self.restPoseReward:
-            a=0
+        #reward # ground contact points
+        reward_contact = 0
+        if self.contactReward:
+            reward_contact = self.numFootContacts/6.0 #maximum of 6 ground contact points with 3 spheres per foot
+            reward_record.append(reward_contact)
 
         #reward COM height?
-        #TODO?
+        reward_COMHeight = 0
+        if self.COMHeightReward:
+            reward_COMHeight = self.COMHeight
+            reward_record.append(reward_COMHeight)
 
+        # update the reward data storage
+        self.rewardsData.update(rewards=reward_record)
 
         self.reward = reward_contact * self.contactRewardWeight \
                     + reward_stability * self.stabilityCOMRewardWeight \
-                    + reward_restPose * self.restPoseRewardWeight
+                    + reward_restPose * self.restPoseRewardWeight \
+                    + reward_COMHeight * self.COMHeightRewardWeight
 
         return self.reward
 
     def _get_obs(self):
         obs = np.zeros(self.obs_size)
+
+        theta = np.array([self.robot_skeleton.q[3:]])
+        dq = np.array([self.robot_skeleton.dq])
+        trans = np.array([self.robot_skeleton.q[:3]])
+
+        obs = np.concatenate([trans, np.cos(theta), np.sin(theta), dq], axis=1).ravel()
+
+        #COM
+        com = np.array([self.robot_skeleton.com()]).ravel()
+        obs = np.concatenate([obs, com])
+
+        #foot contacts
+        if self.lFootContact:
+            obs = np.concatenate([obs, [1.0]])
+        else:
+            obs = np.concatenate([obs, [0.0]])
+
+        if self.rFootContact:
+            obs = np.concatenate([obs, [1.0]])
+        else:
+            obs = np.concatenate([obs, [0.0]])
+
+        #print(obs)
+
         return obs
 
     def additionalResets(self):
@@ -137,6 +265,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         #compute the zero moment point
 
+        #render the ideal stability polygon
+        if len(self.stabilityPolygon) > 0:
+            renderUtils.drawPolygon(self.stabilityPolygon)
+        renderUtils.setColor([0.0,0,1.0])
+        renderUtils.drawSphere(pos=self.projectedCOM)
+
+        m_viewport = self.viewer.viewport
+        # print(m_viewport)
+        self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
+                                dimensions=[400, -m_viewport[3] + 30])
 
         textHeight = 15
         textLines = 2

@@ -39,7 +39,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.recurrency = recurrency
         self.actionTrajectory = []
         self.totalTime = 0
-        self.locked_foot = True
+        self.locked_foot = False
 
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
@@ -70,11 +70,12 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #40 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
-            self.action_scale *= 50
+            self.action_scale *= 20
             if 6 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(6)] = 50
+                self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(7)] = 50
+                self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
+            self.action_scale[28:] *= 2.5 #20 -> 50
 
         if self.recurrency > 0:
             self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
@@ -115,10 +116,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         if self.useOpenGL is True:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=1,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
                                   observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=1,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         #rescaling actions for SPD
@@ -569,6 +570,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #collision spheres creation
         fingertip = np.array([0.0, -0.06, 0.0])
         z = np.array([0.,0,0])
+        #upper body
         cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
         cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
         cs2 = self.robot_skeleton.bodynodes[14].to_world(z)
@@ -597,7 +599,37 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         csVars11 = np.array([0.0365, -1, -1, 0,0,0])
         csVars12 = np.array([0.04, -1, -1, 0,0,0])
         csVars13 = np.array([0.046, -1, -1, 0,0,0])
-        collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
+
+        #lower body: (character's)left leg
+        cs14 = self.robot_skeleton.bodynodes[15].to_world(z)  # l-upperleg
+        csVars14 = np.array([0.077, -1, -1, 0, 0, 0])
+        cs15 = self.robot_skeleton.bodynodes[16].to_world(z)  # l-lowerleg
+        csVars15 = np.array([0.065, -1, -1, 0, 0, 0])
+        cs16 = self.robot_skeleton.bodynodes[17].to_world(z)  # l-foot_center
+        csVars16 = np.array([0.0525, -1, -1, 0, 0, 0])
+        cs17 = self.robot_skeleton.bodynodes[17].to_world(np.array([-0.025, 0, 0.03]))  # l-foot_l-heel
+        csVars17 = np.array([0.05775, -1, -1, 0, 0, 0])
+        cs18 = self.robot_skeleton.bodynodes[17].to_world(np.array([0.025, 0, 0.03]))  # l-foot_r-heel
+        csVars18 = np.array([0.05775, -1, -1, 0, 0, 0])
+        cs19 = self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15]))  # l-foot_toe
+        csVars19 = np.array([0.0525, -1, -1, 0, 0, 0])
+
+        # lower body: (character's)right leg
+        cs20 = self.robot_skeleton.bodynodes[18].to_world(z)  # r-upperleg
+        csVars20 = np.array([0.077, -1, -1, 0, 0, 0])
+        cs21 = self.robot_skeleton.bodynodes[19].to_world(z)  # r-lowerleg
+        csVars21 = np.array([0.065, -1, -1, 0, 0, 0])
+        cs22 = self.robot_skeleton.bodynodes[20].to_world(z)  # r-foot_center
+        csVars22 = np.array([0.0525, -1, -1, 0, 0, 0])
+        cs23 = self.robot_skeleton.bodynodes[20].to_world(np.array([-0.025, 0, 0.03]))  # r-foot_l-heel
+        csVars23 = np.array([0.05775, -1, -1, 0, 0, 0])
+        cs24 = self.robot_skeleton.bodynodes[20].to_world(np.array([0.025, 0, 0.03]))  # r-foot_r-heel
+        csVars24 = np.array([0.05775, -1, -1, 0, 0, 0])
+        cs25 = self.robot_skeleton.bodynodes[20].to_world(np.array([0, 0, -0.15]))  # r-foot_toe
+        csVars25 = np.array([0.0525, -1, -1, 0, 0, 0])
+
+
+        collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13, cs14, csVars14, cs15, csVars15, cs16, csVars16, cs17, csVars17, cs18, csVars18, cs19, csVars19, cs20, csVars20, cs21, csVars21, cs22, csVars22, cs23, csVars23, cs24, csVars24, cs25, csVars25]).ravel()
 
         #inflate collision objects
         #for i in range(int(len(collisionSpheresInfo)/9)):
@@ -611,7 +643,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         
         if capsules is True:
             #collision capsules creation
-            collisionCapsuleInfo = np.zeros((14,14))
+            collisionCapsuleInfo = np.zeros((26,26))
+            #upper body
             collisionCapsuleInfo[0,1] = 1
             collisionCapsuleInfo[1,2] = 1
             collisionCapsuleInfo[1,4] = 1
@@ -625,7 +658,19 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             collisionCapsuleInfo[10,11] = 1
             collisionCapsuleInfo[11,12] = 1
             collisionCapsuleInfo[12,13] = 1
-            collisionCapsuleBodynodes = -1 * np.ones((14,14))
+            #lower body
+            collisionCapsuleInfo[14,15] = 1
+            collisionCapsuleInfo[15,16] = 1
+            collisionCapsuleInfo[17,19] = 1
+            collisionCapsuleInfo[18,19] = 1
+
+            collisionCapsuleInfo[20, 21] = 1
+            collisionCapsuleInfo[21, 22] = 1
+            collisionCapsuleInfo[23, 25] = 1
+            collisionCapsuleInfo[24, 25] = 1
+
+            collisionCapsuleBodynodes = -1 * np.ones((26,26))
+            #upper body
             collisionCapsuleBodynodes[0, 1] = 1
             collisionCapsuleBodynodes[1, 2] = 13
             collisionCapsuleBodynodes[1, 4] = 3
@@ -639,14 +684,36 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             collisionCapsuleBodynodes[10, 11] = 10
             collisionCapsuleBodynodes[11, 12] = 11
             collisionCapsuleBodynodes[12, 13] = 12
+            #lower body
+            collisionCapsuleInfo[14, 15] = 15
+            collisionCapsuleInfo[15, 16] = 16
+            collisionCapsuleInfo[17, 19] = 17
+            collisionCapsuleInfo[18, 19] = 17
+
+            collisionCapsuleInfo[20, 21] = 18
+            collisionCapsuleInfo[21, 22] = 19
+            collisionCapsuleInfo[23, 25] = 20
+            collisionCapsuleInfo[24, 25] = 20
+
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
             self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
             
         if hapticSensors is True:
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
-            hapticSensorLocations = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
-            hapticSensorRadii = np.array([csVars0[0], csVars1[0], csVars2[0], csVars3[0], csVars4[0], LERP(csVars4[0], csVars5[0], 0.33), LERP(csVars4[0], csVars5[0], 0.66), csVars5[0], LERP(csVars5[0], csVars6[0], 0.33), LERP(csVars5[0], csVars6[0], 0.66), csVars6[0], csVars7[0], csVars8[0], csVars9[0], LERP(csVars9[0], csVars10[0], 0.33), LERP(csVars9[0], csVars10[0], 0.66), csVars10[0], LERP(csVars10[0], csVars11[0], 0.33), LERP(csVars10[0], csVars11[0], 0.66), csVars11[0], csVars12[0], csVars13[0]])
+
+            #upper body sensors
+            hapticSensorLocations_upper = np.concatenate([cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33), LERP(cs5,cs6,0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10, LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
+            hapticSensorRadii_upper = np.array([csVars0[0], csVars1[0], csVars2[0], csVars3[0], csVars4[0], LERP(csVars4[0], csVars5[0], 0.33), LERP(csVars4[0], csVars5[0], 0.66), csVars5[0], LERP(csVars5[0], csVars6[0], 0.33), LERP(csVars5[0], csVars6[0], 0.66), csVars6[0], csVars7[0], csVars8[0], csVars9[0], LERP(csVars9[0], csVars10[0], 0.33), LERP(csVars9[0], csVars10[0], 0.66), csVars10[0], LERP(csVars10[0], csVars11[0], 0.33), LERP(csVars10[0], csVars11[0], 0.66), csVars11[0], csVars12[0], csVars13[0]])
+
+            #lower body sensors
+            hapticSensorLocations_lower = np.concatenate([cs14, LERP(cs14, cs15, 0.33), LERP(cs14, cs15, 0.66), cs15, LERP(cs15, cs16, 0.33), LERP(cs15, cs16, 0.66), cs17, cs18, cs19, cs20, LERP(cs20, cs21, 0.33), LERP(cs20, cs21, 0.66), cs21, LERP(cs21, cs22, 0.33), LERP(cs21, cs22, 0.66), cs23, cs24, cs25])
+            hapticSensorRadii_lower = np.array([csVars14[0], LERP(csVars14[0], csVars15[0], 0.33), LERP(csVars14[0], csVars15[0], 0.66), csVars15[0], LERP(csVars15[0], csVars16[0], 0.33), LERP(csVars15[0], csVars16[0], 0.66), csVars17[0], csVars18[0], csVars19[0], csVars20[0], LERP(csVars20[0], csVars21[0], 0.33), LERP(csVars20[0], csVars21[0], 0.66), csVars21[0], LERP(csVars21[0], csVars22[0], 0.33), LERP(csVars21[0], csVars22[0], 0.66), csVars23[0], csVars24[0], csVars25[0]])
+
+            #combine upper and lower
+            hapticSensorLocations = np.concatenate([hapticSensorLocations_upper, hapticSensorLocations_lower])
+            hapticSensorRadii = np.concatenate([hapticSensorRadii_upper, hapticSensorRadii_lower])
+
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             self.clothScene.setHapticSensorRadii(hapticSensorRadii)
 
