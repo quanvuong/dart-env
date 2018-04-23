@@ -489,6 +489,9 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeReward += self.reward
         self.rewardTrajectory.append(self.reward)
 
+        if(done):
+            print(self.rewardTrajectory)
+
         self.numSteps += 1
         #print("_step took " + str(time.time() - startTime))
         try:
@@ -507,6 +510,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+        print("starting reset " + str(self.reset_number))
         self.rewardsData.reset()
 
         #---------------------------
@@ -561,6 +565,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.avgtimings = {}
         self.reset_number += 1
         self.numSteps = 0
+
+        print("done reset " + str(self.reset_number-1))
 
         return self._get_obs()
 
