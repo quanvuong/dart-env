@@ -121,7 +121,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         self.stabilityPolygonCentroid = pyutils.getCentroid(self.stabilityPolygon)
 
-        self.projectedCOM = self.robot_skeleton.com()
+        self.projectedCOM = np.array(self.robot_skeleton.com())
         self.COMHeight = self.projectedCOM[1]
         self.projectedCOM[1] = -1.3
 
@@ -231,15 +231,15 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
     def _get_obs(self):
         obs = np.zeros(self.obs_size)
 
-        theta = np.array([self.robot_skeleton.q[3:]])
-        dq = np.array([self.robot_skeleton.dq])
-        trans = np.array([self.robot_skeleton.q[:3]])
+        theta = np.array(self.robot_skeleton.q[3:])
+        dq = np.array(self.robot_skeleton.dq)
+        trans = np.array(self.robot_skeleton.q[:3])
 
         obs = np.concatenate([trans, np.cos(theta), np.sin(theta), dq], axis=1).ravel()
 
         #COM
-        com = np.array([self.robot_skeleton.com()]).ravel()
-        obs = np.concatenate([obs, com])
+        com = np.array(self.robot_skeleton.com()).ravel()
+        obs = np.concatenate([obs, com]).ravel()
 
         #foot contacts
         if self.lFootContact:

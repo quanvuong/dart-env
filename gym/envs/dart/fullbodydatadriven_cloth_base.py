@@ -553,15 +553,17 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print("reset")
         self.cumulativeReward = 0
         self.dart_world.reset()
-        self.clothScene.setSelfCollisionDistance(0.03)
-        self.clothScene.reset()
+        if self.simulateCloth:
+            self.clothScene.setSelfCollisionDistance(0.03)
+            self.clothScene.reset()
         #self.clothScene.setFriction(0, 0.4)
 
         self.additionalResets()
 
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
-        self.clothScene.clearInterpolation()
+        if self.simulateCloth:
+            self.clothScene.clearInterpolation()
 
         self.avgtimings = {}
         self.reset_number += 1
