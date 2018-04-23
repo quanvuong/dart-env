@@ -500,7 +500,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.avgtimings["_step"] = time.time() - startTime2
         return ob, self.reward, done, {}
 
-
     def _get_obs(self):
         print("base observation")
         return np.zeros(self.obs_size)
@@ -510,7 +509,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
-        print("starting reset " + str(self.reset_number))
+        #print("starting reset " + str(self.reset_number))
         self.rewardsData.reset()
         self.stateTraj = []
 
@@ -569,7 +568,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.reset_number += 1
         self.numSteps = 0
 
-        print("done reset " + str(self.reset_number-1))
+        #print("done reset " + str(self.reset_number-1))
 
         return self._get_obs()
 

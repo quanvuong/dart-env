@@ -235,7 +235,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         dq = np.array(self.robot_skeleton.dq)
         trans = np.array(self.robot_skeleton.q[:3])
 
-        obs = np.concatenate([trans, np.cos(theta), np.sin(theta), dq], axis=1).ravel()
+        obs = np.concatenate([trans, np.cos(theta), np.sin(theta), dq]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
