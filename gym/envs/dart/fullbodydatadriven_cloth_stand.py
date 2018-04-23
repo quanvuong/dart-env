@@ -161,6 +161,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #check the termination conditions and return: done,reward
         if not np.isfinite(s).all():
             print(self.rewardTrajectory)
+            print(self.stateTraj)
             print("Infinite value detected..." + str(s))
             return True, -1500
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:

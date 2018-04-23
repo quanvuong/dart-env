@@ -38,6 +38,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.recurrency = recurrency
         self.actionTrajectory = []
+        self.stateTraj = []
         self.totalTime = 0
         self.locked_foot = False
 
@@ -400,6 +401,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.saveObjState(filename=objfname_ix)
             self.saveCharacterRenderState(filename=charfname_ix)
 
+        self.stateTraj.append(self.robot_skeleton.q)
+
         #try:
         if self.graphViolation:
             if self.numSteps%self.violationGraphFrequency == 0:
@@ -509,6 +512,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
     def reset_model(self):
         print("starting reset " + str(self.reset_number))
         self.rewardsData.reset()
+        self.stateTraj = []
 
         #---------------------------
         #random seeding
