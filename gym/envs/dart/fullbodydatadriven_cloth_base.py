@@ -489,9 +489,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.cumulativeReward += self.reward
         self.rewardTrajectory.append(self.reward)
 
-        if(done):
-            print(self.rewardTrajectory)
-
         self.numSteps += 1
         #print("_step took " + str(time.time() - startTime))
         try:

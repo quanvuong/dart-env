@@ -159,12 +159,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
     def checkTermination(self, tau, s, obs):
         #check the termination conditions and return: done,reward
-        if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
+        if not np.isfinite(s).all():
+            print(self.rewardTrajectory)
+            print("Infinite value detected..." + str(s))
+            return True, -1500
+        elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -1500
-        elif not np.isfinite(s).all():
-            print("Infinite value detected..." + str(s))
+            print(self.rewardTrajectory)
             return True, -1500
 
         #stability termination
