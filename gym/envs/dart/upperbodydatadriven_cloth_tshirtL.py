@@ -50,7 +50,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.limbProgressRewardWeight = 10
         self.oracleDisplacementRewardWeight = 50
         self.contactGeoRewardWeight = 4
-        self.deformationPenaltyWeight = 5  # was 5... then 1...
+        self.deformationPenaltyWeight = 1  # was 5... then 1...
         self.restPoseRewardWeight = 1
 
         #other flags
@@ -64,7 +64,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
         #self.resetDistributionSize = 17 #3
         self.resetDistributionPrefix = "saved_control_states/enter_seq_lsleeve"
-        self.resetDistributionSize = 20
+        self.resetDistributionSize = 3 #20
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -500,7 +500,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
-            self.handleNode.addVertices(verts=self.targetGripVerticesR) #TODO: change this
+            self.handleNode.addVertices(verts=self.targetGripVerticesR)
             self.handleNode.setOrgToCentroid()
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)

@@ -510,6 +510,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         #print("starting reset " + str(self.reset_number))
+        print(self.setSeed)
         self.rewardsData.reset()
         self.stateTraj = []
 

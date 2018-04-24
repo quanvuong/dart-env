@@ -32,6 +32,7 @@ class DartEnv(gym.Env):
         print('pydart initialization OK')
 
         self.viewer = None
+        self.setSeed = None
 
         if len(model_paths) < 1:
             raise StandardError("At least one model file is needed.")
@@ -116,6 +117,7 @@ class DartEnv(gym.Env):
         #print("--------------------")
         #print("---seed = "+str(seed)+"-------")
         #print("--------------------")
+        self.setSeed = seed
         self.np_random, seed = seeding.np_random(seed)
         if seed is None:
             #this ensures that if global numpy was seeded and no seed is provided some seed transfers here (necessary for multi-threaded variation)
