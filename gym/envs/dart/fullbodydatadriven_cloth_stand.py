@@ -204,14 +204,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            #print(self.rewardTrajectory)
+            print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
             return True, -1500
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
             print("Detecting potential instability via velocity: " + str(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1]))))
             print(s)
             print(self.stateTraj[-2:])
+            print(self.rewardTrajectory)
             return True, -1500
+
 
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
 
@@ -254,6 +256,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         reward_COMHeight = 0
         if self.COMHeightReward:
             reward_COMHeight = self.COMHeight
+            if(abs(self.COMHeight) > 1.0):
+                reward_COMHeight = 0
             reward_record.append(reward_COMHeight)
 
         #accumulate reward for continuing to balance
@@ -269,6 +273,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[39])
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[32])
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[33])
+            reward_stationaryAnkleAngle = -max(-40, reward_stationaryAnkleAngle)
             reward_record.append(reward_stationaryAnkleAngle)
 
         reward_stationaryAnklePos = 0
@@ -277,8 +282,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             projectedLAnkle = self.robot_skeleton.bodynodes[17].to_world(np.zeros(3))
             projectedRAnkle[1] = 0
             projectedLAnkle[1] = 0
-            reward_stationaryAnklePos += -np.linalg.norm(self.initialProjectedRAnkle - projectedRAnkle)
-            reward_stationaryAnklePos += -np.linalg.norm(self.initialProjectedLAnkle - projectedLAnkle)
+            reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedRAnkle - projectedRAnkle))
+            reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedLAnkle - projectedLAnkle))
             reward_record.append(reward_stationaryAnklePos)
 
         # update the reward data storage
