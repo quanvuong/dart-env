@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = True
 
@@ -45,8 +45,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
-        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
-        self.contactTermiantion   = True #if anything except the feet touch the ground, terminate
+        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.contactTermination   = True #if anything except the feet touch the ground, terminate
+        self.gravity = False
 
         #other variables
         self.prevTau = None
@@ -57,22 +58,20 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.COMHeight = 0.0
         self.stableCOM = True
         self.numFootContacts = 0
-        self.lFootContact = False
-        self.rFootContact = False
+        self.footContact = False
         self.nonFootContact = False #used for detection of failure
-        self.initialProjectedRAnkle = np.zeros(3)
-        self.initialProjectedLAnkle = np.zeros(3)
-        self.leftCOP = np.zeros(3)
-        self.leftNormForceMag = 0
-        self.rightCOP = np.zeros(3)
-        self.rightNormForceMag = 0
+        self.initialProjectedAnkle = np.zeros(3)
+        self.footCOP = np.zeros(3)
+        self.footNormForceMag = 0
+        self.footBodyNode = 17 #17 left, 20 right
+        self.ankleDofs = [32,33] #[32,33] left, [38,39] right
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
         observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
         observation_size += 3 # COM
-        observation_size += 2 # binary contact per foot with ground
-        observation_size += 8 # feet COPs and norm force mags
+        observation_size += 1 # binary contact per foot with ground
+        observation_size += 4 # feet COPs and norm force mags
 
 
 
@@ -82,7 +81,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                                                           clothMeshFile="capri_med.obj",
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          gravity=self.gravity)
 
 
         self.simulateCloth = clothSimulation
@@ -121,21 +121,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #any pre-sim updates should happen here
         #update the stability polygon
         points = [
-            self.robot_skeleton.bodynodes[17].to_world(np.array([-0.025, 0, 0.03])),  # l-foot_l-heel
-            self.robot_skeleton.bodynodes[17].to_world(np.array([0.025, 0, 0.03])),  # l-foot_r-heel
-            self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15])),  # l-foot_toe
-            self.robot_skeleton.bodynodes[20].to_world(np.array([-0.025, 0, 0.03])),  # r-foot_l-heel
-            self.robot_skeleton.bodynodes[20].to_world(np.array([0.025, 0, 0.03])),  # r-foot_r-heel
-            self.robot_skeleton.bodynodes[20].to_world(np.array([0, 0, -0.15])),  # r-foot_toe
+            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([-0.025, 0, 0.03])),  # l-foot_l-heel
+            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0.025, 0, 0.03])),  # l-foot_r-heel
+            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0, 0, -0.15])),  # l-foot_toe
         ]
-        points2D = []
-        for point in points:
-            points2D.append(np.array([point[0], point[2]]))
 
-        hull = pyutils.convexHull2D(points2D)
         self.stabilityPolygon = []
-        for point in hull:
-            self.stabilityPolygon.append(np.array([point[0], -1.3, point[1]]))
+        hull = []
+        for point in points:
+            self.stabilityPolygon.append(np.array([point[0], -1.3, point[2]]))
+            hull.append(np.array([point[0], point[2]]))
 
         self.stabilityPolygonCentroid = pyutils.getCentroid(self.stabilityPolygon)
 
@@ -148,49 +143,33 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
-        self.lFootContact = False
-        self.rFootContact = False
+        self.footContact = False
         self.numFootContacts = 0
         self.nonFootContact = False
-        self.leftCOP = np.zeros(3)
-        self.leftNormForceMag = 0
-        self.rightCOP = np.zeros(3)
-        self.rightNormForceMag = 0
+        self.footCOP = np.zeros(3)
+        self.footNormForceMag = 0
         if self.dart_world is not None:
             if self.dart_world.collision_result is not None:
                 for contact in self.dart_world.collision_result.contacts:
                     if contact.skel_id1 == 0:
-                        if contact.bodynode_id2 == 17:
+                        if contact.bodynode_id2 == self.footBodyNode:
                             self.numFootContacts += 1
-                            self.lFootContact = True
-                            self.leftCOP += contact.p*abs(contact.f[1])
-                            self.leftNormForceMag += abs(contact.f[1])
-                        elif contact.bodynode_id2 == 20:
-                            self.numFootContacts += 1
-                            self.rFootContact = True
-                            self.rightCOP += contact.p * abs(contact.f[1])
-                            self.rightNormForceMag += abs(contact.f[1])
+                            self.footContact = True
+                            self.footCOP += contact.p*abs(contact.f[1])
+                            self.footNormForceMag += abs(contact.f[1])
                         else:
                             self.nonFootContact = True
                     if contact.skel_id2 == 0:
-                        if contact.bodynode_id2 == 17:
+                        if contact.bodynode_id2 == self.footBodyNode:
                             self.numFootContacts += 1
                             self.lFootContact = True
-                            self.leftCOP += contact.p * abs(contact.f[1])
-                            self.leftNormForceMag += abs(contact.f[1])
-                        elif contact.bodynode_id2 == 20:
-                            self.numFootContacts += 1
-                            self.rFootContact = True
-                            self.rightCOP += contact.p * abs(contact.f[1])
-                            self.rightNormForceMag += abs(contact.f[1])
+                            self.footCOP += contact.p * abs(contact.f[1])
+                            self.footNormForceMag += abs(contact.f[1])
                         else:
                             self.nonFootContact = True
 
-        if self.leftNormForceMag > 0:
-            self.leftCOP /= self.leftNormForceMag
-
-        if self.rightNormForceMag > 0:
-            self.rightCOP /= self.rightNormForceMag
+        if self.footNormForceMag > 0:
+            self.footCOP /= self.footNormForceMag
 
         a=0
 
@@ -218,12 +197,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
 
         #stability termination
-        if(not self.stableCOM):
-            return True, -1500
+        if self.stabilityTermination:
+            if not self.stableCOM:
+                return True, -1500
 
         #contact termination
-        if(self.nonFootContact):
-            return True, -1500
+        if self.contactTermination:
+            if self.nonFootContact:
+                return True, -1500
         return False, 0
 
     def computeReward(self, tau):
@@ -249,7 +230,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #reward # ground contact points
         reward_contact = 0
         if self.contactReward:
-            reward_contact = self.numFootContacts/6.0 #maximum of 6 ground contact points with 3 spheres per foot
+            reward_contact = self.numFootContacts/3.0 #maximum of 3 ground contact points with 3 spheres per foot
             reward_record.append(reward_contact)
 
         #reward COM height?
@@ -269,21 +250,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #reward stationary ankle
         reward_stationaryAnkleAngle = 0
         if self.stationaryAnkleAngleReward:
-            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[38])
-            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[39])
-            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[32])
-            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[33])
+            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[self.ankleDofs[0]])
+            reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[self.ankleDofs[1]])
             reward_stationaryAnkleAngle = -max(-40, reward_stationaryAnkleAngle)
             reward_record.append(reward_stationaryAnkleAngle)
 
         reward_stationaryAnklePos = 0
         if self.stationaryAnklePosReward:
-            projectedRAnkle = self.robot_skeleton.bodynodes[20].to_world(np.zeros(3))
-            projectedLAnkle = self.robot_skeleton.bodynodes[17].to_world(np.zeros(3))
-            projectedRAnkle[1] = 0
-            projectedLAnkle[1] = 0
-            reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedRAnkle - projectedRAnkle))
-            reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedLAnkle - projectedLAnkle))
+            projectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
+            projectedAnkle[1] = 0
+            reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedAnkle - projectedAnkle))
             reward_record.append(reward_stationaryAnklePos)
 
         # update the reward data storage
@@ -314,18 +290,13 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         obs = np.concatenate([obs, com]).ravel()
 
         #foot contacts
-        if self.lFootContact:
-            obs = np.concatenate([obs, [1.0]]).ravel()
-        else:
-            obs = np.concatenate([obs, [0.0]]).ravel()
-
-        if self.rFootContact:
+        if self.footContact:
             obs = np.concatenate([obs, [1.0]]).ravel()
         else:
             obs = np.concatenate([obs, [0.0]]).ravel()
 
         #foot COP and norm force magnitude
-        obs = np.concatenate([obs, self.leftCOP, [self.leftNormForceMag], self.rightCOP, [self.rightNormForceMag]]).ravel()
+        obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
 
         #print(obs)
 
@@ -333,6 +304,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
     def additionalResets(self):
         #do any additional resetting here
+        #TODO: set a one foot standing initial pose
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
@@ -342,10 +314,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
 
         #set on initialization and used to measure displacement
-        self.initialProjectedRAnkle = self.robot_skeleton.bodynodes[20].to_world(np.zeros(3))
-        self.initialProjectedLAnkle = self.robot_skeleton.bodynodes[17].to_world(np.zeros(3))
-        self.initialProjectedRAnkle[1] = 0
-        self.initialProjectedLAnkle[1] = 0
+        self.initialProjectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
+        self.initialProjectedAnkle[1] = 0
         a=0
 
     def extraRenderFunction(self):
@@ -361,8 +331,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         #render center of pressure for each foot
         COPLines = [
-            [self.leftCOP, self.leftCOP+np.array([0,self.leftNormForceMag,0])],
-            [self.rightCOP, self.rightCOP+np.array([0,self.rightNormForceMag,0])],
+            [self.footCOP, self.footCOP+np.array([0,self.footNormForceMag,0])]
                     ]
 
         renderUtils.setColor(color=[1.0,1.0,0])

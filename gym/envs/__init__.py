@@ -495,6 +495,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothFullBodyDataDrivenClothOneFootStand-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothOneFootStandEnv',
+    #max_episode_steps=250,
+)
+
 
 #Multi-agent
 register(
