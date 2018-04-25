@@ -64,7 +64,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
         #self.resetDistributionSize = 17 #3
         self.resetDistributionPrefix = "saved_control_states/enter_seq_lsleeve"
-        self.resetDistributionSize = 3 #20
+        self.resetDistributionSize = 20 #20
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -484,6 +484,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 7 #best in the rtuck set?
             #resetStateNumber = 0 #best in the triangle_rtuck set?
+            resetStateNumber = 2
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber

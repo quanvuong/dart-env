@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = True
 
@@ -31,7 +31,7 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
         self.restPose = None
 
         self.actuatedDofs = np.arange(34)
-        observation_size = 0
+        observation_size = len(self.actuatedDofs)
 
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -58,9 +58,11 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
 
     def checkTermination(self, tau, s, obs):
         #check the termination conditions and return: done,reward
-        if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
+        if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 3:
             print("Detecting potential instability")
             print(s)
+            print(self.rewardTrajectory)
+            print(self.stateTraj[-2:])
             return True, -500
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
@@ -70,7 +72,7 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
     def computeReward(self, tau):
         #compute and return reward at the current state
         self.prevTau = tau
-        self.reward = 0
+        self.reward = 0.1
         return self.reward
 
     def _get_obs(self):

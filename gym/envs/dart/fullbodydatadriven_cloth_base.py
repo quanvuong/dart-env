@@ -418,6 +418,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.additionalAction))
+        #self.additionalAction += np.random.uniform(-1, 1, len(self.additionalAction))
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation
         # print("updateBeforeSimulation took " + str(time.time() - startTime2))
@@ -498,6 +499,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.avgtimings["_step"] += time.time() - startTime2
         except:
             self.avgtimings["_step"] = time.time() - startTime2
+
+        if(done):
+            print("finishing step while done...")
+            print(ob)
+            print(self.reward)
+            print(done)
+
         return ob, self.reward, done, {}
 
     def _get_obs(self):
@@ -510,7 +518,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
     def reset_model(self):
         #print("starting reset " + str(self.reset_number))
-        print(self.setSeed)
+        if self.reset_number == 0:
+            self.setSeed = random.random()
+        #print(str(self.setSeed) + " example: " + str(random.random()))
+        #print()
         self.rewardsData.reset()
         self.stateTraj = []
 

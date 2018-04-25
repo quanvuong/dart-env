@@ -19,9 +19,11 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    trial = "experiment_2018_04_24_lsleeve_narrow"
 
-    trial = "experiment_2018_04_23_lsleeve"
-    trial = "experiment_2018_04_23_lsleeve_warm"
+    #neither entering sleeve
+    #trial = "experiment_2018_04_23_lsleeve"
+    #trial = "experiment_2018_04_23_lsleeve_warm"
 
     #trial = "experiment_2018_04_20_ltuck"
     #trial = "experiment_2018_04_21_ltuck"
@@ -286,7 +288,7 @@ if __name__ == '__main__':
             a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
 
             #a = np.ones(len(a))
-            a += np.random.uniform(-1,1,len(a))
+            #a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
