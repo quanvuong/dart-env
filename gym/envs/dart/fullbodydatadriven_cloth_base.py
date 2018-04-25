@@ -500,11 +500,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             self.avgtimings["_step"] = time.time() - startTime2
 
+        '''
         if(done):
             print("finishing step while done...")
             print(ob)
             print(self.reward)
             print(done)
+        '''
 
         return ob, self.reward, done, {}
 

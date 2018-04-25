@@ -19,7 +19,7 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_04_24_lsleeve_narrow"
+    #trial = "experiment_2018_04_24_lsleeve_narrow"
 
     #neither entering sleeve
     #trial = "experiment_2018_04_23_lsleeve"
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
@@ -251,7 +251,7 @@ if __name__ == '__main__':
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
-    #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1') #testing the full body data driven cloth base env setup with SPD
+    env = gym.make('DartClothFullBodyDataDrivenClothStand-v1') #testing the full body data driven cloth base env setup with SPD
 
 
     policy = None
@@ -287,8 +287,8 @@ if __name__ == '__main__':
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
             a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
 
-            #a = np.ones(len(a))
-            #a += np.random.uniform(-1,1,len(a))
+            #a = -np.ones(len(a))
+            a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
