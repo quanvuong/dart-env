@@ -36,7 +36,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
-        self.elbowFlairReward           = True
+        self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
@@ -45,7 +45,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         # reward weights
         self.uprightRewardWeight = 1
-        self.stableHeadRewardWeight = 2
+        self.stableHeadRewardWeight = 1
         self.elbowFlairRewardWeight = 1
         self.limbProgressRewardWeight = 15
         self.oracleDisplacementRewardWeight = 50
@@ -484,7 +484,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 7 #best in the rtuck set?
             #resetStateNumber = 0 #best in the triangle_rtuck set?
-            resetStateNumber = 2
+            #resetStateNumber = 2
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
