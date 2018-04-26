@@ -45,9 +45,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
-        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
-        self.gravity = False
+        self.gravity = True
 
         #other variables
         self.prevTau = None
@@ -121,8 +121,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         #any pre-sim updates should happen here
         #update the stability polygon
         points = [
-            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([-0.025, 0, 0.03])),  # l-foot_l-heel
-            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0.025, 0, 0.03])),  # l-foot_r-heel
+            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([-0.035, 0, 0.03])),  # l-foot_l-heel
+            self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0.035, 0, 0.03])),  # l-foot_r-heel
             self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0, 0, -0.15])),  # l-foot_toe
         ]
 
@@ -305,8 +305,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
     def additionalResets(self):
         #do any additional resetting here
         #TODO: set a one foot standing initial pose
+        qpos = np.array([-0.00469234655801, -0.0218378114573, -0.011132330496, 0.00809830385355, 0.00051861417993, 0.0584867818269, 0.374712375814, 0.0522417260384, -0.00777676124956, 0.00230285789432, -0.00274958108859, -0.008064630425, 0.00247294825781, -0.0093978116532, 0.195632645271, -0.00276696945071, 0.0075491687512, -0.0116846422966, 0.00636619242284, 0.00767084047346, -0.00913509000374, 0.00857521738396, 0.199096855493, 0.00787726246678, -0.00760402683795, -0.00433642327146, 0.00802311463366, -0.00482248656677, 0.131248337324, -0.00662274635457, 0.00333416764933, 0.00546016678096, -0.00150775759695, -0.00861184703697, -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585, -0.00244949106062])
+
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         self.restPose = qpos
 

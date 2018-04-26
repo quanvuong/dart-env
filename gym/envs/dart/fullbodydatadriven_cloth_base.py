@@ -210,7 +210,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         for i in range(len(self.robot_skeleton.dofs)):
             if(i > 5):
                 self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
-                #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)
+                #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)d
             print(self.robot_skeleton.dofs[i])
             print("     damping:" + str(self.robot_skeleton.dofs[i].damping_coefficient()))
             print("     stiffness:" + str(self.robot_skeleton.dofs[i].spring_stiffness()))
