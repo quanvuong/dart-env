@@ -49,6 +49,7 @@ from gym.envs.dart.fullbodydatadriven_cloth_test import DartClothFullBodyDataDri
 from gym.envs.dart.fullbodydatadriven_cloth_SPDtest import DartClothFullBodyDataDrivenClothSPDTestEnv
 from gym.envs.dart.fullbodydatadriven_cloth_stand import DartClothFullBodyDataDrivenClothStandEnv
 from gym.envs.dart.fullbodydatadriven_cloth_onefootstand import DartClothFullBodyDataDrivenClothOneFootStandEnv
+from gym.envs.dart.fullbodydatadriven_cloth_onefootstand_shorts import DartClothFullBodyDataDrivenClothOneFootStandShortsEnv
 
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv

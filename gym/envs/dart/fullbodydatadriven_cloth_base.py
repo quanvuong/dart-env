@@ -73,10 +73,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if not SPDActionSpace:
             self.action_scale *= 20
             if 6 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
+                self.action_scale[self.actuatedDofs.tolist().index(6)] = 100
             if 7 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28:] *= 2.5 #20 -> 50
+                self.action_scale[self.actuatedDofs.tolist().index(7)] = 100
+            self.action_scale[28-6:] *= 5#2.5 #20 -> 50
 
         if self.recurrency > 0:
             self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])

@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = True
 
@@ -47,8 +47,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
-        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
-        self.contactTermination   = True #if anything except the feet touch the ground, terminate
+        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.contactTermination   = False #if anything except the feet touch the ground, terminate
         self.gravity = True
 
         #other variables
@@ -80,12 +80,17 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=(1080,920),
-                                                          clothMeshFile="capri_med.obj",
+                                                          clothMeshFile="shorts_med.obj",
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           gravity=self.gravity)
 
+        #define shorts garment features
+        self.targetGripVerticesL = [85, 22, 13, 92, 212, 366]
+        self.targetGripVerticesR = [5, 146, 327, 215, 112, 275]
+        self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene)
+        self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
 
@@ -175,6 +180,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
         if self.footNormForceMag > 0:
             self.footCOP /= self.footNormForceMag
+
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
 
         a=0
 
@@ -333,6 +341,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
 
+        self.gripFeatureL.fitPlane()
+        self.gripFeatureR.fitPlane()
+
         #set on initialization and used to measure displacement
         self.initialProjectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
         self.initialProjectedAnkle[1] = 0
@@ -361,7 +372,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
 
         #compute the zero moment point
-        if True:
+        if False:
             print("--------------------------------------")
             print("computing ZMP")
             m = self.robot_skeleton.mass()
@@ -392,6 +403,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
             renderUtils.drawPolygon(self.stabilityPolygon)
         renderUtils.setColor([0.0,0,1.0])
         renderUtils.drawSphere(pos=self.projectedCOM)
+
+        self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[1.0,0.0,0.0])
+        self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0.0,1.0,0.0])
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)

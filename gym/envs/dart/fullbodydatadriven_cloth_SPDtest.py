@@ -82,7 +82,7 @@ class SPDController(Controller):
         #cur_q = np.array(self.skel.q)
         #self.env.loadCharacterState(filename="characterState_regrip")
         self.target = np.array(self.skel.q[6:])
-        self.env.restPose = np.array(self.target)
+        #self.env.restPose = np.array(self.target)
         #self.target = np.array(self.skel.q)
         #self.env.robot_skeleton.set_positions(cur_q)
 
@@ -176,8 +176,20 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
 
     def additionalResets(self):
         #do any additional resetting here
+        qpos = np.array(
+            [-0.00469234655801, -0.0218378114573, -0.011132330496, 0.00809830385355, 0.00051861417993, 0.0584867818269,
+             0.374712375814, 0.0522417260384, -0.00777676124956, 0.00230285789432, -0.00274958108859, -0.008064630425,
+             0.00247294825781, -0.0093978116532, 0.195632645271, -0.00276696945071, 0.0075491687512, -0.0116846422966,
+             0.00636619242284, 0.00767084047346, -0.00913509000374, 0.00857521738396, 0.199096855493, 0.00787726246678,
+             -0.00760402683795, -0.00433642327146, 0.00802311463366, -0.00482248656677, 0.131248337324,
+             -0.00662274635457, 0.00333416764933, 0.00546016678096, -0.00150775759695, -0.00861184703697,
+             -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585,
+             -0.00244949106062])
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        # qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
@@ -242,4 +254,4 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
             textLines += 1
 
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)

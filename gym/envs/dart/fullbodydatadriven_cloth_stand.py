@@ -25,6 +25,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         rendering = False
         clothSimulation = False
         renderCloth = True
+        gravity = True
 
         #reward flags
         self.restPoseReward             = True
@@ -84,7 +85,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                                                           clothMeshFile="capri_med.obj",
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          gravity=gravity)
 
 
         self.simulateCloth = clothSimulation
@@ -223,12 +225,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
 
         #stability termination
-        if(not self.stableCOM):
-            return True, -1500
+        if self.stabilityTermination:
+            if(not self.stableCOM):
+                return True, -1500
 
         #contact termination
-        if(self.nonFootContact):
-            return True, -1500
+        if self.contactTermiantion:
+            if(self.nonFootContact):
+                return True, -1500
         return False, 0
 
     def computeReward(self, tau):
