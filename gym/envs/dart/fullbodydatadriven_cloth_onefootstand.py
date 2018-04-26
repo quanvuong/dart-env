@@ -22,14 +22,15 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = True
 
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
-        self.contactReward              = True
+        self.contactReward              = False
+        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = True
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
@@ -37,8 +38,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
         #reward weights
         self.restPoseRewardWeight               = 1
-        self.stabilityCOMRewardWeight           = 2
+        self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
+        self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
         self.aliveBonusRewardWeight             = 5
         self.stationaryAnkleAngleRewardWeight   = 0.025
@@ -100,6 +102,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
         if self.contactReward:
             self.rewardsData.addReward(label="contact", rmin=0, rmax=1.0, rval=0, rweight=self.contactRewardWeight)
+
+        if self.flatFootReward:
+            self.rewardsData.addReward(label="flat foot", rmin=-1.0, rmax=0, rval=0, rweight=self.flatFootRewardWeight)
 
         if self.COMHeightReward:
             self.rewardsData.addReward(label="COM height", rmin=-1.0, rmax=0, rval=0, rweight=self.COMHeightRewardWeight)
@@ -233,6 +238,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
             reward_contact = self.numFootContacts/3.0 #maximum of 3 ground contact points with 3 spheres per foot
             reward_record.append(reward_contact)
 
+        reward_flatFoot = 0
+        if self.flatFootReward:
+            up = np.array([0, 1.0, 0])
+            footNorm = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(up) - self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
+            footNorm = footNorm / np.linalg.norm(footNorm)
+
+            reward_flatFoot += footNorm.dot(up) - 1.0
+
+            reward_record.append(reward_flatFoot)
+
         #reward COM height?
         reward_COMHeight = 0
         if self.COMHeightReward:
@@ -271,7 +286,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
                     + reward_COMHeight * self.COMHeightRewardWeight \
                     + reward_alive * self.aliveBonusRewardWeight \
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
-                    + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight
+                    + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
+                    + reward_flatFoot * self.flatFootRewardWeight
 
         return self.reward
 
@@ -338,8 +354,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
             [self.footCOP, self.footCOP+np.array([0,self.footNormForceMag,0])]
                     ]
 
-        renderUtils.setColor(color=[1.0,1.0,0])
+        renderUtils.setColor(color=[0.0,1.0,0])
         renderUtils.drawLines(COPLines)
+        renderUtils.setColor(color=[0.0, 0.0, 1.0])
+        renderUtils.drawLines([[self.robot_skeleton.com(), np.array([self.robot_skeleton.com()[0], -2.0, self.robot_skeleton.com()[2]])]])
 
 
         #compute the zero moment point

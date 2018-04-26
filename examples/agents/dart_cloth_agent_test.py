@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2018_04_24_lsleeve_narrow"
     #trial = "experiment_2018_04_25_lsleeve_narrow2_warm"
-    trial = "experiment_2018_04_25_stand"
+    #trial = "experiment_2018_04_25_stand"
 
     #trial = "experiment_2018_04_24_lsleeve_narrow"
 
@@ -256,8 +256,8 @@ if __name__ == '__main__':
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
-    env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
-    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
 
 
     policy = None
