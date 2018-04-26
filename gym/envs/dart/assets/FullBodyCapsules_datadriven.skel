@@ -629,7 +629,7 @@
             </body>
             
             <body name="l-foot">
-                <transformation>-0.1225 -1.33525 0.0 0 0 0</transformation>
+                <transformation>-0.1225 -1.34525 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>0.684</mass>
                     <offset>0 0.0 0</offset>
@@ -755,7 +755,7 @@
             </body>
             
             <body name="r-foot">
-                <transformation>0.1225 -1.33525 0.0 0 0 0</transformation>
+                <transformation>0.1225 -1.34525 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>0.684</mass>
                     <offset>0 0.0 0</offset>

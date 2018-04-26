@@ -89,8 +89,19 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #define shorts garment features
         self.targetGripVerticesL = [85, 22, 13, 92, 212, 366]
         self.targetGripVerticesR = [5, 146, 327, 215, 112, 275]
+        self.legEndVerticesL = [42, 384, 118, 383, 37, 164, 123, 404, 36, 406, 151, 338, 38, 235, 81, 266, 40, 247, 80, 263]
+        self.legEndVerticesR = [45, 394, 133, 397, 69, 399, 134, 401, 20, 174, 127, 336, 21, 233, 79, 258, 29, 254, 83, 264]
+        self.legMidVerticesR = [91, 400, 130, 396, 128, 162, 165, 141, 298, 417, 19, 219, 270, 427, 440, 153, 320, 71, 167, 30, 424]
+        self.legMidVerticesL = [280, 360, 102, 340, 196, 206, 113, 290, 41, 178, 72, 325, 159, 147, 430, 291, 439, 55, 345, 125, 429]
+        #TODO: waistband
+        #TODO: leg entrance L and R
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene)
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene)
+
+        self.legEndFeatureL = ClothFeature(verts=self.legEndVerticesL, clothScene=self.clothScene)
+        self.legEndFeatureR = ClothFeature(verts=self.legEndVerticesR, clothScene=self.clothScene)
+        self.legMidFeatureL = ClothFeature(verts=self.legMidVerticesL, clothScene=self.clothScene)
+        self.legMidFeatureR = ClothFeature(verts=self.legMidVerticesR, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
 
@@ -183,6 +194,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
+        self.legEndFeatureL.fitPlane()
+        self.legEndFeatureR.fitPlane()
+        self.legMidFeatureL.fitPlane()
+        self.legMidFeatureR.fitPlane()
 
         a=0
 
@@ -343,6 +358,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
+        self.legEndFeatureL.fitPlane()
+        self.legEndFeatureR.fitPlane()
+        self.legMidFeatureL.fitPlane()
+        self.legMidFeatureR.fitPlane()
 
         #set on initialization and used to measure displacement
         self.initialProjectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
@@ -406,6 +425,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[1.0,0.0,0.0])
         self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0.0,1.0,0.0])
+        self.legEndFeatureL.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[1.0,0.0,0.0])
+        self.legEndFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0,1.0,0.0])
+        self.legMidFeatureL.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[1.0, 0.0, 0.0])
+        self.legMidFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 1.0, 0.0])
+
+        #TODO: sort out feature normals
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)

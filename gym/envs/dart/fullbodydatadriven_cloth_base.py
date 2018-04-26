@@ -76,7 +76,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 100
             if 7 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(7)] = 100
-            self.action_scale[28-6:] *= 5#2.5 #20 -> 50
+            self.action_scale[28-6:] *= 4#2.5 #20 -> 50
 
         if self.recurrency > 0:
             self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
@@ -117,10 +117,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         if self.useOpenGL is True:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=2,
                                   observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=2,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         #rescaling actions for SPD
@@ -777,7 +777,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
-
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
             self._get_viewer().scene.tb.trans[2] = -3.5
@@ -789,6 +788,24 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.renderCollisionCaps = True
         self.clothScene.renderCollisionSpheres = True
 
+    def computeZMP(self):
+        #return 2D ZMP in xz plane
+        # scalar ZMP computation:
+        xZMP = 0
+        zZMP = 0
+        g = -self.dart_world.gravity()[1]
+        denom = self.robot_skeleton.mass() * g  # mg
+        for node in self.robot_skeleton.bodynodes:
+            m = node.mass()
+            G = node.com()
+            H = node.com_angular_momentum()
+            Gdd = node.com_linear_acceleration()
+            xZMP += m * G[0] * g - (H[2] + m * (G[1] * Gdd[0] - G[0] * Gdd[1]))
+            zZMP += m * G[2] * g - (H[0] + m * (G[2] * Gdd[1] - G[1] * Gdd[2]))
 
+            denom += m * Gdd[1]
 
+        xZMP /= denom
+        zZMP /= denom
+        return np.array([xZMP, zZMP])
 

@@ -30,6 +30,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
+        self.stabilityZMPReward         = True
         self.contactReward              = False
         self.flatFootReward             = True #if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = True
@@ -40,6 +41,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #reward weights
         self.restPoseRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 2
+        self.stabilityZMPRewardWeight           = 2
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
@@ -48,7 +50,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
-        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
         self.contactTermiantion   = True #if anything except the feet touch the ground, terminate
 
         #other variables
@@ -57,12 +59,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.stabilityPolygon = [] #an ordered point set representing the stability region of the desired foot contacts
         self.stabilityPolygonCentroid = np.zeros(3)
         self.projectedCOM = np.zeros(3)
+        self.ZMP = np.zeros(2)
         self.COMHeight = 0.0
         self.stableCOM = True
         self.numFootContacts = 0
         self.lFootContact = False
         self.rFootContact = False
         self.nonFootContact = False #used for detection of failure
+        self.nonFootContactNode = None
         self.initialProjectedRAnkle = np.zeros(3)
         self.initialProjectedLAnkle = np.zeros(3)
         self.leftCOP = np.zeros(3)
@@ -73,7 +77,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.actuatedDofs = np.arange(34)
         observation_size = 0
         observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
-        observation_size += 3 # COM
+        observation_size += 3 # COM (3D)
+        observation_size += 2 # ZMP (2D)
+        observation_size += 2 # stability polygon centroid (2D)
         observation_size += 2 # binary contact per foot with ground
         observation_size += 8 # feet COPs and norm force mags
 
@@ -100,7 +106,10 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
 
         if self.stabilityCOMReward:
-            self.rewardsData.addReward(label="stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
+            self.rewardsData.addReward(label="COM stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
+
+        if self.stabilityZMPReward:
+            self.rewardsData.addReward(label="ZMP stability", rmin=-1.0, rmax=0, rval=0, rweight=self.stabilityZMPRewardWeight)
 
         if self.contactReward:
             self.rewardsData.addReward(label="contact", rmin=0, rmax=1.0, rval=0, rweight=self.contactRewardWeight)
@@ -119,7 +128,6 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
-
 
     def _getFile(self):
         return __file__
@@ -150,11 +158,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.COMHeight = self.projectedCOM[1]
         self.projectedCOM[1] = -1.3
 
+        self.ZMP = self.computeZMP()
+
         #test COM containment
         self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
+        self.nonFootContactNode = []
         self.lFootContact = False
         self.rFootContact = False
         self.numFootContacts = 0
@@ -179,19 +190,21 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                             self.rightNormForceMag += abs(contact.f[1])
                         else:
                             self.nonFootContact = True
+                            self.nonFootContactNode.append(contact.bodynode_id2)
                     if contact.skel_id2 == 0:
-                        if contact.bodynode_id2 == 17:
+                        if contact.bodynode_id1 == 17:
                             self.numFootContacts += 1
                             self.lFootContact = True
                             self.leftCOP += contact.p * abs(contact.f[1])
                             self.leftNormForceMag += abs(contact.f[1])
-                        elif contact.bodynode_id2 == 20:
+                        elif contact.bodynode_id1 == 20:
                             self.numFootContacts += 1
                             self.rFootContact = True
                             self.rightCOP += contact.p * abs(contact.f[1])
                             self.rightNormForceMag += abs(contact.f[1])
                         else:
                             self.nonFootContact = True
+                            self.nonFootContactNode.append(contact.bodynode_id1)
 
         if self.leftNormForceMag > 0:
             self.leftCOP /= self.leftNormForceMag
@@ -232,6 +245,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #contact termination
         if self.contactTermiantion:
             if(self.nonFootContact):
+                #print("non Foot Contact with node: " + str(self.nonFootContactNode))
                 return True, -1500
         return False, 0
 
@@ -249,11 +263,21 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_record.append(reward_restPose)
 
         #reward COM over stability region
-        reward_stability = 0
+        reward_COMstability = 0
         if self.stabilityCOMReward:
             #penalty for distance from projected COM to stability centroid
-            reward_stability = -np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM)
-            reward_record.append(reward_stability)
+            reward_COMstability = -np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM)
+            reward_record.append(reward_COMstability)
+
+        # reward COM over stability region
+        reward_ZMPstability = 0
+        if self.stabilityCOMReward:
+            # penalty for distance from projected COM to stability centroid
+            ZMP3D = np.array([self.ZMP[0], self.stabilityPolygonCentroid[1], self.ZMP[1]])
+            reward_ZMPstability = -np.linalg.norm(self.stabilityPolygonCentroid - ZMP3D)
+            reward_ZMPstability = max(reward_ZMPstability, -1.0) #clamp to  distance of 1
+            reward_record.append(reward_ZMPstability)
+            #print(reward_ZMPstability)
 
         #reward # ground contact points
         reward_contact = 0
@@ -312,7 +336,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.rewardsData.update(rewards=reward_record)
 
         self.reward = reward_contact * self.contactRewardWeight \
-                    + reward_stability * self.stabilityCOMRewardWeight \
+                    + reward_COMstability * self.stabilityCOMRewardWeight \
+                    + reward_ZMPstability * self.stabilityZMPRewardWeight \
                     + reward_restPose * self.restPoseRewardWeight \
                     + reward_COMHeight * self.COMHeightRewardWeight \
                     + reward_alive * self.aliveBonusRewardWeight \
@@ -335,6 +360,13 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
         obs = np.concatenate([obs, com]).ravel()
+
+        #ZMP
+        obs = np.concatenate([obs, self.ZMP]).ravel()
+
+        #stability polygon centroid
+        stabilityPolygonCentroid2D = np.array([self.stabilityPolygonCentroid[0], self.stabilityPolygonCentroid[2]])
+        obs = np.concatenate([obs, stabilityPolygonCentroid2D]).ravel()
 
         #foot contacts
         if self.lFootContact:
@@ -369,6 +401,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.initialProjectedLAnkle = self.robot_skeleton.bodynodes[17].to_world(np.zeros(3))
         self.initialProjectedRAnkle[1] = 0
         self.initialProjectedLAnkle[1] = 0
+
+        self.updateBeforeSimulation()
         a=0
 
     def extraRenderFunction(self):
@@ -392,25 +426,11 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         renderUtils.drawLines(COPLines)
 
 
-        #compute the zero moment point
-        if False:
-            m = self.robot_skeleton.mass()
-            g = self.gravity
-            z = np.array([0,1.0,0]) #ground normal (must be opposite gravity)
-            O = self.robot_skeleton.bodynodes[20].to_world(np.zeros(3)) #ankle
-            O[1] = -1.12 #projection of ankle to ground elevation
-            G = self.robot_skeleton.com()
-            Hd = np.zeros(3)#angular momentum: sum of angular momentum of all bodies about O
-            #angular momentum of a body: R(I wd - ( (I w) x w ) )
-            #  where I is Intertia matrix, R is rotation matrix, w rotation rate, wd angular acceleration
-            for node in self.robot_skeleton.bodynodes:
-                I = node.I()
-                R = node.T() #TODO: may need to extract R from this?
-                #w = node. #angular velocity
-                #wd =  #angular acceleration
-                #TODO: combine
-
-            #TODO: continue
+        #render the zero moment point
+        if True:
+            ZMP = self.computeZMP()
+            renderUtils.setColor(color=[0, 1.0, 0.0])
+            renderUtils.drawLines([[np.array([ZMP[0], 1.0, ZMP[1]]), np.array([ZMP[0], -2.0, ZMP[1]])]])
 
 
         #render the ideal stability polygon
