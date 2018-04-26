@@ -22,14 +22,15 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = True
 
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
-        self.contactReward              = True
+        self.contactReward              = False
+        self.flatFootReward             = True #if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = True
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
@@ -39,6 +40,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.restPoseRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 2
         self.contactRewardWeight                = 1
+        self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
         self.aliveBonusRewardWeight             = 5
         self.stationaryAnkleAngleRewardWeight   = 0.025
@@ -78,7 +80,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1080,920),
+                                                          screensize=(1280,920),
                                                           clothMeshFile="capri_med.obj",
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
@@ -100,6 +102,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         if self.contactReward:
             self.rewardsData.addReward(label="contact", rmin=0, rmax=1.0, rval=0, rweight=self.contactRewardWeight)
+
+        if self.flatFootReward:
+            self.rewardsData.addReward(label="flat foot", rmin=-1.0, rmax=0, rval=0, rweight=self.flatFootRewardWeight)
 
         if self.COMHeightReward:
             self.rewardsData.addReward(label="COM height", rmin=-1.0, rmax=0, rval=0, rweight=self.COMHeightRewardWeight)
@@ -252,6 +257,19 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_contact = self.numFootContacts/6.0 #maximum of 6 ground contact points with 3 spheres per foot
             reward_record.append(reward_contact)
 
+        reward_flatFoot = 0
+        if self.flatFootReward:
+            up = np.array([0, 1.0, 0])
+            lFootNorm = self.robot_skeleton.bodynodes[17].to_world(up) - self.robot_skeleton.bodynodes[17].to_world(np.zeros(3))
+            rFootNorm = self.robot_skeleton.bodynodes[20].to_world(up) - self.robot_skeleton.bodynodes[20].to_world(np.zeros(3))
+            lFootNorm = lFootNorm / np.linalg.norm(lFootNorm)
+            rFootNorm = rFootNorm / np.linalg.norm(rFootNorm)
+
+            reward_flatFoot += lFootNorm.dot(up) - 1.0
+            reward_flatFoot += rFootNorm.dot(up) - 1.0
+
+            reward_record.append(reward_flatFoot)
+
         #reward COM height?
         reward_COMHeight = 0
         if self.COMHeightReward:
@@ -273,7 +291,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[39])
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[32])
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[33])
-            reward_stationaryAnkleAngle = -max(-40, reward_stationaryAnkleAngle)
+            reward_stationaryAnkleAngle = max(-40, reward_stationaryAnkleAngle)
             reward_record.append(reward_stationaryAnkleAngle)
 
         reward_stationaryAnklePos = 0
@@ -295,7 +313,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                     + reward_COMHeight * self.COMHeightRewardWeight \
                     + reward_alive * self.aliveBonusRewardWeight \
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
-                    + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight
+                    + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
+                    + reward_flatFoot * self.flatFootRewardWeight
 
         return self.reward
 
