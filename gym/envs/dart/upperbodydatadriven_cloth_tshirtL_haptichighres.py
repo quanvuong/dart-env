@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtLHapticHighResEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -301,7 +301,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLHapticHighResEnv(DartClothUpperBod
         if self.numSteps > 0 and self.simulateCloth:
             #contactInfo = pyutils.getContactIXGeoSide(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
 
-            contactInfo = pyutils.getMinContactGeodesicHighRes(nodeix=12, hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+            contactInfo = pyutils.getContactIXGeoSideHighRes(nodeix=12, nodecom=self.robot_skeleton.bodynodes[12].com(), hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh)
             if len(contactInfo) > 0:
                 avgContactGeodesic = 0
                 for c in contactInfo:
@@ -404,7 +404,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLHapticHighResEnv(DartClothUpperBod
                 oracle = self.sleeveLSeamFeature.plane.normal
             else:
                 #minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,clothscene=self.clothScene,meshgraph=self.separatedMesh,returnOnlyGeo=False)
-                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesicHighRes(nodeix=12, hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh, returnOnlyGeo=False)
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesicHighRes(nodeix=12, nodecom=self.robot_skeleton.bodynodes[12].com(), hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh, returnOnlyGeo=False)
                 if minGeoVix is None:
                     '''
                     #oracle points to the garment when ef not in contact
