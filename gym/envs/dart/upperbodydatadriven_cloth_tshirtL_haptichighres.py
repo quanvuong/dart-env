@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothTshirtLHapticHighResEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -79,6 +79,14 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.fingertip = np.array([0, -0.08, 0])
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
 
+        #high res haptic sensor variables
+        self.hapticSensorLocations = [] #one entry for each body node
+        self.hapticSensorLocationFile = "hapticSensorLocations" #if none, compute
+        self.hapticSensorsPerNode = [0, 51, 0, 16, 24, 20, 9, 15, 23, 24, 13, 9, 15, 20, 25] #must be updated to reflect the number of sensors which will be loaded if not computing from scratch
+        self.totalSensors = 0
+        for sensors in self.hapticSensorsPerNode:
+            self.totalSensors += sensors
+
         self.handleNode = None
         self.updateHandleNodeFrom = 7  # right fingers
 
@@ -87,13 +95,13 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         if self.prevTauObs:
             observation_size += len(self.actuatedDofs)
         if self.hapticsInObs:
-            observation_size += 66
+            observation_size += 3*self.totalSensors
         if self.featureInObs:
             observation_size += 6
         if self.oracleInObs:
             observation_size += 3
         if self.contactIDInObs:
-            observation_size += 22
+            observation_size += self.totalSensors
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -164,6 +172,13 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         self.state_save_directory = "saved_control_states/"
         self.saveStateOnReset = False
+
+        #compute/load topical haptic sensors
+        if self.hapticSensorLocationFile is None:
+            self.computeHapticSensorLocations()
+            self.saveHapticSensorLocations("hapticSensorLocations")
+        else:
+            self.loadHapticSensorLocations(filename=self.hapticSensorLocationFile)
 
     def _getFile(self):
         return __file__
@@ -284,8 +299,9 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
 
         avgContactGeodesic = None
         if self.numSteps > 0 and self.simulateCloth:
-            contactInfo = pyutils.getContactIXGeoSide(sensorix=21, clothscene=self.clothScene,
-                                                      meshgraph=self.separatedMesh)
+            #contactInfo = pyutils.getContactIXGeoSide(sensorix=21, clothscene=self.clothScene, meshgraph=self.separatedMesh)
+
+            contactInfo = pyutils.getMinContactGeodesicHighRes(nodeix=12, hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh)
             if len(contactInfo) > 0:
                 avgContactGeodesic = 0
                 for c in contactInfo:
@@ -353,7 +369,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         return self.reward
 
     def _get_obs(self):
-        f_size = 66
+        f_size = 3*self.totalSensors
         '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
         theta = np.zeros(len(self.actuatedDofs))
         dtheta = np.zeros(len(self.actuatedDofs))
@@ -387,10 +403,8 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             elif self.limbProgress > 0:
                 oracle = self.sleeveLSeamFeature.plane.normal
             else:
-                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,
-                                                                                     clothscene=self.clothScene,
-                                                                                     meshgraph=self.separatedMesh,
-                                                                                     returnOnlyGeo=False)
+                #minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=21,clothscene=self.clothScene,meshgraph=self.separatedMesh,returnOnlyGeo=False)
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesicHighRes(nodeix=12, hapticSensorLocations=self.hapticSensorLocations, clothscene=self.clothScene, meshgraph=self.separatedMesh, returnOnlyGeo=False)
                 if minGeoVix is None:
                     '''
                     #oracle points to the garment when ef not in contact
@@ -558,6 +572,12 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         renderUtils.drawArrow(p0=efL, p1=efL + self.prevOracle)
 
+        #render high res haptic sensors
+        renderUtils.setColor([0.0, 0, 0.8])
+        for node,locations in enumerate(self.hapticSensorLocations):
+            for p in locations:
+                renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[node].to_world(p), rad=0.005)
+
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)
@@ -582,3 +602,180 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             self.clothScene.drawText(x=400., y=self.viewer.viewport[3] - 47, text="Deformation Penalty:           [~15, ~34]", color=(0., 0, 0))
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 35], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
+
+    def computeHapticSensorLocations(self):
+        ''' sensorConcentrations = np.ones(len(self.robot_skeleton.bodynodes))*100
+        sensorConcentrations[4] = 150
+        sensorConcentrations[5] = 150
+        sensorConcentrations[8] = 150
+        sensorConcentrations[9] = 150
+        sensorConcentrations[6] = 250
+        sensorConcentrations[7] = 350
+        sensorConcentrations[11] = 250
+        sensorConcentrations[12] = 350'''
+
+        self.updateClothCollisionStructures()
+        # test capsule projection
+        activeCapsules = self.clothScene.getCollisionCapsuleInfo()
+        collisionSpheresInfo = self.clothScene.getCollisionSpheresInfo()
+        capsuleNodes = self.clothScene.collisionCapsuleBodynodes
+
+        #initialize and empty list for all nodes
+        self.hapticSensorLocations = []
+        for i in range(len(self.robot_skeleton.bodynodes)):
+            self.hapticSensorLocations.append([])
+
+        for r in range(activeCapsules.shape[0]):
+            for c in range(activeCapsules.shape[1]):
+                if activeCapsules[r, c] > 0:
+                    node = int(capsuleNodes[r,c])
+                    print("computing node " + str(node) + " | " + str(self.robot_skeleton.bodynodes[node].name)+" haptic sensors")
+                    c0 = collisionSpheresInfo[r * 9:r * 9 + 3]
+                    r0 = collisionSpheresInfo[r * 9 + 3]
+                    c1 = collisionSpheresInfo[c * 9:c * 9 + 3]
+                    r1 = collisionSpheresInfo[c * 9 + 3]
+                    #samplePoints = pyutils.getSurfaceSamples(sensorConcentrations[node], _p0=c0, _p1=c1, _r0=r0, _r1=r1, endCap0=True, endCap1=True)
+                    #print("     concentration " + str(sensorConcentrations[node])+ " -> " +str(len(samplePoints)) + " sensors...")
+                    samplePoints = pyutils.getSurfaceSamples(self.hapticSensorsPerNode[node], _p0=c0, _p1=c1, _r0=r0, _r1=r1, endCap0=True, endCap1=True, fixedSampleNumber=True)
+                    print("     num samples " + str(self.hapticSensorsPerNode[node])+ " -> " +str(len(samplePoints)) + " sensors...")
+
+                    for i in range(100):
+                        #print("         relaxation " + str(i))
+                        samplePoints = pyutils.relaxCapsulePoints(samplePoints, c0, c1, r0, r1)
+                    localSensorLocations = []
+                    for p in samplePoints:
+                        localSensorLocations.append(self.robot_skeleton.bodynodes[node].to_local(p))
+                    self.hapticSensorLocations[node] = localSensorLocations
+
+
+    def saveHapticSensorLocations(self, filename):
+        f = open(filename, 'w')
+
+        for node,locations in enumerate(self.hapticSensorLocations):
+            for p in locations:
+                f.write("n " + str(node) + " p " + str(p[0]) + " " + str(p[1]) + " " + str(p[2]) + "\n")
+        f.close()
+
+    def loadHapticSensorLocations(self, filename):
+        # initialize and empty list for all nodes
+        self.hapticSensorLocations = []
+        self.hapticSensorsPerNode = []
+        for i in range(len(self.robot_skeleton.bodynodes)):
+            self.hapticSensorLocations.append([])
+            self.hapticSensorsPerNode.append(0)
+
+        f = open(filename, 'r')
+        for ix, line in enumerate(f):
+            words = line.split()
+
+            node = int(words[1])
+            offset = np.array([float(words[3]), float(words[4]), float(words[5])])
+
+            self.hapticSensorLocations[node].append(offset)
+            self.hapticSensorsPerNode[node] += 1
+
+        print("Loaded haptic sensors per node: " + str(self.hapticSensorsPerNode))
+
+        f.close()
+
+    def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
+        a = 0
+        # collision spheres creation
+        fingertip = np.array([0.0, -0.06, 0.0])
+        z = np.array([0., 0, 0])
+        cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
+        cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
+        cs2 = self.robot_skeleton.bodynodes[14].to_world(z)
+        cs3 = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.175, 0]))
+        cs4 = self.robot_skeleton.bodynodes[4].to_world(z)
+        cs5 = self.robot_skeleton.bodynodes[5].to_world(z)
+        cs6 = self.robot_skeleton.bodynodes[6].to_world(z)
+        cs7 = self.robot_skeleton.bodynodes[7].to_world(z)
+        cs8 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        cs9 = self.robot_skeleton.bodynodes[9].to_world(z)
+        cs10 = self.robot_skeleton.bodynodes[10].to_world(z)
+        cs11 = self.robot_skeleton.bodynodes[11].to_world(z)
+        cs12 = self.robot_skeleton.bodynodes[12].to_world(z)
+        cs13 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        csVars0 = np.array([0.15, -1, -1, 0, 0, 0])
+        csVars1 = np.array([0.07, -1, -1, 0, 0, 0])
+        csVars2 = np.array([0.1, -1, -1, 0, 0, 0])
+        csVars3 = np.array([0.1, -1, -1, 0, 0, 0])
+        csVars4 = np.array([0.065, -1, -1, 0, 0, 0])
+        csVars5 = np.array([0.05, -1, -1, 0, 0, 0])
+        csVars6 = np.array([0.0365, -1, -1, 0, 0, 0])
+        csVars7 = np.array([0.04, -1, -1, 0, 0, 0])
+        csVars8 = np.array([0.046, -1, -1, 0, 0, 0])
+        csVars9 = np.array([0.065, -1, -1, 0, 0, 0])
+        csVars10 = np.array([0.05, -1, -1, 0, 0, 0])
+        csVars11 = np.array([0.0365, -1, -1, 0, 0, 0])
+        csVars12 = np.array([0.04, -1, -1, 0, 0, 0])
+        csVars13 = np.array([0.046, -1, -1, 0, 0, 0])
+        collisionSpheresInfo = np.concatenate(
+            [cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7,
+             csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13,
+             csVars13]).ravel()
+
+        # inflate collision objects
+        # for i in range(int(len(collisionSpheresInfo)/9)):
+        #    collisionSpheresInfo[i*9 + 3] *= 1.15
+
+        self.collisionSphereInfo = np.array(collisionSpheresInfo)
+        # collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
+        if np.isnan(np.sum(
+                collisionSpheresInfo)):  # this will keep nans from propagating into PhysX resulting in segfault on reset()
+            return
+        self.clothScene.setCollisionSpheresInfo(collisionSpheresInfo)
+
+        if capsules is True:
+            # collision capsules creation
+            collisionCapsuleInfo = np.zeros((14, 14))
+            collisionCapsuleInfo[0, 1] = 1
+            collisionCapsuleInfo[1, 2] = 1
+            collisionCapsuleInfo[1, 4] = 1
+            collisionCapsuleInfo[1, 9] = 1
+            collisionCapsuleInfo[2, 3] = 1
+            collisionCapsuleInfo[4, 5] = 1
+            collisionCapsuleInfo[5, 6] = 1
+            collisionCapsuleInfo[6, 7] = 1
+            collisionCapsuleInfo[7, 8] = 1
+            collisionCapsuleInfo[9, 10] = 1
+            collisionCapsuleInfo[10, 11] = 1
+            collisionCapsuleInfo[11, 12] = 1
+            collisionCapsuleInfo[12, 13] = 1
+            collisionCapsuleBodynodes = -1 * np.ones((14, 14))
+            collisionCapsuleBodynodes[0, 1] = 1
+            collisionCapsuleBodynodes[1, 2] = 13
+            collisionCapsuleBodynodes[1, 4] = 3
+            collisionCapsuleBodynodes[1, 9] = 8
+            collisionCapsuleBodynodes[2, 3] = 14
+            collisionCapsuleBodynodes[4, 5] = 4
+            collisionCapsuleBodynodes[5, 6] = 5
+            collisionCapsuleBodynodes[6, 7] = 6
+            collisionCapsuleBodynodes[7, 8] = 7
+            collisionCapsuleBodynodes[9, 10] = 9
+            collisionCapsuleBodynodes[10, 11] = 10
+            collisionCapsuleBodynodes[11, 12] = 11
+            collisionCapsuleBodynodes[12, 13] = 12
+            self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
+            self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
+
+        if hapticSensors is True:
+            #TODO: update this to pull from computed locations
+            # hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
+            # hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
+            hapticSensorLocations = np.zeros(0)
+
+            if len(self.hapticSensorLocations) > 0:
+                #load haptic sensors from datastructure
+                for i in range(len(self.hapticSensorLocations)):
+                    for offset in self.hapticSensorLocations[i]:
+                        #if(hapticSensorLocations is None):
+                        #    hapticSensorLocations = np.array(self.robot_skeleton.bodynodes[i].to_world(offset))
+                        #else:
+                        hapticSensorLocations = np.concatenate([hapticSensorLocations, self.robot_skeleton.bodynodes[i].to_world(offset)])
+
+                hapticSensorRadii = np.zeros(int(len(hapticSensorLocations)/3))
+
+                self.clothScene.setHapticSensorLocations(hapticSensorLocations)
+                self.clothScene.setHapticSensorRadii(hapticSensorRadii)

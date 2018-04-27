@@ -415,6 +415,12 @@ register(
 )
 
 register(
+    id='DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothTshirtLHapticHighResEnv',
+    #max_episode_steps=250,
+)
+
+register(
     id='DartClothUpperBodyDataDrivenReacher-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothReacherEnv',
     #max_episode_steps=250,

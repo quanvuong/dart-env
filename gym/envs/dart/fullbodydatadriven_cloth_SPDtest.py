@@ -151,6 +151,7 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         self.additionalAction = self.SPD.query(None)
+
         a=0
 
     def checkTermination(self, tau, s, obs):

@@ -42,6 +42,15 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.totalTime = 0
         self.locked_foot = False
 
+        #action graphing
+        self.graphingActions = True
+        self.actionTrajectory = []
+        self.actionGraph = None
+        self.actionGraphFoci = [6,7]
+        self.updateDelay = 3
+        self.lastUpdate = 3
+        self.changedFocus = False
+
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
@@ -453,6 +462,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             for ix,dof in enumerate(self.actuatedDofs):
                 tau[dof] = newtau[ix]
 
+        self.actionTrajectory.append(tau)
+
         startTime2 = time.time()
         if self.SPDTarget is not None and self.SPD is not None:
             self.do_simulation(self.additionalAction, self.frame_skip)
@@ -508,6 +519,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print(done)
         '''
 
+        self.updateActionGraph()
+
         return ob, self.reward, done, {}
 
     def _get_obs(self):
@@ -526,6 +539,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print()
         self.rewardsData.reset()
         self.stateTraj = []
+        self.actionTrajectory = []
+        self.changedFocus = True
 
         #---------------------------
         #random seeding
@@ -809,3 +824,35 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         zZMP /= denom
         return np.array([xZMP, zZMP])
 
+    def updateActionGraph(self):
+        if self.actionGraph is not None:
+            if self.changedFocus:
+                self.actionGraph.close()
+                self.actionGraph = None
+                self.changedFocus = False
+                self.lastUpdate = 0
+
+        if self.graphingActions:
+            if self.actionGraph is None:
+                if self.lastUpdate > self.updateDelay:
+                    self.lastUpdate = 0
+                    self.changedFocus = False
+                    self.actionGraph = pyutils.LineGrapher(title="Action Graph", legend=True)
+
+                    #for each focus, fill the ydata
+                    yData = []
+                    self.actionGraph.xdata = np.arange(len(self.actionTrajectory)).tolist()
+                    if(len(self.actionTrajectory) > 0):
+                        for gix,fix in enumerate(self.actionGraphFoci):
+                            yData.append([])
+                            for i in range(len(self.actionTrajectory)):
+                                yData[gix].append(self.actionTrajectory[i][fix])
+                            self.actionGraph.plotData(ydata=yData[gix], label=str(fix))
+            else:
+                #adding a new data entry
+                newData = []
+                for gix, fix in enumerate(self.actionGraphFoci):
+                    newData.append(self.actionTrajectory[-1][fix])
+                self.actionGraph.addToLinePlot(newData)
+
+        self.lastUpdate += 1

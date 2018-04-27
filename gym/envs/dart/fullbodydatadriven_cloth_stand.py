@@ -431,13 +431,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             ZMP = self.computeZMP()
             renderUtils.setColor(color=[0, 1.0, 0.0])
             renderUtils.drawLines([[np.array([ZMP[0], 1.0, ZMP[1]]), np.array([ZMP[0], -2.0, ZMP[1]])]])
-
+            renderUtils.drawSphere(pos=np.array([ZMP[0], self.projectedCOM[1], ZMP[1]]))
 
         #render the ideal stability polygon
         if len(self.stabilityPolygon) > 0:
             renderUtils.drawPolygon(self.stabilityPolygon)
         renderUtils.setColor([0.0,0,1.0])
         renderUtils.drawSphere(pos=self.projectedCOM)
+        renderUtils.drawLines([[np.array([self.projectedCOM[0], 1.0, self.projectedCOM[2]]), np.array([self.projectedCOM[0], -2.0, self.projectedCOM[2]])]])
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)
@@ -457,4 +458,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             textLines += 1
 
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                tauLim = np.concatenate([np.zeros(6), self.action_scale])
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True, tau=self.prevTau, tauLim=tauLim)
+
+                #grapher test
+                '''i = int(self.numSteps/100)
+                tauGraph = pyutils.LineGrapher("Tau["+str(i)+"]")
+                data = []
+                for s in range(self.numSteps):
+                    data.append(self.actionTrajectory[s][i])
+                tauGraph.plotData(ydata=data,label=str(i))'''
+                #self.actionGraphFoci = [10]
+                #tauGraph.update()
+                #tauGraph.close()
