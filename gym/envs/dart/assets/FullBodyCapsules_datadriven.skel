@@ -1199,8 +1199,8 @@
                 <axis2>
                     <xyz>0.0 1.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.75</lower>
+                        <upper>0.75</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>
@@ -1280,8 +1280,8 @@
                 <axis2>
                     <xyz>0.0 -1.0 0.0</xyz>
                     <limit>
-                        <lower>-1.57</lower>
-                        <upper>1.57</upper>
+                        <lower>-0.75</lower>
+                        <upper>0.75</upper>
                     </limit>
                     <dynamics>
                         <damping>1.0</damping>

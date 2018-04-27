@@ -25,11 +25,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         rendering = False
         clothSimulation = False
         renderCloth = True
+        self.gravity = True
 
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
         self.stabilityZMPReward         = True
+        self.stabilityBonusReward       = True
         self.contactReward              = False
         self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = True
@@ -38,9 +40,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
 
         #reward weights
-        self.restPoseRewardWeight               = 1
-        self.stabilityCOMRewardWeight           = 5
-        self.stabilityZMPRewardWeight           = 2
+        self.restPoseRewardWeight               = 0.5
+        self.stabilityCOMRewardWeight           = 7
+        self.stabilityZMPRewardWeight           = 3
+        self.stabilityBonusRewardWeight         = 1
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
@@ -49,9 +52,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
-        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+        self.maxUnstableDistance = 0.1
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
-        self.gravity = True
 
         #other variables
         self.prevTau = None
@@ -61,6 +64,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.projectedCOM = np.zeros(3)
         self.COMHeight = 0.0
         self.stableCOM = True
+        self.stableZMP = True
         self.ZMP = np.zeros(2)
         self.numFootContacts = 0
         self.footContact = False
@@ -108,6 +112,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         if self.stabilityZMPReward:
             self.rewardsData.addReward(label="ZMP stability", rmin=-1.0, rmax=0, rval=0, rweight=self.stabilityZMPRewardWeight)
 
+        if self.stabilityBonusReward:
+            self.rewardsData.addReward(label="Bonus stability", rmin=0.0, rmax=1.0, rval=0, rweight=self.stabilityBonusRewardWeight)
+
         if self.contactReward:
             self.rewardsData.addReward(label="contact", rmin=0, rmax=1.0, rval=0, rweight=self.contactRewardWeight)
 
@@ -125,7 +132,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
-
 
     def _getFile(self):
         return __file__
@@ -155,6 +161,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
 
         #test COM containment
         self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        self.stableZMP = pyutils.polygon2DContains(hull, np.array([self.ZMP[0], self.ZMP[1]]))
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
@@ -214,7 +221,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         #stability termination
         if self.stabilityTermination:
             if not self.stableCOM:
-                return True, -1500
+                if np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM) > self.maxUnstableDistance:
+                    return True, -1500
 
         #contact termination
         if self.contactTermination:
@@ -252,6 +260,14 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
             reward_record.append(reward_ZMPstability)
             # print(reward_ZMPstability)
 
+        reward_stabilityBonus = 0
+        if self.stabilityBonusReward:
+            if self.stableCOM:
+                reward_stabilityBonus += 0.5
+            if self.stableZMP:
+                reward_stabilityBonus += 0.5
+            reward_record.append(reward_stabilityBonus)
+
         #reward # ground contact points
         reward_contact = 0
         if self.contactReward:
@@ -287,7 +303,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         if self.stationaryAnkleAngleReward:
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[self.ankleDofs[0]])
             reward_stationaryAnkleAngle += -abs(self.robot_skeleton.dq[self.ankleDofs[1]])
-            reward_stationaryAnkleAngle = -max(-40, reward_stationaryAnkleAngle)
+            reward_stationaryAnkleAngle = max(-40, reward_stationaryAnkleAngle)
             reward_record.append(reward_stationaryAnkleAngle)
 
         reward_stationaryAnklePos = 0
@@ -303,6 +319,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.reward = reward_contact * self.contactRewardWeight \
                     + reward_stability * self.stabilityCOMRewardWeight \
                     + reward_ZMPstability * self.stabilityZMPRewardWeight \
+                    + reward_stabilityBonus * self.stabilityBonusRewardWeight \
                     + reward_restPose * self.restPoseRewardWeight \
                     + reward_COMHeight * self.COMHeightRewardWeight \
                     + reward_alive * self.aliveBonusRewardWeight \
