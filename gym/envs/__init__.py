@@ -508,6 +508,12 @@ register(
 )
 
 register(
+    id='DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv',
+    #max_episode_steps=250,
+)
+
+register(
     id='DartClothFullBodyDataDrivenClothOneFootStandShorts-v1',
     entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothOneFootStandShortsEnv',
     #max_episode_steps=250,

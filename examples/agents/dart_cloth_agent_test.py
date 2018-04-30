@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2018_04_26_lsleeve_wide_warm_cont"
     #trial = "experiment_2018_04_27_sleeveL_narrow_haptichighres"
-    trial = "experiment_2018_04_27_onefootstand_warm"
+    #trial = "experiment_2018_04_27_onefootstand_warm"
 
     #trial = "experiment_2018_04_26_onefootstand"
     #trial = "experiment_2018_04_26_stand"
@@ -268,7 +268,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
 
 
@@ -294,7 +295,7 @@ if __name__ == '__main__':
         #print(envFilename)
         env.render()
         #time.sleep(0.5)
-        rolloutHorizon = 1000
+        rolloutHorizon = 10000
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
