@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = True
         self.gravity = True
@@ -40,20 +40,20 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
 
         #reward weights
-        self.restPoseRewardWeight               = 0.5
+        self.restPoseRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 7
-        self.stabilityZMPRewardWeight           = 3
-        self.stabilityBonusRewardWeight         = 1
+        self.stabilityZMPRewardWeight           = 6
+        self.stabilityBonusRewardWeight         = 2
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
-        self.COMHeightRewardWeight              = 2
+        self.COMHeightRewardWeight              = 3
         self.aliveBonusRewardWeight             = 5
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
 
         #other flags
         self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
-        self.maxUnstableDistance = 0.1
+        self.maxUnstableDistance = 0.075
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
 
         #other variables
@@ -221,7 +221,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         #stability termination
         if self.stabilityTermination:
             if not self.stableCOM:
-                if np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM) > self.maxUnstableDistance:
+                dist2tri, closeP = pyutils.distToTriangle(self.stabilityPolygon[0], self.stabilityPolygon[1], self.stabilityPolygon[2], self.projectedCOM)
+                #print(dist2tri)
+                #if np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM) > self.maxUnstableDistance:
+                if dist2tri > self.maxUnstableDistance:
                     return True, -1500
 
         #contact termination
@@ -406,6 +409,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandEnv(DartClothFullBodyDataDrive
         renderUtils.setColor(color=[0.0, 0.0, 1.0])
         renderUtils.drawLines([[self.robot_skeleton.com(), np.array([self.robot_skeleton.com()[0], -2.0, self.robot_skeleton.com()[2]])]])
 
+        dist2tri, closeP = pyutils.distToTriangle(self.stabilityPolygon[0], self.stabilityPolygon[1], self.stabilityPolygon[2], self.projectedCOM)
+        renderUtils.drawLines(lines=[[closeP, self.projectedCOM]])
 
         #compute the zero moment point
         if True:
