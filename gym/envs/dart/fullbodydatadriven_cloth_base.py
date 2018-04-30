@@ -43,7 +43,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.locked_foot = False
 
         #action graphing
-        self.graphingActions = True
+        self.graphingActions = False
         self.actionTrajectory = []
         self.actionGraph = None
         self.actionGraphFoci = [6,7]
