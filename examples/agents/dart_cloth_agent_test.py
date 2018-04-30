@@ -20,6 +20,10 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_04_26_lsleeve_wide_warm_cont"
+    #trial = "experiment_2018_04_27_sleeveL_narrow_haptichighres"
+    #trial = "experiment_2018_04_27_onefootstand_warm"
+
     #trial = "experiment_2018_04_26_onefootstand"
     #trial = "experiment_2018_04_26_stand"
     #trial = "experiment_2018_04_26_lsleeve_wide_warm"
@@ -249,8 +253,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right

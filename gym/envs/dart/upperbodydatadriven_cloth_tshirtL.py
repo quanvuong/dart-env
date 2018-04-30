@@ -50,7 +50,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.limbProgressRewardWeight = 15
         self.oracleDisplacementRewardWeight = 50
         self.contactGeoRewardWeight = 4
-        self.deformationPenaltyWeight = 1  # was 5... then 1...
+        self.deformationPenaltyWeight = 5  # was 5... then 1...
         self.restPoseRewardWeight = 1
 
         #other flags
