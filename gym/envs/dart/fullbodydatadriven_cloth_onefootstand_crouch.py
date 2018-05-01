@@ -47,7 +47,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 4
-        self.aliveBonusRewardWeight             = 5
+        self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
 
@@ -201,19 +201,19 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
             #print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -2000
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
             print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
-            return True, -1500
+            return True, -2000
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
             print("Detecting potential instability via velocity: " + str(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1]))))
             print(s)
             print(self.stateTraj[-2:])
             print(self.rewardTrajectory)
-            return True, -1500
+            return True, -2000
 
 
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
@@ -225,12 +225,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
                 #print(dist2tri)
                 #if np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM) > self.maxUnstableDistance:
                 if dist2tri > self.maxUnstableDistance:
-                    return True, -1500
+                    return True, -2000
 
         #contact termination
         if self.contactTermination:
             if self.nonFootContact:
-                return True, -1500
+                return True, -2000
         return False, 0
 
     def computeReward(self, tau):
@@ -329,6 +329,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
                     + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
                     + reward_flatFoot * self.flatFootRewardWeight
+
+        #print(self.reward)
 
         return self.reward
 

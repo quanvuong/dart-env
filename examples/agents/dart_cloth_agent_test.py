@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_04_30_sleeveL_wide_highdef"
+    #trial = "experiment_2018_04_30_onefootstand_crouch"
+
     #trial = "experiment_2018_04_26_lsleeve_wide_warm_cont"
     #trial = "experiment_2018_04_27_sleeveL_narrow_haptichighres"
     #trial = "experiment_2018_04_27_onefootstand_warm"
@@ -307,7 +310,7 @@ if __name__ == '__main__':
             a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
 
             #a = -np.ones(len(a))
-            #a += np.random.uniform(-1,1,len(a))
+            a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
