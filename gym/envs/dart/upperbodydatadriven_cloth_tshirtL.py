@@ -64,7 +64,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionPrefix = "saved_control_states/ltuck_wide"
         #self.resetDistributionSize = 17 #3
         self.resetDistributionPrefix = "saved_control_states/enter_seq_lsleeve"
-        self.resetDistributionSize = 20 #20
+        self.resetDistributionSize = 3 #20
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -485,12 +485,15 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             #resetStateNumber = 7 #best in the rtuck set?
             #resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = 2
+            resetStateNumber += 7
             #resetStateNumber = self.reset_number%self.resetDistributionSize
             #print("resetStateNumber: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             #print(charfname_ix)
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
             #self.restPose = np.array(self.robot_skeleton.q)
             #self.set_state(qpos, qvel)
         else:
@@ -514,6 +517,22 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             self.collarFeature.fitPlane()
             self.gripFeatureL.fitPlane()
             self.gripFeatureR.fitPlane()
+
+            # ensure relative correctness of normals
+            CP2_CP1 = self.sleeveLEndFeature.plane.org - self.sleeveLMidFeature.plane.org
+            CP2_CP0 = self.sleeveLSeamFeature.plane.org - self.sleeveLMidFeature.plane.org
+
+            # if CP2 normal is not facing the sleeve end invert it
+            if CP2_CP1.dot(self.sleeveLMidFeature.plane.normal) < 0:
+                self.sleeveLMidFeature.plane.normal *= -1.0
+
+            # if CP1 normal is facing the sleeve middle invert it
+            if CP2_CP1.dot(self.sleeveLEndFeature.plane.normal) < 0:
+                self.sleeveLEndFeature.plane.normal *= -1.0
+
+            # if CP0 normal is not facing sleeve middle invert it
+            if CP2_CP0.dot(self.sleeveLSeamFeature.plane.normal) > 0:
+                self.sleeveLSeamFeature.plane.normal *= -1.0
 
         if self.limbProgressReward:
             self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.sleeveLSeamFeature)
