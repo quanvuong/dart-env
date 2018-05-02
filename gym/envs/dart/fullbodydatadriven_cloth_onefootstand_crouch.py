@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         renderCloth = True
         self.gravity = True
@@ -490,4 +490,4 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
             textLines += 1
 
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)

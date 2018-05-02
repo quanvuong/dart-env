@@ -43,7 +43,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.locked_foot = False
 
         #action graphing
-        self.graphingActions = True
+        self.graphingActions = False
         self.actionTrajectory = []
         self.actionGraph = None
         self.actionGraphFoci = [6,7]
@@ -87,7 +87,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28-6:] *= 4#2.5 #20 -> 50
+            self.action_scale[28-6:] *= 5#2.5 #20 -> 50
             #thighs
             self.action_scale[28-6] = 150
             self.action_scale[34-6] = 150
@@ -104,9 +104,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)+self.recurrency), np.ones(len(self.actuatedDofs)+self.recurrency)*-1])
 
         #if SPD
-        self.action_scale = np.ones(len(self.action_scale))
-        self.control_bounds[0] *= 250
-        self.control_bounds[1] *= 250
+        if False:
+            self.action_scale = np.ones(len(self.action_scale))
+            self.control_bounds[0] *= 250
+            self.control_bounds[1] *= 250
 
         self.reset_number = 0
         self.numSteps = 0
