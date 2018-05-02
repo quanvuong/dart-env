@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = True
         self.gravity = True
@@ -31,13 +31,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
         self.stabilityZMPReward         = True
-        self.stabilityBonusReward       = True
+        self.stabilityBonusReward       = False
         self.contactReward              = False
-        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
-        self.COMHeightReward            = True
+        self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
+        self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
-        self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
-        self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
+        self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
+        self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
 
         #reward weights
         self.restPoseRewardWeight               = 1
