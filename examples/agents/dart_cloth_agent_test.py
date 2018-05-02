@@ -20,7 +20,11 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_04_30_sleeveL_wide_highdef"
+    #trial = "experiment_2018_05_01_sleevel_narrow"
+    trial = "experiment_2018_05_01_sleevel_widewarm"
+    #trial = "experiment_2018_05_01_onefootstand_crouch"
+
+    #trial = "experiment_2018_04_30_sleeveL_wide_highdef"
     #trial = "experiment_2018_04_30_onefootstand_crouch"
 
     #trial = "experiment_2018_04_26_lsleeve_wide_warm_cont"

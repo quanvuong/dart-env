@@ -427,13 +427,14 @@ class LeftSleeveController(Controller):
         #policyfilename = "experiment_2018_04_23_lsleeve"
         #policyfilename = "experiment_2018_04_23_lsleeve_warm"
 
-        policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
+        #policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
+        policyfilename = "experiment_2018_05_01_sleevel_widewarm"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_lsleeve")
+        #self.env.saveState(name="enter_seq_lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7

@@ -43,10 +43,12 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.locked_foot = False
 
         #action graphing
-        self.graphingActions = False
+        self.graphingActions = True
         self.actionTrajectory = []
         self.actionGraph = None
         self.actionGraphFoci = [6,7]
+        self.actionGraphFoci = [28,29,30,31, 32, 33]
+        #self.actionGraphFoci = np.arange(39)
         self.updateDelay = 3
         self.lastUpdate = 3
         self.changedFocus = False
@@ -82,15 +84,29 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if not SPDActionSpace:
             self.action_scale *= 20
             if 6 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(6)] = 100
+                self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(7)] = 100
+                self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
             self.action_scale[28-6:] *= 4#2.5 #20 -> 50
+            #thighs
+            self.action_scale[28-6] = 150
+            self.action_scale[34-6] = 150
+            #knees
+            self.action_scale[31-6] = 200
+            self.action_scale[37-6] = 200
+            #self.action_scale[
+
+        #self.action_scale*=10
 
         if self.recurrency > 0:
             self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
 
         self.control_bounds = np.array([np.ones(len(self.actuatedDofs)+self.recurrency), np.ones(len(self.actuatedDofs)+self.recurrency)*-1])
+
+        #if SPD
+        self.action_scale = np.ones(len(self.action_scale))
+        self.control_bounds[0] *= 250
+        self.control_bounds[1] *= 250
 
         self.reset_number = 0
         self.numSteps = 0

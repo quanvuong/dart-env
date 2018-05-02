@@ -60,12 +60,12 @@ class SPDController(Controller):
         self.target = target
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
-        self.h = 0.01
+        self.h = 0.004
         self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs-6
         self.qhat = self.skel.q
-        self.Kp = np.diagflat([400.0] * (ndofs))
-        self.Kd = np.diagflat([40.0] * (ndofs))
+        self.Kp = np.diagflat([800.0] * (ndofs))
+        self.Kd = np.diagflat([8.0] * (ndofs))
 
         '''
         for i in range(ndofs):
@@ -187,6 +187,15 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
              -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585,
              -0.00244949106062])
 
+        qpos = np.array(
+            [0.0792540309714, -0.198038537538, 0.165982043711, 0.057678066664, -0.03, 0.0514905008947, 0.0153889940281,
+             0.172754267613, -0.0152665902114, 0.0447139591458, -0.0159152223541, -0.741653453661, -0.291857490409,
+             0.073, 0.247712958964, 0.0230298051369, -0.0129663713662, -0.0251081943623, 0.0184011650614,
+             0.0284706137625, -0.0143437953932, 0.00253595897386, 0.202764558055, 0.008180767185, 0.00144036976378,
+             -0.00599927843092, 0.010826449318, 0.00831071336219, -0.0983439895237, -0.189360110846, 0.291156844437,
+             0.58830057445, 0.337019304264, 0.151085855622, 0.00418796434677, -0.841518739136, 0.0266268945701,
+             2.23410594707, -0.0133781980567, 0.00155774102539])
+
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         # qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
@@ -222,6 +231,10 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
         renderUtils.setColor(color=[1.0,0,0])
         renderUtils.drawLines(lines=[[projCOM, projCOM+np.array([0,1.0,0])]])
 
+        ZMP = self.computeZMP()
+        renderUtils.setColor(color=[0, 1.0, 0.0])
+        renderUtils.drawLines([[np.zeros(3), np.array([ZMP[0], -1.7, ZMP[1]])]])
+
         # draw the convex hull of the ground contact points
         points = []
 
@@ -233,7 +246,7 @@ class DartClothFullBodyDataDrivenClothSPDTestEnv(DartClothFullBodyDataDrivenClot
                     if contact.skel_id1 == 0 or contact.skel_id2 == 0:
                         lines.append([np.zeros(3), np.array(contact.point)])
                         points.append(np.array([contact.point[0],contact.point[2]]))
-        renderUtils.drawLines(lines)
+        #renderUtils.drawLines(lines)
 
         if len(points) > 0:
             hull = pyutils.convexHull2D(points)
