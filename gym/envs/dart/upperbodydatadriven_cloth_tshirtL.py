@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
@@ -506,7 +506,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
             target_chance = 0.9
             target_resets = [7,8,10,11,12,13,14,15,16,17]
             resetStateNumber = random.randint(0, self.resetDistributionSize - 1)
-            if True:
+            if False:
                 if random.random() < target_chance:
                     resetStateNumber = target_resets[random.randint(0, len(target_resets) - 1)]
                 else:

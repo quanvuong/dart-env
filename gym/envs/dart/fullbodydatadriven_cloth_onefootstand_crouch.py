@@ -31,7 +31,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
         self.stabilityZMPReward         = True
-        self.stabilityBonusReward       = False
+        self.stabilityBonusReward       = True
         self.contactReward              = False
         self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = False
@@ -43,7 +43,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.restPoseRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 7
         self.stabilityZMPRewardWeight           = 6
-        self.stabilityBonusRewardWeight         = 2
+        self.stabilityBonusRewardWeight         = 4
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 4
@@ -65,6 +65,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.COMHeight = 0.0
         self.stableCOM = True
         self.stableZMP = True
+        self.signedStabilityCOMDist = 0
+        self.signedStabilityZMPDist = 0
         self.ZMP = np.zeros(2)
         self.numFootContacts = 0
         self.footContact = False
@@ -83,6 +85,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         observation_size += 2  # stability polygon centroid (2D)
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
+        observation_size += 2 #signed COM and ZMP polygon distance
 
 
 
@@ -163,6 +166,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
         self.stableZMP = pyutils.polygon2DContains(hull, np.array([self.ZMP[0], self.ZMP[1]]))
         #print("containedCOM: " + str(containedCOM))
+
+        #signed triangle distances
+        self.signedStabilityCOMDist, closePCOM = pyutils.distToTriangle(self.stabilityPolygon[0], self.stabilityPolygon[1], self.stabilityPolygon[2], self.projectedCOM, signed=True)
+        self.signedStabilityZMPDist, closePZMP = pyutils.distToTriangle(self.stabilityPolygon[0], self.stabilityPolygon[1], self.stabilityPolygon[2], np.array([self.ZMP[0], self.stabilityPolygon[1][1], self.ZMP[1]]), signed=True)
+
+        self.signedStabilityCOMDist = max(-1.0, min(1.0, self.signedStabilityCOMDist))
+        self.signedStabilityZMPDist = max(-1.0, min(1.0, self.signedStabilityZMPDist))
+
+        #print("COM stability: " + str(self.signedStabilityCOMDist))
+        #print("ZMP stability: " + str(self.signedStabilityZMPDist))
 
         #analyze contacts
         self.footContact = False
@@ -255,7 +268,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
 
         # reward COM over stability region
         reward_ZMPstability = 0
-        if self.stabilityCOMReward:
+        if self.stabilityZMPReward:
             # penalty for distance from projected COM to stability centroid
             ZMP3D = np.array([self.ZMP[0], self.stabilityPolygonCentroid[1], self.ZMP[1]])
             reward_ZMPstability = -np.linalg.norm(self.stabilityPolygonCentroid - ZMP3D)
@@ -364,6 +377,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         #foot COP and norm force magnitude
         obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
 
+        obs = np.concatenate([obs, [self.signedStabilityCOMDist], [self.signedStabilityZMPDist]]).ravel()
+
         #print(obs)
 
         return obs
@@ -373,14 +388,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         #TODO: set a one foot standing initial pose
         #qpos = np.array([-0.00469234655801, -0.0218378114573, -0.011132330496, 0.00809830385355, 0.00051861417993, 0.0584867818269, 0.374712375814, 0.0522417260384, -0.00777676124956, 0.00230285789432, -0.00274958108859, -0.008064630425, 0.00247294825781, -0.0093978116532, 0.195632645271, -0.00276696945071, 0.0075491687512, -0.0116846422966, 0.00636619242284, 0.00767084047346, -0.00913509000374, 0.00857521738396, 0.199096855493, 0.00787726246678, -0.00760402683795, -0.00433642327146, 0.00802311463366, -0.00482248656677, 0.131248337324, -0.00662274635457, 0.00333416764933, 0.00546016678096, -0.00150775759695, -0.00861184703697, -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585, -0.00244949106062])
         #qpos = np.array([0.0846660806322, -0.187712686011, 0.161260303884, 0.0641489627886, -0.0186528700497, 0.0474250147964, 0.020015958046, 0.16770604227, -0.0108410165928, 0.0535965979519, -0.0197669537195, -0.196563691654, -0.296550499725, 0.184719231518, 0.239352890642, 0.0203682695093, -0.00774988189866, -0.0319199328056, 0.0143662479045, 0.0210962017901, -0.00469342183995, 0.00455195202435, 0.195713986333, 0.0158739145927, -0.00663330152384, -0.0022286922927, 0.0146798728224, 0.00511109556815, -0.100090281179, -0.199426956515, 0.145284176732, 0.59524411564, 0.341386269429, 0.148021694136, 0.00156540000676, -0.839133710152, 0.017241857498, 2.23305534804, -0.00869403893085, 0.00486575140185])
-        qpos = np.array([0.0792540309714, -0.198038537538, 0.165982043711, 0.057678066664, -0.03, 0.0514905008947, 0.0153889940281, 0.172754267613, -0.0152665902114, 0.0447139591458, -0.0159152223541, -0.741653453661, -0.291857490409, 0.073, 0.247712958964, 0.0230298051369, -0.0129663713662, -0.0251081943623, 0.0184011650614, 0.0284706137625, -0.0143437953932, 0.00253595897386, 0.202764558055, 0.008180767185, 0.00144036976378, -0.00599927843092, 0.010826449318, 0.00831071336219, -0.0983439895237, -0.189360110846, 0.291156844437, 0.58830057445, 0.337019304264, 0.151085855622, 0.00418796434677, -0.841518739136, 0.0266268945701, 2.23410594707, -0.0133781980567, 0.00155774102539])
+        #qpos = np.array([0.0792540309714, -0.198038537538, 0.165982043711, 0.057678066664, -0.03, 0.0514905008947, 0.0153889940281, 0.172754267613, -0.0152665902114, 0.0447139591458, -0.0159152223541, -0.741653453661, -0.291857490409, 0.073, 0.247712958964, 0.0230298051369, -0.0129663713662, -0.0251081943623, 0.0184011650614, 0.0284706137625, -0.0143437953932, 0.00253595897386, 0.202764558055, 0.008180767185, 0.00144036976378, -0.00599927843092, 0.010826449318, 0.00831071336219, -0.0983439895237, -0.189360110846, 0.291156844437, 0.58830057445, 0.337019304264, 0.151085855622, 0.00418796434677, -0.841518739136, 0.0266268945701, 2.23410594707, -0.0133781980567, 0.00155774102539])
+        qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
+        self.restPose = np.array(qpos)
 
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
-        self.restPose = qpos
+
 
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))

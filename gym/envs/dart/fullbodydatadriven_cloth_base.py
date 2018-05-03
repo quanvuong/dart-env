@@ -619,7 +619,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
-        #TODO: need to overhaul this for the lower body
         a=0
         #collision spheres creation
         fingertip = np.array([0.0, -0.06, 0.0])

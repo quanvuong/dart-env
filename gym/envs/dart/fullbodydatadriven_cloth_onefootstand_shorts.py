@@ -23,8 +23,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
     def __init__(self):
         #feature flags
         rendering = True
-        clothSimulation = False
+        clothSimulation = True
         renderCloth = True
+        self.gravity = True
 
         #reward flags
         self.restPoseReward             = True
@@ -49,7 +50,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = False #if anything except the feet touch the ground, terminate
-        self.gravity = True
 
         #other variables
         self.prevTau = None
@@ -67,6 +67,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.footNormForceMag = 0
         self.footBodyNode = 17 #17 left, 20 right
         self.ankleDofs = [32,33] #[32,33] left, [38,39] right
+        self.fingertip = np.array([0,-0.08,0])
+
+        #handle nodes
+        self.handleNodes = []
+        self.updateHandleNodesFrom = [7, 12]
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
@@ -79,9 +84,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1080,920),
+                                                          screensize=(1280,920),
                                                           clothMeshFile="shorts_med.obj",
-                                                          clothScale=np.array([1.0,1.0,1.0]),
+                                                          clothScale=np.array([0.9,0.9,0.9]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           gravity=self.gravity)
@@ -93,8 +98,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legEndVerticesR = [45, 394, 133, 397, 69, 399, 134, 401, 20, 174, 127, 336, 21, 233, 79, 258, 29, 254, 83, 264]
         self.legMidVerticesR = [91, 400, 130, 396, 128, 162, 165, 141, 298, 417, 19, 219, 270, 427, 440, 153, 320, 71, 167, 30, 424]
         self.legMidVerticesL = [280, 360, 102, 340, 196, 206, 113, 290, 41, 178, 72, 325, 159, 147, 430, 291, 439, 55, 345, 125, 429]
-        #TODO: waistband
+        self.waistVertices = [215, 278, 110, 217, 321, 344, 189, 62, 94, 281, 208, 107, 188, 253, 228, 212, 366, 92, 160, 119, 230, 365, 77, 0, 104, 163, 351, 120, 295, 275, 112]
         #TODO: leg entrance L and R
+        self.legStartVerticesR = [232, 421, 176, 82, 319, 403, 256, 314, 98, 408, 144, 26, 261, 84, 434, 432, 27, 369, 132, 157, 249, 203, 99, 184, 437]
+        self.legStartVerticesL = [209, 197, 257, 68, 109, 248, 238, 357, 195, 108, 222, 114, 205, 86, 273, 35, 239, 137, 297, 183, 105]
+
+
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene)
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene)
 
@@ -102,8 +111,17 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legEndFeatureR = ClothFeature(verts=self.legEndVerticesR, clothScene=self.clothScene)
         self.legMidFeatureL = ClothFeature(verts=self.legMidVerticesL, clothScene=self.clothScene)
         self.legMidFeatureR = ClothFeature(verts=self.legMidVerticesR, clothScene=self.clothScene)
+        self.legStartFeatureR = ClothFeature(verts=self.legStartVerticesR, clothScene=self.clothScene)
+        self.legStartFeatureL = ClothFeature(verts=self.legStartVerticesL, clothScene=self.clothScene)
+
+        self.waistFeature = ClothFeature(verts=self.waistVertices, clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
+
+        #setup the handle nodes
+        if self.simulateCloth:
+            self.handleNodes.append(HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975])))
+            self.handleNodes.append(HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975])))
 
         if not renderCloth:
             self.clothScene.renderClothFill = False
@@ -133,7 +151,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
-
 
     def _getFile(self):
         return __file__
@@ -198,6 +215,17 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legEndFeatureR.fitPlane()
         self.legMidFeatureL.fitPlane()
         self.legMidFeatureR.fitPlane()
+        self.legStartFeatureL.fitPlane()
+        self.legStartFeatureR.fitPlane()
+        self.waistFeature.fitPlane()
+
+
+        # update handle nodes
+        if len(self.handleNodes) > 1 and self.reset_number > 0:
+            self.handleNodes[0].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[0]].T)
+            self.handleNodes[1].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[1]].T)
+            self.handleNodes[0].step()
+            self.handleNodes[1].step()
 
         a=0
 
@@ -344,17 +372,25 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
     def additionalResets(self):
         #do any additional resetting here
         #TODO: set a one foot standing initial pose
-        qpos = np.array([-0.00469234655801, -0.0218378114573, -0.011132330496, 0.00809830385355, 0.00051861417993, 0.0584867818269, 0.374712375814, 0.0522417260384, -0.00777676124956, 0.00230285789432, -0.00274958108859, -0.008064630425, 0.00247294825781, -0.0093978116532, 0.195632645271, -0.00276696945071, 0.0075491687512, -0.0116846422966, 0.00636619242284, 0.00767084047346, -0.00913509000374, 0.00857521738396, 0.199096855493, 0.00787726246678, -0.00760402683795, -0.00433642327146, 0.00802311463366, -0.00482248656677, 0.131248337324, -0.00662274635457, 0.00333416764933, 0.00546016678096, -0.00150775759695, -0.00861184703697, -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585, -0.00244949106062])
-
+        #qpos = np.array([-0.00469234655801, -0.0218378114573, -0.011132330496, 0.00809830385355, 0.00051861417993, 0.0584867818269, 0.374712375814, 0.0522417260384, -0.00777676124956, 0.00230285789432, -0.00274958108859, -0.008064630425, 0.00247294825781, -0.0093978116532, 0.195632645271, -0.00276696945071, 0.0075491687512, -0.0116846422966, 0.00636619242284, 0.00767084047346, -0.00913509000374, 0.00857521738396, 0.199096855493, 0.00787726246678, -0.00760402683795, -0.00433642327146, 0.00802311463366, -0.00482248656677, 0.131248337324, -0.00662274635457, 0.00333416764933, 0.00546016678096, -0.00150775759695, -0.00861184703697, -0.000589790168521, -0.832681560131, 0.00976653127827, 2.24259637323, -0.00374506255585, -0.00244949106062])
+        #qpos = np.array([0.0792540309714, -0.198038537538, 0.165982043711, 0.057678066664, -0.03, 0.0514905008947, 0.0153889940281, 0.172754267613, -0.0152665902114, 0.0447139591458, -0.0159152223541, -0.741653453661, -0.291857490409, 0.073, 0.247712958964, 0.0230298051369, -0.0129663713662, -0.0251081943623, 0.0184011650614, 0.0284706137625, -0.0143437953932, 0.00253595897386, 0.202764558055, 0.008180767185, 0.00144036976378, -0.00599927843092, 0.010826449318, 0.00831071336219, -0.0983439895237, -0.189360110846, 0.291156844437, 0.58830057445, 0.337019304264, 0.151085855622, 0.00418796434677, -0.841518739136, 0.0266268945701, 2.23410594707, -0.0133781980567, 0.00155774102539])
+        #qpos = np.array([0.0876736007526, -0.197663127282, 0.0512116324906, 0.0890321935781, 0.00503663000394, 0.153578012064, 0.0355287603611, 0.188868068244, -0.0393309627431, 0.0468919964458, -0.0157749170449, -0.732901924741, -0.342059517398, 0.0771170149731, 1.63974967002, 0.0234712949278, -0.0123146387565, -0.0224550112983, 0.0314256125072, 0.0304105325139, -0.806838907433, 0.578199999561, 1.2304995663, 0.00308410667268, -0.0020098497117, 0.000671096336519, 0.0160262363305, 0.00983038089353, -0.0139367467948, -0.255746135035, 0.292140467717, 0.585292554732, 0.338902153816, 0.0897545118006, -0.637071641222, -1.56662542487, 0.209168756426, 2.14915980862, -0.177912854867, 0.164453921709])
+        #qpos = np.array([0.112736818959, -0.184613672394, 0.0483281279476, 0.0977783961469, -0.0395725338171, 0.118916694347, 0.0225602781819, 0.186664042145, -0.0424497225658, 0.0513031599457, -0.0239023434306, -0.72814835681, -0.338360476232, 0.0678506261861, 1.64682143574, 0.0186850837192, -0.00930510664293, -0.0207839101411, 0.0371876854933, 0.0289668575664, -0.8132911622, 0.581233898831, 1.23126365295, -0.00548656272987, 0.00129006785898, -0.00292524994714, 0.00612636259669, 0.00288579869358, -0.0177117020336, -0.189844550703, 0.403929649975, 0.584144641901, 0.27891744078, 0.0979740469555, -0.635892041362, -1.56305168508, 0.199326525817, 2.15366260278, -0.178666316407, 0.159687854881])
+        #qpos = np.array([0.0783082859519, -0.142335807127, 0.142293175071, 0.144942555142, 0.0133898601508, 0.165276500738, 0.0160630842837, 0.190633101962, -0.0300941169552, 0.0450348264227, -0.0254260608645, -0.878047724726, -0.485648077845, 0.239917328593, 1.4876567992, 0.00147541881953, -4.95678764178e-05, -0.0115193558397, 0.0292081008816, 0.424683550591, -1.20586786954, 0.674957465063, 0.935902478547, -0.118767946668, 0.130931065834, -0.00538714909167, 0.0113181295264, 0.000849328006241, -0.025344210202, -0.195371502228, 0.413691811409, 0.588269242275, 0.281748815666, 0.0899108878587, -0.626263215102, -1.5691826733, 0.202581615871, 2.1489384041, -0.171405162264, 0.163236501426])
+        qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
+        #qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         self.restPose = qpos
 
+        RX = pyutils.rotateX(-1.56)
+        self.clothScene.rotateCloth(cid=0, R=RX)
+        self.clothScene.translateCloth(cid=0, T=np.array([0.555, -0.5, -1.45]))
         if self.simulateCloth:
-            self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
+            #self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
+            a=0
 
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
@@ -362,6 +398,22 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legEndFeatureR.fitPlane()
         self.legMidFeatureL.fitPlane()
         self.legMidFeatureR.fitPlane()
+        self.legStartFeatureL.fitPlane()
+        self.legStartFeatureR.fitPlane()
+        self.waistFeature.fitPlane()
+
+        if len(self.handleNodes) > 1:
+            self.handleNodes[0].clearHandles()
+            self.handleNodes[0].addVertices(verts=self.targetGripVerticesR)
+            self.handleNodes[0].setOrgToCentroid()
+            self.handleNodes[0].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[0]].T)
+            self.handleNodes[0].recomputeOffsets()
+
+            self.handleNodes[1].clearHandles()
+            self.handleNodes[1].addVertices(verts=self.targetGripVerticesL)
+            self.handleNodes[1].setOrgToCentroid()
+            self.handleNodes[1].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[1]].T)
+            self.handleNodes[1].recomputeOffsets()
 
         #set on initialization and used to measure displacement
         self.initialProjectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
@@ -429,8 +481,41 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legEndFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0,1.0,0.0])
         self.legMidFeatureL.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[1.0, 0.0, 0.0])
         self.legMidFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 1.0, 0.0])
+        self.legStartFeatureL.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[1.0, 0.0, 0.0])
+        self.legStartFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 1.0, 0.0])
+        self.waistFeature.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 0.0, 1.0])
 
-        #TODO: sort out feature normals
+        #sort out feature normals
+        CPLE_CPLM = self.legEndFeatureL.plane.org-self.legMidFeatureL.plane.org
+        CPLS_CPLM = self.legStartFeatureL.plane.org-self.legMidFeatureL.plane.org
+
+        CPRE_CPRM = self.legEndFeatureR.plane.org - self.legMidFeatureR.plane.org
+        CPRS_CPRM = self.legStartFeatureR.plane.org - self.legMidFeatureR.plane.org
+
+        estimated_groin = (self.legStartFeatureL.plane.org + self.legStartFeatureR.plane.org)/2.0
+        CPW_EG = self.waistFeature.plane.org - estimated_groin
+
+        if CPW_EG.dot(self.waistFeature.plane.normal) > 0:
+            self.waistFeature.plane.normal *= -1.0
+
+        if CPLS_CPLM.dot(self.legStartFeatureL.plane.normal) > 0:
+            self.legStartFeatureL.plane.normal *= -1.0
+
+        if CPLE_CPLM.dot(self.legEndFeatureL.plane.normal) < 0:
+            self.legEndFeatureL.plane.normal *= -1.0
+
+        if CPLE_CPLM.dot(self.legMidFeatureL.plane.normal) < 0:
+            self.legMidFeatureL.plane.normal *= -1.0
+
+        if CPRS_CPRM.dot(self.legStartFeatureR.plane.normal) > 0:
+            self.legStartFeatureR.plane.normal *= -1.0
+
+        if CPRE_CPRM.dot(self.legEndFeatureR.plane.normal) < 0:
+            self.legEndFeatureR.plane.normal *= -1.0
+
+        if CPRE_CPRM.dot(self.legMidFeatureR.plane.normal) < 0:
+            self.legMidFeatureR.plane.normal *= -1.0
+
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)
