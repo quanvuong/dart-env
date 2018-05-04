@@ -98,6 +98,9 @@ class DartClothEnv(DartEnv, utils.EzPickle):
                     print("could not combine tau")
                 self.robot_skeleton.set_forces(combinedTau)
                 self.dart_world.step()
+                if self.checkInvalidDynamics():
+                    print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
+                    return
             #pyPhysX step
             if self.simulateCloth and (clothStepRatio * i)-clothStepsTaken >= 1:
                 self.clothScene.step()
@@ -143,3 +146,14 @@ class DartClothEnv(DartEnv, utils.EzPickle):
             skel = self.dart_world.skeletons[sid]
             node = skel.bodynode(nid)
             offset = node.to_local(pos)'''
+
+    def checkInvalidDynamics(self):
+        if not np.isfinite(self.robot_skeleton.q).all():
+            print("Infinite value detected..." + str(self.robot_skeleton.q))
+            return True
+        elif np.amax(np.absolute(self.robot_skeleton.q)) > 10:
+            print("Detecting potential instability..." + str(self.robot_skeleton.q))
+            return True
+        '''elif np.amax(np.absolute(self.robot_skeleton.dq)) > 1.0:
+            print("Detecting potential instability via velocity: " + str(self.robot_skeleton.dq))
+            return True'''
