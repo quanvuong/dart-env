@@ -199,15 +199,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -1500
+            return True, -5000
         elif not np.isfinite(s).all():
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -5000
         elif self.collarTermination and self.simulateCloth and self.collarTerminationCD < self.numSteps:
             if not (self.collarFeature.contains(l0=bottomNeck, l1=bottomHead)[0] or
                         self.collarFeature.contains(l0=bottomHead, l1=topHead)[0]):
                 #print("collar term")
-                return True, -1500
+                return True, -5000
 
         if self.numSteps == 70:
             if self.saveStateOnReset and self.reset_number > 0:
