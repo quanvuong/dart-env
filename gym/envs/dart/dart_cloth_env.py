@@ -79,7 +79,14 @@ class DartClothEnv(DartEnv, utils.EzPickle):
             else:
                 self.perturbation_duration -= 1
 
-        for _ in range(n_frames):
+        clothSteps = (n_frames*self.dart_world.time_step()) / self.clothScene.timestep
+        #print("cloth steps: " + str(clothSteps))
+        #print("n_frames: " + str(n_frames))
+        #print("dt: " + str(self.dart_world.time_step()))
+        clothStepRatio = self.dart_world.time_step()/self.clothScene.timestep
+        clothStepsTaken = 0
+        for i in range(n_frames):
+            #print("step " + str(i))
             if self.add_perturbation:
                 self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
 
@@ -92,8 +99,15 @@ class DartClothEnv(DartEnv, utils.EzPickle):
                 self.robot_skeleton.set_forces(combinedTau)
                 self.dart_world.step()
             #pyPhysX step
-            if self.simulateCloth:
+            if self.simulateCloth and (clothStepRatio * i)-clothStepsTaken >= 1:
                 self.clothScene.step()
+                clothStepsTaken += 1
+                #print("cloth step " + str(clothStepsTaken) + " frame " + str(i))
+
+        if self.simulateCloth and clothStepsTaken < clothSteps:
+            self.clothScene.step()
+            clothStepsTaken += 1
+            #print("cloth step " + str(clothStepsTaken))
             #done pyPhysX step
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):
         #    self._reset()

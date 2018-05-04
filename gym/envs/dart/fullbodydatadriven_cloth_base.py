@@ -148,10 +148,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
-                                  observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
+                                  observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1], dt=0.001)
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
-                                  observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
+                                  observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False, dt=0.001)
 
         #rescaling actions for SPD
         if SPDActionSpace:
