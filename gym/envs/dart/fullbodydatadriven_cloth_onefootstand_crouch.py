@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = True
         self.gravity = True
@@ -77,6 +77,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         self.footBodyNode = 17 #17 left, 20 right
         self.ankleDofs = [32,33] #[32,33] left, [38,39] right
 
+
+        self.signedDistanceInObs = True
         self.actuatedDofs = np.arange(34)
         observation_size = 0
         observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
@@ -85,7 +87,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         observation_size += 2  # stability polygon centroid (2D)
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
-        observation_size += 2 #signed COM and ZMP polygon distance
+        if self.signedDistanceInObs:
+            observation_size += 2 #signed COM and ZMP polygon distance
 
 
 
@@ -96,7 +99,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
-                                                          gravity=self.gravity)
+                                                          gravity=self.gravity,
+                                                          frameskip=10)
 
 
         self.simulateCloth = clothSimulation
@@ -377,7 +381,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         #foot COP and norm force magnitude
         obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
 
-        obs = np.concatenate([obs, [self.signedStabilityCOMDist], [self.signedStabilityZMPDist]]).ravel()
+        if self.signedDistanceInObs:
+            obs = np.concatenate([obs, [self.signedStabilityCOMDist], [self.signedStabilityZMPDist]]).ravel()
 
         #print(obs)
 

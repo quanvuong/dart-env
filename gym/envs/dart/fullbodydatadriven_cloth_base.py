@@ -19,7 +19,7 @@ import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
 class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True, frameskip=4):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -41,6 +41,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.stateTraj = []
         self.totalTime = 0
         self.locked_foot = False
+
+        self.limbNodesLegL = [15, 16, 17]
+        self.limbNodesLegR = [18, 19, 20]
+        self.toeOffset     = np.array([0, 0, -0.2])
 
         #action graphing
         self.graphingActions = False
@@ -143,10 +147,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #intialize the parent env
         if self.useOpenGL is True:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
                                   observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
-            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=4,
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
 
         #rescaling actions for SPD
@@ -766,6 +770,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #combine upper and lower
             hapticSensorLocations = np.concatenate([hapticSensorLocations_upper, hapticSensorLocations_lower])
             hapticSensorRadii = np.concatenate([hapticSensorRadii_upper, hapticSensorRadii_lower])
+
+            #print(len(hapticSensorRadii))
 
             self.clothScene.setHapticSensorLocations(hapticSensorLocations)
             self.clothScene.setHapticSensorRadii(hapticSensorRadii)

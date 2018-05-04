@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.gravity = True
@@ -36,20 +36,28 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
         self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
+        #dressing reward flags
+        self.waistContainmentReward     = True
+        self.deformationPenalty         = True
 
         #reward weights
-        self.restPoseRewardWeight               = 1
+        self.restPoseRewardWeight               = 2
         self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 5
+        self.aliveBonusRewardWeight             = 10
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
+        #dressing reward weights
+        self.waistContainmentRewardWeight       = 5
+        self.deformationPenaltyWeight           = 5
 
         #other flags
-        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
-        self.contactTermination   = False #if anything except the feet touch the ground, terminate
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+        self.contactTermination   = True #if anything except the feet touch the ground, terminate
+        self.wrongEnterTermination= True #terminate if the foot enters the pant legs
+
 
         #other variables
         self.prevTau = None
@@ -79,6 +87,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         observation_size += 3 # COM
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
+        observation_size += 40*3 # haptic sensor readings
 
 
 
@@ -89,7 +98,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                                                           clothScale=np.array([0.9,0.9,0.9]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
-                                                          gravity=self.gravity)
+                                                          gravity=self.gravity,
+                                                          frameskip=10)
 
         #define shorts garment features
         self.targetGripVerticesL = [85, 22, 13, 92, 212, 366]
@@ -151,6 +161,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
+
+        if self.waistContainmentReward:
+            self.rewardsData.addReward(label="waist containment", rmin=-1.0, rmax=1.0, rval=0, rweight=self.waistContainmentRewardWeight)
+
+        if self.deformationPenalty:
+            self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
 
     def _getFile(self):
         return __file__
@@ -261,6 +277,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         if self.contactTermination:
             if self.nonFootContact:
                 return True, -1500
+
+        if self.wrongEnterTermination:
+            limbInsertionErrorL = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureL)
+            limbInsertionErrorR = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureR)
+            if limbInsertionErrorL > 0 or limbInsertionErrorR > 0:
+                return True, -1500
+
         return False, 0
 
     def computeReward(self, tau):
@@ -328,6 +351,39 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedAnkle - projectedAnkle))
             reward_record.append(reward_stationaryAnklePos)
 
+        reward_waistContainment = 0
+        if self.waistContainmentReward:
+            if self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR,
+                                                      offset=self.toeOffset), feature=self.waistFeature)
+                reward_waistContainment = self.limbProgress
+                #print(reward_waistContainment)
+                if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
+                    #distance to feature
+                    distance2Feature = 999.0
+                    toe = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+                    for v in self.waistFeature.verts:
+                        dist = np.linalg.norm(self.clothScene.getVertexPos(cid=0, vid=v) - toe)
+                        if dist < distance2Feature:
+                            distance2Feature = dist
+                            reward_waistContainment = - distance2Feature
+                            #print(reward_waistContainment)
+            reward_record.append(reward_waistContainment)
+
+        clothDeformation = 0
+        if self.simulateCloth is True:
+            clothDeformation = self.clothScene.getMaxDeformationRatio(0)
+            self.deformation = clothDeformation
+
+        reward_clothdeformation = 0
+        if self.deformationPenalty is True:
+            # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_clothdeformation = -(math.tanh(
+                0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~35 and remains constant
+            reward_record.append(reward_clothdeformation)
+        self.previousDeformationReward = reward_clothdeformation
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -338,7 +394,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                     + reward_alive * self.aliveBonusRewardWeight \
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
                     + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
-                    + reward_flatFoot * self.flatFootRewardWeight
+                    + reward_flatFoot * self.flatFootRewardWeight \
+                    + reward_waistContainment * self.waistContainmentRewardWeight \
+                    + reward_clothdeformation * self.deformationPenaltyWeight
 
         return self.reward
 
@@ -364,6 +422,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         #foot COP and norm force magnitude
         obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
+
+        #haptic observations
+        f = np.zeros(40*3)
+        if self.simulateCloth:
+            f = self.clothScene.getHapticSensorObs()
+        obs = np.concatenate([obs, f]).ravel()
 
         #print(obs)
 
@@ -401,6 +465,37 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legStartFeatureL.fitPlane()
         self.legStartFeatureR.fitPlane()
         self.waistFeature.fitPlane()
+
+        # sort out feature normals
+        CPLE_CPLM = self.legEndFeatureL.plane.org - self.legMidFeatureL.plane.org
+        CPLS_CPLM = self.legStartFeatureL.plane.org - self.legMidFeatureL.plane.org
+
+        CPRE_CPRM = self.legEndFeatureR.plane.org - self.legMidFeatureR.plane.org
+        CPRS_CPRM = self.legStartFeatureR.plane.org - self.legMidFeatureR.plane.org
+
+        estimated_groin = (self.legStartFeatureL.plane.org + self.legStartFeatureR.plane.org) / 2.0
+        CPW_EG = self.waistFeature.plane.org - estimated_groin
+
+        if CPW_EG.dot(self.waistFeature.plane.normal) > 0:
+            self.waistFeature.plane.normal *= -1.0
+
+        if CPLS_CPLM.dot(self.legStartFeatureL.plane.normal) > 0:
+            self.legStartFeatureL.plane.normal *= -1.0
+
+        if CPLE_CPLM.dot(self.legEndFeatureL.plane.normal) < 0:
+            self.legEndFeatureL.plane.normal *= -1.0
+
+        if CPLE_CPLM.dot(self.legMidFeatureL.plane.normal) < 0:
+            self.legMidFeatureL.plane.normal *= -1.0
+
+        if CPRS_CPRM.dot(self.legStartFeatureR.plane.normal) > 0:
+            self.legStartFeatureR.plane.normal *= -1.0
+
+        if CPRE_CPRM.dot(self.legEndFeatureR.plane.normal) < 0:
+            self.legEndFeatureR.plane.normal *= -1.0
+
+        if CPRE_CPRM.dot(self.legMidFeatureR.plane.normal) < 0:
+            self.legMidFeatureR.plane.normal *= -1.0
 
         if len(self.handleNodes) > 1:
             self.handleNodes[0].clearHandles()
@@ -485,36 +580,27 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.legStartFeatureR.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 1.0, 0.0])
         self.waistFeature.drawProjectionPoly(renderNormal=True, renderBasis=False, fillColor=[0.0, 0.0, 1.0])
 
-        #sort out feature normals
-        CPLE_CPLM = self.legEndFeatureL.plane.org-self.legMidFeatureL.plane.org
-        CPLS_CPLM = self.legStartFeatureL.plane.org-self.legMidFeatureL.plane.org
+        lines = []
+        lines.append([self.robot_skeleton.bodynodes[18].to_world(np.zeros(3)), self.robot_skeleton.bodynodes[19].to_world(np.zeros(3))])
+        lines.append([self.robot_skeleton.bodynodes[19].to_world(np.zeros(3)), self.robot_skeleton.bodynodes[20].to_world(np.zeros(3))])
+        lines.append([self.robot_skeleton.bodynodes[20].to_world(np.zeros(3)), self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)])
 
-        CPRE_CPRM = self.legEndFeatureR.plane.org - self.legMidFeatureR.plane.org
-        CPRS_CPRM = self.legStartFeatureR.plane.org - self.legMidFeatureR.plane.org
+        distance2Feature = 999.0
+        pos = np.zeros(3)
+        toe = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+        if self.reset_number > 0:
+            for v in self.waistFeature.verts:
+                #print(v)
+                dist = np.linalg.norm(self.clothScene.getVertexPos(cid=0, vid=v) - toe)
+                if dist < distance2Feature:
+                    distance2Feature = dist
+                    pos = self.clothScene.getVertexPos(cid=0, vid=v)
+                    #print(dist)
 
-        estimated_groin = (self.legStartFeatureL.plane.org + self.legStartFeatureR.plane.org)/2.0
-        CPW_EG = self.waistFeature.plane.org - estimated_groin
+            lines.append([pos, toe])
 
-        if CPW_EG.dot(self.waistFeature.plane.normal) > 0:
-            self.waistFeature.plane.normal *= -1.0
+        renderUtils.drawLines(lines)
 
-        if CPLS_CPLM.dot(self.legStartFeatureL.plane.normal) > 0:
-            self.legStartFeatureL.plane.normal *= -1.0
-
-        if CPLE_CPLM.dot(self.legEndFeatureL.plane.normal) < 0:
-            self.legEndFeatureL.plane.normal *= -1.0
-
-        if CPLE_CPLM.dot(self.legMidFeatureL.plane.normal) < 0:
-            self.legMidFeatureL.plane.normal *= -1.0
-
-        if CPRS_CPRM.dot(self.legStartFeatureR.plane.normal) > 0:
-            self.legStartFeatureR.plane.normal *= -1.0
-
-        if CPRE_CPRM.dot(self.legEndFeatureR.plane.normal) < 0:
-            self.legEndFeatureR.plane.normal *= -1.0
-
-        if CPRE_CPRM.dot(self.legMidFeatureR.plane.normal) < 0:
-            self.legMidFeatureR.plane.normal *= -1.0
 
 
         m_viewport = self.viewer.viewport

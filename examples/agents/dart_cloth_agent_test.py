@@ -21,9 +21,12 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_05_02_onefootstandcrouch_simple"
+    #trial = "experiment_2018_05_02_sleevel_targeted_cont"
+    #trial = "experiment_2018_05_03_onefootstandcrouch_stable"
+    #trial = "experiment_2018_05_01_sleevel_widewarm"
+
     #trial = "experiment_2018_05_02_onefootstandcrouch"
     #trial = "experiment_2018_05_02_sleevel_targeted"
-    #trial = "experiment_2018_05_01_sleevel_widewarm"
 
     #trial = "experiment_2018_05_01_sleevel_narrow"
     #trial = "experiment_2018_05_01_onefootstand_crouch"
@@ -280,8 +283,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
-    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
 
 
     policy = None
