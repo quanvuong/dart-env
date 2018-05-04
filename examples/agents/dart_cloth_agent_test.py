@@ -273,7 +273,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
@@ -284,7 +284,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
 
 
     policy = None

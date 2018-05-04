@@ -19,7 +19,7 @@ import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
 class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True, frameskip=4):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True, frameskip=4, skelfile=None):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -140,7 +140,9 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.deformation = 0
 
         self.obs_size = obs_size
-        skelFile = 'FullBodyCapsules_datadriven.skel'
+        skelFile = skelfile
+        if skelFile is None:
+            skelFile = 'FullBodyCapsules_datadriven.skel'
 
         if self.locked_foot:
             skelFile = 'FullBodyCapsules_datadriven_lockedfoot.skel'

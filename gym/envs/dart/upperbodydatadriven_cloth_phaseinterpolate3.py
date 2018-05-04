@@ -117,7 +117,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
-        self.interiorTuckFeature = ClothFeature(verts=[1032], clothScene=self.clothScene)
+        #self.interiorTuckFeature = ClothFeature(verts=[1032], clothScene=self.clothScene)
+        self.interiorTuckFeature = ClothFeature(verts=[403], clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -590,6 +591,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             tnorm /= np.linalg.norm(tnorm)
             centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
             renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
+
+        if self.contactGeoReward:
+            renderUtils.drawSphere(pos=self.clothScene.getVertexPos(cid=0, vid=self.interiorTuckFeature.verts[0]))
 
         # render geodesic
         if False:

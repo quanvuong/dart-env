@@ -26,6 +26,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         clothSimulation = False
         renderCloth = True
         self.gravity = True
+        self.rectFoot = False
 
         #reward flags
         self.restPoseReward             = True
@@ -90,7 +91,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         if self.signedDistanceInObs:
             observation_size += 2 #signed COM and ZMP polygon distance
 
-
+        skelfile=None
+        if self.rectFoot:
+            skelfile = "FullBodyCapsules_datadriven_rectfoot.skel"
 
         DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -100,7 +103,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           gravity=self.gravity,
-                                                          frameskip=10)
+                                                          frameskip=10,
+                                                          skelfile=skelfile)
 
 
         self.simulateCloth = clothSimulation
