@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_05_04_ltuck_403"
+    #trial = "experiment_2018_05_04_onefoot_shorts_align"
+
     #trial = "experiment_2018_05_02_onefootstandcrouch_simple"
     #trial = "experiment_2018_05_02_sleevel_targeted_cont"
     #trial = "experiment_2018_05_03_onefootstandcrouch_stable"

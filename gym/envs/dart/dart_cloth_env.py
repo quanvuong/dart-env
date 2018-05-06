@@ -102,7 +102,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
                     print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
                     return
             #pyPhysX step
-            if self.simulateCloth and (clothStepRatio * i)-clothStepsTaken >= 1:
+            if self.simulateCloth:# and (clothStepRatio * i)-clothStepsTaken >= 1:
                 self.clothScene.step()
                 clothStepsTaken += 1
                 #print("cloth step " + str(clothStepsTaken) + " frame " + str(i))

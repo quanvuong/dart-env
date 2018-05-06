@@ -206,7 +206,8 @@ class LeftTuckController(Controller):
         #policyfilename = "experiment_2018_04_11_ltuck_seq_velwarm" #seq iter 1
 
         #policyfilename = "experiment_2018_04_20_ltuck"
-        policyfilename = "experiment_2018_04_21_ltuck"
+        #policyfilename = "experiment_2018_04_21_ltuck" #Works well but maybe too shallow?
+        policyfilename = "experiment_2018_05_04_ltuck_403"
 
 
         name="Left Tuck"
@@ -434,7 +435,7 @@ class LeftSleeveController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        #self.env.saveState(name="enter_seq_lsleeve")
+        self.env.saveState(name="enter_seq_2lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
