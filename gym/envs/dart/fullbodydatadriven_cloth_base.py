@@ -145,6 +145,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPD = None #no target yet
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.SPDPerFrame = True
+        self.SPDTorqueBounds = [250.0, -250.0]
         self.recurrency = recurrency
         self.actionTrajectory = []
         self.stateTraj = []
@@ -221,8 +222,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #if SPD
         if SPDActionSpace:
             self.action_scale = np.ones(len(self.action_scale))
-            self.control_bounds[0] *= 250
-            self.control_bounds[1] *= 250
+            #self.control_bounds[0] *= 250
+            #self.control_bounds[1] *= 250
 
         self.reset_number = 0
         self.numSteps = 0
@@ -571,6 +572,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
         full_control = np.array(a)
+        clamped_control = None
 
         if self.SPDActionSpace and self.SPD is not None:
             if not self.SPDPerFrame:
@@ -581,15 +583,23 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 #print(self.additionalAction)
             else: #passing on the querying to the do_simulation function
                 full_control[:len(self.additionalAction)] = np.array(a)
+
+            full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
+            clamped_control = np.array(full_control)
+            for i in range(len(clamped_control)):
+                if clamped_control[i] > self.SPDTorqueBounds[0]:
+                    clamped_control[i] = self.SPDTorqueBounds[0]
+                if clamped_control[i] < self.SPDTorqueBounds[1]:
+                    clamped_control[i] = self.SPDTorqueBounds[1]
         else:
             full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
-        #print("full_control = " + str(full_control))
-        clamped_control = np.array(full_control)
-        for i in range(len(clamped_control)):
-            if clamped_control[i] > self.control_bounds[0][i]:
-                clamped_control[i] = self.control_bounds[0][i]
-            if clamped_control[i] < self.control_bounds[1][i]:
-                clamped_control[i] = self.control_bounds[1][i]
+            #print("full_control = " + str(full_control))
+            clamped_control = np.array(full_control)
+            for i in range(len(clamped_control)):
+                if clamped_control[i] > self.control_bounds[0][i]:
+                    clamped_control[i] = self.control_bounds[0][i]
+                if clamped_control[i] < self.control_bounds[1][i]:
+                    clamped_control[i] = self.control_bounds[1][i]
         #print("clamped_control = " + str(clamped_control))
 
         tau = np.multiply(clamped_control, self.action_scale)
@@ -696,10 +706,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     full_control = self.SPD.query(obs=None)
                     clamped_control = np.array(full_control)
                     for c in range(len(clamped_control)):
-                        if clamped_control[c] > self.control_bounds[0][c]:
-                            clamped_control[c] = self.control_bounds[0][c]
-                        if clamped_control[c] < self.control_bounds[1][c]:
-                            clamped_control[c] = self.control_bounds[1][c]
+                        if clamped_control[c] > self.SPDTorqueBounds[0]:
+                            clamped_control[c] = self.SPDTorqueBounds[0]
+                        if clamped_control[c] < self.SPDTorqueBounds[1]:
+                            clamped_control[c] = self.SPDTorqueBounds[1]
                     combinedTau[6:] = clamped_control
 
                 self.robot_skeleton.set_forces(combinedTau)
