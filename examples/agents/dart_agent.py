@@ -3,6 +3,7 @@ __author__ = 'yuwenhao'
 import gym
 import numpy as np
 import sys
+import gym.spaces
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -19,4 +20,4 @@ if __name__ == '__main__':
         env.step(env.action_space.sample())
         env.render()
 
-    env.render(close=True)
+    env.close()
