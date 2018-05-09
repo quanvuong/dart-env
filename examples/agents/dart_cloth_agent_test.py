@@ -333,10 +333,15 @@ if __name__ == '__main__':
             rolloutHorizon = 10000
         startTime = time.time()
         #for j in range(rolloutHorizon):
+        start_pose = np.array(env.robot_skeleton.q[6:])
         while(env.numSteps < rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
             a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
+
+            #SPD target
+            #start_pose[31-6] += 0.01
+            #a = np.array(start_pose)
 
             #a = -np.ones(len(a))
             a += np.random.uniform(-1,1,len(a))

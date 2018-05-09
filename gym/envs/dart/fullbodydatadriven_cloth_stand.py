@@ -26,6 +26,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         clothSimulation = False
         renderCloth = False
         gravity = True
+        SPDActionSpace = True
+        frameskip = 15
+        dt = 0.002
 
         #reward flags
         self.restPoseReward             = True
@@ -97,8 +100,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           gravity=gravity,
-                                                          frameskip=15,
-                                                          dt=0.002)
+                                                          frameskip=frameskip,
+                                                          dt=dt,
+                                                          SPDActionSpace=SPDActionSpace)
 
 
         self.simulateCloth = clothSimulation
@@ -109,7 +113,10 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             self.clothScene.renderClothWires = False
 
         if self.restPoseReward:
-            self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+            if self.SPDActionSpace:
+                self.rewardsData.addReward(label="restPose(SPD)", rmin=-100.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+            else:
+                self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
 
         if self.stabilityCOMReward:
             self.rewardsData.addReward(label="COM stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
@@ -270,8 +277,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         # reward rest pose standing
         reward_restPose = 0
         if self.restPoseReward and self.restPose is not None:
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+            dist = np.linalg.norm(self.robot_skeleton.q[6:] - self.restPose[6:])
             reward_restPose = max(-51, -dist)
+
+            if self.SPDActionSpace:
+                #also reward the policy for output similar to restPose
+                taudist = np.linalg.norm(tau[6:] - self.restPose[6:])
+                reward_restPose += max(-51, -taudist)
+
             reward_record.append(reward_restPose)
 
         #reward COM over stability region
