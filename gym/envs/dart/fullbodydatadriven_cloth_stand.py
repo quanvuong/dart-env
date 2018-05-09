@@ -48,7 +48,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 5
+        self.aliveBonusRewardWeight             = 10
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
 
@@ -233,13 +233,13 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             #print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, -0
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
             print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
-            return True, -1500
+            return True, -0
         '''elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
             print("Detecting potential instability via velocity: " + str(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1]))))
             print(s)
@@ -253,18 +253,18 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #stability termination
         if self.stabilityTermination:
             if(not self.stableCOM):
-                return True, -1500
+                return True, -0
 
         #contact termination
         if self.contactTermiantion:
             if(self.nonFootContact):
                 #print("non Foot Contact with node: " + str(self.nonFootContactNode))
-                return True, -1500
+                return True, -0
 
         if self.COMHeightTermination:
             #print(self.robot_skeleton.com()[1])
             if self.robot_skeleton.com()[1] < self.COMMinHeight:
-                return True, -1500
+                return True, -0
 
         return False, 0
 

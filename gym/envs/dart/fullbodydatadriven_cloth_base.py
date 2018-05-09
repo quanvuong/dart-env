@@ -151,7 +151,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.totalTime = 0
         self.locked_foot = False
         self.instabilityDetected = False
-        self.terminationPenaltyWeight = -1500
+        self.terminationPenaltyWeight = 0#-1500
 
         self.limbNodesLegL = [15, 16, 17]
         self.limbNodesLegR = [18, 19, 20]
@@ -676,6 +676,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print("dt: " + str(self.dart_world.time_step()))
         clothStepRatio = self.dart_world.time_step()/self.clothScene.timestep
         clothStepsTaken = 0
+        pre_q = np.array(self.robot_skeleton.q)
+        pre_dq = np.array(self.robot_skeleton.dq)
         for i in range(n_frames):
             #print("step " + str(i))
             if self.add_perturbation:
@@ -701,8 +703,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     combinedTau[6:] = clamped_control
 
                 self.robot_skeleton.set_forces(combinedTau)
-                pre_q = np.array(self.robot_skeleton.q)
-                pre_dq = np.array(self.robot_skeleton.dq)
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
