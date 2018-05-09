@@ -294,17 +294,21 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
 
-
+    #print("policy time")
     policy = None
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
         print(policy)
 
-    '''policy = GaussianMLPPolicy(
+    '''
+    policy = GaussianMLPPolicy(
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
         hidden_sizes=(64, 64)
-    )'''
+    )
+
+    print(policy.output_layer)
+    '''
 
     print("about to run")
     paused = False
