@@ -24,19 +24,19 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #feature flags
         rendering = True
         clothSimulation = False
-        renderCloth = True
+        renderCloth = False
         gravity = True
 
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
-        self.stabilityZMPReward         = True
+        self.stabilityZMPReward         = False
         self.contactReward              = False
-        self.flatFootReward             = True #if true, reward the foot for being parallel to the ground
-        self.COMHeightReward            = True
+        self.flatFootReward             = False #if true, reward the foot for being parallel to the ground
+        self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
-        self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
-        self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
+        self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
+        self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
 
         #reward weights
         self.restPoseRewardWeight               = 1
@@ -52,6 +52,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
         self.contactTermiantion   = True #if anything except the feet touch the ground, terminate
+        self.COMHeightTermination = True #terminate if COM drops below a certain height
+
+        self.COMMinHeight         = -0.6
 
         #other variables
         self.prevTau = None
@@ -76,12 +79,13 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
-        observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
-        observation_size += 3 # COM (3D)
-        observation_size += 2 # ZMP (2D)
-        observation_size += 2 # stability polygon centroid (2D)
+        observation_size = 34 * 3 + 6 #q[6:](sin,cos), dq
+        observation_size += 3 # COM (root local 3D)
+        observation_size += 1 # COM height
+        observation_size += 3 # ZMP (3D root local)
+        observation_size += 3 # stability polygon centroid (3D root local)
         observation_size += 2 # binary contact per foot with ground
-        observation_size += 8 # feet COPs and norm force mags
+        observation_size += 8 # feet COPs (root local) and norm force mags
 
 
 
@@ -92,7 +96,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
-                                                          gravity=gravity)
+                                                          gravity=gravity,
+                                                          frameskip=15,
+                                                          dt=0.002)
 
 
         self.simulateCloth = clothSimulation
@@ -227,12 +233,12 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
             return True, -1500
-        elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
+        '''elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
             print("Detecting potential instability via velocity: " + str(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1]))))
             print(s)
             print(self.stateTraj[-2:])
             print(self.rewardTrajectory)
-            return True, -1500
+            return True, -1500'''
 
 
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
@@ -247,6 +253,12 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             if(self.nonFootContact):
                 #print("non Foot Contact with node: " + str(self.nonFootContactNode))
                 return True, -1500
+
+        if self.COMHeightTermination:
+            #print(self.robot_skeleton.com()[1])
+            if self.robot_skeleton.com()[1] < self.COMMinHeight:
+                return True, -1500
+
         return False, 0
 
     def computeReward(self, tau):
@@ -271,7 +283,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         # reward COM over stability region
         reward_ZMPstability = 0
-        if self.stabilityCOMReward:
+        if self.stabilityZMPReward:
             # penalty for distance from projected COM to stability centroid
             ZMP3D = np.array([self.ZMP[0], self.stabilityPolygonCentroid[1], self.ZMP[1]])
             reward_ZMPstability = -np.linalg.norm(self.stabilityPolygonCentroid - ZMP3D)
@@ -355,18 +367,21 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         dq = np.array(self.robot_skeleton.dq)
         trans = np.array(self.robot_skeleton.q[3:6])
 
-        obs = np.concatenate([np.cos(orientation), np.sin(orientation), trans, np.cos(theta), np.sin(theta), dq]).ravel()
+        obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
-        obs = np.concatenate([obs, com]).ravel()
+        local_com = self.robot_skeleton.bodynodes[0].to_local(com)
+        obs = np.concatenate([obs, local_com, [com[1]]]).ravel()
 
         #ZMP
-        obs = np.concatenate([obs, self.ZMP]).ravel()
+        local_zmp = self.robot_skeleton.bodynodes[0].to_local(np.array([self.ZMP[0], -1.42, self.ZMP[1]]))
+        obs = np.concatenate([obs, local_zmp]).ravel()
 
         #stability polygon centroid
         stabilityPolygonCentroid2D = np.array([self.stabilityPolygonCentroid[0], self.stabilityPolygonCentroid[2]])
-        obs = np.concatenate([obs, stabilityPolygonCentroid2D]).ravel()
+        local_stabilityPolygonCentroid = self.robot_skeleton.bodynodes[0].to_local(np.array([self.stabilityPolygonCentroid[0], -1.42, self.stabilityPolygonCentroid[2]]))
+        obs = np.concatenate([obs, local_stabilityPolygonCentroid]).ravel()
 
         #foot contacts
         if self.lFootContact:
@@ -380,9 +395,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             obs = np.concatenate([obs, [0.0]]).ravel()
 
         #foot COP and norm force magnitude
-        obs = np.concatenate([obs, self.leftCOP, [self.leftNormForceMag], self.rightCOP, [self.rightNormForceMag]]).ravel()
+        localLeftCOP = self.robot_skeleton.bodynodes[0].to_local(self.leftCOP)
+        localRightCOP = self.robot_skeleton.bodynodes[0].to_local(self.rightCOP)
+
+        obs = np.concatenate([obs, localLeftCOP, [self.leftNormForceMag], localRightCOP, [self.rightNormForceMag]]).ravel()
 
         #print(obs)
+
+        if not np.isfinite(obs).all():
+            print("non-finite observation")
+            print(obs)
 
         return obs
 
@@ -451,6 +473,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         if self.renderUI:
             renderUtils.setColor(color=[0.,0,0])
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Time = " + str(self.numSteps*self.frame_skip*self.dart_world.time_step()), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1

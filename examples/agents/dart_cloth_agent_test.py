@@ -10,6 +10,8 @@ import joblib
 import pyPhysX.pyutils as pyutils
 import os
 
+from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+
 if __name__ == '__main__':
 
     filename = None
@@ -21,7 +23,7 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_05_06_lsleeve2_warm"
-    trial = "experiment_2018_05_06_lsleeve2_wide"
+    #trial = "experiment_2018_05_06_lsleeve2_wide"
 
     #trial = "experiment_2018_05_04_ltuck_403"
     #trial = "experiment_2018_05_04_onefoot_shorts_align"
@@ -273,7 +275,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
@@ -287,7 +289,7 @@ if __name__ == '__main__':
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
-    #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
@@ -297,6 +299,12 @@ if __name__ == '__main__':
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
         print(policy)
+
+    '''policy = GaussianMLPPolicy(
+        env_spec=env.spec,
+        # The neural network policy should have two hidden layers, each with 32 hidden units.
+        hidden_sizes=(64, 64)
+    )'''
 
     print("about to run")
     paused = False
@@ -327,7 +335,7 @@ if __name__ == '__main__':
             a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
 
             #a = -np.ones(len(a))
-            #a += np.random.uniform(-1,1,len(a))
+            a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''

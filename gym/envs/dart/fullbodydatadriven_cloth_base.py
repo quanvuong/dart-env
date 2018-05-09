@@ -19,7 +19,7 @@ import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
 class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True, frameskip=4, skelfile=None):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=True, frameskip=4, dt=0.001, skelfile=None):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -41,6 +41,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.stateTraj = []
         self.totalTime = 0
         self.locked_foot = False
+        self.instabilityDetected = False
+        self.terminationPenaltyWeight = -1500
 
         self.limbNodesLegL = [15, 16, 17]
         self.limbNodesLegR = [18, 19, 20]
@@ -150,10 +152,10 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
-                                  observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1], dt=0.001)
+                                  observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1], dt=dt)
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip,
-                                  observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False, dt=0.001)
+                                  observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False, dt=dt)
 
         #rescaling actions for SPD
         if SPDActionSpace:
@@ -498,7 +500,6 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             self.avgtimings["do_simulation"] = time.time() - startTime2
 
-
         startTime2 = time.time()
         reward = self.computeReward(tau=tau)
         #print("computeReward took " + str(time.time() - startTime2))
@@ -521,7 +522,14 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
 
-        done, terminationReward = self.checkTermination(tau, s, ob)
+        done = False
+        terminationReward = 0
+
+        if self.instabilityDetected:
+            done = True
+            terminationReward = self.terminationPenaltyWeight
+        else:
+            done, terminationReward = self.checkTermination(tau, s, ob)
         reward += terminationReward
         self.reward = reward
         self.cumulativeReward += self.reward
@@ -546,6 +554,51 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         return ob, self.reward, done, {}
 
+    def do_simulation(self, tau, n_frames):
+        'Overwrite of DartClothEnv.do_simulation to add cloth simulation stepping in a more intelligent manner without compromising upper body'
+        if not self.simulating:
+            return
+
+        clothSteps = (n_frames*self.dart_world.time_step()) / self.clothScene.timestep
+        #print("cloth steps: " + str(clothSteps))
+        #print("n_frames: " + str(n_frames))
+        #print("dt: " + str(self.dart_world.time_step()))
+        clothStepRatio = self.dart_world.time_step()/self.clothScene.timestep
+        clothStepsTaken = 0
+        for i in range(n_frames):
+            #print("step " + str(i))
+            if self.add_perturbation:
+                self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
+
+            if not self.kinematic:
+                combinedTau = np.array(tau)
+                try:
+                    combinedTau += self.supplementalTau
+                except:
+                    print("could not combine tau")
+                self.robot_skeleton.set_forces(combinedTau)
+                pre_q = np.array(self.robot_skeleton.q)
+                pre_dq = np.array(self.robot_skeleton.dq)
+                self.dart_world.step()
+                self.instabilityDetected = self.checkInvalidDynamics()
+                if self.instabilityDetected:
+                    print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
+                    self.set_state(pre_q, pre_dq)
+                    return
+            #pyPhysX step
+            if self.simulateCloth and (clothStepRatio * i)-clothStepsTaken >= 1:
+                self.clothScene.step()
+                clothStepsTaken += 1
+                #print("cloth step " + str(clothStepsTaken) + " frame " + str(i))
+
+        while self.simulateCloth and clothStepsTaken < clothSteps:
+            self.clothScene.step()
+            clothStepsTaken += 1
+            #print("cloth step " + str(clothStepsTaken))
+            #done pyPhysX step
+        #if(self.clothScene.getMaxDeformationRatio(0) > 5):
+        #    self._reset()
+
     def _get_obs(self):
         print("base observation")
         return np.zeros(self.obs_size)
@@ -564,6 +617,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.stateTraj = []
         self.actionTrajectory = []
         self.changedFocus = True
+        self.instabilityDetected = False
 
         #---------------------------
         #random seeding

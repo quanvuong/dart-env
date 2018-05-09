@@ -151,7 +151,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         if not np.isfinite(self.robot_skeleton.q).all():
             print("Infinite value detected..." + str(self.robot_skeleton.q))
             return True
-        elif np.amax(np.absolute(self.robot_skeleton.q)) > 10:
+        elif np.amax(np.absolute(self.robot_skeleton.q)) > 5:
             print("Detecting potential instability..." + str(self.robot_skeleton.q))
             return True
         '''elif np.amax(np.absolute(self.robot_skeleton.dq)) > 1.0:

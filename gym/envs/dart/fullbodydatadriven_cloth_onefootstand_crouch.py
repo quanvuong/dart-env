@@ -24,7 +24,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv(DartClothFullBodyDat
         #feature flags
         rendering = True
         clothSimulation = False
-        renderCloth = True
+        renderCloth = False
         self.gravity = True
         self.rectFoot = False
 
