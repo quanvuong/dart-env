@@ -158,7 +158,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.toeOffset     = np.array([0, 0, -0.2])
 
         #action graphing
-        self.graphingActions = True
+        self.graphingActions = False
         self.actionTrajectory = []
         self.actionGraph = None
         self.actionGraphFoci = [6,7]
