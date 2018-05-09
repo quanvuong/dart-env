@@ -693,11 +693,11 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     self.SPD.target = np.array(self.SPDTarget)
                     full_control = self.SPD.query(obs=None)
                     clamped_control = np.array(full_control)
-                    for i in range(len(clamped_control)):
-                        if clamped_control[i] > self.control_bounds[0][i]:
-                            clamped_control[i] = self.control_bounds[0][i]
-                        if clamped_control[i] < self.control_bounds[1][i]:
-                            clamped_control[i] = self.control_bounds[1][i]
+                    for c in range(len(clamped_control)):
+                        if clamped_control[c] > self.control_bounds[0][c]:
+                            clamped_control[c] = self.control_bounds[0][c]
+                        if clamped_control[c] < self.control_bounds[1][c]:
+                            clamped_control[c] = self.control_bounds[1][c]
                     combinedTau[6:] = clamped_control
 
                 self.robot_skeleton.set_forces(combinedTau)
