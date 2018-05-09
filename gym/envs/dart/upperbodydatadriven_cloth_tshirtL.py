@@ -51,7 +51,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         self.limbProgressRewardWeight = 15
         self.oracleDisplacementRewardWeight = 50
         self.contactGeoRewardWeight = 4
-        self.deformationPenaltyWeight = 1  # was 5... then 1...
+        self.deformationPenaltyWeight = 5  # was 5... then 1...
         self.sleeveForwardRewardWeight = 3
         self.restPoseRewardWeight = 1
 
@@ -67,7 +67,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
         #self.resetDistributionSize = 17 #3
         #self.resetDistributionPrefix = "saved_control_states/enter_seq_lsleeve"
         self.resetDistributionPrefix = "saved_control_states/enter_seq_2lsleeve"
-        self.resetDistributionSize = 20 #20
+        self.resetDistributionSize = 30 #20
         self.state_save_directory = "saved_control_states/"
 
         #other variables

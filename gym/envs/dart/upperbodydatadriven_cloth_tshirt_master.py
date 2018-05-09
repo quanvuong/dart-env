@@ -429,7 +429,8 @@ class LeftSleeveController(Controller):
         #policyfilename = "experiment_2018_04_23_lsleeve_warm"
 
         #policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
-        policyfilename = "experiment_2018_05_01_sleevel_widewarm"
+        #policyfilename = "experiment_2018_05_01_sleevel_widewarm"
+        policyfilename = "experiment_2018_05_06_lsleeve2_wide"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
