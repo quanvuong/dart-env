@@ -8,11 +8,11 @@ from version import VERSION
 # Environment-specific dependencies.
 extras = {
   'atari': ['atari_py>=0.1.1', 'Pillow', 'PyOpenGL'],
-  'board_game' : ['pachi-py>=0.0.19'],
   'box2d': ['Box2D-kengz'],
   'classic_control': ['PyOpenGL'],
   'dart': ['pydart2'],
-  'mujoco': ['mujoco_py>=0.4.3', 'imageio'],
+  'mujoco': ['mujoco_py>=1.50', 'imageio'],
+  'robotics': ['mujoco_py>=1.50', 'imageio'],
   'parameter_tuning': ['keras', 'theano'],
 }
 
@@ -36,6 +36,15 @@ setup(name='gym',
           'numpy>=1.10.4', 'requests>=2.0', 'six', 'pyglet>=1.2.0',
       ],
       extras_require=extras,
-      package_data={'gym': ['envs/mujoco/assets/*.xml', 'envs/classic_control/assets/*.png', 'envs/dart/assets/*.skel']},
+      package_data={'gym': [
+        'envs/mujoco/assets/*.xml',
+        'envs/classic_control/assets/*.png',
+        'envs/robotics/assets/LICENSE.md',
+        'envs/robotics/assets/fetch/*.xml',
+        'envs/robotics/assets/hand/*.xml',
+        'envs/robotics/assets/stls/fetch/*.stl',
+        'envs/robotics/assets/stls/hand/*.stl',
+        'envs/robotics/assets/textures/*.png']
+      },
       tests_require=['pytest', 'mock'],
 )
