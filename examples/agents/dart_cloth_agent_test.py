@@ -317,7 +317,6 @@ if __name__ == '__main__':
 
     #print(policy.output_layer)
 
-
     print("about to run")
     paused = False
     time.sleep(0.5)
@@ -386,6 +385,7 @@ if __name__ == '__main__':
                 cumulativeFPS += (j+1)/(time.time()-startTime)
                 print("framerate = " + str((j+1) / (time.time() - startTime)))
                 print("average FPS: " + str(cumulativeFPS / (i + 1)))
+                print("episode reward = " + str(env.rewardsData.cumulativeReward))
                 #if
                 time.sleep(0.5)
                 break

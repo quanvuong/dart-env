@@ -144,7 +144,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPDActionSpace = SPDActionSpace
         self.SPD = None #no target yet
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
-        self.SPDPerFrame=True
+        self.SPDPerFrame = True
         self.recurrency = recurrency
         self.actionTrajectory = []
         self.stateTraj = []
