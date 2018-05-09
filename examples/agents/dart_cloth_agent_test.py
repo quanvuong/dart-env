@@ -11,6 +11,9 @@ import pyPhysX.pyutils as pyutils
 import os
 
 from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from rllab.envs.gym_env import GymEnv
+from rllab.envs.normalized_env import normalize
+import lasagne.layers as L
 
 if __name__ == '__main__':
 
@@ -300,15 +303,20 @@ if __name__ == '__main__':
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
         print(policy)
 
-    '''
-    policy = GaussianMLPPolicy(
-        env_spec=env.spec,
-        # The neural network policy should have two hidden layers, each with 32 hidden units.
-        hidden_sizes=(64, 64)
-    )
 
-    print(policy.output_layer)
-    '''
+    env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
+    policy = GaussianMLPPolicy(
+        env_spec=env2.spec,
+        # The neural network policy should have two hidden layers, each with 32 hidden units.
+        hidden_sizes=(64, 64),
+        init_std=0.1
+    )
+    all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
+    all_param_values[4] *= 0.1
+    L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
+
+    #print(policy.output_layer)
+
 
     print("about to run")
     paused = False
@@ -344,7 +352,7 @@ if __name__ == '__main__':
             #a = np.array(start_pose)
 
             #a = -np.ones(len(a))
-            a += np.random.uniform(-1,1,len(a))
+            #a += np.random.uniform(-1,1,len(a))
             #a[:11] = np.zeros(11)
             #a += np.random.randint(3, size=len(a))-np.ones(len(a))
             '''
@@ -362,7 +370,7 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                a = a_info['mean']
+                #a = a_info['mean']
             done = False
             if not paused or env.numSteps == 0:# or j==0:
                 s_info = env.step(a)
