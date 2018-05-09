@@ -656,9 +656,9 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         '''
         if(done):
             print("finishing step while done...")
-            print(ob)
-            print(self.reward)
-            print(done)
+            #print(ob)
+            print(self.cumulativeReward)
+            #print(self.actionTrajectory)
         '''
 
         self.updateActionGraph()
