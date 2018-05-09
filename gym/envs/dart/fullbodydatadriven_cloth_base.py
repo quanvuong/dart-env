@@ -118,7 +118,7 @@ class SPDController(Controller):
         return tau
 
     def setKpKdScales(self, KpScale, KdScale):
-        print("reseting Kp|Kd scale from [" + str(self.KpScale) + "," + str(self.KdScale) + "], to [" + str(KpScale) + "," + str(KdScale) + "].")
+        #print("reseting Kp|Kd scale from [" + str(self.KpScale) + "," + str(self.KdScale) + "], to [" + str(KpScale) + "," + str(KdScale) + "].")
         ndofs = self.skel.ndofs - 6
         self.KpScale = KpScale
         self.KdScale = KdScale
