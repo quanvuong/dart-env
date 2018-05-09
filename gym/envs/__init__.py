@@ -200,6 +200,13 @@ register(
     max_episode_steps = 50,
 )
 
+# LQR Env
+register(
+    id='LQR-v1',
+    entry_point = 'gym.envs.classic_control:LQREnv',
+    max_episode_steps = 500,
+)
+
 # Dart
 # ----------------------------------------
 register(
