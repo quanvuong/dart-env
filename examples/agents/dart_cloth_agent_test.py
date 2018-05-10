@@ -309,18 +309,19 @@ if __name__ == '__main__':
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
         print(policy)
 
-
-    '''env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
-    #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
-    policy = GaussianMLPPolicy(
-        env_spec=env2.spec,
-        # The neural network policy should have two hidden layers, each with 32 hidden units.
-        hidden_sizes=(64, 64),
-        init_std=0.1
-    )
-    all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-    all_param_values[4] *= 0.1
-    L.set_all_param_values(policy._mean_network.output_layer, all_param_values)'''
+    #initialize an empty test policy
+    if True:
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
+        #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
+        policy = GaussianMLPPolicy(
+            env_spec=env2.spec,
+            # The neural network policy should have two hidden layers, each with 32 hidden units.
+            hidden_sizes=(64, 64),
+            init_std=0.1
+        )
+        all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
+        all_param_values[4] *= 0.1
+        L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
 
     #print(policy.output_layer)
 
