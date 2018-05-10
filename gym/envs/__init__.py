@@ -451,6 +451,12 @@ register(
 )
 
 register(
+    id='DartClothUpperBodyDataDrivenPhaseInterpolate-v4',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env',
+    #max_episode_steps=250,
+)
+
+register(
     id='DartClothUpperBodyDataDrivenTshirtMaster-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothTshirtMasterEnv',
     #max_episode_steps=250,

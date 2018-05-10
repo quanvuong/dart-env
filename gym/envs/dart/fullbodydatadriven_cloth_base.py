@@ -721,11 +721,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     return
             #pyPhysX step
             if self.simulateCloth and (clothStepRatio * i)-clothStepsTaken >= 1:
+                self.updateClothCollisionStructures(hapticSensors=True)
                 self.clothScene.step()
                 clothStepsTaken += 1
                 #print("cloth step " + str(clothStepsTaken) + " frame " + str(i))
 
         while self.simulateCloth and clothStepsTaken < clothSteps:
+            self.updateClothCollisionStructures(hapticSensors=True)
             self.clothScene.step()
             clothStepsTaken += 1
             #print("cloth step " + str(clothStepsTaken))

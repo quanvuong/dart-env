@@ -22,20 +22,23 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
         self.gravity = True
+        SPDActionSpace = True
+        frameskip = 15
+        dt = 0.002
 
         #reward flags
         self.restPoseReward             = True
         self.stabilityCOMReward         = True
         self.contactReward              = False
-        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
-        self.COMHeightReward            = True
+        self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
+        self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
-        self.stationaryAnkleAngleReward = True #penalizes ankle joint velocity
-        self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
+        self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
+        self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
         #dressing reward flags
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
@@ -46,7 +49,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 10
+        self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
         #dressing reward weights
@@ -54,10 +57,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.deformationPenaltyWeight           = 5
 
         #other flags
-        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
+        self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
+        self.COMMinHeight = -0.6
 
         #other variables
         self.prevTau = None
@@ -83,7 +88,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
-        observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
+        #observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
+        observation_size = 34 * 3 + 6  # q[6:](sin,cos), dq
         observation_size += 3 # COM
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
@@ -99,7 +105,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           gravity=self.gravity,
-                                                          frameskip=10)
+                                                          frameskip=frameskip,
+                                                          dt=dt,
+                                                          SPDActionSpace=SPDActionSpace)
 
         #define shorts garment features
         self.targetGripVerticesL = [85, 22, 13, 92, 212, 366]
@@ -251,13 +259,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             #print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
             print("Infinite value detected..." + str(s))
-            return True, -1500
+            return True, 0
         elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
             print(self.rewardTrajectory)
             #print(self.stateTraj[-2:])
-            return True, -1500
+            return True, 0
         '''elif np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])) > 1.0:
             print("Detecting potential instability via velocity: " + str(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1]))))
             print(s)
@@ -271,18 +279,18 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #stability termination
         if self.stabilityTermination:
             if not self.stableCOM:
-                return True, -1500
+                return True, 0
 
         #contact termination
         if self.contactTermination:
             if self.nonFootContact:
-                return True, -1500
+                return True, 0
 
         if self.wrongEnterTermination:
             limbInsertionErrorL = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureL)
             limbInsertionErrorR = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureR)
             if limbInsertionErrorL > 0 or limbInsertionErrorR > 0:
-                return True, -1500
+                return True, 0
 
         return False, 0
 
@@ -408,7 +416,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         dq = np.array(self.robot_skeleton.dq)
         trans = np.array(self.robot_skeleton.q[3:6])
 
-        obs = np.concatenate([np.cos(orientation), np.sin(orientation), trans, np.cos(theta), np.sin(theta), dq]).ravel()
+        #obs = np.concatenate([np.cos(orientation), np.sin(orientation), trans, np.cos(theta), np.sin(theta), dq]).ravel()
+        obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()

@@ -36,21 +36,23 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.stabilityZMPReward         = False
         self.contactReward              = False
         self.flatFootReward             = False #if true, reward the foot for being parallel to the ground
-        self.COMHeightReward            = False
+        self.COMHeightReward            = True
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
-        self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
+        self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
+        self.actionSmoothReward         = True #penalizes distance between previous action and current action
 
         #reward weights
         self.restPoseRewardWeight               = 1
-        self.stabilityCOMRewardWeight           = 2
+        self.stabilityCOMRewardWeight           = 4
         self.stabilityZMPRewardWeight           = 2
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
-        self.COMHeightRewardWeight              = 2
+        self.COMHeightRewardWeight              = 4
         self.aliveBonusRewardWeight             = 10
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
+        self.actionSmoothRewardWeight           = 1
 
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
@@ -58,6 +60,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.COMHeightTermination = True #terminate if COM drops below a certain height
 
         self.COMMinHeight         = -0.6
+        self.targetCOMHeight      = 0 #reset with rest pose is chosen in reset
 
         #other variables
         self.prevTau = None
@@ -89,6 +92,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         observation_size += 3 # stability polygon centroid (3D root local)
         observation_size += 2 # binary contact per foot with ground
         observation_size += 8 # feet COPs (root local) and norm force mags
+        if self.actionSmoothReward:
+            observation_size += 34 #observe the previous action
 
 
 
@@ -119,7 +124,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                 self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
 
         if self.stabilityCOMReward:
-            self.rewardsData.addReward(label="COM stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
+            self.rewardsData.addReward(label="COM stability", rmin=-1.0, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
 
         if self.stabilityZMPReward:
             self.rewardsData.addReward(label="ZMP stability", rmin=-1.0, rmax=0, rval=0, rweight=self.stabilityZMPRewardWeight)
@@ -140,7 +145,10 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             self.rewardsData.addReward(label="ankle angle", rmin=-40.0, rmax=0.0, rval=0, rweight=self.stationaryAnkleAngleRewardWeight)
 
         if self.stationaryAnklePosReward:
-            self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
+            self.rewardsData.addReward(label="ankle pos", rmin=-1.0, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
+
+        if self.actionSmoothReward:
+            self.rewardsData.addReward(label="action smooth", rmin=-51, rmax=0.0, rval=0, rweight=self.actionSmoothRewardWeight)
 
     def _getFile(self):
         return __file__
@@ -270,7 +278,6 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        self.prevTau = tau
 
         reward_record = []
 
@@ -326,9 +333,9 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         #reward COM height?
         reward_COMHeight = 0
         if self.COMHeightReward:
-            reward_COMHeight = self.COMHeight
-            if(abs(self.COMHeight) > 1.0):
-                reward_COMHeight = 0
+            reward_COMHeight = min(self.COMHeight-self.targetCOMHeight, 0)
+            #if(abs(self.COMHeight) > 1.0):
+            #    reward_COMHeight = 0
             reward_record.append(reward_COMHeight)
 
         #accumulate reward for continuing to balance
@@ -357,6 +364,15 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedLAnkle - projectedLAnkle))
             reward_record.append(reward_stationaryAnklePos)
 
+        reward_action_smooth = 0
+        if self.actionSmoothReward and self.prevTau is not None:
+            #print(len(self.prevTau))
+            dist = np.linalg.norm(self.prevTau[6:] - tau[6:])
+            reward_action_smooth = max(-51, -dist)
+            reward_record.append(reward_action_smooth)
+
+        self.prevTau = tau
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -368,7 +384,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
                     + reward_alive * self.aliveBonusRewardWeight \
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
                     + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
-                    + reward_flatFoot * self.flatFootRewardWeight
+                    + reward_flatFoot * self.flatFootRewardWeight \
+                    + reward_action_smooth * self.actionSmoothRewardWeight
 
         return self.reward
 
@@ -413,7 +430,15 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         obs = np.concatenate([obs, localLeftCOP, [self.leftNormForceMag], localRightCOP, [self.rightNormForceMag]]).ravel()
 
-        #print(obs)
+        if self.actionSmoothReward:
+            if self.prevTau is None:
+                #print(len(self.restPose[6:]))
+                obs = np.concatenate([obs, self.restPose[6:]]).ravel()
+            else:
+                #print(len(self.prevTau))
+                obs = np.concatenate([obs, self.prevTau[6:]]).ravel()
+
+        #print(len(obs))
 
         if not np.isfinite(obs).all():
             print("non-finite observation")
@@ -427,6 +452,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
         self.restPose = qpos
+
+        self.targetCOMHeight = self.robot_skeleton.com()[1]
 
         if self.simulateCloth:
             self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))

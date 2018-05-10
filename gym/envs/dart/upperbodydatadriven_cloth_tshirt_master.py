@@ -431,12 +431,13 @@ class LeftSleeveController(Controller):
         #policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
         #policyfilename = "experiment_2018_05_01_sleevel_widewarm"
         policyfilename = "experiment_2018_05_06_lsleeve2_wide"
+        #policyfilename = "experiment_2018_05_09_lsleeve2_wide_warmhighdef"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_2lsleeve")
+        #self.env.saveState(name="enter_seq_2lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
@@ -489,7 +490,7 @@ class LeftSleeveController(Controller):
         a=0
 
     def transition(self):
-        if self.env.limbProgress > 0.6:
+        if self.env.limbProgress > 0.55:
             return True
         return False
 
@@ -501,12 +502,12 @@ class SPDController(Controller):
         self.target = target
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
-        self.h = 0.01
+        self.h = 0.002
         self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs
         self.qhat = self.skel.q
-        self.Kp = np.diagflat([400.0] * (ndofs))
-        self.Kd = np.diagflat([40.0] * (ndofs))
+        self.Kp = np.diagflat([1600.0] * (ndofs))
+        self.Kd = np.diagflat([16.0] * (ndofs))
 
         '''
         for i in range(ndofs):
@@ -519,6 +520,9 @@ class SPDController(Controller):
         self.preoffset = 0.0
 
     def setup(self):
+        self.env.saveState(name="enter_seq_final")
+        self.env.frameskip = 1
+        self.env.SPDTorqueLimits = True
         #reset the target
         #cur_q = np.array(self.skel.q)
         #self.env.loadCharacterState(filename="characterState_regrip")
@@ -532,10 +536,10 @@ class SPDController(Controller):
             self.env.handleNode.clearHandles();
             self.env.handleNode = None
 
-        self.skel.joint(6).set_damping_coefficient(0, 5)
-        self.skel.joint(6).set_damping_coefficient(1, 5)
-        self.skel.joint(11).set_damping_coefficient(0, 5)
-        self.skel.joint(11).set_damping_coefficient(1, 5)
+        #self.skel.joint(6).set_damping_coefficient(0, 5)
+        #self.skel.joint(6).set_damping_coefficient(1, 5)
+        #self.skel.joint(11).set_damping_coefficient(0, 5)
+        #self.skel.joint(11).set_damping_coefficient(1, 5)
 
         a=0
 
@@ -558,7 +562,7 @@ class SPDController(Controller):
         skel = self.skel
         p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
         d = -self.Kd.dot(skel.dq)
-        b = -skel.c + p + d #+ skel.constraint_forces()
+        b = -skel.c + p + d + skel.constraint_forces()
         A = skel.M + self.Kd * self.h
 
         x = np.linalg.solve(A, b)
@@ -679,6 +683,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         rendering = True
         clothSimulation = True
         renderCloth = True
+        self.simpleUI = True
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -966,6 +971,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+        self.frameskip = 4
+        self.SPDTorqueLimits = False
 
         #reset these in case the SPD controller has already run...
         self.robot_skeleton.joint(6).set_damping_coefficient(0, 1)
@@ -1151,15 +1158,16 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
         renderUtils.drawLineStrip(points=[bottomNeck, bottomHead, topHead])
 
-        self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
-        self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
-        self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0,1,0])
-        self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        if not self.simpleUI:
+            self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+            self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
+            self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0,1,0])
+            self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
@@ -1182,7 +1190,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01, slices=3)
 
-        if self.renderOracle:
+        if self.renderOracle and not self.simpleUI:
             ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
             renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
 
@@ -1191,18 +1199,18 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         #fingertip = np.array([0,-0.065,0])
 
         efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        if self.renderRightTarget:
+        if self.renderRightTarget and not self.simpleUI:
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
 
         efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-        if self.renderLeftTarget:
+        if self.renderLeftTarget and not self.simpleUI:
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
-        if self.renderContainmentTriangle:
+        if self.renderContainmentTriangle and not self.simpleUI:
             renderUtils.setColor([1.0, 1.0, 0])
             renderUtils.drawTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2])
             U = self.previousContainmentTriangle[1] - self.previousContainmentTriangle[0]

@@ -85,6 +85,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.SPDTarget = None #if set, reset calls setup on the SPDController and udates/queries it
         self.recurrency = recurrency
         self.actionTrajectory = []
+        self.SPDTorqueLimits = False
 
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
@@ -528,11 +529,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
         #print("full_control = " + str(full_control))
         clamped_control = np.array(full_control)
-        for i in range(len(clamped_control)):
-            if clamped_control[i] > self.control_bounds[0][i]:
-                clamped_control[i] = self.control_bounds[0][i]
-            if clamped_control[i] < self.control_bounds[1][i]:
-                clamped_control[i] = self.control_bounds[1][i]
+        if not self.SPDTorqueLimits:
+            for i in range(len(clamped_control)):
+                if clamped_control[i] > self.control_bounds[0][i]:
+                    clamped_control[i] = self.control_bounds[0][i]
+                if clamped_control[i] < self.control_bounds[1][i]:
+                    clamped_control[i] = self.control_bounds[1][i]
+        else:
+            for i in range(len(clamped_control)):
+                if clamped_control[i] > self.action_scale[i]:
+                    clamped_control[i] = self.action_scale[i]
+                if clamped_control[i] < -self.action_scale[i]:
+                    clamped_control[i] = -self.action_scale[i]
         #print("clamped_control = " + str(clamped_control))
 
         if self.recordROMPoints:
@@ -555,7 +563,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 else: #auto-add when list is empty
                     self.ROMPoints.append(np.array(self.robot_skeleton.q))
 
-        tau = np.multiply(clamped_control, self.action_scale)
+        tau = np.array(clamped_control)
+        if not self.SPDTorqueLimits:
+            tau = np.multiply(clamped_control, self.action_scale)
 
         #apply action and simulate
         if len(tau) < len(self.robot_skeleton.q):

@@ -25,6 +25,11 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_05_09_lsleeve2_wide_warmhighdef" #high def correction of "experiment_2018_05_06_lsleeve2_wide"
+    #trial = "experiment_2018_05_09_stand" # typical TRPO (local features)
+    #trial = "experiment_2018_05_09_stand_lowbias" # Reduced bias TRPO (local features)
+    #trial = "experiment_2018_05_09_stand_SPD" #first SPD trial (local features)
+
     #trial = "experiment_2018_05_06_lsleeve2_warm"
     #trial = "experiment_2018_05_06_lsleeve2_wide"
 
@@ -285,6 +290,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
@@ -304,7 +310,8 @@ if __name__ == '__main__':
         print(policy)
 
 
-    env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
+    '''env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
+    #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
     policy = GaussianMLPPolicy(
         env_spec=env2.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
@@ -313,7 +320,7 @@ if __name__ == '__main__':
     )
     all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
     all_param_values[4] *= 0.1
-    L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
+    L.set_all_param_values(policy._mean_network.output_layer, all_param_values)'''
 
     #print(policy.output_layer)
 
@@ -348,7 +355,7 @@ if __name__ == '__main__':
 
             #SPD target
             #start_pose[31-6] += 0.01
-            #a = np.array(start_pose)
+            a = np.array(start_pose)
 
             #a = -np.ones(len(a))
             #a += np.random.uniform(-1,1,len(a))
