@@ -30,19 +30,21 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         dt = 0.002
 
         # reward flags
-        self.restPoseReward = True
-        self.stableCOMReward= True
+        self.restPoseReward         = True
+        self.stableCOMReward        = True
         # dressing reward flags
         self.waistContainmentReward = True
-        self.deformationPenalty = True
+        self.deformationPenalty     = True
+        self.waistHorizontalReward  = True #penalize normal of the waist feature from perpendicular to ground plane
 
 
         # reward weights
-        self.restPoseRewardWeight  = 1
+        self.restPoseRewardWeight  = 0.5
         self.stableCOMRewardWeight = 10
         # dressing reward weights
         self.waistContainmentRewardWeight = 5
         self.deformationPenaltyWeight = 5
+        self.waistHorizontalReward = 1
 
         #termination conditions
         self.wrongEnterTermination = True  # terminate if the foot enters the pant legs
@@ -128,6 +130,9 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         if self.deformationPenalty:
             self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
 
+        if self.waistHorizontalReward:
+            self.rewardsData.addReward(label="waist horizontal", rmin=-1.0, rmax=1.0, rval=0, rweight=self.waistHorizontalReward)
+
     def _getFile(self):
         return __file__
 
@@ -211,7 +216,7 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
                                                       offset=self.toeOffset), feature=self.waistFeature)
                 reward_waistContainment = self.limbProgress
                 # print(reward_waistContainment)
-                if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
+                '''if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
                     # distance to feature
                     distance2Feature = 999.0
                     toe = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
@@ -219,7 +224,7 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
                         dist = np.linalg.norm(self.clothScene.getVertexPos(cid=0, vid=v) - toe)
                         if dist < distance2Feature:
                             distance2Feature = dist
-                            reward_waistContainment = - distance2Feature
+                            reward_waistContainment = - distance2Feature'''
                             # print(reward_waistContainment)
             reward_record.append(reward_waistContainment)
 
@@ -236,13 +241,19 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
             reward_record.append(reward_clothdeformation)
         self.previousDeformationReward = reward_clothdeformation
 
+        reward_waistHorizontal = 0
+        if self.waistHorizontalReward:
+            reward_waistHorizontal = self.waistFeature.plane.normal.dot(np.array([0,-1.0,0]))
+            reward_record.append(reward_waistHorizontal)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
         self.reward = reward_restPose * self.restPoseRewardWeight\
                     + reward_stableCOM * self.stableCOMRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
-                    + reward_clothdeformation * self.deformationPenaltyWeight
+                    + reward_clothdeformation * self.deformationPenaltyWeight \
+                    + reward_waistHorizontal * self.waistContainmentRewardWeight
 
         return self.reward
 
@@ -384,13 +395,14 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         toe = self.robot_skeleton.bodynodes[6].to_world(self.toeOffset)
         lines = []
         if self.reset_number > 0:
-            for v in self.waistFeature.verts:
+            '''for v in self.waistFeature.verts:
                 # print(v)
                 dist = np.linalg.norm(self.clothScene.getVertexPos(cid=0, vid=v) - toe)
                 if dist < distance2Feature:
                     distance2Feature = dist
                     pos = self.clothScene.getVertexPos(cid=0, vid=v)
-                    # print(dist)
+                    # print(dist)'''
+            pos = self.waistFeature.plane.org
 
             lines.append([pos, toe])
 

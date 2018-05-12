@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_05_12_lockedL_shortsalign"
     #trial = "experiment_2018_05_11_lockedL_balance"
 
     #trial = "experiment_2018_05_10_stand_SPD_prevtau"
@@ -314,11 +315,14 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothBalance-v1')
     env = gym.make('DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1')
 
+    useMeanPolicy = False
+
     #print("policy time")
     policy = None
     if trial is not None and policy is None:
         policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
         print(policy)
+        useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
     if True and policy is None:
@@ -331,13 +335,15 @@ if __name__ == '__main__':
             init_std=1.0
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        all_param_values[4] *= 0.1
+        all_param_values[4] *= 0.01
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
+        useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization
     #print(policy.output_layer)
 
     print("about to run")
     paused = False
+    #useMeanPolicy = True $set mean policy usage
     time.sleep(0.5)
     cumulativeFPS = 0
     completedRollouts = 0 #counts rollouts which were not terminated early
@@ -388,7 +394,8 @@ if __name__ == '__main__':
                 action, a_info = policy.get_action(o)
                 #print(a_info['mean'])
                 a = action
-                #a = a_info['mean']
+                if useMeanPolicy:
+                    a = a_info['mean']
                 as_ub = np.ones(env.action_space.shape)
                 action_space = spaces.Box(-1 * as_ub, as_ub)
                 lb, ub = action_space.bounds
