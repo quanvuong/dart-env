@@ -212,14 +212,14 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
                 self.action_scale[self.actuatedDofs.tolist().index(13)] = 150
 
             #increase all lower body torque
-            self.action_scale[0:12] *= 5#2.5 #20 -> 50
+            self.action_scale[0:12] *= 4#2.5 #20 -> 50
 
             #thighs
             self.action_scale[3] = 150
-            self.action_scale[6] = 150
+            #self.action_scale[6] = 150
             #knees
             self.action_scale[2] = 200
-            self.action_scale[9] = 200
+            #self.action_scale[9] = 200
 
             #TODO: without gravity, this might be too high...
             #self.action_scale[
@@ -319,7 +319,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
 
             #leftlegConstraint.add_to_world(self.dart_world)
             #TODO: fix this
-            rightlegConstraint.add_to_world(self.dart_world)
+            #rightlegConstraint.add_to_world(self.dart_world)
 
         utils.EzPickle.__init__(self)
 

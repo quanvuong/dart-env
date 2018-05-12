@@ -538,6 +538,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv',
+    #max_episode_steps=250,
+)
+
 
 #Multi-agent
 register(

@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenLockedFootClothBalanceEnv(DartClothFullBodyDataDrivenLockedFootClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = True
         self.renderRestPose = True
@@ -168,8 +168,8 @@ class DartClothFullBodyDataDrivenLockedFootClothBalanceEnv(DartClothFullBodyData
         bodyCOM = self.robot_skeleton.com()
 
         lines = [
-            [np.array([footCOM[0], 1.0, footCOM[2]]), np.array([footCOM[0], -1.0, footCOM[2]])],
-            [np.array([bodyCOM[0], 1.0, bodyCOM[2]]), np.array([bodyCOM[0], -1.0, bodyCOM[2]])]
+            [np.array([footCOM[0], 1.0, footCOM[2]]), np.array([footCOM[0], -2.0, footCOM[2]])],
+            [np.array([bodyCOM[0], 1.0, bodyCOM[2]]), np.array([bodyCOM[0], -2.0, bodyCOM[2]])]
         ]
         #print(lines)
         renderUtils.drawLines(lines=lines)
