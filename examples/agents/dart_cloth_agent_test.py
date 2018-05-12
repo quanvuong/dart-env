@@ -10,6 +10,7 @@ import joblib
 import pyPhysX.pyutils as pyutils
 import os
 
+from rllab import spaces
 from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.normalized_env import normalize
@@ -25,10 +26,13 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_05_10_stand_SPD_prevtau"
+    #trial = "experiment_2018_05_10_stand_SPD_lowvel"
     #trial = "experiment_2018_05_09_lsleeve2_wide_warmhighdef" #high def correction of "experiment_2018_05_06_lsleeve2_wide"
-    #trial = "experiment_2018_05_09_stand" # typical TRPO (local features)
+    #trial = "experiment_2018_05_09_stand_SPD"  # first SPD trial (local features)
+
     #trial = "experiment_2018_05_09_stand_lowbias" # Reduced bias TRPO (local features)
-    #trial = "experiment_2018_05_09_stand_SPD" #first SPD trial (local features)
+    #trial = "experiment_2018_05_09_stand"  # typical TRPO (local features)
 
     #trial = "experiment_2018_05_06_lsleeve2_warm"
     #trial = "experiment_2018_05_06_lsleeve2_wide"
@@ -298,10 +302,14 @@ if __name__ == '__main__':
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
     #env = gym.make('DartClothFullBodyDataDrivenClothSPDTest-v1') #testing the full body data driven cloth base env setup with SPD
-    env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+
+    #locked foot envs
+    #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
+    env = gym.make('DartClothFullBodyDataDrivenLockedFootClothBalance-v1')
 
     #print("policy time")
     policy = None
@@ -310,19 +318,19 @@ if __name__ == '__main__':
         print(policy)
 
     #initialize an empty test policy
-    if True:
-        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothStand-v1', record_log=False, record_video=False))
+    if True and policy is None:
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenLockedFootClothBalance-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=0.1
+            init_std=1.0
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         all_param_values[4] *= 0.1
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
-
+        env2._wrapped_env.env._render(close=True)
     #print(policy.output_layer)
 
     print("about to run")
@@ -356,7 +364,7 @@ if __name__ == '__main__':
 
             #SPD target
             #start_pose[31-6] += 0.01
-            a = np.array(start_pose)
+            #a = np.array(start_pose)
 
             #a = -np.ones(len(a))
             #a += np.random.uniform(-1,1,len(a))
@@ -378,6 +386,12 @@ if __name__ == '__main__':
                 #print(a_info['mean'])
                 a = action
                 #a = a_info['mean']
+                as_ub = np.ones(env.action_space.shape)
+                action_space = spaces.Box(-1 * as_ub, as_ub)
+                lb, ub = action_space.bounds
+                scaled_action = lb + (a + 1.) * 0.5 * (ub - lb)
+                scaled_action = np.clip(scaled_action, lb, ub)
+                a=scaled_action
             done = False
             if not paused or env.numSteps == 0:# or j==0:
                 s_info = env.step(a)

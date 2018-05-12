@@ -54,6 +54,9 @@ from gym.envs.dart.fullbodydatadriven_cloth_onefootstand import DartClothFullBod
 from gym.envs.dart.fullbodydatadriven_cloth_onefootstand_crouch import DartClothFullBodyDataDrivenClothOneFootStandCrouchEnv
 from gym.envs.dart.fullbodydatadriven_cloth_onefootstand_shorts import DartClothFullBodyDataDrivenClothOneFootStandShortsEnv
 
+from gym.envs.dart.fullbodydatadriven_lockedFoot_cloth_test import DartClothFullBodyDataDrivenLockedFootClothTestEnv
+from gym.envs.dart.fullbodydatadriven_lockedFoot_cloth_balance import DartClothFullBodyDataDrivenLockedFootClothBalanceEnv
+
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv
 

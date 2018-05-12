@@ -22,13 +22,14 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         renderCloth = False
         gravity = True
         SPDActionSpace = True
         frameskip = 15
         dt = 0.002
+        self.directProprioception = True #if true, include (q, dq) in state space, otherwise include root local offsets and rotation quaternions, com linear and angular velocities
 
         #reward flags
         self.restPoseReward             = True
@@ -40,8 +41,8 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
         self.stationaryAnklePosReward   = True #penalizes planar motion of projected ankle point
-        self.actionSmoothReward         = False #penalizes distance between previous action and current action
-        self.lowVelocityReward          = True #penalize joint velocity
+        self.actionSmoothReward         = True #penalizes distance between previous action and current action
+        self.lowVelocityReward          = False #penalize joint velocity
 
         #reward weights
         self.restPoseRewardWeight               = 1
@@ -87,7 +88,16 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
         self.actuatedDofs = np.arange(34)
         observation_size = 0
-        observation_size = 34 * 3 + 6 #q[6:](sin,cos), dq
+        if self.directProprioception:
+            observation_size += 34 * 3 + 6 #q[6:](sin,cos), dq
+        else:
+            numNodes = len(self.robot_skeleton.bodynodes)-1
+            observation_size += numNodes * 3 #root relative coms
+            observation_size += numNodes * 3 #root relative com linear velocity
+            observation_size += numNodes * 4 #root relative orientations (quaternions)
+            #TODO: angular velocity?
+            #observation_size += numNodes * 4 #root relative orientations (quaternions)
+
         observation_size += 3 # COM (root local 3D)
         observation_size += 1 # COM height
         observation_size += 3 # ZMP (3D root local)
@@ -382,6 +392,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
             reward_record.append(reward_low_velocity)
 
         self.prevTau = tau
+        #print(self.prevTau)
 
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
@@ -408,7 +419,14 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
         dq = np.array(self.robot_skeleton.dq)
         trans = np.array(self.robot_skeleton.q[3:6])
 
-        obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
+        if self.directProprioception:
+            obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
+        else:
+            local_coms = self.getLocalBodyCOMs()
+            local_qs = self.getLocalBodyRotations()
+
+            #TODO
+            obs = np.concatenate([]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
@@ -534,7 +552,7 @@ class DartClothFullBodyDataDrivenClothStandEnv(DartClothFullBodyDataDrivenClothB
 
             if self.numSteps > 0:
                 tauLim = np.concatenate([np.zeros(6), self.action_scale])
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True, tau=self.prevTau, tauLim=tauLim)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True, otherPoses=[self.prevTau], otherPoseColors=[[0.0,0.0,0.0]])
 
                 #grapher test
                 '''i = int(self.numSteps/100)

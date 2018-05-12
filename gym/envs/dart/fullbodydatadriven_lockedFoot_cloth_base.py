@@ -127,8 +127,8 @@ class SPDController(Controller):
         self.Kp = np.diagflat([KpScale] * (ndofs))
         self.Kd = np.diagflat([KdScale] * (ndofs))
 
-class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, skelfile=None):
+class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPickle):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, left_foot_locked=True):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -153,12 +153,16 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.actionTrajectory = []
         self.stateTraj = []
         self.totalTime = 0
-        self.locked_foot = False
+        self.left_foot_locked = left_foot_locked #if true, use left foot locked setup
         self.instabilityDetected = False
-        self.terminationPenaltyWeight = 0#-1500
+        self.terminationPenaltyWeight = -1500
 
-        self.limbNodesLegL = [15, 16, 17]
-        self.limbNodesLegR = [18, 19, 20]
+        self.limbNodesLegL = [2, 1, 0]
+        self.limbNodesLegR = [4, 5, 6]
+        if not self.left_foot_locked:
+            self.limbNodesLegL = [4, 5, 6]
+            self.limbNodesLegR = [2, 1, 0]
+
         self.toeOffset     = np.array([0, 0, -0.2])
 
         #action graphing
@@ -194,25 +198,30 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if self.graphClothViolation:
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
 
-        self.actuatedDofs = np.arange(34) # full upper body (discount the free root dofs)
-        for i in range(len(self.actuatedDofs)):
-            self.actuatedDofs[i] += 6
+        self.actuatedDofs = np.arange(34) # full upper body
+        #for i in range(len(self.actuatedDofs)):
+        #    self.actuatedDofs[i] += 6
 
-        #40 dof upper body
+        #34 dof body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
             self.action_scale *= 20
-            if 6 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
-            if 7 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28-6:] *= 5#2.5 #20 -> 50
+            if 12 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(12)] = 150
+            if 13 in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(13)] = 150
+
+            #increase all lower body torque
+            self.action_scale[0:12] *= 5#2.5 #20 -> 50
+
             #thighs
-            self.action_scale[28-6] = 150
-            self.action_scale[34-6] = 150
+            self.action_scale[3] = 150
+            self.action_scale[6] = 150
             #knees
-            self.action_scale[31-6] = 200
-            self.action_scale[37-6] = 200
+            self.action_scale[2] = 200
+            self.action_scale[9] = 200
+
+            #TODO: without gravity, this might be too high...
             #self.action_scale[
 
         #self.action_scale*=10
@@ -255,12 +264,12 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.deformation = 0
 
         self.obs_size = obs_size
-        skelFile = skelfile
-        if skelFile is None:
-            skelFile = 'FullBodyCapsules_datadriven.skel'
+        skelFile = None
 
-        if self.locked_foot:
-            skelFile = 'FullBodyCapsules_datadriven_lockedfoot.skel'
+        if self.left_foot_locked:
+            skelFile = 'FullBodyCapsules_datadriven_lockedL.skel'
+        else:
+            skelFile = 'FullBodyCapsules_datadriven_lockedR.skel' #TODO: need this file
 
         #intialize the parent env
         if self.useOpenGL is True:
@@ -274,32 +283,17 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #reset control bounds for SPD to joint limits
         if SPDActionSpace and self.SPDJointLimitBounds:
             for ix,d in enumerate(self.robot_skeleton.dofs):
-                if ix > 5:
-                    if d.has_position_limit():
-                        ulim = d.position_upper_limit()
-                        llim = d.position_lower_limit()
-                        self.control_bounds[0][ix-6] = ulim
-                        self.control_bounds[1][ix-6] = llim
-                    else:
-                        self.control_bounds[0][ix-6] = 2.5
-                        self.control_bounds[1][ix-6] = -2.5
+                if d.has_position_limit():
+                    ulim = d.position_upper_limit()
+                    llim = d.position_lower_limit()
+                    self.control_bounds[0][ix] = ulim
+                    self.control_bounds[1][ix] = llim
+                else:
+                    self.control_bounds[0][ix] = 2.5
+                    self.control_bounds[1][ix] = -2.5
             #print(self.control_bounds)
             self.action_space = spaces.Box(self.control_bounds[1], self.control_bounds[0])
 
-        #rescaling actions for SPD
-        '''if SPDActionSpace:
-            for ix, dof in enumerate(self.robot_skeleton.dofs):
-                if dof.has_position_limit():
-                    self.action_scale[ix] = 1.0
-                    self.control_bounds[0][ix] = dof.position_upper_limit()
-                    self.control_bounds[1][ix] = dof.position_lower_limit()
-                    print("ix: " + str(ix) + " | control_bounds["+str(ix)+"]: " + str(self.control_bounds[0][ix]) + ", " + str(str(self.control_bounds[0][ix])))
-                else:
-                    self.action_scale[ix] = 3.14
-                    self.control_bounds[0][ix] = 1.0
-                    self.control_bounds[1][ix] = -1.0
-            self.action_space = spaces.Box(self.control_bounds[1], self.control_bounds[0])
-        '''
         print("action_space: " + str(self.action_space))
         print("action_scale: " + str(self.action_scale))
         print("control_bounds: " + str(self.control_bounds))
@@ -311,10 +305,20 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), False)
             leftarmConstraint.add_to_world(self.dart_world)
             rightarmConstraint.add_to_world(self.dart_world)
-            #legs #TODO: fix arm/leg side label?
+            #legs #TODO: fix arm side label?
             leftlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_left'), self.robot_skeleton.joint('j_shin_left'), self.robot_skeleton.joint('j_heel_left'), False)
             rightlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_right'), self.robot_skeleton.joint('j_shin_right'), self.robot_skeleton.joint('j_heel_right'), True)
-            leftlegConstraint.add_to_world(self.dart_world)
+            if self.left_foot_locked:
+                leftlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(
+                    self.robot_skeleton.joint('j_thigh_left'), self.robot_skeleton.joint('j_shin_left'),
+                    self.robot_skeleton.joint('j_heel_left'), True, True)
+            else:
+                rightlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(
+                    self.robot_skeleton.joint('j_thigh_right'), self.robot_skeleton.joint('j_shin_right'),
+                    self.robot_skeleton.joint('j_heel_right'), False, True)
+
+            #leftlegConstraint.add_to_world(self.dart_world)
+            #TODO: fix this
             rightlegConstraint.add_to_world(self.dart_world)
 
         utils.EzPickle.__init__(self)
@@ -337,45 +341,44 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
+        #TODO: fix bodynode indexing issues?
         collision_filter = self.dart_world.create_collision_filter()
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
-                                           self.robot_skeleton.bodynodes[12])  # left forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
-                                           self.robot_skeleton.bodynodes[7])  # right forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[13])  # torso to neck
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[14])  # torso to head
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[3])  # torso to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[8])  # torso to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
-                                           self.robot_skeleton.bodynodes[3])  # neck to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
-                                           self.robot_skeleton.bodynodes[8])  # neck to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
-                                           self.robot_skeleton.bodynodes[3])  # head to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
-                                           self.robot_skeleton.bodynodes[8])  # head to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
-                                           self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
-        #TODO: disable collisions between lower body interfering nodes
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[15])  # torso to upper left leg
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
-                                           self.robot_skeleton.bodynodes[18])  # torso to upper left leg
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[16],
+                                           self.robot_skeleton.bodynodes[18])  # left forearm to fingers
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[11],
+                                           self.robot_skeleton.bodynodes[13])  # right forearm to fingers
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[19])  # torso to neck
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[20])  # torso to head
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[9])  # torso to right shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[14])  # torso to left shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[19],
+                                           self.robot_skeleton.bodynodes[9])  # neck to right shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[19],
+                                           self.robot_skeleton.bodynodes[14])  # neck to left shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[20],
+                                           self.robot_skeleton.bodynodes[9])  # head to right shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[20],
+                                           self.robot_skeleton.bodynodes[14])  # head to left shoulder
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[9],
+                                           self.robot_skeleton.bodynodes[14])  # right shoulder to left shoulder
+        #disable collisions between lower body interfering nodes
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[2])  # torso to upper left leg
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[7],
+                                           self.robot_skeleton.bodynodes[4])  # torso to upper right leg
 
 
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
             
         for i in range(len(self.robot_skeleton.dofs)):
-            if(i > 5):
-                self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
-                #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)d
+            self.robot_skeleton.dofs[i].set_damping_coefficient(5.0)
             print(self.robot_skeleton.dofs[i])
-            #print("     damping:" + str(self.robot_skeleton.dofs[i].damping_coefficient()))
+            print("     damping:" + str(self.robot_skeleton.dofs[i].damping_coefficient()))
             #print("     stiffness:" + str(self.robot_skeleton.dofs[i].spring_stiffness()))
 
         #enable joint limits
@@ -383,8 +386,9 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print(self.robot_skeleton.joints[i])
 
         #DART does not automatically limit joints with any unlimited dofs
-        self.robot_skeleton.joints[4].set_position_limit_enforced(True)
-        self.robot_skeleton.joints[9].set_position_limit_enforced(True)
+        #TODO: check this for right leg...
+        self.robot_skeleton.joints[10].set_position_limit_enforced(True)
+        self.robot_skeleton.joints[15].set_position_limit_enforced(True)
 
         self.clothScene.setSelfCollisionDistance(distance=0.03)
         self.clothScene.step()
@@ -857,25 +861,25 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return self._get_obs()
 
     def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
-        a=0
+
         #collision spheres creation
         fingertip = np.array([0.0, -0.06, 0.0])
         z = np.array([0.,0,0])
         #upper body
-        cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
-        cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
-        cs2 = self.robot_skeleton.bodynodes[14].to_world(z)
-        cs3 = self.robot_skeleton.bodynodes[14].to_world(np.array([0,0.175,0]))
-        cs4 = self.robot_skeleton.bodynodes[4].to_world(z)
-        cs5 = self.robot_skeleton.bodynodes[5].to_world(z)
-        cs6 = self.robot_skeleton.bodynodes[6].to_world(z)
-        cs7 = self.robot_skeleton.bodynodes[7].to_world(z)
-        cs8 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        cs9 = self.robot_skeleton.bodynodes[9].to_world(z)
-        cs10 = self.robot_skeleton.bodynodes[10].to_world(z)
-        cs11 = self.robot_skeleton.bodynodes[11].to_world(z)
-        cs12 = self.robot_skeleton.bodynodes[12].to_world(z)
-        cs13 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        cs0 = self.robot_skeleton.bodynodes[7].to_world(z)
+        cs1 = self.robot_skeleton.bodynodes[8].to_world(z)
+        cs2 = self.robot_skeleton.bodynodes[20].to_world(z)
+        cs3 = self.robot_skeleton.bodynodes[20].to_world(np.array([0,0.175,0]))
+        cs4 = self.robot_skeleton.bodynodes[10].to_world(z)
+        cs5 = self.robot_skeleton.bodynodes[11].to_world(z)
+        cs6 = self.robot_skeleton.bodynodes[12].to_world(z)
+        cs7 = self.robot_skeleton.bodynodes[13].to_world(z)
+        cs8 = self.robot_skeleton.bodynodes[13].to_world(fingertip)
+        cs9 = self.robot_skeleton.bodynodes[15].to_world(z)
+        cs10 = self.robot_skeleton.bodynodes[16].to_world(z)
+        cs11 = self.robot_skeleton.bodynodes[17].to_world(z)
+        cs12 = self.robot_skeleton.bodynodes[18].to_world(z)
+        cs13 = self.robot_skeleton.bodynodes[18].to_world(fingertip)
         csVars0 = np.array([0.15, -1, -1, 0,0,0])
         csVars1 = np.array([0.07, -1, -1, 0,0,0])
         csVars2 = np.array([0.1, -1, -1, 0,0,0])
@@ -892,32 +896,51 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         csVars13 = np.array([0.046, -1, -1, 0,0,0])
 
         #lower body: (character's)left leg
-        cs14 = self.robot_skeleton.bodynodes[15].to_world(z)  # l-upperleg
+        cs14 = self.robot_skeleton.bodynodes[2].to_world(np.array([0, 0.42875, 0]))  # l-upperleg
         csVars14 = np.array([0.077, -1, -1, 0, 0, 0])
-        cs15 = self.robot_skeleton.bodynodes[16].to_world(z)  # l-lowerleg
+        cs15 = self.robot_skeleton.bodynodes[2].to_world(z)  # l-lowerleg
         csVars15 = np.array([0.065, -1, -1, 0, 0, 0])
-        cs16 = self.robot_skeleton.bodynodes[17].to_world(z)  # l-foot_center
+        cs16 = self.robot_skeleton.bodynodes[1].to_world(z)  # l-foot_center
         csVars16 = np.array([0.0525, -1, -1, 0, 0, 0])
-        cs17 = self.robot_skeleton.bodynodes[17].to_world(np.array([-0.025, 0, 0.03]))  # l-foot_l-heel
+        cs17 = self.robot_skeleton.bodynodes[0].to_world(np.array([-0.025, 0, 0.03]))  # l-foot_l-heel
         csVars17 = np.array([0.05775, -1, -1, 0, 0, 0])
-        cs18 = self.robot_skeleton.bodynodes[17].to_world(np.array([0.025, 0, 0.03]))  # l-foot_r-heel
+        cs18 = self.robot_skeleton.bodynodes[0].to_world(np.array([0.025, 0, 0.03]))  # l-foot_r-heel
         csVars18 = np.array([0.05775, -1, -1, 0, 0, 0])
-        cs19 = self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15]))  # l-foot_toe
+        cs19 = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, -0.15]))  # l-foot_toe
         csVars19 = np.array([0.0525, -1, -1, 0, 0, 0])
 
         # lower body: (character's)right leg
-        cs20 = self.robot_skeleton.bodynodes[18].to_world(z)  # r-upperleg
+        cs20 = self.robot_skeleton.bodynodes[4].to_world(z)  # r-upperleg
         csVars20 = np.array([0.077, -1, -1, 0, 0, 0])
-        cs21 = self.robot_skeleton.bodynodes[19].to_world(z)  # r-lowerleg
+        cs21 = self.robot_skeleton.bodynodes[5].to_world(z)  # r-lowerleg
         csVars21 = np.array([0.065, -1, -1, 0, 0, 0])
-        cs22 = self.robot_skeleton.bodynodes[20].to_world(z)  # r-foot_center
+        cs22 = self.robot_skeleton.bodynodes[6].to_world(z)  # r-foot_center
         csVars22 = np.array([0.0525, -1, -1, 0, 0, 0])
-        cs23 = self.robot_skeleton.bodynodes[20].to_world(np.array([-0.025, 0, 0.03]))  # r-foot_l-heel
+        cs23 = self.robot_skeleton.bodynodes[6].to_world(np.array([-0.025, 0, 0.03]))  # r-foot_l-heel
         csVars23 = np.array([0.05775, -1, -1, 0, 0, 0])
-        cs24 = self.robot_skeleton.bodynodes[20].to_world(np.array([0.025, 0, 0.03]))  # r-foot_r-heel
+        cs24 = self.robot_skeleton.bodynodes[6].to_world(np.array([0.025, 0, 0.03]))  # r-foot_r-heel
         csVars24 = np.array([0.05775, -1, -1, 0, 0, 0])
-        cs25 = self.robot_skeleton.bodynodes[20].to_world(np.array([0, 0, -0.15]))  # r-foot_toe
+        cs25 = self.robot_skeleton.bodynodes[6].to_world(np.array([0, 0, -0.15]))  # r-foot_toe
         csVars25 = np.array([0.0525, -1, -1, 0, 0, 0])
+
+        if not self.left_foot_locked:
+            #right leg skel file...
+            cs14 = self.robot_skeleton.bodynodes[4].to_world(z)  # l-upperleg
+            csVars14 = np.array([0.077, -1, -1, 0, 0, 0])
+            cs15 = self.robot_skeleton.bodynodes[5].to_world(z)  # l-lowerleg
+            csVars15 = np.array([0.065, -1, -1, 0, 0, 0])
+            cs16 = self.robot_skeleton.bodynodes[6].to_world(z)  # l-foot_center
+            cs17 = self.robot_skeleton.bodynodes[6].to_world(np.array([-0.025, 0, 0.03]))  # l-foot_l-heel
+            cs18 = self.robot_skeleton.bodynodes[6].to_world(np.array([0.025, 0, 0.03]))  # l-foot_r-heel
+            cs19 = self.robot_skeleton.bodynodes[6].to_world(np.array([0, 0, -0.15]))  # l-foot_toe
+
+            # lower body: (character's)right leg
+            cs20 = self.robot_skeleton.bodynodes[2].to_world(z)  # r-upperleg
+            cs21 = self.robot_skeleton.bodynodes[1].to_world(z)  # r-lowerleg
+            cs22 = self.robot_skeleton.bodynodes[0].to_world(z)  # r-foot_center
+            cs23 = self.robot_skeleton.bodynodes[0].to_world(np.array([-0.025, 0, 0.03]))  # r-foot_l-heel
+            cs24 = self.robot_skeleton.bodynodes[0].to_world(np.array([0.025, 0, 0.03]))  # r-foot_r-heel
+            cs25 = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, -0.15]))  # r-foot_toe
 
 
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13, cs14, csVars14, cs15, csVars15, cs16, csVars16, cs17, csVars17, cs18, csVars18, cs19, csVars19, cs20, csVars20, cs21, csVars21, cs22, csVars22, cs23, csVars23, cs24, csVars24, cs25, csVars25]).ravel()
@@ -962,29 +985,41 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
             collisionCapsuleBodynodes = -1 * np.ones((26,26))
             #upper body
-            collisionCapsuleBodynodes[0, 1] = 1
-            collisionCapsuleBodynodes[1, 2] = 13
-            collisionCapsuleBodynodes[1, 4] = 3
-            collisionCapsuleBodynodes[1, 9] = 8
-            collisionCapsuleBodynodes[2, 3] = 14
-            collisionCapsuleBodynodes[4, 5] = 4
-            collisionCapsuleBodynodes[5, 6] = 5
-            collisionCapsuleBodynodes[6, 7] = 6
-            collisionCapsuleBodynodes[7, 8] = 7
-            collisionCapsuleBodynodes[9, 10] = 9
-            collisionCapsuleBodynodes[10, 11] = 10
-            collisionCapsuleBodynodes[11, 12] = 11
-            collisionCapsuleBodynodes[12, 13] = 12
-            #lower body
-            collisionCapsuleInfo[14, 15] = 15
-            collisionCapsuleInfo[15, 16] = 16
-            collisionCapsuleInfo[17, 19] = 17
-            collisionCapsuleInfo[18, 19] = 17
+            collisionCapsuleBodynodes[0, 1] = 7
+            collisionCapsuleBodynodes[1, 2] = 19
+            collisionCapsuleBodynodes[1, 4] = 9
+            collisionCapsuleBodynodes[1, 9] = 14
+            collisionCapsuleBodynodes[2, 3] = 20
+            collisionCapsuleBodynodes[4, 5] = 10
+            collisionCapsuleBodynodes[5, 6] = 11
+            collisionCapsuleBodynodes[6, 7] = 12
+            collisionCapsuleBodynodes[7, 8] = 13
+            collisionCapsuleBodynodes[9, 10] = 15
+            collisionCapsuleBodynodes[10, 11] = 16
+            collisionCapsuleBodynodes[11, 12] = 17
+            collisionCapsuleBodynodes[12, 13] = 18
 
-            collisionCapsuleInfo[20, 21] = 18
-            collisionCapsuleInfo[21, 22] = 19
-            collisionCapsuleInfo[23, 25] = 20
-            collisionCapsuleInfo[24, 25] = 20
+            #lower body: different bodynodes by skel, but same capsules
+            if self.left_foot_locked:
+                collisionCapsuleInfo[14, 15] = 2
+                collisionCapsuleInfo[15, 16] = 1
+                collisionCapsuleInfo[17, 19] = 0
+                collisionCapsuleInfo[18, 19] = 0
+
+                collisionCapsuleInfo[20, 21] = 4
+                collisionCapsuleInfo[21, 22] = 5
+                collisionCapsuleInfo[23, 25] = 6
+                collisionCapsuleInfo[24, 25] = 6
+            else:
+                collisionCapsuleInfo[14, 15] = 4
+                collisionCapsuleInfo[15, 16] = 5
+                collisionCapsuleInfo[17, 19] = 6
+                collisionCapsuleInfo[18, 19] = 6
+
+                collisionCapsuleInfo[20, 21] = 2
+                collisionCapsuleInfo[21, 22] = 1
+                collisionCapsuleInfo[23, 25] = 0
+                collisionCapsuleInfo[24, 25] = 0
 
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
             self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
@@ -1025,8 +1060,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         GL.glEnd()
 
         renderUtils.setColor([0,0,0])
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,-0.3,-0.075]))])
 
         textHeight = 15
         textLines = 2

@@ -400,7 +400,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
                       + reward_triangleContainment * self.triangleContainmentRewardWeight \
                       + reward_triangleAlignment * self.triangleAlignmentRewardWeight \
                       + reward_contactGeo * self.contactGeoRewardWeight
-            # TODO: revisit deformation penalty
+
         return self.reward
 
     def _get_obs(self):

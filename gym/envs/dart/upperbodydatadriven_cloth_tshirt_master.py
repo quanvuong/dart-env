@@ -430,8 +430,8 @@ class LeftSleeveController(Controller):
 
         #policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
         #policyfilename = "experiment_2018_05_01_sleevel_widewarm"
-        policyfilename = "experiment_2018_05_06_lsleeve2_wide"
-        #policyfilename = "experiment_2018_05_09_lsleeve2_wide_warmhighdef"
+        #policyfilename = "experiment_2018_05_06_lsleeve2_wide"
+        policyfilename = "experiment_2018_05_09_lsleeve2_wide_warmhighdef"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
@@ -520,7 +520,7 @@ class SPDController(Controller):
         self.preoffset = 0.0
 
     def setup(self):
-        self.env.saveState(name="enter_seq_final")
+        #self.env.saveState(name="enter_seq_final")
         self.env.frameskip = 1
         self.env.SPDTorqueLimits = True
         #reset the target

@@ -3,7 +3,7 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart.dart_cloth_env import *
-from gym.envs.dart.fullbodydatadriven_cloth_base import *
+from gym.envs.dart.fullbodydatadriven_lockedFoot_cloth_base import *
 import random
 import time
 import math
@@ -19,7 +19,7 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenLockedFootClothTestEnv(DartClothFullBodyDataDrivenLockedFootClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
@@ -33,13 +33,14 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
         self.actuatedDofs = np.arange(34)
         observation_size = len(self.actuatedDofs)
 
-        DartClothFullBodyDataDrivenClothBaseEnv.__init__(self,
+        DartClothFullBodyDataDrivenLockedFootClothBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=(1080,920),
                                                           clothMeshFile="capri_med.obj",
                                                           clothScale=np.array([1.0,1.0,1.0]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          left_foot_locked = True)
 
 
         self.simulateCloth = clothSimulation
@@ -98,8 +99,8 @@ class DartClothFullBodyDataDrivenClothTestEnv(DartClothFullBodyDataDrivenClothBa
         GL.glEnd()
 
         renderUtils.setColor([0,0,0])
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,-0.3,-0.075]))])
+        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,-0.3,-0.075]))])
 
         #compute the zero moment point
 
