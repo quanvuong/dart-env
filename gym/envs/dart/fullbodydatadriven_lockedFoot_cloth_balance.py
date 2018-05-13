@@ -26,6 +26,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBalanceEnv(DartClothFullBodyData
         clothSimulation = False
         renderCloth = True
         self.renderRestPose = True
+        left_foot_locked = False
         frameskip = 4
         dt = 0.002
 
@@ -55,7 +56,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBalanceEnv(DartClothFullBodyData
                                                                   clothScale=np.array([1.0,1.0,1.0]),
                                                                   obs_size=observation_size,
                                                                   simulateCloth=clothSimulation,
-                                                                  left_foot_locked = True,
+                                                                  left_foot_locked = left_foot_locked,
                                                                   frameskip=frameskip,
                                                                   dt=dt)
 

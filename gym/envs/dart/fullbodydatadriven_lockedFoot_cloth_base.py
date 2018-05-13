@@ -128,7 +128,7 @@ class SPDController(Controller):
         self.Kd = np.diagflat([KdScale] * (ndofs))
 
 class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, left_foot_locked=True):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, left_foot_locked=True, first_6_dofs=False):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -154,6 +154,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
         self.stateTraj = []
         self.totalTime = 0
         self.left_foot_locked = left_foot_locked #if true, use left foot locked setup
+        self.first_6_dofs = first_6_dofs
         self.instabilityDetected = False
         self.terminationPenaltyWeight = -1500
 
@@ -199,17 +200,22 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
 
         self.actuatedDofs = np.arange(34) # full upper body
-        #for i in range(len(self.actuatedDofs)):
-        #    self.actuatedDofs[i] += 6
+
+        if self.first_6_dofs:
+            for i in range(len(self.actuatedDofs)):
+                self.actuatedDofs[i] += 6
 
         #34 dof body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
             self.action_scale *= 20
-            if 12 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(12)] = 150
-            if 13 in self.actuatedDofs:
-                self.action_scale[self.actuatedDofs.tolist().index(13)] = 150
+            dofOffset = 0
+            if self.first_6_dofs:
+                dofOffset = 6
+            if 12+dofOffset in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(12+dofOffset)] = 150
+            if 13+dofOffset in self.actuatedDofs:
+                self.action_scale[self.actuatedDofs.tolist().index(13+dofOffset)] = 150
 
             #increase all lower body torque
             self.action_scale[0:12] *= 4#2.5 #20 -> 50
@@ -268,8 +274,12 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
 
         if self.left_foot_locked:
             skelFile = 'FullBodyCapsules_datadriven_lockedL.skel'
+            if self.first_6_dofs:
+                skelFile = 'FullBodyCapsules_datadriven_lockedL_free.skel'
         else:
-            skelFile = 'FullBodyCapsules_datadriven_lockedR.skel' #TODO: need this file
+            skelFile = 'FullBodyCapsules_datadriven_lockedR.skel'
+            if self.first_6_dofs:
+                skelFile = 'FullBodyCapsules_datadriven_lockedR_free.skel'
 
         #intialize the parent env
         if self.useOpenGL is True:
@@ -283,6 +293,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
         #reset control bounds for SPD to joint limits
         if SPDActionSpace and self.SPDJointLimitBounds:
             for ix,d in enumerate(self.robot_skeleton.dofs):
+                #TODO: protect again first 6?
                 if d.has_position_limit():
                     ulim = d.position_upper_limit()
                     llim = d.position_lower_limit()
@@ -319,7 +330,7 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
 
             #leftlegConstraint.add_to_world(self.dart_world)
             #TODO: fix this
-            #rightlegConstraint.add_to_world(self.dart_world)
+            rightlegConstraint.add_to_world(self.dart_world)
 
         utils.EzPickle.__init__(self)
 
@@ -341,7 +352,6 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
         self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
-        #TODO: fix bodynode indexing issues?
         collision_filter = self.dart_world.create_collision_filter()
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[16],
                                            self.robot_skeleton.bodynodes[18])  # left forearm to fingers
@@ -382,11 +392,11 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
             #print("     stiffness:" + str(self.robot_skeleton.dofs[i].spring_stiffness()))
 
         #enable joint limits
+        #TODO: create limit for 1st 6 dofs to entry pose (locked foot)
         for i in range(len(self.robot_skeleton.joints)):
             print(self.robot_skeleton.joints[i])
 
         #DART does not automatically limit joints with any unlimited dofs
-        #TODO: check this for right leg...
         self.robot_skeleton.joints[10].set_position_limit_enforced(True)
         self.robot_skeleton.joints[15].set_position_limit_enforced(True)
 
@@ -926,18 +936,16 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
         if not self.left_foot_locked:
             #right leg skel file...
             cs14 = self.robot_skeleton.bodynodes[4].to_world(z)  # l-upperleg
-            csVars14 = np.array([0.077, -1, -1, 0, 0, 0])
             cs15 = self.robot_skeleton.bodynodes[5].to_world(z)  # l-lowerleg
-            csVars15 = np.array([0.065, -1, -1, 0, 0, 0])
             cs16 = self.robot_skeleton.bodynodes[6].to_world(z)  # l-foot_center
             cs17 = self.robot_skeleton.bodynodes[6].to_world(np.array([-0.025, 0, 0.03]))  # l-foot_l-heel
             cs18 = self.robot_skeleton.bodynodes[6].to_world(np.array([0.025, 0, 0.03]))  # l-foot_r-heel
             cs19 = self.robot_skeleton.bodynodes[6].to_world(np.array([0, 0, -0.15]))  # l-foot_toe
 
             # lower body: (character's)right leg
-            cs20 = self.robot_skeleton.bodynodes[2].to_world(z)  # r-upperleg
-            cs21 = self.robot_skeleton.bodynodes[1].to_world(z)  # r-lowerleg
-            cs22 = self.robot_skeleton.bodynodes[0].to_world(z)  # r-foot_center
+            cs20 = self.robot_skeleton.bodynodes[2].to_world(np.array([0, 0.42875, 0]))  # r-upperleg
+            cs21 = self.robot_skeleton.bodynodes[2].to_world(z)  # r-lowerleg
+            cs22 = self.robot_skeleton.bodynodes[1].to_world(z)  # r-foot_center
             cs23 = self.robot_skeleton.bodynodes[0].to_world(np.array([-0.025, 0, 0.03]))  # r-foot_l-heel
             cs24 = self.robot_skeleton.bodynodes[0].to_world(np.array([0.025, 0, 0.03]))  # r-foot_r-heel
             cs25 = self.robot_skeleton.bodynodes[0].to_world(np.array([0, 0, -0.15]))  # r-foot_toe
@@ -1221,3 +1229,29 @@ class DartClothFullBodyDataDrivenLockedFootClothBaseEnv(DartClothEnv, utils.EzPi
             else:
                 vels = np.concatenate([vels, np.array(vel)])
         return vels
+
+    def dofLegConversion(self, dofs):
+        #convert a pose from one fixed leg skel to the other (assuming the feet are correctly fixed
+        #TODO: test this?
+        offset = 0
+        if self.first_6_dofs:
+            offset = 6
+        convertedDofs = np.array(dofs)
+
+        convertedDofs[0+offset] = dofs[10+offset]
+        convertedDofs[10+offset] = dofs[0+offset]
+
+        convertedDofs[1+offset] = dofs[11+offset]
+        convertedDofs[11+offset] = dofs[1+offset]
+
+        convertedDofs[2+offset] = dofs[9+offset]
+        convertedDofs[9+offset] = dofs[2+offset]
+
+        convertedDofs[3+offset] = dofs[6+offset]
+        convertedDofs[6+offset] = dofs[3+offset]
+
+        convertedDofs[4+offset] = dofs[7+offset]
+        convertedDofs[7+offset] = dofs[4+offset]
+
+        convertedDofs[5+offset] = dofs[8+offset]
+        convertedDofs[8+offset] = dofs[5+offset]

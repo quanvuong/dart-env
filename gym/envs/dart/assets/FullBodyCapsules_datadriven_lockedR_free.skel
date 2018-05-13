@@ -810,19 +810,20 @@
 
             
             
+            <!--
             <joint type="weld" name="wj1">
                 <parent>world</parent>
                 <child>r-foot</child>
             </joint>
-            
-            <!--
-            <joint name="j_pelvis" type="free">
+            -->
+
+
+            <joint name="wj1" type="free">
                 <parent>world</parent>
-                <child>h_pelvis1</child>
+                <child>r-foot</child>
                 <init_pos>0 0 0 0 0 0</init_pos>
                 <init_vel>0 0 0 0 0 0</init_vel>
             </joint>
-            -->
             
             <joint name="j_heel_right" type="universal">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>

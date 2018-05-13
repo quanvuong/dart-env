@@ -551,13 +551,13 @@
             </body>
             
             <body name="l-upperleg">
-                <transformation>-0.1225 -0.50575 0.0 0 0.0 0</transformation>
+                <transformation>-0.1225 -0.9345 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>7.6</mass>
                     <offset>0 -0.02872625 0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
+                    <transformation>0.0 0.214375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -573,7 +573,7 @@
                     <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
+                    <transformation>0.0 0.214375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -590,13 +590,13 @@
             </body>
             
             <body name="l-lowerleg">
-                <transformation>-0.1225 -0.9345 0.0 0 0.0 0</transformation>
+                <transformation>-0.1225 -1.33525 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>3.534</mass>
                     <offset>0 -0.02685025 0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
+                    <transformation>0.0 0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -612,7 +612,7 @@
                     <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
+                    <transformation>0.0 0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -677,13 +677,13 @@
             
 
             <body name="r-upperleg">
-                <transformation>0.1225 -0.9345 0.0 0 0.0 0</transformation>
+                <transformation>0.1225 -0.50575 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>7.6</mass>
                     <offset>0 -0.02872625 0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.214375 0.0 0 0 0</transformation>
+                    <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -699,7 +699,7 @@
                     <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 0.214375 0.0 0 0 0</transformation>
+                    <transformation>0.0 -0.214375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -716,13 +716,13 @@
             </body>
             
             <body name="r-lowerleg">
-                <transformation>0.1225 -1.33525 0.0 0 0.0 0</transformation>
+                <transformation>0.1225 -0.9345 0.0 0 0.0 0</transformation>
                 <inertia>
                     <mass>3.534</mass>
                     <offset>0 -0.02685025 0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0.200375 0.0 0 0 0</transformation>
+                    <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -738,7 +738,7 @@
                     <color>0.7 0.4 0.2</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 0.200375 0.0 0 0 0</transformation>
+                    <transformation>0.0 -0.200375 0.0 0 0 0</transformation>
                     <geometry>
                         <multi_sphere>
                             <sphere>
@@ -809,25 +809,26 @@
              -->
 
             
-            
+            <!--
             <joint type="weld" name="wj1">
                 <parent>world</parent>
-                <child>r-foot</child>
-            </joint>
-            
-            <!--
-            <joint name="j_pelvis" type="free">
-                <parent>world</parent>
-                <child>h_pelvis1</child>
-                <init_pos>0 0 0 0 0 0</init_pos>
-                <init_vel>0 0 0 0 0 0</init_vel>
+                <child>l-foot</child>
             </joint>
             -->
             
-            <joint name="j_heel_right" type="universal">
+
+            <joint name="wj1" type="free">
+                <parent>world</parent>
+                <child>l-foot</child>
+                <init_pos>0 0 0 0 0 0</init_pos>
+                <init_vel>0 0 0 0 0 0</init_vel>
+            </joint>
+
+            
+            <joint name="j_heel_left" type="universal">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>r-foot</parent>
-                <child>r-lowerleg</child>
+                <parent>l-foot</parent>
+                <child>l-lowerleg</child>
                 <axis>
                     <xyz>-1.0 0.0 0.0</xyz>
                     <limit>
@@ -839,7 +840,7 @@
                     </dynamics>
                 </axis>
                 <axis2>
-                    <xyz>0.0 1.0 0.0</xyz>
+                    <xyz>0.0 -1.0 0.0</xyz>
                     <limit>
                         <lower>-0.75</lower>
                         <upper>0.75</upper>
@@ -852,10 +853,10 @@
                 <init_vel>0 0</init_vel>
             </joint>
             
-            <joint name="j_shin_right" type="revolute">
+            <joint name="j_shin_left" type="revolute">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>r-lowerleg</parent>
-                <child>r-upperleg</child>
+                <parent>l-lowerleg</parent>
+                <child>l-upperleg</child>
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
@@ -870,10 +871,10 @@
                 <init_vel>0</init_vel>
             </joint>
             
-            <joint name="j_thigh_right" type="euler">
-                <transformation>0.1225 -0.077 0.0 0.0 0.0 -1.570796</transformation>
+            <joint name="j_thigh_left" type="euler">
+                <transformation>-0.1225 -0.077 0.0 0.0 0.0 1.570796</transformation>
                 <!-- the above is a workaround since DART don't have Euler in zxy order -->
-                <parent>r-upperleg</parent>
+                <parent>l-upperleg</parent>
                 <child>h_pelvis1</child>
                 <axis_order>zyx</axis_order>
                 <!-- actually being zxy, see transformation above-->
@@ -908,10 +909,10 @@
                 <init_vel>0 0.0 0.0</init_vel>
             </joint>
 
-            <joint name="j_thigh_left" type="euler">
+            <joint name="j_thigh_right" type="euler">
                 <transformation>0.0 0.0 0.0 0.0 0.0 1.570796</transformation>
                 <parent>h_pelvis1</parent>
-                <child>l-upperleg</child>
+                <child>r-upperleg</child>
                 <axis_order>zyx</axis_order>
                 <axis>
                     <limit>
@@ -943,10 +944,10 @@
                 <init_pos>0.0 0.0 0.0</init_pos>
                 <init_vel>0 0.0 0.0</init_vel>
             </joint>
-            <joint name="j_shin_left" type="revolute">
+            <joint name="j_shin_right" type="revolute">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>l-upperleg</parent>
-                <child>l-lowerleg</child>
+                <parent>r-upperleg</parent>
+                <child>r-lowerleg</child>
                 <axis>
                     <xyz>-1.0 0.0 0.0</xyz>
                     <limit>
@@ -961,10 +962,10 @@
                 <init_vel>0</init_vel>
             </joint>
             
-            <joint name="j_heel_left" type="universal">
+            <joint name="j_heel_right" type="universal">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>l-lowerleg</parent>
-                <child>l-foot</child>
+                <parent>r-lowerleg</parent>
+                <child>r-foot</child>
                 <axis>
                     <xyz>1.0 0.0 0.0</xyz>
                     <limit>
@@ -976,7 +977,7 @@
                     </dynamics>
                 </axis>
                 <axis2>
-                    <xyz>0.0 1.0 0.0</xyz>
+                    <xyz>0.0 -1.0 0.0</xyz>
                     <limit>
                         <lower>-0.75</lower>
                         <upper>0.75</upper>
