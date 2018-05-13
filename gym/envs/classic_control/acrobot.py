@@ -3,7 +3,6 @@ from gym import core, spaces
 from gym.utils import seeding
 import numpy as np
 from numpy import sin, cos, pi
-import time
 
 __copyright__ = "Copyright 2013, RLPy http://acl.mit.edu/RLPy"
 __credits__ = ["Alborz Geramifard", "Robert H. Klein", "Christoph Dann",
@@ -23,9 +22,13 @@ class AcrobotEnv(core.Env):
     Both links can swing freely and can pass by each other, i.e., they don't
     collide when they have the same angle.
     **STATE:**
-    The state consists of the two rotational joint angles and their velocities
-    [theta1 theta2 thetaDot1 thetaDot2]. An angle of 0 corresponds to corresponds
-    to the respective link pointing downwards (angles are in world coordinates).
+    The state consists of the sin() and cos() of the two rotational joint
+    angles and the joint angular velocities :
+    [cos(theta1) sin(theta1) cos(theta2) sin(theta2) thetaDot1 thetaDot2].
+    For the first link, an angle of 0 corresponds to the link pointing downwards.
+    The angle of the second link is relative to the angle of the first link.
+    An angle of 0 corresponds to having the same angle between the two links.
+    A state of [1, 0, 1, 0, ..., ...] means that both links point downwards.
     **ACTIONS:**
     The action is either applying +1, 0 or -1 torque on the joint between
     the two pendulum links.
@@ -83,20 +86,20 @@ class AcrobotEnv(core.Env):
         self.viewer = None
         high = np.array([1.0, 1.0, 1.0, 1.0, self.MAX_VEL_1, self.MAX_VEL_2])
         low = -high
-        self.observation_space = spaces.Box(low, high)
+        self.observation_space = spaces.Box(low=low, high=high)
         self.action_space = spaces.Discrete(3)
         self.state = None
-        self._seed()
+        self.seed()
 
-    def _seed(self, seed=None):
+    def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def _reset(self):
+    def reset(self):
         self.state = self.np_random.uniform(low=-0.1, high=0.1, size=(4,))
         return self._get_ob()
 
-    def _step(self, a):
+    def step(self, a):
         s = self.state
         torque = self.AVAIL_TORQUE[a]
 
@@ -169,12 +172,7 @@ class AcrobotEnv(core.Env):
         ddtheta1 = -(d2 * ddtheta2 + phi1) / d1
         return (dtheta1, dtheta2, ddtheta1, ddtheta2, 0.)
 
-    def _render(self, mode='human', close=False):
-        if close:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-            return
+    def render(self, mode='human'):
         from gym.envs.classic_control import rendering
 
         s = self.state
@@ -206,6 +204,9 @@ class AcrobotEnv(core.Env):
             circ.add_attr(jtransform)
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
+    def close(self):
+        if self.viewer: self.viewer.close()
 
 def wrap(x, m, M):
     """
@@ -282,7 +283,7 @@ def rk4(derivs, y0, t, *args, **kwargs):
         yout = np.zeros((len(t), Ny), np.float_)
 
     yout[0] = y0
-    i = 0
+
 
     for i in np.arange(len(t) - 1):
 

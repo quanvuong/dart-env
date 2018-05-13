@@ -2,9 +2,9 @@ import numpy as np
 from gym.envs.mujoco import mujoco_env
 from gym import utils
 
-def mass_center(model):
-    mass = model.body_mass
-    xpos = model.data.xipos
+def mass_center(model, sim):
+    mass = np.expand_dims(model.body_mass, 1)
+    xpos = sim.data.xipos
     return (np.sum(mass * xpos, 0) / np.sum(mass))[0]
 
 class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -26,7 +26,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def _get_obs(self):
-        data = self.model.data
+        data = self.sim.data
         return np.concatenate([data.qpos.flat[2:],
                                data.qvel.flat,
                                #data.cinert.flat,
@@ -71,34 +71,21 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 self.data.xfrc_applied = xfrc_force
             self.model.step()
 
-    def _step(self, a):
-        a *= 0.5
-        self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
-            self.final_tv - self.init_tv) + self.init_tv
 
-        self.current_pd = self.init_balance_pd
-        self.vel_enforce_kp = self.init_vel_pd
-
-        if len(self.assist_schedule) > 0:
-            for sch in self.assist_schedule:
-                if self.t > sch[0]:
-                    self.current_pd = sch[1][0]
-                    self.vel_enforce_kp = sch[1][1]
-
-        self.t += self.dt
-        pos_before = mass_center(self.model)
+    def step(self, a):
+        pos_before = mass_center(self.model, self.sim)
         self.do_simulation(a, self.frame_skip)
-        pos_after = mass_center(self.model)
+        pos_after = mass_center(self.model, self.sim)
         alive_bonus = 5.0
-        data = self.model.data
-        lin_vel_cost = - 1.0 * np.abs(self.target_vel - data.qvel[0][0])
-        quad_ctrl_cost = 1.0 * np.square(data.ctrl).sum()
-        quad_impact_cost = .5e-16 * np.square(data.cfrc_ext).sum()
+        data = self.sim.data
+        lin_vel_cost = 0.25 * (pos_after - pos_before) / self.model.opt.timestep
+        quad_ctrl_cost = 0.1 * np.square(data.ctrl).sum()
+        quad_impact_cost = .5e-6 * np.square(data.cfrc_ext).sum()
         quad_impact_cost = min(quad_impact_cost, 10)
         reward = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
-        qpos = self.model.data.qpos
-        done = bool((qpos[2] < 1.0) or (qpos[2] > 2.0) or (np.abs(self.data.qvel) > 100).any())
-        return self._get_obs(), reward, done, dict(avg_vel = data.qvel[0], vel=data.qvel[0], reward_linvel=lin_vel_cost, reward_quadctrl=-quad_ctrl_cost, reward_alive=alive_bonus, reward_impact=-quad_impact_cost)
+        qpos = self.sim.data.qpos
+        done = bool((qpos[2] < 1.0) or (qpos[2] > 2.0))
+        return self._get_obs(), reward, done, dict(reward_linvel=lin_vel_cost, reward_quadctrl=-quad_ctrl_cost, reward_alive=alive_bonus, reward_impact=-quad_impact_cost)
 
     def reset_model(self):
         c = 0.01

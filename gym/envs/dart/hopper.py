@@ -43,7 +43,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.action_scale[-1] = 100.0
             self.action_scale /= 2.0
 
-
         self.split_task_test = False
         self.learn_diff_style = False
 
@@ -225,13 +224,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         #reward -= 1e-7 * total_force_mag
 
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .2 or self.learn_acro))
+        done = not (np.isfinite(s).all())# and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
+                    #(height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .2 or self.learn_acro))
 
         #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
         #    reward -= 1
-        #if fall_on_ground:
-        #    done = True
+        if fall_on_ground:
+            done = True
 
         if self.learn_diff_style and self.t > 0.5:
             if self.state_index == 0:  # avoid contact
@@ -319,6 +318,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()

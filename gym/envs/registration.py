@@ -1,10 +1,6 @@
-import logging
-import pkg_resources
 import re
-from gym import error
-import warnings
+from gym import error, logger
 
-logger = logging.getLogger(__name__)
 # This format is true today, but it's *not* an official spec.
 # [username/](env-name)-v(version)    env-name is group 1, version is group 2
 #
@@ -13,6 +9,7 @@ logger = logging.getLogger(__name__)
 env_id_re = re.compile(r'^(?:[\w:-]+\/)?([\w:.-]+)-v(\d+)$')
 
 def load(name):
+    import pkg_resources # takes ~400ms to load, so we import it lazily
     entry_point = pkg_resources.EntryPoint.parse('x={}'.format(name))
     result = entry_point.load(False)
     return result
@@ -82,8 +79,11 @@ class EnvSpec(object):
         if self._entry_point is None:
             raise error.Error('Attempting to make deprecated env {}. (HINT: is there a newer registered version of this env?)'.format(self.id))
 
-        cls = load(self._entry_point)
-        env = cls(**self._kwargs)
+        elif callable(self._entry_point):
+            env = self._entry_point()
+        else:
+            cls = load(self._entry_point)
+            env = cls(**self._kwargs)
 
         # Make the enviroment aware of which spec it came from.
         env.unwrapped.spec = self
@@ -117,6 +117,12 @@ class EnvRegistry(object):
         logger.info('Making new env: %s', id)
         spec = self.spec(id)
         env = spec.make()
+        # We used to have people override _reset/_step rather than
+        # reset/step. Set _gym_disable_underscore_compat = True on
+        # your environment if you use these methods and don't want
+        # compatibility code to be invoked.
+        if hasattr(env, "_reset") and hasattr(env, "_step") and not getattr(env, "_gym_disable_underscore_compat", False):
+            patch_deprecated_methods(env)
         if (env.spec.timestep_limit is not None) and not spec.tags.get('vnc'):
             from gym.wrappers.time_limit import TimeLimit
             env = TimeLimit(env,
@@ -162,3 +168,24 @@ def make(id):
 
 def spec(id):
     return registry.spec(id)
+
+warn_once = True
+
+def patch_deprecated_methods(env):
+    """
+    Methods renamed from '_method' to 'method', render() no longer has 'close' parameter, close is a separate method.
+    For backward compatibility, this makes it possible to work with unmodified environments.
+    """
+    global warn_once
+    if warn_once:
+        logger.warn("Environment '%s' has deprecated methods '_step' and '_reset' rather than 'step' and 'reset'. Compatibility code invoked. Set _gym_disable_underscore_compat = True to disable this behavior." % str(type(env)))
+        warn_once = False
+    env.reset = env._reset
+    env.step  = env._step
+    env.seed  = env._seed
+    def render(mode):
+        return env._render(mode, close=False)
+    def close():
+        env._render("human", close=True)
+    env.render = render
+    env.close = close
