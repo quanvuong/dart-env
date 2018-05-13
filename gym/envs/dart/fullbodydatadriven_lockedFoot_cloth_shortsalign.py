@@ -33,6 +33,7 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         # reward flags
         self.restPoseReward         = True
         self.stableCOMReward        = True
+        self.footForwardReward      = True
         # dressing reward flags
         self.waistContainmentReward = True
         self.deformationPenalty     = True
@@ -40,12 +41,13 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
 
 
         # reward weights
-        self.restPoseRewardWeight  = 0.25
-        self.stableCOMRewardWeight = 10
+        self.restPoseRewardWeight           = 0.25
+        self.stableCOMRewardWeight          = 10
+        self.footForwardRewardWeight        = 3
         # dressing reward weights
-        self.waistContainmentRewardWeight = 5
-        self.deformationPenaltyWeight = 5
-        self.waistHorizontalReward = 1
+        self.waistContainmentRewardWeight   = 5
+        self.deformationPenaltyWeight       = 5
+        self.waistHorizontalReward          = 1
 
         #termination conditions
         self.wrongEnterTermination = True  # terminate if the foot enters the pant legs
@@ -57,6 +59,7 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         self.fingertip = np.array([0, -0.08, 0])
         self.toeOffset = np.array([0, 0, -0.2])
         self.previousDeformationReward = 0
+        self.kneePlane = Plane()
 
         # handle nodes
         self.handleNodes = []
@@ -134,11 +137,20 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         if self.waistHorizontalReward:
             self.rewardsData.addReward(label="waist horizontal", rmin=-1.0, rmax=1.0, rval=0, rweight=self.waistHorizontalReward)
 
+        if self.footForwardReward:
+            self.rewardsData.addReward(label="foot forward", rmin=-1.0, rmax=0.0, rval=0, rweight=self.footForwardRewardWeight)
+
     def _getFile(self):
         return __file__
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
+
+        org = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+        forward = self.robot_skeleton.bodynodes[2].to_world(np.array([0.0,0.0,1.0]))
+        normal = (forward-org)
+        normal /= np.linalg.norm(self.kneePlane.normal)
+        self.kneePlane = Plane(org, normal)
 
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
@@ -247,6 +259,12 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
             reward_waistHorizontal = self.waistFeature.plane.normal.dot(np.array([0,-1.0,0]))
             reward_record.append(reward_waistHorizontal)
 
+        reward_footForward = 0
+        if self.footForwardReward:
+            heel = self.robot_skeleton.bodynodes[6].to_world(np.zeros(3))
+            reward_footForward = min(0, max(-1, (self.kneePlane.org - heel).dot(self.kneePlane.normal)))
+            reward_record.append(reward_footForward)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -254,7 +272,8 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
                     + reward_stableCOM * self.stableCOMRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
                     + reward_clothdeformation * self.deformationPenaltyWeight \
-                    + reward_waistHorizontal * self.waistContainmentRewardWeight
+                    + reward_waistHorizontal * self.waistContainmentRewardWeight \
+                    + reward_footForward * self.footForwardRewardWeight
 
         return self.reward
 
@@ -367,6 +386,8 @@ class DartClothFullBodyDataDrivenLockedFootClothShortsAlignEnv(DartClothFullBody
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[10].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[15].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        self.kneePlane.draw()
 
         #render the body and foot coms
         footCOM = self.robot_skeleton.bodynodes[0].com()

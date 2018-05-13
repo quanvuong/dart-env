@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_05_12_lockedL_shortsalign3"
     #trial = "experiment_2018_05_12_lockedL_shortsalign2"
     #trial = "experiment_2018_05_12_lockedL_shortsalign"
     #trial = "experiment_2018_05_11_lockedL_balance"
