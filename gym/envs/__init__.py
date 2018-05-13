@@ -426,7 +426,6 @@ register(
 )
 
 register(
-<<<<<<< HEAD
     id='Reacher3d-v1',
     entry_point='gym.envs.mujoco:Reacher3dEnv',
     max_episode_steps=500,
@@ -434,10 +433,7 @@ register(
 )
 
 register(
-    id='Pusher-v0',
-=======
     id='Pusher-v2',
->>>>>>> upstream/master
     entry_point='gym.envs.mujoco:PusherEnv',
     max_episode_steps=100,
     reward_threshold=0.0,
