@@ -525,6 +525,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothFullBodyDataDrivenClothOneFootStandShorts-v2',
+    entry_point='gym.envs.dart:DartClothFullBodyDataDrivenClothOneFootStandShorts2Env',
+    #max_episode_steps=250,
+)
+
 #locked foot envs
 register(
     id='DartClothFullBodyDataDrivenLockedFootClothTest-v1',

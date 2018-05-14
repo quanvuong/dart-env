@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_05_14_lockedL_shortsalign" #this does pretty well
     #trial = "experiment_2018_05_13_lockedL_shortsalign"
     #trial = "experiment_2018_05_12_lockedL_shortsalign3"
     #trial = "experiment_2018_05_12_lockedL_shortsalign2"
@@ -328,7 +329,7 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if True and policy is None:
+    if False and policy is None:
         env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(

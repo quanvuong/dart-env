@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -43,11 +43,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #dressing reward flags
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
-        self.footBetweenHandsReward     = True #reward foot between the hands
-        self.contactSurfaceReward       = True #reward touching the interior of the garment
+        self.footBetweenHandsReward     = False #reward foot between the hands
 
         #reward weights
-        self.restPoseRewardWeight               = 1
+        self.restPoseRewardWeight               = 0.5
         self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
@@ -59,13 +58,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.waistContainmentRewardWeight       = 10
         self.deformationPenaltyWeight           = 2.5
         self.footBetweenHandsRewardWeight       = 1
-        self.contactSurfaceRewardWeight         = 1
 
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
+
+        self.resetStateFromDistribution = True
+        self.resetDistributionPrefix = "saved_control_states/shorts_enter_rleg"
+        self.resetDistributionSize = 20
 
         self.COMMinHeight = -0.6
 
@@ -100,7 +102,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
         observation_size += 40*3 # haptic sensor readings
-        observation_size += 40 #contact surface readings
 
 
 
@@ -186,9 +187,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         if self.footBetweenHandsReward:
             self.rewardsData.addReward(label="foot btw hands", rmin=-1.0, rmax=0, rval=0, rweight=self.footBetweenHandsRewardWeight)
-
-        if self.contactSurfaceReward:
-            self.rewardsData.addReward(label="contact surface", rmin=-1.0, rmax=1.0, rval=0, rweight=self.footBetweenHandsRewardWeight)
 
     def _getFile(self):
         return __file__
@@ -407,9 +405,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         if self.deformationPenalty is True:
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             l = 5
-            s = 0.7
+            s = 0.4
             z = -0.5
-            reward_clothdeformation = z*math.tanh(s * (clothDeformation - l)) + z
+            reward_clothdeformation = z * math.tanh(s * (clothDeformation - l)) + z
             reward_record.append(reward_clothdeformation)
         self.previousDeformationReward = reward_clothdeformation
 
@@ -429,12 +427,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
             reward_record.append(reward_footBetweenHands)
 
-        reward_contact_surface = 0
-        if self.contactSurfaceReward:
-            CID = self.clothScene.getHapticSensorContactIDs()[39]
-            reward_contact_surface = CID
-            reward_record.append(reward_contact_surface)
-
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -448,8 +440,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                     + reward_flatFoot * self.flatFootRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
                     + reward_clothdeformation * self.deformationPenaltyWeight \
-                    + reward_footBetweenHands * self.footBetweenHandsRewardWeight \
-                    + reward_contact_surface * self.contactSurfaceRewardWeight
+                    + reward_footBetweenHands * self.footBetweenHandsRewardWeight
 
         return self.reward
 
@@ -702,5 +693,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="max deformation = " + str(self.deformation), color=(0., 0, 0))
             textLines += 1
+
+
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
