@@ -26,7 +26,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_05_12_lockedL_shortsalign3"
+    #trial = "experiment_2018_05_13_lockedL_shortsalign"
+    #trial = "experiment_2018_05_12_lockedL_shortsalign3"
     #trial = "experiment_2018_05_12_lockedL_shortsalign2"
     #trial = "experiment_2018_05_12_lockedL_shortsalign"
     #trial = "experiment_2018_05_11_lockedL_balance"
@@ -310,12 +311,12 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
-    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
 
     #locked foot envs
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothBalance-v1')
-    env = gym.make('DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1')
 
     useMeanPolicy = False
 
@@ -327,14 +328,14 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if False and policy is None:
-        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenLockedFootClothBalance-v1', record_log=False, record_video=False))
+    if True and policy is None:
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=1.0
+            init_std=0.75
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         all_param_values[4] *= 0.01

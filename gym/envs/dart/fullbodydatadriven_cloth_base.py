@@ -128,7 +128,7 @@ class SPDController(Controller):
         self.Kd = np.diagflat([KdScale] * (ndofs))
 
 class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, skelfile=None):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, gravity=False, frameskip=4, dt=0.001, skelfile=None, lockedLFoot=False, lockedRFoot=False):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -153,9 +153,12 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.actionTrajectory = []
         self.stateTraj = []
         self.totalTime = 0
-        self.locked_foot = False
+        self.lockedLFoot = lockedLFoot
+        self.lockedRFoot = lockedRFoot
+        self.lockedLConstraint = None
+        self.lockedRConstraint = None
         self.instabilityDetected = False
-        self.terminationPenaltyWeight = 0#-1500
+        self.terminationPenaltyWeight = -100
 
         self.limbNodesLegL = [15, 16, 17]
         self.limbNodesLegR = [18, 19, 20]
@@ -206,13 +209,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28-6:] *= 5#2.5 #20 -> 50
+            self.action_scale[28-6:] *= 4#2.5 #20 -> 50
             #thighs
-            self.action_scale[28-6] = 150
-            self.action_scale[34-6] = 150
+            #self.action_scale[28-6] = 100
+            #self.action_scale[34-6] = 100
             #knees
-            self.action_scale[31-6] = 200
-            self.action_scale[37-6] = 200
+            #self.action_scale[31-6] = 100
+            #self.action_scale[37-6] = 100
             #self.action_scale[
 
         #self.action_scale*=10
@@ -259,8 +262,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if skelFile is None:
             skelFile = 'FullBodyCapsules_datadriven.skel'
 
-        if self.locked_foot:
-            skelFile = 'FullBodyCapsules_datadriven_lockedfoot.skel'
+        #if self.locked_foot:
+        #    skelFile = 'FullBodyCapsules_datadriven_lockedfoot.skel'
 
         #intialize the parent env
         if self.useOpenGL is True:
@@ -317,6 +320,18 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             leftlegConstraint.add_to_world(self.dart_world)
             rightlegConstraint.add_to_world(self.dart_world)
 
+            #Add a weld joint foot to world
+            if self.lockedRFoot:
+                self.lockedRConstraint = pydart.constraints.WeldJointConstraint(self.dart_world.skeletons[0].bodynodes[0], self.robot_skeleton.bodynodes[20])
+                self.lockedRConstraint.add_to_world(self.dart_world)
+
+            if self.lockedLFoot:
+                print("added locked foot")
+                #footWorldWeld = pydart.constraints.WeldJointConstraint(self.dart_world.skeletons[0].bodynodes[0], self.robot_skeleton.bodynodes[17])
+                self.lockedLConstraint = pydart.constraints.WeldJointConstraint(self.dart_world.skeletons[0].bodynodes[0], self.robot_skeleton.bodynodes[17])
+                print(self.lockedLConstraint.add_to_world(self.dart_world))
+                #self.lockedLConstraint.remove_from_world(self.dart_world)
+
         utils.EzPickle.__init__(self)
 
         if not self.gravity:
@@ -372,7 +387,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             
         for i in range(len(self.robot_skeleton.dofs)):
             if(i > 5):
-                self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+                self.robot_skeleton.dofs[i].set_damping_coefficient(5.0)
                 #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)d
             print(self.robot_skeleton.dofs[i])
             #print("     damping:" + str(self.robot_skeleton.dofs[i].damping_coefficient()))
@@ -839,6 +854,21 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.SPD.setKpKdScales(KpScale=self.SPD.KpScale, KdScale=self.SPD.KpScale*self.SPD.h)
 
         self.additionalResets()
+
+        # Add a weld joint foot to world
+        if self.lockedRFoot:
+            if self.lockedRConstraint is not None:
+                if self.lockedRConstraint.index >= 0:
+                    self.lockedRConstraint.remove_from_world(self.dart_world)
+            self.lockedRConstraint = pydart.constraints.WeldJointConstraint(self.dart_world.skeletons[0].bodynodes[0], self.robot_skeleton.bodynodes[20])
+            self.lockedRConstraint.add_to_world(self.dart_world)
+
+        if self.lockedLFoot:
+            if self.lockedLConstraint is not None:
+                if self.lockedLConstraint.index >= 0:
+                    self.lockedLConstraint.remove_from_world(self.dart_world)
+            self.lockedLConstraint = pydart.constraints.WeldJointConstraint(self.dart_world.skeletons[0].bodynodes[0], self.robot_skeleton.bodynodes[17])
+            self.lockedLConstraint.add_to_world(self.dart_world)
 
         if self.SPDActionSpace:
             self.SPD.setup()

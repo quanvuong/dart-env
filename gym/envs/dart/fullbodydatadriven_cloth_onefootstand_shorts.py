@@ -22,13 +22,14 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
-        self.gravity = True
-        SPDActionSpace = True
-        frameskip = 15
+        self.gravity = False
+        SPDActionSpace = False
+        frameskip = 5
         dt = 0.002
+        leftFootLocked = True
 
         #reward flags
         self.restPoseReward             = True
@@ -42,6 +43,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #dressing reward flags
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
+        self.footBetweenHandsReward     = True #reward foot between the hands
 
         #reward weights
         self.restPoseRewardWeight               = 2
@@ -55,6 +57,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #dressing reward weights
         self.waistContainmentRewardWeight       = 5
         self.deformationPenaltyWeight           = 5
+        self.footBetweenHandsRewardWeight       = 1
 
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
@@ -81,6 +84,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.footBodyNode = 17 #17 left, 20 right
         self.ankleDofs = [32,33] #[32,33] left, [38,39] right
         self.fingertip = np.array([0,-0.08,0])
+        self.handsPlane = Plane()
 
         #handle nodes
         self.handleNodes = []
@@ -107,7 +111,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                                                           gravity=self.gravity,
                                                           frameskip=frameskip,
                                                           dt=dt,
-                                                          SPDActionSpace=SPDActionSpace)
+                                                          SPDActionSpace=SPDActionSpace,
+                                                          lockedLFoot=leftFootLocked)
 
         #define shorts garment features
         self.targetGripVerticesL = [85, 22, 13, 92, 212, 366]
@@ -175,6 +180,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         if self.deformationPenalty:
             self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0, rweight=self.deformationPenaltyWeight)
+
+        if self.footBetweenHandsReward:
+            self.rewardsData.addReward(label="foot btw hands", rmin=-1.0, rmax=0, rval=0, rweight=self.footBetweenHandsRewardWeight)
 
     def _getFile(self):
         return __file__
@@ -250,6 +258,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             self.handleNodes[1].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[1]].T)
             self.handleNodes[0].step()
             self.handleNodes[1].step()
+
+        efl = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        efr = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+
+        self.handsPlane = fitPlane(points=[efl,efr,(efl+efr)/2.0 + np.array([0,1.0,0])], basis1hint=np.array([0,1.0,0]))
 
         a=0
 
@@ -367,7 +380,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                                                       offset=self.toeOffset), feature=self.waistFeature)
                 reward_waistContainment = self.limbProgress
                 #print(reward_waistContainment)
-                if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
+                '''if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
                     #distance to feature
                     distance2Feature = 999.0
                     toe = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
@@ -376,7 +389,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                         if dist < distance2Feature:
                             distance2Feature = dist
                             reward_waistContainment = - distance2Feature
-                            #print(reward_waistContainment)
+                            #print(reward_waistContainment)'''
             reward_record.append(reward_waistContainment)
 
         clothDeformation = 0
@@ -392,6 +405,22 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             reward_record.append(reward_clothdeformation)
         self.previousDeformationReward = reward_clothdeformation
 
+        reward_footBetweenHands = 0
+        if self.footBetweenHandsReward:
+            f2D = self.handsPlane.get2D(p=self.robot_skeleton.bodynodes[20].com())
+            efl = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            efr = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+            efl2D = self.handsPlane.get2D(p=efl)
+            efr2D = self.handsPlane.get2D(p=efr)
+            if (f2D[1] < efl2D[1]) is (f2D[1] < efr2D[1]): #not between the hands
+                d = min(abs(f2D[1]-efl2D[1]), abs(f2D[1]-efr2D[1]))
+                reward_footBetweenHands = -d
+            if (f2D[0] < efl2D[0]) is (f2D[0] < efr2D[0]):  # not between the hands
+                d = min(abs(f2D[0] - efl2D[0]), abs(f2D[0] - efr2D[0]))
+                reward_footBetweenHands += -d
+
+            reward_record.append(reward_footBetweenHands)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -404,7 +433,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                     + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
                     + reward_flatFoot * self.flatFootRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
-                    + reward_clothdeformation * self.deformationPenaltyWeight
+                    + reward_clothdeformation * self.deformationPenaltyWeight \
+                    + reward_footBetweenHands * self.footBetweenHandsRewardWeight
 
         return self.reward
 
@@ -572,6 +602,23 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
             #TODO: continue
 
+        #draw the foot between hands info
+        self.handsPlane.draw()
+        f2D = self.handsPlane.get2D(p=self.robot_skeleton.bodynodes[20].com())
+        efl = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        efr = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        efl2D = self.handsPlane.get2D(p=efl)
+        efr2D = self.handsPlane.get2D(p=efr)
+        renderUtils.setColor(color=[0,1,0])
+        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*f2D[1])
+        renderUtils.setColor(color=[1, 0, 0])
+        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efl2D[1])
+        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efr2D[1])
+        renderUtils.setColor(color=[0, 1, 0])
+        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * f2D[0])
+        renderUtils.setColor(color=[1, 0, 0])
+        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efl2D[0])
+        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efr2D[0])
 
         #render the ideal stability polygon
         if len(self.stabilityPolygon) > 0:
@@ -598,19 +645,29 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         pos = np.zeros(3)
         toe = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
         if self.reset_number > 0:
-            for v in self.waistFeature.verts:
+            '''for v in self.waistFeature.verts:
                 #print(v)
                 dist = np.linalg.norm(self.clothScene.getVertexPos(cid=0, vid=v) - toe)
                 if dist < distance2Feature:
                     distance2Feature = dist
                     pos = self.clothScene.getVertexPos(cid=0, vid=v)
                     #print(dist)
-
+            '''
+            pos = np.array(self.waistFeature.plane.org)
             lines.append([pos, toe])
 
         renderUtils.drawLines(lines)
 
-
+        #visualize bodynode coms
+        if False:
+            lines = []
+            for node in self.robot_skeleton.bodynodes:
+                com = node.com()
+                s = 0.25
+                lines.append([np.array([-s+com[0], com[1], com[2]]), np.array([s+com[0], com[1], com[2]])])
+                lines.append([np.array([com[0], -s+com[1], com[2]]), np.array([com[0], s+com[1], com[2]])])
+                lines.append([np.array([com[0], com[1], -s+com[2],]), np.array([com[0], com[1], s+com[2]])])
+            renderUtils.drawLines(lines)
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)
