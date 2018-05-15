@@ -483,6 +483,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             f = self.clothScene.getHapticSensorObs()
         obs = np.concatenate([obs, f]).ravel()
 
+        #contact IDs
+        CIDs = self.clothScene.getHapticSensorContactIDs()
+        obs = np.concatenate([obs, CIDs]).ravel()
+
         #print(obs)
 
         return obs
