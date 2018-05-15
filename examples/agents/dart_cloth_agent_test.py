@@ -27,7 +27,7 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_05_14_lockedL_shortsalign2"
-    trial = "experiment_2018_05_14_lockedL_shortsalign" #this does pretty well
+    #trial = "experiment_2018_05_14_lockedL_shortsalign" #this does pretty well
     #trial = "experiment_2018_05_13_lockedL_shortsalign"
     #trial = "experiment_2018_05_12_lockedL_shortsalign3"
     #trial = "experiment_2018_05_12_lockedL_shortsalign2"
@@ -313,7 +313,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
 
     #locked foot envs
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
@@ -331,7 +332,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -44,7 +44,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
         self.footBetweenHandsReward     = True #reward foot between the hands
-        self.contactSurfaceReward       = True #reward touching the interior of the garment
+        self.contactSurfaceReward       = False #reward touching the interior of the garment
 
         #reward weights
         self.restPoseRewardWeight               = 1
@@ -295,6 +295,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
 
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
+        '''if self.numSteps > 100:
+            self.saveState(name="enter_seq_rleg")
+            return True, 0'''
 
         #stability termination
         if self.stabilityTermination:

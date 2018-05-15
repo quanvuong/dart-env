@@ -182,6 +182,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.recordForRendering = False
         #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
         self.recordForRenderingOutputPrefix = "saved_render_states/lowerbody/lowerbody"
+        self.state_save_directory = "saved_control_states_shorts/"
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -481,6 +482,20 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     #this is a capsule
                     f.write(str(CSI[capix*9:capix*9+4]) + " " + str(CSI[capix2*9:capix2*9+4]) + "\n")
         f.close()
+
+    def saveState(self, name="unnamed"):
+        fname = self.state_save_directory + name
+        print(fname)
+        count = 0
+        objfname_ix = fname + "%05d" % count
+        charfname_ix = fname + "_char%05d" % count
+        while os.path.isfile(objfname_ix + ".obj"):
+            count += 1
+            objfname_ix = fname + "%05d" % count
+            charfname_ix = fname + "_char%05d" % count
+        print(objfname_ix)
+        self.saveObjState(filename=objfname_ix)
+        self.saveCharacterState(filename=charfname_ix)
 
     def graphJointConstraintViolation(self, cix=1, pivotDof=8, otherDofs=[5,6,7], numPivotSamples=50, numOtherSamples=50, otherRange=(-1.0,1.0), counting=False):
         startTime = time.time()

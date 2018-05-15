@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -30,6 +30,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         frameskip = 5
         dt = 0.002
         leftFootLocked = True
+
+        # observation terms
+        self.featureInObs       = True  # if true, feature centroid location and displacement from ef are observed
+        self.oracleInObs        = True  # if true, oracle vector is in obs
+        self.contactIDInObs     = True  # if true, contact ids are in obs
+        self.limbProgressInObs  = True  # if true, include waist and leg limb progress in the reward function
 
         #reward flags
         self.restPoseReward             = True
@@ -44,6 +50,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
         self.footBetweenHandsReward     = False #reward foot between the hands
+        self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
+        self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
+        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
 
         #reward weights
         self.restPoseRewardWeight               = 0.5
@@ -58,6 +67,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.waistContainmentRewardWeight       = 10
         self.deformationPenaltyWeight           = 2.5
         self.footBetweenHandsRewardWeight       = 1
+        self.limbProgressRewardWeight           = 15
+        self.oracleDisplacementRewardWeight     = 50
+        self.contactGeoRewardWeight             = 4
 
         #other flags
         self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
@@ -66,7 +78,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/shorts_enter_rleg"
+        self.resetDistributionPrefix = "saved_control_states_shorts/enter_seq_rleg"
         self.resetDistributionSize = 20
 
         self.COMMinHeight = -0.6
@@ -89,6 +101,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.ankleDofs = [32,33] #[32,33] left, [38,39] right
         self.fingertip = np.array([0,-0.08,0])
         self.handsPlane = Plane()
+        self.prevOracle = None
+        self.efBeforeSim = np.zeros(3)
+        self.prevWaistContainment = 0
 
         #handle nodes
         self.handleNodes = []
@@ -102,6 +117,14 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
         observation_size += 40*3 # haptic sensor readings
+        if self.featureInObs:
+            observation_size += 6
+        if self.oracleInObs:
+            observation_size += 3
+        if self.contactIDInObs:
+            observation_size += 40
+        if self.limbProgressInObs:
+            observation_size += 2
 
 
 
@@ -188,6 +211,15 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         if self.footBetweenHandsReward:
             self.rewardsData.addReward(label="foot btw hands", rmin=-1.0, rmax=0, rval=0, rweight=self.footBetweenHandsRewardWeight)
 
+        if self.limbProgressReward:
+            self.rewardsData.addReward(label="limb progress", rmin=0.0, rmax=1.0, rval=0, rweight=self.limbProgressRewardWeight)
+
+        if self.oracleDisplacementReward:
+            self.rewardsData.addReward(label="oracle", rmin=-0.1, rmax=0.1, rval=0, rweight=self.oracleDisplacementRewardWeight)
+
+        if self.contactGeoReward:
+            self.rewardsData.addReward(label="contact geo", rmin=0, rmax=1.0, rval=0, rweight=self.contactGeoRewardWeight)
+
     def _getFile(self):
         return __file__
 
@@ -268,6 +300,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
 
         self.handsPlane = fitPlane(points=[efl,efr,(efl+efr)/2.0 + np.array([0,1.0,0])], basis1hint=np.array([0,1.0,0]))
 
+        self.efBeforeSim = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -304,10 +337,21 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
                 return True, 0
 
         if self.wrongEnterTermination:
-            limbInsertionErrorL = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureL)
-            limbInsertionErrorR = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureR)
-            if limbInsertionErrorL > 0 or limbInsertionErrorR > 0:
-                return True, 0
+            errors = []
+            #errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legEndFeatureL))
+            #errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legMidFeatureL))
+            #errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legStartFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legEndFeatureR))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legMidFeatureR))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legStartFeatureR))
+            #print(errors)
+            for e in errors:
+                if e > 0:
+                    return True, -100
+
+            if self.limbProgress > 0 and self.prevWaistContainment < 0:
+                #entered the pant leg before the waist or pulled the waist off the leg via penetration
+                return True, -100
 
         return False, 0
 
@@ -379,10 +423,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         reward_waistContainment = 0
         if self.waistContainmentReward:
             if self.simulateCloth:
-                self.limbProgress = pyutils.limbFeatureProgress(
+                self.prevWaistContainment = pyutils.limbFeatureProgress(
                     limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR,
                                                       offset=self.toeOffset), feature=self.waistFeature)
-                reward_waistContainment = self.limbProgress
+                reward_waistContainment = self.prevWaistContainment
                 #print(reward_waistContainment)
                 '''if reward_waistContainment <= 0:  # replace centroid distance penalty with border distance penalty
                     #distance to feature
@@ -427,6 +471,47 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
 
             reward_record.append(reward_footBetweenHands)
 
+        reward_limbprogress = 0
+        if self.limbProgressReward:
+            if self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR,
+                                                      offset=self.toeOffset), feature=self.legMidFeatureL)
+                reward_limbprogress = self.limbProgress
+                if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
+                    reward_limbprogress = 0
+            reward_record.append(reward_limbprogress)
+
+        reward_oracleDisplacement = 0
+        if self.oracleDisplacementReward:
+            if np.linalg.norm(self.prevOracle) > 0:
+                # world_ef_displacement = wRFingertip2 - wRFingertip1
+                ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+                displacement = ef - self.efBeforeSim
+                oracle0 = self.prevOracle
+                reward_oracleDisplacement += displacement.dot(oracle0)
+            reward_record.append(reward_oracleDisplacement)
+
+        avgContactGeodesic = None
+        if self.numSteps > 0 and self.simulateCloth:
+            contactInfo = pyutils.getContactIXGeoSide(sensorix=39, clothscene=self.clothScene,
+                                                      meshgraph=self.separatedMesh)
+            if len(contactInfo) > 0:
+                avgContactGeodesic = 0
+                for c in contactInfo:
+                    avgContactGeodesic += c[1]
+                avgContactGeodesic /= len(contactInfo)
+
+        reward_contactGeo = 0
+        if self.contactGeoReward:
+            if self.simulateCloth:
+                if self.limbProgress > 0:
+                    reward_contactGeo = 1.0
+                elif avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+            reward_record.append(reward_contactGeo)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -440,7 +525,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
                     + reward_flatFoot * self.flatFootRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
                     + reward_clothdeformation * self.deformationPenaltyWeight \
-                    + reward_footBetweenHands * self.footBetweenHandsRewardWeight
+                    + reward_footBetweenHands * self.footBetweenHandsRewardWeight \
+                    + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
+                    + reward_limbprogress * self.limbProgressRewardWeight \
+                    + reward_contactGeo * self.contactGeoRewardWeight
 
         return self.reward
 
@@ -474,7 +562,45 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             f = self.clothScene.getHapticSensorObs()
         obs = np.concatenate([obs, f]).ravel()
 
+        if self.featureInObs:
+            centroid = self.legMidFeatureL.plane.org
+            ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+            disp = centroid - ef
+            obs = np.concatenate([obs, centroid, disp]).ravel()
+
+        if self.oracleInObs:
+            oracle = np.zeros(3)
+            if self.reset_number == 0:
+                a = 0  # nothing
+            elif self.limbProgress > 0:
+                oracle = self.legMidFeatureL.plane.normal
+            else:
+                minContactGeodesic, minGeoVix, _side = pyutils.getMinContactGeodesic(sensorix=39,
+                                                                                     clothscene=self.clothScene,
+                                                                                     meshgraph=self.separatedMesh,
+                                                                                    returnOnlyGeo=False)
+                if minGeoVix is None:
+                    # new: oracle points to the waist feature centroid when not in contact with cloth
+                    target = self.waistFeature.plane.org
+                    ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+                    vec = target - ef
+                    oracle = vec / np.linalg.norm(vec)
+                else:
+                    vixSide = 0
+                    if _side:
+                        vixSide = 1
+                    if minGeoVix >= 0:
+                        oracle = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+            self.prevOracle = oracle
+            obs = np.concatenate([obs, oracle]).ravel()
+
         #print(obs)
+        if self.contactIDInObs:
+            HSIDs = self.clothScene.getHapticSensorContactIDs()
+            obs = np.concatenate([obs, HSIDs]).ravel()
+
+        if self.limbProgressInObs:
+            obs = np.concatenate([obs, [max(-1, self.limbProgress), max(-1, self.prevWaistContainment)]]).ravel()
 
         return obs
 
@@ -486,20 +612,40 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         #qpos = np.array([0.0876736007526, -0.197663127282, 0.0512116324906, 0.0890321935781, 0.00503663000394, 0.153578012064, 0.0355287603611, 0.188868068244, -0.0393309627431, 0.0468919964458, -0.0157749170449, -0.732901924741, -0.342059517398, 0.0771170149731, 1.63974967002, 0.0234712949278, -0.0123146387565, -0.0224550112983, 0.0314256125072, 0.0304105325139, -0.806838907433, 0.578199999561, 1.2304995663, 0.00308410667268, -0.0020098497117, 0.000671096336519, 0.0160262363305, 0.00983038089353, -0.0139367467948, -0.255746135035, 0.292140467717, 0.585292554732, 0.338902153816, 0.0897545118006, -0.637071641222, -1.56662542487, 0.209168756426, 2.14915980862, -0.177912854867, 0.164453921709])
         #qpos = np.array([0.112736818959, -0.184613672394, 0.0483281279476, 0.0977783961469, -0.0395725338171, 0.118916694347, 0.0225602781819, 0.186664042145, -0.0424497225658, 0.0513031599457, -0.0239023434306, -0.72814835681, -0.338360476232, 0.0678506261861, 1.64682143574, 0.0186850837192, -0.00930510664293, -0.0207839101411, 0.0371876854933, 0.0289668575664, -0.8132911622, 0.581233898831, 1.23126365295, -0.00548656272987, 0.00129006785898, -0.00292524994714, 0.00612636259669, 0.00288579869358, -0.0177117020336, -0.189844550703, 0.403929649975, 0.584144641901, 0.27891744078, 0.0979740469555, -0.635892041362, -1.56305168508, 0.199326525817, 2.15366260278, -0.178666316407, 0.159687854881])
         #qpos = np.array([0.0783082859519, -0.142335807127, 0.142293175071, 0.144942555142, 0.0133898601508, 0.165276500738, 0.0160630842837, 0.190633101962, -0.0300941169552, 0.0450348264227, -0.0254260608645, -0.878047724726, -0.485648077845, 0.239917328593, 1.4876567992, 0.00147541881953, -4.95678764178e-05, -0.0115193558397, 0.0292081008816, 0.424683550591, -1.20586786954, 0.674957465063, 0.935902478547, -0.118767946668, 0.130931065834, -0.00538714909167, 0.0113181295264, 0.000849328006241, -0.025344210202, -0.195371502228, 0.413691811409, 0.588269242275, 0.281748815666, 0.0899108878587, -0.626263215102, -1.5691826733, 0.202581615871, 2.1489384041, -0.171405162264, 0.163236501426])
-        qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
+        #qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
+        if self.resetStateFromDistribution:
+            if self.reset_number == 0: #load the distribution
+                count = 0
+                objfname_ix = self.resetDistributionPrefix + "%05d" % count
+                while os.path.isfile(objfname_ix + ".obj"):
+                    count += 1
+                    #print(objfname_ix)
+                    self.clothScene.addResetStateFrom(filename=objfname_ix+".obj")
+                    objfname_ix = self.resetDistributionPrefix + "%05d" % count
+
+            resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            #resetStateNumber = self.reset_number%self.resetDistributionSize
+            #resetStateNumber = 0
+            #print("resetState: " + str(resetStateNumber))
+            charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
+            self.loadCharacterState(filename=charfname_ix)
+            qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
+            self.robot_skeleton.set_velocities(qvel)
+
+        #qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         #qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
-        self.set_state(qpos, qvel)
-        self.restPose = qpos
+        #self.set_state(qpos, qvel)
+        self.restPose = np.array(self.robot_skeleton.q)
 
-        RX = pyutils.rotateX(-1.56)
-        self.clothScene.rotateCloth(cid=0, R=RX)
-        self.clothScene.translateCloth(cid=0, T=np.array([0.555, -0.5, -1.45]))
-        if self.simulateCloth:
+        #RX = pyutils.rotateX(-1.56)
+        #self.clothScene.rotateCloth(cid=0, R=RX)
+        #self.clothScene.translateCloth(cid=0, T=np.array([0.555, -0.5, -1.45]))
+        #if self.simulateCloth:
             #self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
-            a=0
+            #a=0
 
         self.gripFeatureL.fitPlane()
         self.gripFeatureR.fitPlane()
@@ -555,9 +701,20 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             self.handleNodes[1].setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodesFrom[1]].T)
             self.handleNodes[1].recomputeOffsets()
 
+        if self.reset_number == 0 and self.simulateCloth:
+            self.separatedMesh.initSeparatedMeshGraph()
+            self.separatedMesh.updateWeights()
+            # TODO: compute geodesic depends on cloth state! Deterministic initial condition required!
+            # option: maybe compute this before setting the cloth state at all in initialization?
+            self.separatedMesh.computeGeodesic(feature=self.legEndFeatureL, oneSided=True, side=1, normalSide=1)
+
         #set on initialization and used to measure displacement
         self.initialProjectedAnkle = self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.zeros(3))
         self.initialProjectedAnkle[1] = 0
+
+        if self.limbProgressReward:
+            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR,offset=self.toeOffset), feature=self.legEndFeatureL)
+
         a=0
 
     def extraRenderFunction(self):
@@ -608,23 +765,45 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
 
             #TODO: continue
 
+        # render geodesic
+        if True:
+            for v in range(self.clothScene.getNumVertices()):
+                side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+                side0geo = self.separatedMesh.nodes[v].geodesic
+
+                pos = self.clothScene.getVertexPos(vid=v)
+                norm = self.clothScene.getVertNormal(vid=v)
+                renderUtils.setColor(
+                    color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
+                                                   value=self.separatedMesh.maxGeo - side0geo))
+                renderUtils.drawSphere(pos=pos - norm * 0.01, rad=0.01)
+                renderUtils.setColor(
+                    color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
+                                                   value=self.separatedMesh.maxGeo - side1geo))
+                renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+
+        #draw the oracle
+        ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+        renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
+
         #draw the foot between hands info
         #self.handsPlane.draw()
-        f2D = self.handsPlane.get2D(p=self.robot_skeleton.bodynodes[20].com())
-        efl = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-        efr = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        efl2D = self.handsPlane.get2D(p=efl)
-        efr2D = self.handsPlane.get2D(p=efr)
-        renderUtils.setColor(color=[0,1,0])
-        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*f2D[1])
-        renderUtils.setColor(color=[1, 0, 0])
-        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efl2D[1])
-        renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efr2D[1])
-        renderUtils.setColor(color=[0, 1, 0])
-        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * f2D[0])
-        renderUtils.setColor(color=[1, 0, 0])
-        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efl2D[0])
-        renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efr2D[0])
+        if self.footBetweenHandsReward:
+            f2D = self.handsPlane.get2D(p=self.robot_skeleton.bodynodes[20].com())
+            efl = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            efr = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+            efl2D = self.handsPlane.get2D(p=efl)
+            efr2D = self.handsPlane.get2D(p=efr)
+            renderUtils.setColor(color=[0,1,0])
+            renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*f2D[1])
+            renderUtils.setColor(color=[1, 0, 0])
+            renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efl2D[1])
+            renderUtils.drawSphere(pos=self.handsPlane.org+self.handsPlane.basis2*efr2D[1])
+            renderUtils.setColor(color=[0, 1, 0])
+            renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * f2D[0])
+            renderUtils.setColor(color=[1, 0, 0])
+            renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efl2D[0])
+            renderUtils.drawSphere(pos=self.handsPlane.org + self.handsPlane.basis1 * efr2D[0])
 
         #render the ideal stability polygon
         if len(self.stabilityPolygon) > 0:
