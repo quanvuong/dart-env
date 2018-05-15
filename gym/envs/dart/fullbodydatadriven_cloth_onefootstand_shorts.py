@@ -100,7 +100,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         observation_size += 1 # binary contact per foot with ground
         observation_size += 4 # feet COPs and norm force mags
         observation_size += 40*3 # haptic sensor readings
-        observation_size += 40 #contact surface readings
+        if self.contactSurfaceReward:
+            observation_size += 40 #contact surface readings
 
 
 
@@ -306,10 +307,17 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                 return True, 0
 
         if self.wrongEnterTermination:
-            limbInsertionErrorL = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureL)
-            limbInsertionErrorR = pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegL, offset=self.toeOffset), feature=self.legEndFeatureR)
-            if limbInsertionErrorL > 0 or limbInsertionErrorR > 0:
-                return True, 0
+            errors = []
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legEndFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legMidFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legStartFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legEndFeatureR))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legMidFeatureR))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legStartFeatureR))
+            #print(errors)
+            for e in errors:
+                if e > 0:
+                    return True, -100
 
         return False, 0
 
@@ -484,8 +492,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         obs = np.concatenate([obs, f]).ravel()
 
         #contact IDs
-        CIDs = self.clothScene.getHapticSensorContactIDs()
-        obs = np.concatenate([obs, CIDs]).ravel()
+        if self.contactSurfaceReward:
+            CIDs = self.clothScene.getHapticSensorContactIDs()
+            obs = np.concatenate([obs, CIDs]).ravel()
 
         #print(obs)
 

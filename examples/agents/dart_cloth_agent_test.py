@@ -26,7 +26,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2018_05_14_lockedL_shortsalign" #this does pretty well
+    #trial = "experiment_2018_05_14_lockedL_shortsalign2"
+    trial = "experiment_2018_05_14_lockedL_shortsalign" #this does pretty well
     #trial = "experiment_2018_05_13_lockedL_shortsalign"
     #trial = "experiment_2018_05_12_lockedL_shortsalign3"
     #trial = "experiment_2018_05_12_lockedL_shortsalign2"
