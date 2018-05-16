@@ -19,7 +19,7 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
@@ -32,32 +32,32 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         leftFootLocked = True
 
         # observation terms
-        self.featureInObs       = True  # if true, feature centroid location and displacement from ef are observed
-        self.oracleInObs        = True  # if true, oracle vector is in obs
-        self.contactIDInObs     = True  # if true, contact ids are in obs
-        self.limbProgressInObs  = True  # if true, include waist and leg limb progress in the reward function
+        self.featureInObs       = False  # if true, feature centroid location and displacement from ef are observed
+        self.oracleInObs        = False  # if true, oracle vector is in obs
+        self.contactIDInObs     = False  # if true, contact ids are in obs
+        self.limbProgressInObs  = False  # if true, include waist and leg limb progress in the reward function
 
         #reward flags
         self.restPoseReward             = True
-        self.restCOMsReward             = True #if True, penalize displacement between world targets and the positions of local offsets
         self.stabilityCOMReward         = True
         self.contactReward              = False
-        self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
+        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
         self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
+        self.footPosReward              = True  # if true, reward the foot for being at a particular location (3 point frame)
+
         #dressing reward flags
-        self.waistContainmentReward     = True
+        self.waistContainmentReward     = False
         self.deformationPenalty         = True
         self.footBetweenHandsReward     = False #reward foot between the hands
-        self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
-        self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
-        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.limbProgressReward         = False  # if true, the (-inf, 1] plimb progress metric is included in reward
+        self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
+        self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
 
         #reward weights
         self.restPoseRewardWeight               = 0.5
-        self.restCOMsRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
@@ -65,6 +65,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
+        self.footPosReward                      = 1
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
         self.deformationPenaltyWeight           = 2.5
@@ -74,9 +75,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.contactGeoRewardWeight             = 4
 
         #other flags
-        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
-        self.contactTermination   = True #if anything except the feet touch the ground, terminate
+        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.contactTermination   = False #if anything except the feet touch the ground, terminate
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
+        self.legOutTermination    = True #terminate if the leg is outside of the correct shorts features
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
         self.resetStateFromDistribution = True
@@ -84,12 +86,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.resetDistributionSize = 20
 
         self.COMMinHeight = -0.6
-        self.maxCOMStabilityDistance = 0.15
 
         #other variables
         self.prevTau = None
         self.restPose = None
-        self.restCOMs = []
+        self.footOffsets = [np.array([0, 0, -0.2]), np.array([0.05, 0, 0.03]), np.array([-0.05, 0, 0.03])] #local positions of the foot to query for foot location reward
+        self.footTargets = [] #world foot position targets for the foo location reward
+        self.targetCOM = np.zeros(3) #target for the center of the stability region
         self.stabilityPolygon = [] #an ordered point set representing the stability region of the desired foot contacts
         self.stabilityPolygonCentroid = np.zeros(3)
         self.projectedCOM = np.zeros(3)
@@ -185,9 +188,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         if self.restPoseReward:
             self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
 
-        if self.restCOMsReward:
-            self.rewardsData.addReward(label="rest COMs", rmin=-20.0, rmax=0, rval=0, rweight=self.restCOMsRewardWeight)
-
         if self.stabilityCOMReward:
             self.rewardsData.addReward(label="stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
 
@@ -252,8 +252,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.projectedCOM[1] = -1.3
 
         #test COM containment
-        #self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
-        self.stableCOM = ( np.linalg.norm(self.projectedCOM-self.stabilityPolygonCentroid) < self.maxCOMStabilityDistance)
+        self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
@@ -357,9 +356,19 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
                 if e > 0:
                     return True, -100
 
-            if self.limbProgress > 0 and self.prevWaistContainment < 0:
+        if self.legOutTermination:
+            errors = []
+            #errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legEndFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legMidFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.legStartFeatureL))
+            errors.append(pyutils.limbFeatureProgress( limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR, offset=self.toeOffset), feature=self.waistFeature))
+
+            for e in errors:
+                if e < 0:
+                    return True, -100
+                    #if self.limbProgress > 0 and self.prevWaistContainment < 0:
                 #entered the pant leg before the waist or pulled the waist off the leg via penetration
-                return True, -100
+            #    return True, -100
 
         return False, 0
 
@@ -376,18 +385,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             reward_restPose = max(-51, -dist)
             reward_record.append(reward_restPose)
 
-        reward_restCOMs = 0
-        if self.restCOMsReward:
-            for ix,b in enumerate(self.robot_skeleton.bodynodes):
-                reward_restCOMs -= np.linalg.norm(self.restCOMs[ix]-b.com())
-            reward_restCOMs = max(reward_restCOMs, -20)
-            reward_record.append(reward_restCOMs)
-
         #reward COM over stability region
         reward_stability = 0
         if self.stabilityCOMReward:
             #penalty for distance from projected COM to stability centroid
-            reward_stability = -np.linalg.norm(self.stabilityPolygonCentroid - self.projectedCOM)
+            reward_stability = -np.linalg.norm(self.targetCOM - self.projectedCOM)
             reward_record.append(reward_stability)
 
         #reward # ground contact points
@@ -491,7 +493,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             if self.simulateCloth:
                 self.limbProgress = pyutils.limbFeatureProgress(
                     limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesLegR,
-                                                      offset=self.toeOffset), feature=self.legStartFeatureL)
+                                                      offset=self.toeOffset), feature=self.legMidFeatureL)
                 reward_limbprogress = self.limbProgress
                 if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
                     reward_limbprogress = 0
@@ -543,8 +545,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
                     + reward_footBetweenHands * self.footBetweenHandsRewardWeight \
                     + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                     + reward_limbprogress * self.limbProgressRewardWeight \
-                    + reward_contactGeo * self.contactGeoRewardWeight \
-                    + reward_restCOMs * self.restCOMsRewardWeight
+                    + reward_contactGeo * self.contactGeoRewardWeight
 
         return self.reward
 
@@ -630,6 +631,18 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         #qpos = np.array([0.0783082859519, -0.142335807127, 0.142293175071, 0.144942555142, 0.0133898601508, 0.165276500738, 0.0160630842837, 0.190633101962, -0.0300941169552, 0.0450348264227, -0.0254260608645, -0.878047724726, -0.485648077845, 0.239917328593, 1.4876567992, 0.00147541881953, -4.95678764178e-05, -0.0115193558397, 0.0292081008816, 0.424683550591, -1.20586786954, 0.674957465063, 0.935902478547, -0.118767946668, 0.130931065834, -0.00538714909167, 0.0113181295264, 0.000849328006241, -0.025344210202, -0.195371502228, 0.413691811409, 0.588269242275, 0.281748815666, 0.0899108878587, -0.626263215102, -1.5691826733, 0.202581615871, 2.1489384041, -0.171405162264, 0.163236501426])
         #qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
+        self.restPose = np.array(self.robot_skeleton.q)
+        self.restPose[14] = 0.2
+        self.restPose[22] = 0.2
+
+        self.robot_skeleton.set_positions(self.restPose)
+        for p in self.footOffsets:
+            self.footTargets.append(self.robot_skeleton.bodynodes[20].to_world(p))
+
+        self.targetCOM = self.robot_skeleton.com()
+        self.targetCOM[1] = -1.3
+
+        #now set the real character state
         if self.resetStateFromDistribution:
             if self.reset_number == 0: #load the distribution
                 count = 0
@@ -654,21 +667,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         #qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         #self.set_state(qpos, qvel)
-        self.chosenPose = np.array(self.robot_skeleton.q)
-        self.restPose = np.array(self.robot_skeleton.q)
-        self.restPose[34] = -0.317
-        self.restPose[35] = -0.663
-        self.restPose[36] = 0.4
-        self.restPose[37] = 0.1
-        self.restPose[38] = -0.85
 
-        self.robot_skeleton.set_positions(self.restPose)
-
-        self.restCOMs = []
-        for b in self.robot_skeleton.bodynodes:
-            self.restCOMs.append(b.com())
-
-        self.robot_skeleton.set_positions(self.chosenPose)
 
         #RX = pyutils.rotateX(-1.56)
         #self.clothScene.rotateCloth(cid=0, R=RX)
@@ -768,12 +767,6 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         renderUtils.setColor(color=[0.0, 0.0, 1.0])
         renderUtils.drawLines([[self.robot_skeleton.com(), np.array([self.robot_skeleton.com()[0], -2.0, self.robot_skeleton.com()[2]])]])
 
-        #rest COMs
-        restCOMsLines = []
-        if self.restCOMsReward:
-            for ix,b in enumerate(self.robot_skeleton.bodynodes):
-                restCOMsLines.append([b.com(), self.restCOMs[ix]])
-        renderUtils.drawLines(restCOMsLines)
 
         #compute the zero moment point
         if False:
@@ -821,6 +814,14 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         #draw the oracle
         ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
         renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
+
+        if self.footPosReward:
+            renderUtils.setColor([0, 1.0, 0])
+            for p in self.footOffsets:
+                renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[20].to_world(p))
+            renderUtils.setColor([1.0, 0, 0])
+            for t in self.footTargets:
+                renderUtils.drawSphere(pos=t)
 
         #draw the foot between hands info
         #self.handsPlane.draw()
