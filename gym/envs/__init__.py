@@ -222,6 +222,34 @@ register(
 )
 
 register(
+    id='DartHopper3Link-v1',
+    entry_point='gym.envs.dart:DartHopper3LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper4Link-v1',
+    entry_point='gym.envs.dart:DartHopper4LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper5Link-v1',
+    entry_point='gym.envs.dart:DartHopper5LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper6Link-v1',
+    entry_point='gym.envs.dart:DartHopper6LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopperRSS-v1',
     entry_point='gym.envs.dart:DartHopperRSSEnv',
     reward_threshold=3800.0,

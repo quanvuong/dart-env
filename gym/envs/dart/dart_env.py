@@ -141,6 +141,9 @@ class DartEnv(gym.Env):
 
     # -----------------------------
 
+    def reset(self):
+        return self._reset()
+
     def _reset(self):
         self.perturbation_duration = 0
         ob = self.reset_model()

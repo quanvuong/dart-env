@@ -5,7 +5,6 @@ from gym.envs.mujoco import mujoco_env
 class Reacher3dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.goal = np.array([0.8, -0.6, 0.6])
-        self.target_sets = []
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher3d.xml', 4)
 
@@ -18,12 +17,6 @@ class Reacher3dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
-
-        if done:
-            self.target_sets.append(self.get_body_com("fingertip"))
-            while len(self.target_sets) > 100:
-                self.target_sets.pop(0)
-
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
     def viewer_setup(self):
@@ -38,9 +31,6 @@ class Reacher3dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.goal = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.goal) < 1.5:
                 break
-        if len(self.target_sets) > 0:
-            if np.random.random() < 0.8:
-                self.goal = self.target_sets[np.random.randint(len(self.target_sets))]
         qpos[-3:] = self.goal
         qvel = self.init_qvel + self.np_random.uniform(low=-.01, high=.01, size=self.model.nv)
         qvel[-3:] = 0

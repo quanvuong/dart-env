@@ -39,3 +39,9 @@ from gym.envs.dart.human_walker import DartHumanWalkerEnv
 from gym.envs.dart.hopper_rss import DartHopperRSSEnv
 
 from gym.envs.dart.hexapod import DartHexapodEnv
+
+from gym.envs.dart.hopper_3link import DartHopper3LinkEnv
+from gym.envs.dart.hopper_4link import DartHopper4LinkEnv
+from gym.envs.dart.hopper_5link import DartHopper5LinkEnv
+from gym.envs.dart.hopper_6link import DartHopper6LinkEnv
+

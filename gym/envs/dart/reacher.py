@@ -8,6 +8,7 @@ from gym.envs.dart import dart_env
 class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
+        self.target_sets = []
         self.action_scale = np.array([10, 10, 10, 10, 10])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0]])
         dart_env.DartEnv.__init__(self, 'reacher.skel', 4, 21, self.control_bounds, disableViewer=True)
@@ -34,7 +35,17 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
 
+        self.num_steps += 1
+
         done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
+
+        if done:
+            reward += 10.0
+
+        if done or self.num_steps > 100:
+            self.target_sets.append(self.robot_skeleton.bodynodes[2].to_world(fingertip))
+            while len(self.target_sets) > 500:
+                self.target_sets.pop(0)
 
         return ob, reward, done, {}
 
@@ -52,8 +63,13 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.target) < 1.5: break
-
+        if len(self.target_sets) > 0:
+            #print(self.target_sets)
+            if np.random.random() < 0.5:
+                self.target = self.target_sets[np.random.randint(len(self.target_sets))]
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
+
+        self.num_steps = 0
 
         return self._get_obs()
 
