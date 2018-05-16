@@ -639,6 +639,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         #qpos = qpos + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
         #self.set_state(qpos, qvel)
         self.restPose = np.array(self.robot_skeleton.q)
+        self.restPose[34] = -0.317
+        self.restPose[35] = -0.663
+        self.restPose[36] = 0.4
+        self.restPose[37] = 0.1
+        self.restPose[38] = -0.85
 
         #RX = pyutils.rotateX(-1.56)
         #self.clothScene.rotateCloth(cid=0, R=RX)
@@ -766,7 +771,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             #TODO: continue
 
         # render geodesic
-        if True:
+        if False:
             for v in range(self.clothScene.getNumVertices()):
                 side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
                 side0geo = self.separatedMesh.nodes[v].geodesic
@@ -859,6 +864,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
                                 dimensions=[400, -m_viewport[3] + 30])
 
+        links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+        renderUtils.drawLines(lines=links)
+
         textHeight = 15
         textLines = 2
 
@@ -875,4 +883,4 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
 
 
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)

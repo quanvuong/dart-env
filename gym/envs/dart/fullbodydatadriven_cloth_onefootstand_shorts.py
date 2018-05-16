@@ -705,6 +705,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
                                 dimensions=[400, -m_viewport[3] + 30])
 
+        links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+        renderUtils.drawLines(lines=links)
+
         textHeight = 15
         textLines = 2
 
@@ -719,4 +722,4 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="max deformation = " + str(self.deformation), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
