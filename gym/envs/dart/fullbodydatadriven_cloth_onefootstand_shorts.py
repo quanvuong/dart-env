@@ -44,7 +44,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
         self.footBetweenHandsReward     = True #reward foot between the hands
-        self.contactSurfaceReward       = False #reward touching the interior of the garment
+        self.contactSurfaceReward       = True #reward touching the interior of the garment
 
         #reward weights
         self.restPoseRewardWeight               = 1
