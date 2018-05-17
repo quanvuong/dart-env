@@ -62,7 +62,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 17
+        self.aliveBonusRewardWeight             = 18
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
         self.footPosRewardWeight                = 4
