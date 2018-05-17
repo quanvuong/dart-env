@@ -215,6 +215,34 @@ register(
 # Dart
 # ----------------------------------------
 register(
+    id='DartCartPole1Pole-v1',
+    entry_point='gym.envs.dart:DartCartPole1PoleEnv',
+    reward_threshold=950.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartCartPole2Pole-v1',
+    entry_point='gym.envs.dart:DartCartPole2PoleEnv',
+    reward_threshold=950.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartCartPole3Pole-v1',
+    entry_point='gym.envs.dart:DartCartPole3PoleEnv',
+    reward_threshold=950.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartCartPole4Pole-v1',
+    entry_point='gym.envs.dart:DartCartPole4PoleEnv',
+    reward_threshold=950.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopper-v1',
     entry_point='gym.envs.dart:DartHopperEnv',
     reward_threshold=3800.0,
@@ -245,6 +273,34 @@ register(
 register(
     id='DartHopper6Link-v1',
     entry_point='gym.envs.dart:DartHopper6LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper3Link2Foot-v1',
+    entry_point='gym.envs.dart:DartHopper3Link2FootEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper4Link2Foot-v1',
+    entry_point='gym.envs.dart:DartHopper4Link2FootEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper5Link2Foot-v1',
+    entry_point='gym.envs.dart:DartHopper5Link2FootEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper6Link2Foot-v1',
+    entry_point='gym.envs.dart:DartHopper6Link2FootEnv',
     reward_threshold=3800.0,
     max_episode_steps=1000,
 )

@@ -45,3 +45,13 @@ from gym.envs.dart.hopper_4link import DartHopper4LinkEnv
 from gym.envs.dart.hopper_5link import DartHopper5LinkEnv
 from gym.envs.dart.hopper_6link import DartHopper6LinkEnv
 
+from gym.envs.dart.hopper_3link_2foot import DartHopper3Link2FootEnv
+from gym.envs.dart.hopper_4link_2foot import DartHopper4Link2FootEnv
+from gym.envs.dart.hopper_5link_2foot import DartHopper5Link2FootEnv
+from gym.envs.dart.hopper_6link_2foot import DartHopper6Link2FootEnv
+
+from gym.envs.dart.cartpole_1pole import DartCartPole1PoleEnv
+from gym.envs.dart.cartpole_2pole import DartCartPole2PoleEnv
+from gym.envs.dart.cartpole_3pole import DartCartPole3PoleEnv
+from gym.envs.dart.cartpole_4pole import DartCartPole4PoleEnv
+

@@ -3,26 +3,13 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopper3Link2FootEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0, 1.0],[-1.0, -1.0]])
+        self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 100
-        self.include_action_in_obs = True
-        self.randomize_dynamics = False
-        obs_dim = 9
+        obs_dim = 11
 
-        if self.include_action_in_obs:
-            obs_dim += len(self.control_bounds[0])
-            self.prev_a = np.zeros(len(self.control_bounds[0]))
-
-        dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
-
-        if self.randomize_dynamics:
-            self.bodynode_original_masses = []
-            self.bodynode_original_frictions = []
-            for bn in self.robot_skeleton.bodynodes:
-                self.bodynode_original_masses.append(bn.mass())
-                self.bodynode_original_frictions.append(bn.friction_coeff())
+        dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_3link_2foot.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.dart_world.set_collision_detector(3)
 
@@ -33,24 +20,19 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules = []
 
         self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-        if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
-        else:
-            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
+        self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
 
-        if not self.include_action_in_obs:
-            self.net_modules.append([[3, 8], 1, None])
-            self.net_modules.append([[2, 7], 1, [0]])
-        else:
-            self.net_modules.append([[3, 8, 10], 1, None])
-            self.net_modules.append([[2, 7, 9], 1, [0]])
-        self.net_modules.append([[0, 1, 4, 5, 6], 0, [1]])
+        self.net_modules.append([[4, 10], 1, None])
+        self.net_modules.append([[3, 9], 1, None])
+        self.net_modules.append([[2, 8], 1, [0, 1]])
+        self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
 
-        self.net_modules.append([[], 2, [2, 1]])
-        self.net_modules.append([[], 2, [2, 0]])
+        self.net_modules.append([[], 2, [3, 2]])
+        self.net_modules.append([[], 2, [3, 1]])
+        self.net_modules.append([[], 2, [3, 0]])
 
-        self.net_modules.append([[], None, [3, 4], None, False])
+        self.net_modules.append([[], None, [4, 5, 6], None, False])
 
         utils.EzPickle.__init__(self)
 
@@ -61,10 +43,6 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
-
-        if self.include_action_in_obs:
-            self.prev_a = np.copy(clamped_control)
-
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[3:] = clamped_control * self.action_scale
 
@@ -77,6 +55,7 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.advance(a)
         posafter,ang = self.robot_skeleton.q[0,2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
+
 
         joint_limit_penalty = 0
         for j in [-2]:
@@ -106,9 +85,6 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.include_action_in_obs:
-            state = np.concatenate([state, self.prev_a])
-
         return state
 
 
@@ -122,18 +98,8 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.init_height = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.include_action_in_obs:
-            self.prev_a = np.zeros(len(self.control_bounds[0]))
-
         self.accumulated_rew = 0.0
         self.num_steps = 0.0
-
-        if self.randomize_dynamics:
-            for i in range(len(self.robot_skeleton.bodynodes)):
-                self.robot_skeleton.bodynodes[i].set_mass(
-                    self.bodynode_original_masses[i] + np.random.uniform(-1.5, 1.5))
-                self.robot_skeleton.bodynodes[i].set_friction_coeff(
-                    self.bodynode_original_frictions[i] + np.random.uniform(-0.5, 0.5))
 
         return state
 

@@ -210,7 +210,7 @@
                 </collision_shape>
             </body>
 
-            <body name="h_foot1">
+            <!--<body name="h_foot1">
                 <transformation>0.0 0.125 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>4.0</mass>
@@ -234,7 +234,7 @@
                         </capsule>
                     </geometry>
                 </collision_shape>
-            </body>
+            </body>-->
 
 
             <!-- JOINT: Pelvis -->
@@ -365,7 +365,7 @@
                 <init_vel>0</init_vel>
             </joint>
 
-            <joint type="revolute" name="j_foot1">
+            <!--<joint type="revolute" name="j_foot1">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>h_shin</parent>
                 <child>h_foot1</child>
@@ -382,7 +382,7 @@
                 </axis>
                 <init_pos>-1.57</init_pos>
                 <init_vel>0</init_vel>
-            </joint>
+            </joint>-->
 
         </skeleton>
 
