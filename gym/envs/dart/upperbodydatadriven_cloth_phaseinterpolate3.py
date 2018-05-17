@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -44,16 +44,18 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         self.triangleContainmentReward  = True  # active ef rewarded for intersection with triangle from shoulders to passive ef. Also penalized for distance to triangle
         self.triangleAlignmentReward    = True  # dot product reward between triangle normal and character torso vector
         self.tieredTuckReward           = True  # if true, no reward given for containment unless contact is achieved.
+        self.elbowElevationReward       = True #if true, penalize elbow about hte shoulders
 
         #reward weights
-        self.uprightRewardWeight = 1
-        self.stableHeadRewardWeight = 2
-        self.deformationPenaltyWeight = 10  # was 5...
-        self.restPoseRewardWeight = 0.5
-        self.contactSurfaceRewardWeight = 6
-        self.contactGeoRewardWeight = 2
-        self.triangleContainmentRewardWeight = 10
-        self.triangleAlignmentRewardWeight = 2
+        self.uprightRewardWeight                = 1
+        self.stableHeadRewardWeight             = 2
+        self.deformationPenaltyWeight           = 10  # was 5...
+        self.restPoseRewardWeight               = 0.5
+        self.contactSurfaceRewardWeight         = 6
+        self.contactGeoRewardWeight             = 2
+        self.triangleContainmentRewardWeight    = 10
+        self.triangleAlignmentRewardWeight      = 2
+        self.elbowElevationRewardWeight         = 5
 
 
         #other flags
@@ -154,6 +156,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         if self.triangleAlignmentReward:
             self.rewardsData.addReward(label="tri align", rmin=-1.0, rmax=1.0, rval=0, rweight=self.triangleAlignmentRewardWeight)
 
+        if self.elbowElevationReward:
+            self.rewardsData.addReward(label="elbow elevation", rmin=-1.0, rmax=0.0, rval=0, rweight=self.elbowElevationRewardWeight)
 
         self.state_save_directory = "saved_control_states/"
         self.saveStateOnReset = False
@@ -388,6 +392,19 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
             reward_triangleAlignment = -tnorm.dot(torsoV)
             reward_record.append(reward_triangleAlignment)
 
+        reward_elbowElevation = 0
+        if self.elbowElevationReward:
+            shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+            shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            elbow = self.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+            shoulderR_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderR)
+            shoulderL_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderL)
+            elbow_torso = self.robot_skeleton.bodynodes[1].to_local(elbow)
+
+            if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
+                reward_elbowElevation = -max(elbow_torso[1]-shoulderL_torso[1], elbow_torso[1]-shoulderR_torso[1])
+            reward_record.append(reward_elbowElevation)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -403,7 +420,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                       + reward_contact_surface * self.contactSurfaceRewardWeight \
                       + reward_triangleContainment * self.triangleContainmentRewardWeight \
                       + reward_triangleAlignment * self.triangleAlignmentRewardWeight \
-                      + reward_contactGeo * self.contactGeoRewardWeight
+                      + reward_contactGeo * self.contactGeoRewardWeight \
+                      + reward_elbowElevation * self.elbowElevationRewardWeight
             # TODO: revisit deformation penalty
         return self.reward
 
@@ -609,6 +627,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
                 renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo,
                                                                     value=self.separatedMesh.maxGeo - side1geo))
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
+
+
 
         m_viewport = self.viewer.viewport
         self.rewardsData.render(topLeft=[m_viewport[2]-410,m_viewport[3]-15], dimensions=[400, -m_viewport[3]+30])

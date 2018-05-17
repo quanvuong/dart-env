@@ -52,7 +52,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_05_06_lsleeve2_warm"
     #trial = "experiment_2018_05_06_lsleeve2_wide"
 
-    #trial = "experiment_2018_05_04_ltuck_403"
+    trial = "experiment_2018_05_04_ltuck_403"
     #trial = "experiment_2018_05_04_onefoot_shorts_align"
 
     #trial = "experiment_2018_05_02_onefootstandcrouch_simple"
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3')
 
     #locked foot envs
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
