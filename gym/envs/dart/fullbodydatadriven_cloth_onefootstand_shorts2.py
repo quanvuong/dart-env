@@ -79,6 +79,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
+        self.successTermination   = True
+        self.successLimbProgress  = 0.4
+
         self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states_shorts/enter_seq_rleg"
         self.resetDistributionSize = 20
@@ -360,6 +363,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts2Env(DartClothFullBodyDa
             if self.limbProgress > 0 and self.prevWaistContainment < 0:
                 #entered the pant leg before the waist or pulled the waist off the leg via penetration
                 return True, -100
+
+        if self.successTermination:
+            if self.limbProgress > self.successLimbProgress:
+                #self.saveState(name="enter_seq_rlegdown")
+                return True, 0
 
         return False, 0
 

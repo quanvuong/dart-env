@@ -25,8 +25,11 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_05_15_lockedL_shortsrleg_cont" #best yet
+    #trial = "experiment_2018_05_16_lockedL_shortsrleg"
+
     #trial = "experiment_2018_05_15_lockedL_shortsrleg2"
-    trial = "experiment_2018_05_15_lockedL_shortsrleg"
+    #trial = "experiment_2018_05_15_lockedL_shortsrleg" #alright
     #trial = "experiment_2018_05_15_lockedL_shortsalign"
     #trial = "experiment_2018_05_15_lockedL_shortsrleg"
 
@@ -317,9 +320,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStand-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
+    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
-    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
-    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3')
 
     #locked foot envs
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
@@ -337,7 +340,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

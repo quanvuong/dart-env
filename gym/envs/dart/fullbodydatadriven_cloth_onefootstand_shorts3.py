@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -65,10 +65,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
-        self.footPosReward                      = 1
+        self.footPosReward                      = 4
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
-        self.deformationPenaltyWeight           = 2.5
+        self.deformationPenaltyWeight           = 5.0
         self.footBetweenHandsRewardWeight       = 1
         self.limbProgressRewardWeight           = 15
         self.oracleDisplacementRewardWeight     = 50
@@ -82,7 +82,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states_shorts/enter_seq_rleg"
+        self.resetDistributionPrefix = "saved_control_states_shorts/enter_seq_rlegdown"
         self.resetDistributionSize = 20
 
         self.COMMinHeight = -0.6
@@ -104,7 +104,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.initialProjectedAnkle = np.zeros(3)
         self.footCOP = np.zeros(3)
         self.footNormForceMag = 0
-        self.footBodyNode = 17 #17 left, 20 right
+        self.footBodyNode = 20 #17 left, 20 right
         self.ankleDofs = [32,33] #[32,33] left, [38,39] right
         self.fingertip = np.array([0,-0.08,0])
         self.handsPlane = Plane()
@@ -632,10 +632,15 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         #qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
         self.restPose = np.array(self.robot_skeleton.q)
+        self.restPose[1] = 0.5
+        self.restPose[3] = 0.352
+        self.restPose[5] = 0
+        #self.restPose[5] = 0.56
         self.restPose[14] = 0.2
         self.restPose[22] = 0.2
 
         self.robot_skeleton.set_positions(self.restPose)
+        self.footTargets = []
         for p in self.footOffsets:
             self.footTargets.append(self.robot_skeleton.bodynodes[20].to_world(p))
 
@@ -662,6 +667,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             self.loadCharacterState(filename=charfname_ix)
             qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
             self.robot_skeleton.set_velocities(qvel)
+
 
         #qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
@@ -812,16 +818,23 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
                 renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01)
 
         #draw the oracle
-        ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
-        renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
+        if self.oracleDisplacementReward:
+            ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+            renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
 
+        footTargetLines = []
         if self.footPosReward:
-            renderUtils.setColor([0, 1.0, 0])
-            for p in self.footOffsets:
-                renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[20].to_world(p))
-            renderUtils.setColor([1.0, 0, 0])
-            for t in self.footTargets:
-                renderUtils.drawSphere(pos=t)
+            if len(self.footTargets) == len(self.footOffsets):
+                renderUtils.setColor([0, 1.0, 0])
+                for p in self.footOffsets:
+                    pos = self.robot_skeleton.bodynodes[20].to_world(p)
+                    renderUtils.drawSphere(pos=pos)
+                    footTargetLines.append([pos])
+                renderUtils.setColor([1.0, 0, 0])
+                for ix,t in enumerate(self.footTargets):
+                    renderUtils.drawSphere(pos=t)
+                    footTargetLines[ix].append(t)
+        renderUtils.drawLines(footTargetLines)
 
         #draw the foot between hands info
         #self.handsPlane.draw()
@@ -847,6 +860,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             renderUtils.drawPolygon(self.stabilityPolygon)
         renderUtils.setColor([0.0,0,1.0])
         renderUtils.drawSphere(pos=self.projectedCOM)
+        renderUtils.setColor([0.0, 1.0, 1.0])
+        renderUtils.drawSphere(pos=self.targetCOM)
 
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[1.0,0.0,0.0])
         self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0.0,1.0,0.0])
