@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -65,7 +65,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
-        self.footPosReward                      = 4
+        self.footPosRewardWeight                = 4
+
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
         self.deformationPenaltyWeight           = 5.0
@@ -208,6 +209,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
+
+        if self.footPosReward:
+            self.rewardsData.addReward(label="foot pos", rmin=-3.0, rmax=0.0, rval=0, rweight=self.footPosRewardWeight)
 
         if self.waistContainmentReward:
             self.rewardsData.addReward(label="waist containment", rmin=-1.0, rmax=1.0, rval=0, rweight=self.waistContainmentRewardWeight)
@@ -437,6 +441,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedAnkle - projectedAnkle))
             reward_record.append(reward_stationaryAnklePos)
 
+        reward_footPos = 0
+        if self.footPosReward:
+            for ix,p in enumerate(self.footOffsets):
+                pos = self.robot_skeleton.bodynodes[20].to_world(p)
+                reward_footPos -= np.linalg.norm(pos-self.footTargets[ix])
+            reward_record.append(reward_footPos)
+
         reward_waistContainment = 0
         if self.waistContainmentReward:
             if self.simulateCloth:
@@ -545,7 +556,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
                     + reward_footBetweenHands * self.footBetweenHandsRewardWeight \
                     + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                     + reward_limbprogress * self.limbProgressRewardWeight \
-                    + reward_contactGeo * self.contactGeoRewardWeight
+                    + reward_contactGeo * self.contactGeoRewardWeight \
+                    + reward_footPos * self.footPosRewardWeight
 
         return self.reward
 
@@ -822,19 +834,20 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             ef = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
             renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
 
-        footTargetLines = []
         if self.footPosReward:
-            if len(self.footTargets) == len(self.footOffsets):
-                renderUtils.setColor([0, 1.0, 0])
-                for p in self.footOffsets:
-                    pos = self.robot_skeleton.bodynodes[20].to_world(p)
-                    renderUtils.drawSphere(pos=pos)
-                    footTargetLines.append([pos])
-                renderUtils.setColor([1.0, 0, 0])
-                for ix,t in enumerate(self.footTargets):
-                    renderUtils.drawSphere(pos=t)
-                    footTargetLines[ix].append(t)
-        renderUtils.drawLines(footTargetLines)
+            footTargetLines = []
+            if self.footPosReward:
+                if len(self.footTargets) == len(self.footOffsets):
+                    renderUtils.setColor([0, 1.0, 0])
+                    for p in self.footOffsets:
+                        pos = self.robot_skeleton.bodynodes[20].to_world(p)
+                        renderUtils.drawSphere(pos=pos)
+                        footTargetLines.append([pos])
+                    renderUtils.setColor([1.0, 0, 0])
+                    for ix,t in enumerate(self.footTargets):
+                        renderUtils.drawSphere(pos=t)
+                        footTargetLines[ix].append(t)
+            renderUtils.drawLines(footTargetLines)
 
         #draw the foot between hands info
         #self.handsPlane.draw()
