@@ -44,16 +44,18 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
         self.elbowElevationReward       = True  # if true, penalize elbow about hte shoulders
+        self.aliveBonus                 = True
 
         # reward weights
         self.uprightRewardWeight = 2
         self.stableHeadRewardWeight = 2
         self.elbowFlairRewardWeight = 1
-        self.deformationPenaltyWeight = 10  # was 5...
+        self.deformationPenaltyWeight = 15  # was 5...
         self.restPoseRewardWeight = 1
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
         self.elbowElevationRewardWeight = 10
+        self.aliveBonusWeight           = 110
 
         #other flags
         self.elbowElevationTermination = True
@@ -143,12 +145,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         if self.rightTargetReward:
             if self.taskReward:
-                self.rewardsData.addReward(label="efR(task)", rmin=-1.0, rmax=0.05, rval=0, rweight=self.rightTargetRewardWeight)
+                self.rewardsData.addReward(label="efR(task)", rmin=-2.0, rmax=0.05, rval=0, rweight=self.rightTargetRewardWeight)
             else:
-                self.rewardsData.addReward(label="efR", rmin=-1.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
+                self.rewardsData.addReward(label="efR", rmin=-2.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
 
         if self.elbowElevationReward:
             self.rewardsData.addReward(label="elbow elevation", rmin=-1.0, rmax=0.0, rval=0, rweight=self.elbowElevationRewardWeight)
+
+        if self.aliveBonus:
+            self.rewardsData.addReward(label="alive bonus", rmin=0.0, rmax=1.0, rval=0, rweight=self.aliveBonusWeight)
 
 
         self.state_save_directory = "saved_control_states/"
@@ -340,6 +345,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 reward_elbowElevation = -max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
             reward_record.append(reward_elbowElevation)
 
+        reward_alive = 0
+        if self.aliveBonus:
+            reward_alive = 1.0
+            reward_record.append(reward_alive)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -353,7 +363,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_rightTarget * self.rightTargetRewardWeight \
                       + reward_leftTarget * self.leftTargetRewardWeight \
                       + reward_rightTargetAltitude*4 \
-                      + reward_elbowElevation * self.elbowElevationRewardWeight
+                      + reward_elbowElevation * self.elbowElevationRewardWeight \
+                      + reward_alive * self.aliveBonusWeight
+
         # TODO: revisit the deformation penalty
         return self.reward
 
