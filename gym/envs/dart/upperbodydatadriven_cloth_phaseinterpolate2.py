@@ -56,6 +56,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.elbowElevationRewardWeight = 10
 
         #other flags
+        self.elbowElevationTermination = True
+        self.elbowTerminationElevation = 0.1
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
         self.collarTerminationCD = 0 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -212,6 +214,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 print(objfname_ix)
                 self.saveObjState(filename=objfname_ix)
                 self.saveCharacterState(filename=charfname_ix)
+
+        if self.elbowElevationTermination:
+            shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+            shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            elbow = self.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+            shoulderR_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderR)
+            shoulderL_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderL)
+            elbow_torso = self.robot_skeleton.bodynodes[1].to_local(elbow)
+
+            elevation = 0
+            if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
+                elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
+
+            if elevation > self.elbowTerminationElevation:
+                return True, -2500
 
         return False, 0
 

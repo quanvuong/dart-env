@@ -296,7 +296,8 @@ class MatchGripController(Controller):
         #policyfilename = "experiment_2018_04_09_match_seqwarm"
         #policyfilename = "experiment_2018_04_10_match_seq_veltask" #seq iter 1
 
-        policyfilename = "experiment_2018_04_20_matchgrip_warm" #seq iter 2
+        #policyfilename = "experiment_2018_04_20_matchgrip_warm" #seq iter 2
+        policyfilename = "experiment_2018_05_17_matchgrip" #seq iter 2: elbow down
 
         name="Match Grip"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
@@ -332,7 +333,20 @@ class MatchGripController(Controller):
 
     def transition(self):
         efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
-        if np.linalg.norm(efR-self.env.rightTarget) < 0.04:
+
+        shoulderR = self.env.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+        shoulderL = self.env.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+        elbow = self.env.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+        shoulderR_torso = self.env.robot_skeleton.bodynodes[1].to_local(shoulderR)
+        shoulderL_torso = self.env.robot_skeleton.bodynodes[1].to_local(shoulderL)
+        elbow_torso = self.env.robot_skeleton.bodynodes[1].to_local(elbow)
+
+        elevation = 0
+        if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
+            elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
+        print(elevation)
+
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
             return True
         return False
         a=0

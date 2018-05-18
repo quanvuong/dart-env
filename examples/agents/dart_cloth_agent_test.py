@@ -25,6 +25,10 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+
+    #trial = "experiment_2018_05_17_matchgrip"
+    #trial = "experiment_2018_05_17_lockedL_shortsrlegdown2_cont"
+
     #trial = "experiment_2018_05_17_tuckL_elbow"
     #trial = "experiment_2018_05_17_lockedL_shortsrlegdown2"
     #trial = "experiment_2018_05_17_lockedL_shortsrlegdown"
@@ -95,7 +99,7 @@ if __name__ == '__main__':
     #trial = "experiment_2018_04_20_ltuck"
     #trial = "experiment_2018_04_21_ltuck"
 
-    trial = "experiment_2018_04_20_matchgrip_warm"
+    #trial = "experiment_2018_04_20_matchgrip_warm"
 
     #trial = "experiment_2018_04_19_rsleeve_warm"
     #trial = "experiment_2018_04_19_rsleeve"
@@ -343,7 +347,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenPhaseInterpolate-v2', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
