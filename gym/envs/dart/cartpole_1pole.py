@@ -39,6 +39,7 @@ class DartCartPole1PoleEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def _step(self, a):
+        a = np.clip(a, -1, 1)
         if self.include_action_in_obs:
             self.prev_a = np.copy(a)
 
@@ -47,7 +48,8 @@ class DartCartPole1PoleEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-        reward = -np.abs(self.robot_skeleton.bodynodes[-1].C[1] - 0.3) + 0.3
+        #reward = -np.abs(self.robot_skeleton.bodynodes[-1].C[1] - 0.3) + 0.3
+        reward = -np.linalg.norm(self.robot_skeleton.bodynodes[-1].C - np.array([0.6, 0.6, 0.0])) + 0.8
 
         reward -= 0.04 * np.square(a).sum()
 

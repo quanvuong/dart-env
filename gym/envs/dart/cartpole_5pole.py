@@ -2,17 +2,17 @@ import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
 
-class DartCartPole4PoleEnv(dart_env.DartEnv, utils.EzPickle):
+class DartCartPole5PoleEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0]])
+        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.action_scale = 10
-        obs_dim = 8
+        obs_dim = 10
         self.include_action_in_obs = True
         if self.include_action_in_obs:
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
-        dart_env.DartEnv.__init__(self, 'cartpole_multilink/cartpole_4pole.skel', 2, obs_dim, self.control_bounds,
+        dart_env.DartEnv.__init__(self, 'cartpole_multilink/cartpole_5pole.skel', 2, obs_dim, self.control_bounds,
                                   dt=0.02, disableViewer=True)
 
         # setups for articunet
@@ -28,22 +28,25 @@ class DartCartPole4PoleEnv(dart_env.DartEnv, utils.EzPickle):
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
 
         if not self.include_action_in_obs:
-            self.net_modules.append([[3, 7], 0, None])
-            self.net_modules.append([[2, 6], 0, [0]])
-            self.net_modules.append([[1, 5], 0, [1]])
-            self.net_modules.append([[0, 4], 0, [2]])
+            self.net_modules.append([[4, 9], 0, None])
+            self.net_modules.append([[3, 8], 0, [0]])
+            self.net_modules.append([[2, 7], 0, [1]])
+            self.net_modules.append([[1, 6], 0, [2]])
+            self.net_modules.append([[0, 5], 0, [3]])
         else:
-            self.net_modules.append([[3, 7, 11], 0, None])
-            self.net_modules.append([[2, 6, 10], 0, [0]])
-            self.net_modules.append([[1, 5, 9], 0, [1]])
-            self.net_modules.append([[0, 4, 8], 0, [2]])
+            self.net_modules.append([[4, 9, 14], 0, None])
+            self.net_modules.append([[3, 8, 13], 0, [0]])
+            self.net_modules.append([[2, 7, 12], 0, [1]])
+            self.net_modules.append([[1, 6, 11], 0, [2]])
+            self.net_modules.append([[0, 5, 10], 0, [3]])
 
-        self.net_modules.append([[], 1, [3]])
-        self.net_modules.append([[], 1, [3, 2]])
-        self.net_modules.append([[], 1, [3, 1]])
-        self.net_modules.append([[], 1, [3, 0]])
+        self.net_modules.append([[], 1, [4]])
+        self.net_modules.append([[], 1, [4, 3]])
+        self.net_modules.append([[], 1, [4, 2]])
+        self.net_modules.append([[], 1, [4, 1]])
+        self.net_modules.append([[], 1, [4, 0]])
 
-        self.net_modules.append([[], None, [4, 5, 6, 7], None, False])
+        self.net_modules.append([[], None, [5, 6, 7, 8, 9], None, False])
 
         utils.EzPickle.__init__(self)
 
@@ -55,8 +58,8 @@ class DartCartPole4PoleEnv(dart_env.DartEnv, utils.EzPickle):
         tau = a * self.action_scale
 
         self.do_simulation(tau, self.frame_skip)
-        #reward = -np.abs(self.robot_skeleton.bodynodes[-1].C[1] - 2.1) + 2.1
-        reward = -np.linalg.norm(self.robot_skeleton.bodynodes[-1].C - np.array([0.6, 0.6, 0.0])) + 1.75
+        #reward = -np.abs(self.robot_skeleton.bodynodes[-1].C[1] - 2.7) + 2.7
+        reward = -np.linalg.norm(self.robot_skeleton.bodynodes[-1].C - np.array([0.6, 0.6, 0.0])) + 2.0
 
         reward -= 0.04 * np.square(a).sum()
 

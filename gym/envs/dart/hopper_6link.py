@@ -102,8 +102,8 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         fall_on_ground = False
         contacts = self.dart_world.collision_result.contacts
         for contact in contacts:
-            if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != \
-                    self.robot_skeleton.bodynodes[-1]:
+            if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
+                    self.robot_skeleton.bodynodes[2]:
                 fall_on_ground = True
 
         alive_bonus = 1.0

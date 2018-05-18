@@ -55,4 +55,5 @@ from gym.envs.dart.cartpole_1pole import DartCartPole1PoleEnv
 from gym.envs.dart.cartpole_2pole import DartCartPole2PoleEnv
 from gym.envs.dart.cartpole_3pole import DartCartPole3PoleEnv
 from gym.envs.dart.cartpole_4pole import DartCartPole4PoleEnv
+from gym.envs.dart.cartpole_5pole import DartCartPole5PoleEnv
 

@@ -243,6 +243,13 @@ register(
 )
 
 register(
+    id='DartCartPole5Pole-v1',
+    entry_point='gym.envs.dart:DartCartPole5PoleEnv',
+    reward_threshold=950.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopper-v1',
     entry_point='gym.envs.dart:DartHopperEnv',
     reward_threshold=3800.0,
