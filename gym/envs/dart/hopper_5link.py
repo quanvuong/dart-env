@@ -92,6 +92,13 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         posafter,ang = self.robot_skeleton.q[0,2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
+        fall_on_ground = False
+        contacts = self.dart_world.collision_result.contacts
+        for contact in contacts:
+            if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != \
+                    self.robot_skeleton.bodynodes[-1]:
+                fall_on_ground = True
+
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
@@ -101,7 +108,9 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.num_steps += 1.0
         #print(self.num_steps)
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+                    True)  # (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+        if fall_on_ground:
+            done = True
         ob = self._get_obs()
 
         return ob, reward, done, {}
