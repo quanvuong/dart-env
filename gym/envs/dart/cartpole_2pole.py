@@ -4,7 +4,7 @@ from gym.envs.dart import dart_env
 
 class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0],[-1.0]])
+        self.control_bounds = np.array([[1.0, 1.0],[-1.0, -1.0]])
         self.action_scale = 100
         obs_dim = 6
         self.include_action_in_obs = True

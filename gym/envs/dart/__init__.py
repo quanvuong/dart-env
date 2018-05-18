@@ -44,6 +44,7 @@ from gym.envs.dart.hopper_3link import DartHopper3LinkEnv
 from gym.envs.dart.hopper_4link import DartHopper4LinkEnv
 from gym.envs.dart.hopper_5link import DartHopper5LinkEnv
 from gym.envs.dart.hopper_6link import DartHopper6LinkEnv
+from gym.envs.dart.hopper_7link import DartHopper7LinkEnv
 
 from gym.envs.dart.hopper_3link_2foot import DartHopper3Link2FootEnv
 from gym.envs.dart.hopper_4link_2foot import DartHopper4Link2FootEnv

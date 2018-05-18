@@ -278,6 +278,13 @@ register(
 )
 
 register(
+    id='DartHopper7Link-v1',
+    entry_point='gym.envs.dart:DartHopper7LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopper3Link2Foot-v1',
     entry_point='gym.envs.dart:DartHopper3Link2FootEnv',
     reward_threshold=3800.0,
