@@ -45,6 +45,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
         self.elbowElevationReward       = True  # if true, penalize elbow about hte shoulders
         self.aliveBonus                 = True
+        self.bicepInReward              = True #penalize the active bicep for point away from the other arm
 
         # reward weights
         self.uprightRewardWeight = 2
@@ -56,6 +57,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.rightTargetRewardWeight = 100
         self.elbowElevationRewardWeight = 10
         self.aliveBonusWeight           = 110
+        self.bicepInRewardWeight        = 15
 
         #other flags
         self.elbowElevationTermination = True
@@ -154,6 +156,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         if self.aliveBonus:
             self.rewardsData.addReward(label="alive bonus", rmin=0.0, rmax=1.0, rval=0, rweight=self.aliveBonusWeight)
+
+        if self.bicepInReward:
+            self.rewardsData.addReward(label="bicep in", rmin=-1.0, rmax=1.0, rval=0, rweight=self.bicepInRewardWeight)
 
 
         self.state_save_directory = "saved_control_states/"
@@ -350,6 +355,16 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             reward_alive = 1.0
             reward_record.append(reward_alive)
 
+        reward_bicepIn = 0
+        if self.bicepInReward:
+            bicep_up = self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, -0.075])) - self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, 0]))
+            bicep_up = bicep_up / np.linalg.norm(bicep_up)
+            passiveElbow = self.robot_skeleton.bodynodes[10].com() #acutally the joint
+            targetDir = passiveElbow - self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, 0]))
+            targetDir = targetDir/np.linalg.norm(targetDir)
+            reward_bicepIn = bicep_up.dot(targetDir)
+            reward_record.append(reward_bicepIn)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -364,7 +379,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_leftTarget * self.leftTargetRewardWeight \
                       + reward_rightTargetAltitude*4 \
                       + reward_elbowElevation * self.elbowElevationRewardWeight \
-                      + reward_alive * self.aliveBonusWeight
+                      + reward_alive * self.aliveBonusWeight \
+                      + reward_bicepIn * self.bicepInRewardWeight
 
         # TODO: revisit the deformation penalty
         return self.reward
@@ -520,6 +536,16 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        if self.bicepInReward:
+            bicep_top = self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, -0.075]))
+            bicep_core = self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, 0]))
+            bicep_up = bicep_top-bicep_core
+            bicep_up = bicep_up / np.linalg.norm(bicep_up)
+            passiveElbow = self.robot_skeleton.bodynodes[10].com()  # acutally the joint
+            targetDir = passiveElbow - self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, 0]))
+            targetDir = targetDir / np.linalg.norm(targetDir)
+            renderUtils.drawLines(lines=[[passiveElbow, bicep_core], [bicep_core, bicep_top]])
 
         if self.restPoseReward:
             renderUtils.drawLines(pyutils.getRobotLinks(self.robot_skeleton,self.restPose))
