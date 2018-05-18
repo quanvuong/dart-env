@@ -8,7 +8,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
         self.action_scale = 100
         self.include_action_in_obs = True
-        self.randomize_dynamics = True
+        self.randomize_dynamics = False
         obs_dim = 15
 
         if self.include_action_in_obs:
@@ -27,18 +27,43 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(3)
 
         # setups for articunet
-        self.state_dim = 32
+        self.state_dim = 16
         self.enc_net = []
         self.act_net = []
+        self.vf_net = []
         self.net_modules = []
-
+        self.net_vf_modules = []
         self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
         if not self.include_action_in_obs:
             self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
-        self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
+        if not self.include_action_in_obs:
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
+        else:
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
+        self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
+        self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+
+        # value function modules
+        if not self.include_action_in_obs:
+            self.net_vf_modules.append([[6, 14], 3, None])
+            self.net_vf_modules.append([[5, 13], 3, [0]])
+            self.net_vf_modules.append([[4, 12], 3, [1]])
+            self.net_vf_modules.append([[3, 11], 3, [2]])
+            self.net_vf_modules.append([[2, 10], 3, [3]])
+        else:
+            self.net_vf_modules.append([[6, 14, 19], 3, None])
+            self.net_vf_modules.append([[5, 13, 18], 3, [0]])
+            self.net_vf_modules.append([[4, 12, 17], 3, [1]])
+            self.net_vf_modules.append([[3, 11, 16], 3, [2]])
+            self.net_vf_modules.append([[2, 10, 15], 3, [3]])
+        self.net_vf_modules.append([[0, 1, 7, 8, 9], 2, [4]])
+        self.net_vf_modules.append([[], 5, [5]])
+
+        # policy modules
         if not self.include_action_in_obs:
             self.net_modules.append([[6, 14], 1, None])
             self.net_modules.append([[5, 13], 1, [0]])
@@ -53,25 +78,11 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[2, 10, 15], 1, [3]])
         self.net_modules.append([[0, 1, 7, 8, 9], 0, [4]])
 
-        '''self.net_modules.append([[2, 10], 1, [5]])
-        self.net_modules.append([[3, 11], 1, [6]])
-        self.net_modules.append([[4, 12], 1, [7]])
-        self.net_modules.append([[5, 13], 1, [8]])
-        self.net_modules.append([[6, 14], 1, [9]])
-
-        self.net_modules.append([[], 2, [6]])
-        self.net_modules.append([[], 2, [7]])
-        self.net_modules.append([[], 2, [8]])
-        self.net_modules.append([[], 2, [9]])
-        self.net_modules.append([[], 2, [10]])
-
-        self.net_modules.append([[], None, [11, 12, 13, 14, 15], None, False])'''
-
-        self.net_modules.append([[], 2, [5, 4]])
-        self.net_modules.append([[], 2, [5, 3]])
-        self.net_modules.append([[], 2, [5, 2]])
-        self.net_modules.append([[], 2, [5, 1]])
-        self.net_modules.append([[], 2, [5, 0]])
+        self.net_modules.append([[], 4, [5, 4]])
+        self.net_modules.append([[], 4, [5, 3]])
+        self.net_modules.append([[], 4, [5, 2]])
+        self.net_modules.append([[], 4, [5, 1]])
+        self.net_modules.append([[], 4, [5, 0]])
 
         self.net_modules.append([[], None, [6, 7, 8, 9, 10], None, False])
 
@@ -115,9 +126,11 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.num_steps += 1.0
         #print(self.num_steps)
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    True)  # (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
-        if fall_on_ground:
-            done = True
+                     (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+        if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
+            reward = 0
+        #if fall_on_ground:
+        #    done = True
         ob = self._get_obs()
 
         return ob, reward, done, {}
