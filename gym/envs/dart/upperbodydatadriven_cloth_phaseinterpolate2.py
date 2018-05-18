@@ -43,6 +43,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.leftTargetReward           = False
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
+        self.elbowElevationReward       = True  # if true, penalize elbow about hte shoulders
 
         # reward weights
         self.uprightRewardWeight = 2
@@ -52,6 +53,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.restPoseRewardWeight = 1
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
+        self.elbowElevationRewardWeight = 10
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -142,6 +144,10 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 self.rewardsData.addReward(label="efR(task)", rmin=-1.0, rmax=0.05, rval=0, rweight=self.rightTargetRewardWeight)
             else:
                 self.rewardsData.addReward(label="efR", rmin=-1.0, rmax=0, rval=0, rweight=self.rightTargetRewardWeight)
+
+        if self.elbowElevationReward:
+            self.rewardsData.addReward(label="elbow elevation", rmin=-1.0, rmax=0.0, rval=0, rweight=self.elbowElevationRewardWeight)
+
 
         self.state_save_directory = "saved_control_states/"
         self.saveStateOnReset = False
@@ -304,6 +310,19 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                 reward_rightTargetAltitude -= 0.5
             #print(reward_rightTargetAltitude)
 
+        reward_elbowElevation = 0
+        if self.elbowElevationReward:
+            shoulderR = self.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+            shoulderL = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            elbow = self.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+            shoulderR_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderR)
+            shoulderL_torso = self.robot_skeleton.bodynodes[1].to_local(shoulderL)
+            elbow_torso = self.robot_skeleton.bodynodes[1].to_local(elbow)
+
+            if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
+                reward_elbowElevation = -max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
+            reward_record.append(reward_elbowElevation)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -316,7 +335,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_restPose * self.restPoseRewardWeight \
                       + reward_rightTarget * self.rightTargetRewardWeight \
                       + reward_leftTarget * self.leftTargetRewardWeight \
-                      + reward_rightTargetAltitude*4
+                      + reward_rightTargetAltitude*4 \
+                      + reward_elbowElevation * self.elbowElevationRewardWeight
         # TODO: revisit the deformation penalty
         return self.reward
 
