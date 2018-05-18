@@ -10,7 +10,7 @@
         <skeleton name="ground">
            <mobile>false</mobile>
            <body name="link 1">
-                <transformation>0.0 -1.92 0.0 0 0 0</transformation>
+                <transformation>0.0 -1.93 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
                     <offset>0 0 0</offset>

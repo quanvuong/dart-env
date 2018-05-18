@@ -65,7 +65,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.aliveBonusRewardWeight             = 18
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
-        self.footPosRewardWeight                = 4
+        self.footPosRewardWeight                = 6
 
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
@@ -81,6 +81,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
         self.legOutTermination    = True #terminate if the leg is outside of the correct shorts features
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
+        self.footDistanceTermination = True
 
         self.resetStateFromDistribution = True
         self.resetDistributionPrefix = "saved_control_states_shorts/enter_seq_rlegdown"
@@ -373,6 +374,15 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
                     #if self.limbProgress > 0 and self.prevWaistContainment < 0:
                 #entered the pant leg before the waist or pulled the waist off the leg via penetration
             #    return True, -100
+
+        if self.footDistanceTermination:
+            maxError = 0.0
+            for ix, p in enumerate(self.footOffsets):
+                pos = self.robot_skeleton.bodynodes[20].to_world(p)
+                maxError = max(maxError, np.linalg.norm(pos - self.footTargets[ix]))
+            #print(maxError)
+            if maxError < 0.04:
+                return True, 1000
 
         return False, 0
 

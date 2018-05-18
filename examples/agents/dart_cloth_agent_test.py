@@ -25,7 +25,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_05_17_lockedL_shortsrlegdown"
+    #trial = "experiment_2018_05_17_tuckL_elbow"
+    trial = "experiment_2018_05_17_lockedL_shortsrlegdown2"
+    #trial = "experiment_2018_05_17_lockedL_shortsrlegdown"
     #trial = "experiment_2018_05_15_lockedL_shortsrleg_cont" #best yet
     #trial = "experiment_2018_05_16_lockedL_shortsrleg"
 
