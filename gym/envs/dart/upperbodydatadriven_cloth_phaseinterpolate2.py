@@ -56,8 +56,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
         self.elbowElevationRewardWeight = 10
-        self.aliveBonusWeight           = 110
-        self.bicepInRewardWeight        = 15
+        self.aliveBonusWeight           = 160
+        self.bicepInRewardWeight        = 75
 
         #other flags
         self.elbowElevationTermination = True
