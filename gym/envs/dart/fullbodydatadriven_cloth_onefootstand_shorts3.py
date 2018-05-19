@@ -39,6 +39,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         #reward flags
         self.restPoseReward             = True
+        self.restCOMsReward             = True #if True, penalize displacement between world targets and the positions of local offsets
         self.stabilityCOMReward         = True
         self.contactReward              = False
         self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
@@ -58,11 +59,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         #reward weights
         self.restPoseRewardWeight               = 0.5
+        self.restCOMsRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 50
+        self.aliveBonusRewardWeight             = 60
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
         self.footPosRewardWeight                = 20
@@ -92,6 +94,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         #other variables
         self.prevTau = None
         self.restPose = None
+        self.restCOMs = []
         self.footOffsets = [np.array([0, 0, -0.2]), np.array([0.05, 0, 0.03]), np.array([-0.05, 0, 0.03])] #local positions of the foot to query for foot location reward
         self.footTargets = [] #world foot position targets for the foo location reward
         self.targetCOM = np.zeros(3) #target for the center of the stability region
@@ -121,10 +124,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.actuatedDofs = np.arange(34)
         observation_size = 0
         #observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
-        observation_size = 34 * 3 + 6  # q[6:](sin,cos), dq
+        observation_size = 34 * 3 + 12  # q[6:](sin,cos), dq, trans, orient
         observation_size += 3 # COM
-        observation_size += 1 # binary contact per foot with ground
-        observation_size += 4 # feet COPs and norm force mags
+        #observation_size += 1 # binary contact per foot with ground
+        #observation_size += 4 # feet COPs and norm force mags
         observation_size += 40*3 # haptic sensor readings
         if self.featureInObs:
             observation_size += 6
@@ -189,6 +192,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         if self.restPoseReward:
             self.rewardsData.addReward(label="restPose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+
+        if self.restCOMsReward:
+            self.rewardsData.addReward(label="rest COMs", rmin=-20.0, rmax=0, rval=0, rweight=self.restCOMsRewardWeight)
 
         if self.stabilityCOMReward:
             self.rewardsData.addReward(label="stability", rmin=-0.5, rmax=0, rval=0, rweight=self.stabilityCOMRewardWeight)
@@ -399,6 +405,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             reward_restPose = max(-51, -dist)
             reward_record.append(reward_restPose)
 
+        reward_restCOMs = 0
+        if self.restCOMsReward:
+            for ix, b in enumerate(self.robot_skeleton.bodynodes):
+                reward_restCOMs -= np.linalg.norm(self.restCOMs[ix] - b.com())
+            reward_restCOMs = max(reward_restCOMs, -20)
+            reward_record.append(reward_restCOMs)
+
         #reward COM over stability region
         reward_stability = 0
         if self.stabilityCOMReward:
@@ -567,7 +580,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
                     + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                     + reward_limbprogress * self.limbProgressRewardWeight \
                     + reward_contactGeo * self.contactGeoRewardWeight \
-                    + reward_footPos * self.footPosRewardWeight
+                    + reward_footPos * self.footPosRewardWeight \
+                    + reward_restCOMs * self.restCOMsRewardWeight
 
         return self.reward
 
@@ -580,20 +594,20 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         trans = np.array(self.robot_skeleton.q[3:6])
 
         #obs = np.concatenate([np.cos(orientation), np.sin(orientation), trans, np.cos(theta), np.sin(theta), dq]).ravel()
-        obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
+        obs = np.concatenate([np.cos(theta), np.sin(theta), dq, orientation, trans]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
         obs = np.concatenate([obs, com]).ravel()
 
         #foot contacts
-        if self.footContact:
+        '''if self.footContact:
             obs = np.concatenate([obs, [1.0]]).ravel()
         else:
-            obs = np.concatenate([obs, [0.0]]).ravel()
+            obs = np.concatenate([obs, [0.0]]).ravel()'''
 
         #foot COP and norm force magnitude
-        obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
+        #obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
 
         #haptic observations
         f = np.zeros(40*3)
@@ -661,7 +675,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.restPose[14] = 0.2
         self.restPose[22] = 0.2'''
         #self.restPose = np.array([0.415926215284, -0.208072254172, 0.0359992793634, 0.197008695274, -0.080946120072, 0.386294441391, 0.500259401372, 1.00291802213, 0.190366268989, -0.199667785215, -0.221454351362, -0.995964947924, -0.322756577729, -0.185862207419, 1.20874032662, -0.601246970796, -0.356215287304, 0.248648034524, -0.207736588973, 1.19045063115, -1.10962637351, 0.64449704768, 1.20892254234, -0.603004201007, 0.584056520122, -0.101334215359, -0.217255331061, 0.665068109449, -0.0431213403695, 0.120595975597, 0.558129378897, 0.522613519553, 0.186776361183, 0.00898025185228, -1.04489130048, -0.674308682483, 0.871716975402, 1.32610514665, -1.55570020123, 0.262473197491])
-        self.restPose = np.array([0.415926215284, -0.208072254172, 0.0359992793634, 0.197008695274, -0.080946120072, 0.386294441391, 0.500259401372, 1.00291802213, 0.190366268989, -0.199667785215, -0.221454351362, -0.995964947924, -0.322756577729, -0.185862207419, 1.20874032662, -0.601246970796, -0.356215287304, 0.248648034524, -0.207736588973, 1.19045063115, -1.10962637351, 0.64449704768, 1.20892254234, -0.603004201007, 0.584056520122, -0.101334215359, -0.217255331061, 0.665068109449, -0.0772335924034, 0.345777940801, 0.347712898192, 0.597222545088, 0.163680756136, -0.0716346721614, 0.00539065251275, 0.350484523151, 0.298952447783, 0.510535951384, 0.178043644112, -0.0715581001448])
+        #self.restPose = np.array([0.415926215284, -0.208072254172, 0.0359992793634, 0.197008695274, -0.080946120072, 0.386294441391, 0.500259401372, 1.00291802213, 0.190366268989, -0.199667785215, -0.221454351362, -0.995964947924, -0.322756577729, -0.185862207419, 1.20874032662, -0.601246970796, -0.356215287304, 0.248648034524, -0.207736588973, 1.19045063115, -1.10962637351, 0.64449704768, 1.20892254234, -0.603004201007, 0.584056520122, -0.101334215359, -0.217255331061, 0.665068109449, -0.0772335924034, 0.345777940801, 0.347712898192, 0.597222545088, 0.163680756136, -0.0716346721614, 0.00539065251275, 0.350484523151, 0.298952447783, 0.510535951384, 0.178043644112, -0.0715581001448])
+        #self.restPose = np.array([0.525824064201, -0.399976484702, 0.0887478468173, 0.145089767505, -0.136825881358, 0.560569009075, 0.504712938155, 1.00752481112, 0.0945622609612, -0.228753234696, -0.237164704235, 0.0793722954261, 0.986201206344, -0.343858171372, 0.999108918639, -0.591312452645, -0.589003131028, 0.253242784195, -0.194353296464, 1.07117931579, -0.964339003354, 0.635248852788, 1.21447608173, -0.574513297921, 0.562541004218, 0.0181084859628, -0.321564671007, 0.532503853831, -0.14731292525, 0.0404158608684, 0.55367653044, 0.638011072879, 0.101733194299, 0.195334829555, -0.987216985687, -0.540165630908, 0.86912949813, 1.25936404052, -1.32657545849, 0.364504394379])
+        self.restPose = np.array([0.451776148062, -0.408060690682, -0.0813767999963, 0.231914742755, -0.128517505377, 0.509980348602, 0.500012087933, 1.00350776151, 0.128344076103, -0.249493315526, -0.250963105237, -0.410587913964, -0.300922973715, -0.632096540698, 1.04160284967, -0.600296442311, -0.573678985941, 0.250153764375, -0.227018065035, 1.27197819319, -0.83950877621, 0.968879260074, 0.695461638617, -0.594546287862, 0.604086349948, -0.0750487146813, -0.238633047019, 0.646839623225, 0.00530710951417, -0.0079435054315, 0.646537024558, 0.619000285028, 0.131835107278, 0.182739902529, 0.00119200512317, -0.295788344638, 0.2387694539, 0.732666666667, -0.0594136415473, -0.0843937492205])
 
         self.robot_skeleton.set_positions(self.restPose)
         self.footTargets = []
@@ -670,6 +686,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         self.targetCOM = self.robot_skeleton.com()
         self.targetCOM[1] = -1.3
+
+        self.restCOMs = []
+        for b in self.robot_skeleton.bodynodes:
+            self.restCOMs.append(b.com())
 
         #now set the real character state
         if self.resetStateFromDistribution:
@@ -786,6 +806,14 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
+
+        # rest COMs
+        renderUtils.setColor(color=[1.0,1.0,0])
+        restCOMsLines = []
+        if self.restCOMsReward:
+            for ix, b in enumerate(self.robot_skeleton.bodynodes):
+                restCOMsLines.append([b.com(), self.restCOMs[ix]])
+        renderUtils.drawLines(restCOMsLines)
 
         #render center of pressure for each foot
         COPLines = [
