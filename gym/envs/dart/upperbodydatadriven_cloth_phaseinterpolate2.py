@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -38,6 +38,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
+        self.restCOMsReward             = True  # if True, penalize displacement between world targets and the positions of local offsets
         self.rightTargetReward          = True
         self.taskReward                 = True #if true, an additional reward is provided when the EF is within task success distance of the target
         self.leftTargetReward           = False
@@ -53,11 +54,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.elbowFlairRewardWeight = 1
         self.deformationPenaltyWeight = 15  # was 5...
         self.restPoseRewardWeight = 1
+        self.restCOMsRewardWeight = 10
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
         self.elbowElevationRewardWeight = 10
         self.aliveBonusWeight           = 160
-        self.bicepInRewardWeight        = 75
+        self.bicepInRewardWeight        = 30
 
         #other flags
         self.elbowElevationTermination = True
@@ -80,6 +82,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.prevTau = None
         self.maxDeformation = 30.0
         self.restPose = None
+        self.restCOMs = []
         self.localRightEfShoulder1 = None
         self.localLeftEfShoulder1 = None
         self.rightTarget = np.zeros(3)
@@ -141,6 +144,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         if self.restPoseReward:
             self.rewardsData.addReward(label="rest pose", rmin=-51.0, rmax=0, rval=0, rweight=self.restPoseRewardWeight)
+
+        if self.restCOMsReward:
+            self.rewardsData.addReward(label="rest COMs", rmin=-20.0, rmax=0, rval=0, rweight=self.restCOMsRewardWeight)
 
         if self.leftTargetReward:
             self.rewardsData.addReward(label="efL", rmin=-1.0, rmax=0, rval=0, rweight=self.leftTargetRewardWeight)
@@ -298,6 +304,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             reward_record.append(reward_restPose)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
 
+        reward_restCOMs = 0
+        if self.restCOMsReward:
+            for ix, b in enumerate(self.robot_skeleton.bodynodes):
+                reward_restCOMs -= np.linalg.norm(self.restCOMs[ix] - b.com())
+            reward_restCOMs = max(reward_restCOMs, -20)
+            reward_record.append(reward_restCOMs)
+
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
@@ -380,7 +393,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                       + reward_rightTargetAltitude*4 \
                       + reward_elbowElevation * self.elbowElevationRewardWeight \
                       + reward_alive * self.aliveBonusWeight \
-                      + reward_bicepIn * self.bicepInRewardWeight
+                      + reward_bicepIn * self.bicepInRewardWeight \
+                      + reward_restCOMs * self.restCOMsRewardWeight
 
         # TODO: revisit the deformation penalty
         return self.reward
@@ -468,12 +482,19 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
                     targetFound = True
         self.set_state(qpos, qvel)'''
 
-        self.loadCharacterState(filename="characterState_regrip")
+        #self.loadCharacterState(filename="characterState_regrip")
 
         #find end effector targets and set restPose from solution
-        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+
         #print("left target: " + str(self.leftTarget))
-        self.restPose = np.array(self.robot_skeleton.q)
+        #self.restPose = np.array(self.robot_skeleton.q)
+        self.restPose = np.array([-0.210940942604, -0.0602436241858, 0.785540563981, 0.132571030392, -0.25, -0.580739841458, -0.803858324899, -1.472, 1.27301394196, -0.295286198863, 0.611311245326, 0.245333463513, 0.225511476131, 1.20063053643, -0.0501794921426, 1.19122509695, 1.97519722198, -0.573360432341, 0.321222466527, 0.580323061076, -0.422112755785, -0.997819593165])
+        self.robot_skeleton.set_positions(self.restPose)
+        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+
+        self.restCOMs = []
+        for b in self.robot_skeleton.bodynodes:
+            self.restCOMs.append(b.com())
 
         if self.resetStateFromDistribution:
             if self.reset_number == 0: #load the distribution
@@ -537,6 +558,15 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
+        # rest COMs
+        renderUtils.setColor(color=[1.0,1.0,0])
+        restCOMsLines = []
+        if self.restCOMsReward:
+            for ix, b in enumerate(self.robot_skeleton.bodynodes):
+                restCOMsLines.append([b.com(), self.restCOMs[ix]])
+        renderUtils.drawLines(restCOMsLines)
+
+        renderUtils.setColor([0, 0, 0])
         if self.bicepInReward:
             bicep_top = self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, -0.075]))
             bicep_core = self.robot_skeleton.bodynodes[4].to_world(np.array([0.0, -0.15, 0]))
