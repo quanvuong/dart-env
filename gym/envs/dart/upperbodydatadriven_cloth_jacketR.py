@@ -241,13 +241,14 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
             reward_record.append(reward_elbow_flair)
 
         reward_limbprogress = 0
-        if self.limbProgressReward and self.simulateCloth:
-            self.limbProgress = pyutils.limbFeatureProgress(
-                limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
-                                                  offset=np.array([0, -0.095, 0])), feature=self.sleeveRSeamFeature)
-            reward_limbprogress = self.limbProgress
-            if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
-                reward_limbprogress = 0
+        if self.limbProgressReward:
+            if self.simulateCloth:
+                self.limbProgress = pyutils.limbFeatureProgress(
+                    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesR,
+                                                      offset=np.array([0, -0.095, 0])), feature=self.sleeveRSeamFeature)
+                reward_limbprogress = self.limbProgress
+                if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
+                    reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
 
         avgContactGeodesic = None
@@ -263,21 +264,23 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         self.prevAvgGeodesic = avgContactGeodesic
 
         reward_oracleDisplacement = 0
-        if self.oracleDisplacementReward and np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
-            # world_ef_displacement = wRFingertip2 - wRFingertip1
-            relative_displacement = localRightEfShoulder2 - self.localRightEfShoulder1
-            oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2 + self.prevOracle) - localRightEfShoulder2
-            # oracle0 = oracle0/np.linalg.norm(oracle0)
-            reward_oracleDisplacement += relative_displacement.dot(oracle0)
+        if self.oracleDisplacementReward:
+            if np.linalg.norm(self.prevOracle) > 0 and self.localRightEfShoulder1 is not None:
+                # world_ef_displacement = wRFingertip2 - wRFingertip1
+                relative_displacement = localRightEfShoulder2 - self.localRightEfShoulder1
+                oracle0 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2 + self.prevOracle) - localRightEfShoulder2
+                # oracle0 = oracle0/np.linalg.norm(oracle0)
+                reward_oracleDisplacement += relative_displacement.dot(oracle0)
             reward_record.append(reward_oracleDisplacement)
 
         reward_contactGeo = 0
-        if self.contactGeoReward and self.simulateCloth:
-            if self.limbProgress > 0:
-                reward_contactGeo = 1.0
-            elif avgContactGeodesic is not None:
-                reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
-                # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
+        if self.contactGeoReward:
+            if self.simulateCloth:
+                if self.limbProgress > 0:
+                    reward_contactGeo = 1.0
+                elif avgContactGeodesic is not None:
+                    reward_contactGeo = 1.0 - (avgContactGeodesic / self.separatedMesh.maxGeo)
+                    # reward_contactGeo = 1.0 - minContactGeodesic / self.separatedMesh.maxGeo
             reward_record.append(reward_contactGeo)
 
         clothDeformation = 0
@@ -286,7 +289,7 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
             self.deformation = clothDeformation
 
         reward_clothdeformation = 0
-        if self.deformationPenalty is True:
+        if self.deformationPenalty:
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             reward_clothdeformation = -(math.tanh(
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
@@ -296,13 +299,14 @@ class DartClothUpperBodyDataDrivenClothJacketREnv(DartClothUpperBodyDataDrivenCl
         reward_ctrl = -np.square(tau).sum()
 
         reward_restPose = 0
-        if self.restPoseReward and self.restPose is not None:
-            z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
-            s = 1.0  # steepness (higher is steeper)
-            l = 4.2  # translation
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            #reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
-            reward_restPose = max(-51, -dist)
+        if self.restPoseReward:
+            if self.restPose is not None:
+                z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
+                s = 1.0  # steepness (higher is steeper)
+                l = 4.2  # translation
+                dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                #reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
+                reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
             reward_record.append(reward_restPose)
 
