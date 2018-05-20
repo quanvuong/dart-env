@@ -36,6 +36,55 @@ class DartHopper4Link2FootEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.net_modules.append([[], None, [5, 6, 7, 8], None, False])
 
+        # setups for controller articunet
+        self.state_dim = 16
+        self.enc_net = []
+        self.act_net = []
+        self.vf_net = []
+        self.merg_net = []
+        self.net_modules = []
+        self.net_vf_modules = []
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
+        if not self.include_action_in_obs:
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
+        else:
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
+        if not self.include_action_in_obs:
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
+        else:
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
+
+        self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
+        self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+
+        # value function modules
+        if not self.include_action_in_obs:
+            self.net_vf_modules.append([[4, 10], 3, None])
+            self.net_vf_modules.append([[3, 9], 3, [0]])
+            self.net_vf_modules.append([[2, 8], 3, [1]])
+        else:
+            self.net_vf_modules.append([[4, 10, 3], 3, None])
+            self.net_vf_modules.append([[3, 9, 12], 3, [0]])
+            self.net_vf_modules.append([[2, 8, 11], 3, [1]])
+        self.net_vf_modules.append([[0, 1, 5, 6, 7], 2, [2]])
+        self.net_vf_modules.append([[], 5, [3]])
+
+        # policy modules
+        if not self.include_action_in_obs:
+            self.net_modules.append([[4, 10], 1, None])
+            self.net_modules.append([[3, 9], 1, [0]])
+            self.net_modules.append([[2, 8], 1, [1]])
+        else:
+            self.net_modules.append([[4, 10, 3], 1, None])
+            self.net_modules.append([[3, 9, 12], 1, [0]])
+            self.net_modules.append([[2, 8, 11], 1, [1]])
+        self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
+        self.net_modules.append([[], 4, [3, 2]])
+        self.net_modules.append([[], 4, [3, 1]])
+        self.net_modules.append([[], 4, [3, 0]])
+        self.net_modules.append([[], None, [4, 5, 6], None, False])
+
         utils.EzPickle.__init__(self)
 
     def advance(self, a):

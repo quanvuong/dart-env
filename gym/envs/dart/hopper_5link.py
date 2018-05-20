@@ -27,7 +27,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(3)
 
         # setups for articunet
-        self.state_dim = 16
+        self.state_dim = 32
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
@@ -80,6 +80,28 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 4, [4, 0]])
 
         self.net_modules.append([[], None, [5, 6, 7, 8], None, False])
+
+        # dynamics modules
+        self.dyn_enc_net = []
+        self.dyn_act_net = []  # using actor as decoder
+        self.dyn_merg_net = []
+        self.dyn_net_modules = []
+        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
+        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
+        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+        self.dyn_net_modules.append([[6, 13, 17], 1, None])
+        self.dyn_net_modules.append([[5, 12, 16], 1, [0]])
+        self.dyn_net_modules.append([[4, 11, 15], 1, [1]])
+        self.dyn_net_modules.append([[3, 10, 14], 1, [2]])
+        self.dyn_net_modules.append([[0, 1, 2, 7, 8, 9], 0, [3]])
+        self.dyn_net_modules.append([[], 2, [4]])
+        self.dyn_net_modules.append([[], 3, [4, 3]])
+        self.dyn_net_modules.append([[], 3, [4, 2]])
+        self.dyn_net_modules.append([[], 3, [4, 1]])
+        self.dyn_net_modules.append([[], 3, [4, 0]])
+        self.dyn_net_modules.append([[], None, [5, 6, 7, 8, 9], None, False])
+        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 3, 4, 5, 7, 9, 11, 13], dtype=np.int32)
 
         utils.EzPickle.__init__(self)
 
@@ -146,6 +168,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        #qpos[2] += 1.0
         self.set_state(qpos, qvel)
 
         state = self._get_obs()

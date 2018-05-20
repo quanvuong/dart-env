@@ -220,3 +220,10 @@ class DartEnv(gym.Env):
             self.robot_skeleton.q,
             self.robot_skeleton.dq/10.0
         ])
+
+
+
+
+
+
+

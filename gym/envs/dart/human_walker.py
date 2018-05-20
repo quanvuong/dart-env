@@ -15,7 +15,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([260.0, 260, 260, 200, 100, 100, 260, 260, 260, 200, 100, 100, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
@@ -187,6 +187,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.max_eps_step_ref = 100 # maximum episode step when using reference policy
         self.ref_traj_num = 10
 
+        self.init_z_val = []
+        for bn in self.robot_skeleton.bodynodes:
+            self.init_z_val.append(bn.C[2])
+
         utils.EzPickle.__init__(self)
 
     # only 1d
@@ -208,7 +212,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         return tau
 
-    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
+    def _bodynode_spd(self, bn, kp, dof, target_pos = 0.0, target_vel=None):
         self.Kp = kp
         self.Kd = kp * self.sim_dt
         if target_vel is not None:
@@ -216,7 +220,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.Kp *= 0
 
         invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
-        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt - target_pos)
         if target_vel is None:
             target_vel = 0.0
         d = -self.Kd * (bn.dC[dof] - target_vel * 1.0)  # compensate for average velocity match
@@ -231,6 +235,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d and (self.t < self.push_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and (self.t < self.push_timeout) and not self.hard_enforce:
                 tvel = self.target_vel
@@ -500,7 +506,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
+                    (height - self.init_height > -0.65) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
                     and np.abs(angle) < 1.2 and
                     np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2

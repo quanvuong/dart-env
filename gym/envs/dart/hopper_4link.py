@@ -7,7 +7,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 100
-        self.include_action_in_obs = True
+        self.include_action_in_obs = False
         self.randomize_dynamics = False
         obs_dim = 11
 
@@ -27,10 +27,11 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(3)
 
         # setups for controller articunet
-        self.state_dim = 16
+        self.state_dim = 32
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
+        self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
         self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
@@ -69,12 +70,31 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[3, 9, 12], 1, [0]])
             self.net_modules.append([[2, 8, 11], 1, [1]])
         self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
-
         self.net_modules.append([[], 4, [3, 2]])
         self.net_modules.append([[], 4, [3, 1]])
         self.net_modules.append([[], 4, [3, 0]])
-
         self.net_modules.append([[], None, [4, 5, 6], None, False])
+
+        # dynamics modules
+        self.dyn_enc_net = []
+        self.dyn_act_net = [] # using actor as decoder
+        self.dyn_merg_net = []
+        self.dyn_net_modules = []
+        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
+        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
+        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+        self.dyn_net_modules.append([[5, 11, 14], 1, None])
+        self.dyn_net_modules.append([[4, 10, 13], 1, [0]])
+        self.dyn_net_modules.append([[3, 9, 12], 1, [1]])
+        self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8], 0, [2]])
+        self.dyn_net_modules.append([[], 2, [3]])
+        self.dyn_net_modules.append([[], 3, [3, 2]])
+        self.dyn_net_modules.append([[], 3, [3, 1]])
+        self.dyn_net_modules.append([[], 3, [3, 0]])
+        self.dyn_net_modules.append([[], None, [4, 5, 6, 7], None, False])
+        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
+
 
         utils.EzPickle.__init__(self)
 
@@ -173,3 +193,4 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
