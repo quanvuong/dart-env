@@ -15,6 +15,10 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
+        self.fwd_bwd_pass = False
+        # if self.fwd_bwd_pass:
+        #    obs_dim += 2
+
         dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_5link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         if self.randomize_dynamics:
@@ -82,26 +86,61 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], None, [5, 6, 7, 8], None, False])
 
         # dynamics modules
-        self.dyn_enc_net = []
-        self.dyn_act_net = []  # using actor as decoder
-        self.dyn_merg_net = []
-        self.dyn_net_modules = []
-        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
-        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
-        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
-        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
-        self.dyn_net_modules.append([[6, 13, 17], 1, None])
-        self.dyn_net_modules.append([[5, 12, 16], 1, [0]])
-        self.dyn_net_modules.append([[4, 11, 15], 1, [1]])
-        self.dyn_net_modules.append([[3, 10, 14], 1, [2]])
-        self.dyn_net_modules.append([[0, 1, 2, 7, 8, 9], 0, [3]])
-        self.dyn_net_modules.append([[], 2, [4]])
-        self.dyn_net_modules.append([[], 3, [4, 3]])
-        self.dyn_net_modules.append([[], 3, [4, 2]])
-        self.dyn_net_modules.append([[], 3, [4, 1]])
-        self.dyn_net_modules.append([[], 3, [4, 0]])
-        self.dyn_net_modules.append([[], None, [5, 6, 7, 8, 9], None, False])
-        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 3, 4, 5, 7, 9, 11, 13], dtype=np.int32)
+        if self.fwd_bwd_pass:
+            self.dyn_enc_net = []
+            self.dyn_act_net = [] # using actor as decoder
+            self.dyn_merg_net = []
+            self.dyn_net_modules = []
+            self.dyn_enc_net.append([self.state_dim, 6+1, 256, 1, 'dyn_planar_enc'])
+            self.dyn_enc_net.append([self.state_dim, 3+1, 256, 1, 'dyn_revolute_enc'])
+            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+            self.dyn_net_modules.append([[6, 13, 17, 18], 1, None])
+            self.dyn_net_modules.append([[5, 12, 16, 18], 1, [0]])
+            self.dyn_net_modules.append([[4, 11, 15, 18], 1, [1]])
+            self.dyn_net_modules.append([[3, 10, 14, 18], 1, [2]])
+            self.dyn_net_modules.append([[0, 1, 2, 7, 8, 9, 18], 0, [3]])
+
+            self.dyn_net_modules.append([[3, 10, 14, 19], 1, [4]])
+            self.dyn_net_modules.append([[4, 11, 15, 19], 1, [5]])
+            self.dyn_net_modules.append([[5, 12, 16, 19], 1, [6]])
+            self.dyn_net_modules.append([[6, 13, 17, 19], 1, [7]])
+
+            self.dyn_net_modules.append([[], 2, [4]])
+            self.dyn_net_modules.append([[], 3, [5]])
+            self.dyn_net_modules.append([[], 3, [6]])
+            self.dyn_net_modules.append([[], 3, [7]])
+            self.dyn_net_modules.append([[], 3, [8]])
+            self.dyn_net_modules.append([[], None, [9, 10, 11, 12, 13], None, False])
+            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 3, 4, 5, 7, 9, 11, 13], dtype=np.int32)
+        else:
+            self.dyn_enc_net = []
+            self.dyn_act_net = []  # using actor as decoder
+            self.dyn_merg_net = []
+            self.dyn_net_modules = []
+            self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
+            self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
+            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+            self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
+            self.dyn_net_modules.append([[6, 13, 17], 1, None])
+            self.dyn_net_modules.append([[5, 12, 16], 1, [0]])
+            self.dyn_net_modules.append([[4, 11, 15], 1, [1]])
+            self.dyn_net_modules.append([[3, 10, 14], 1, [2]])
+            self.dyn_net_modules.append([[0, 1, 2, 7, 8, 9], 0, [3]])
+
+            self.dyn_net_modules.append([[], 4, [4, 3], None, False])
+            self.dyn_net_modules.append([[], 4, [4, 2], None, False])
+            self.dyn_net_modules.append([[], 4, [4, 1], None, False])
+            self.dyn_net_modules.append([[], 4, [4, 0], None, False])
+
+            self.dyn_net_modules.append([[], 2, [4]])
+            self.dyn_net_modules.append([[], 3, [5]])
+            self.dyn_net_modules.append([[], 3, [6]])
+            self.dyn_net_modules.append([[], 3, [7]])
+            self.dyn_net_modules.append([[], 3, [8]])
+            self.dyn_net_modules.append([[], None, [9, 10, 11, 12, 13], None, False])
+            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 3, 4, 5, 7, 9, 11, 13], dtype=np.int32)
 
         utils.EzPickle.__init__(self)
 
@@ -192,3 +231,24 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
+    def state_vector(self):
+        if self.fwd_bwd_pass:
+            return np.concatenate([
+                self.robot_skeleton.q,
+                self.robot_skeleton.dq/10.0,
+                [0.0, 1.0]
+            ])
+        else:
+            return np.concatenate([
+                self.robot_skeleton.q,
+                self.robot_skeleton.dq / 10.0,
+            ])
+
+    def set_state_vector(self, state):
+        if self.fwd_bwd_pass:
+            self.robot_skeleton.set_positions(state[0:int(len(state)/2)-1])
+            self.robot_skeleton.set_velocities(state[int(len(state)/2)-1:-2]*10.0)
+        else:
+            self.robot_skeleton.set_positions(state[0:int(len(state) / 2)])
+            self.robot_skeleton.set_velocities(state[int(len(state) / 2):] * 10.0)

@@ -15,6 +15,10 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
+        self.fwd_bwd_pass = False
+        #if self.fwd_bwd_pass:
+        #    obs_dim += 2
+
         dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_4link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         if self.randomize_dynamics:
@@ -76,24 +80,55 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], None, [4, 5, 6], None, False])
 
         # dynamics modules
-        self.dyn_enc_net = []
-        self.dyn_act_net = [] # using actor as decoder
-        self.dyn_merg_net = []
-        self.dyn_net_modules = []
-        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
-        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
-        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
-        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
-        self.dyn_net_modules.append([[5, 11, 14], 1, None])
-        self.dyn_net_modules.append([[4, 10, 13], 1, [0]])
-        self.dyn_net_modules.append([[3, 9, 12], 1, [1]])
-        self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8], 0, [2]])
-        self.dyn_net_modules.append([[], 2, [3]])
-        self.dyn_net_modules.append([[], 3, [3, 2]])
-        self.dyn_net_modules.append([[], 3, [3, 1]])
-        self.dyn_net_modules.append([[], 3, [3, 0]])
-        self.dyn_net_modules.append([[], None, [4, 5, 6, 7], None, False])
-        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
+        if self.fwd_bwd_pass:
+            self.dyn_enc_net = []
+            self.dyn_act_net = [] # using actor as decoder
+            self.dyn_merg_net = []
+            self.dyn_net_modules = []
+            self.dyn_enc_net.append([self.state_dim, 6+1, 256, 1, 'dyn_planar_enc'])
+            self.dyn_enc_net.append([self.state_dim, 3+1, 256, 1, 'dyn_revolute_enc'])
+            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+            self.dyn_net_modules.append([[5, 11, 14, 15], 1, None])
+            self.dyn_net_modules.append([[4, 10, 13, 15], 1, [0]])
+            self.dyn_net_modules.append([[3, 9, 12, 15], 1, [1]])
+            self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8, 15], 0, [2]])
+
+            self.dyn_net_modules.append([[3, 9, 12, 16], 1, [3]])
+            self.dyn_net_modules.append([[4, 10, 13, 16], 1, [4]])
+            self.dyn_net_modules.append([[5, 11, 14, 16], 1, [5]])
+
+            self.dyn_net_modules.append([[], 2, [3]])
+            self.dyn_net_modules.append([[], 3, [4]])
+            self.dyn_net_modules.append([[], 3, [5]])
+            self.dyn_net_modules.append([[], 3, [6]])
+            self.dyn_net_modules.append([[], None, [7, 8, 9, 10], None, False])
+            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
+        else:
+            self.dyn_enc_net = []
+            self.dyn_act_net = []  # using actor as decoder
+            self.dyn_merg_net = []
+            self.dyn_net_modules = []
+            self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
+            self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
+            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+            self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
+            self.dyn_net_modules.append([[5, 11, 14], 1, None])
+            self.dyn_net_modules.append([[4, 10, 13], 1, [0]])
+            self.dyn_net_modules.append([[3, 9, 12], 1, [1]])
+            self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8], 0, [2]])
+
+            self.dyn_net_modules.append([[], 4, [3, 2], None, False])
+            self.dyn_net_modules.append([[], 4, [3, 1], None, False])
+            self.dyn_net_modules.append([[], 4, [3, 0], None, False])
+
+            self.dyn_net_modules.append([[], 2, [3]])
+            self.dyn_net_modules.append([[], 3, [4]])
+            self.dyn_net_modules.append([[], 3, [5]])
+            self.dyn_net_modules.append([[], 3, [6]])
+            self.dyn_net_modules.append([[], None, [7,8,9,10], None, False])
+            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
 
 
         utils.EzPickle.__init__(self)
@@ -163,6 +198,9 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.include_action_in_obs:
             state = np.concatenate([state, self.prev_a])
 
+        #if self.fwd_bwd_pass:
+        #    state = np.concatenate([state, [0, 1]])
+
         return state
 
 
@@ -193,4 +231,28 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
+
+    def state_vector(self):
+        if self.fwd_bwd_pass:
+            return np.concatenate([
+                self.robot_skeleton.q,
+                self.robot_skeleton.dq/10.0,
+                [0.0, 1.0]
+            ])
+        else:
+            return np.concatenate([
+                self.robot_skeleton.q,
+                self.robot_skeleton.dq / 10.0,
+            ])
+
+    def set_state_vector(self, state):
+        if self.fwd_bwd_pass:
+            self.robot_skeleton.set_positions(state[0:int(len(state)/2)-1])
+            self.robot_skeleton.set_velocities(state[int(len(state)/2)-1:-2]*10.0)
+        else:
+            self.robot_skeleton.set_positions(state[0:int(len(state) / 2)])
+            self.robot_skeleton.set_velocities(state[int(len(state) / 2):] * 10.0)
+
+
 

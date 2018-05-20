@@ -6,7 +6,6 @@ from gym.envs.dart import dart_env
 import joblib
 import os
 
-from gym.envs.dart.parameter_managers import *
 import time
 
 import pydart2 as pydart
@@ -15,7 +14,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([260.0, 260, 260, 200, 100, 100, 260, 260, 260, 200, 100, 100, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
@@ -33,7 +32,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.push_timeout = 100.0  # do not provide pushing assistance after certain time
+        self.assist_timeout = 100.0  # do not provide pushing assistance after certain time
         self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
@@ -92,42 +91,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_reward_weight = 3.0
         self.stride_weight = 0.0
 
-        self.init_qs = [
-            np.array( [  5.15273987e+01, -8.04763020e-02,  3.86921801e-02, -1.78539281e-01,
-   1.84310742e-02, -4.68463765e-03, -6.27056856e-02, -2.60245839e-01,
-   5.19733590e-02,  1.70583431e+00, -1.76105083e-01, -6.61885489e-02,
-  -4.28951036e-03, -4.35963925e-01, -4.75294528e-02,  2.10718195e-02,
-  -2.06695211e-01, -5.74471548e-03,  4.44251433e-03,  8.42588661e-02,
-  -5.95486494e-02, -1.85003566e-02, -4.21741002e-01, -2.00459857e-01,
-   2.07920283e-02,  2.06603943e-01,  2.29621587e-01,  1.56988254e-01,
-   1.61257908e-02]),
-        np.array([  5.14975315e+01, -5.29815974e-02,  2.86173421e-02, -1.54597587e-01,
-   4.27261330e-02, -1.31358069e-01,  5.58865057e-03, -9.05564632e-01,
-   6.35826448e-02,  2.17134858e+00,  1.20749173e-01, -6.43625111e-02,
-  -1.94372034e-02,  9.23126207e-02,  2.77593942e-04, -6.25425735e-03,
-  -3.67230053e-02,  1.03461135e-01,  1.07730362e-01,  4.30434494e-02,
-  -3.29365599e-02, -4.76782056e-02,  1.96126416e-01, -2.01457189e-01,
-   3.39089929e-01,  1.59854360e-01, -1.89955522e-01,  2.04694113e-01,
-  -9.57711691e-03])]
-
-        self.init_dqs = [
-            np.array(   [  4.54592657e+00,  1.33501865e+00, -3.33158860e-01, -6.65886893e-03,
-  -6.09968826e-01,  5.40188474e-01,  3.50627546e+00, -6.44482627e+00,
-  -1.56484986e+00,  3.58371225e+00,  9.22988916e+00, -2.47326876e+00,
-   3.10744781e-01,  1.07818735e+01,  7.99594611e-01, -1.07549191e+01,
-   2.53704836e-03,  6.12138871e-01, -4.54669660e-01, -1.18536264e+00,
-   5.21403666e-01,  1.04790070e-01,  4.61444138e+00, -4.64325134e-10,
-  -4.97353970e+00, -4.58674873e-01, -8.70620916e+00, -2.62150394e-01,
-   7.94284166e-01]),
-        np.array( [  5.45157576e+00, -6.61799913e-02, -2.95999610e-01,  1.27191591e+00,
-   8.12941986e-01,  2.06150675e-02,  5.29586985e-10, -6.66937156e+00,
-  -1.67811107e-01, -7.49538983e-01,  6.08521444e+00, -6.77646137e-01,
-  -1.10461230e-10,  7.44466840e+00,  1.34143965e-09, -7.43773709e-10,
-  -1.45714221e+00, -3.86098652e-01, -5.55498073e-01, -8.87369048e-01,
-   1.89240520e-01, -1.32347179e+00,  6.95572711e+00, -3.94926813e-10,
-  -1.99355911e+00, -2.11902926e-01, -6.11592633e+00,  1.14648047e-09,
-  -7.82819476e-10])]
-
         self.init_qs = []
         self.init_dqs = []
 
@@ -139,7 +102,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                       disableViewer=True, dt=0.002)
 
         # add human joint limit
-        '''skel = self.robot_skeleton
+        '''for jt in range(0, len(self.robot_skeleton.joints)):
+            for dof in range(len(self.robot_skeleton.joints[jt].dofs)):
+                if self.robot_skeleton.joints[jt].has_position_limit(dof):
+                    self.robot_skeleton.joints[jt].set_position_limit_enforced(False)
+
+        skel = self.robot_skeleton
         world = self.dart_world
         leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(skel.joint('j_bicep_left'),
                                                                             skel.joint('j_forearm_left'), False)
@@ -187,10 +155,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.max_eps_step_ref = 100 # maximum episode step when using reference policy
         self.ref_traj_num = 10
 
-        self.init_z_val = []
-        for bn in self.robot_skeleton.bodynodes:
-            self.init_z_val.append(bn.C[2])
-
         utils.EzPickle.__init__(self)
 
     # only 1d
@@ -212,7 +176,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         return tau
 
-    def _bodynode_spd(self, bn, kp, dof, target_pos = 0.0, target_vel=None):
+    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
         self.Kp = kp
         self.Kd = kp * self.sim_dt
         if target_vel is not None:
@@ -220,7 +184,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.Kp *= 0
 
         invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
-        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt - target_pos)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
         if target_vel is None:
             target_vel = 0.0
         d = -self.Kd * (bn.dC[dof] - target_vel * 1.0)  # compensate for average velocity match
@@ -232,13 +196,13 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
             force = 0
-            if self.constrain_2d and (self.t < self.push_timeout):
+            if self.constrain_2d and (self.t < self.assist_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
                 self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
 
-            if self.enforce_target_vel and (self.t < self.push_timeout) and not self.hard_enforce:
+            if self.enforce_target_vel and (self.t < self.assist_timeout) and not self.hard_enforce:
                 tvel = self.target_vel
                 if self.treadmill:
                     tvel += self.treadmill_vel
@@ -311,31 +275,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 if self.t > sch[0]:
                     self.current_pd = sch[1][0]
                     self.vel_enforce_kp = sch[1][1]
-
-        '''if self.use_ref_policy:
-            current_q = np.copy(self.robot_skeleton.q)
-            current_dq = np.copy(self.robot_skeleton.dq)
-            ref_act, _ = self.ref_policy.act(False, current_obs)
-
-            current_pd = self.current_pd
-            vel_enforce_kp = self.vel_enforce_kp
-            self.current_pd = self.ref_policy_curriculum[0]
-            self.vel_enforce_kp = self.ref_policy_curriculum[1]
-            self.advance(np.copy(self.clamp_act(ref_act)))
-
-            target_q = np.copy(self.robot_skeleton.q)
-            target_dq = np.copy(self.robot_skeleton.dq)
-            target_poses = [self.robot_skeleton.bodynode('l-lowerarm').C,
-                            self.robot_skeleton.bodynode('r-lowerarm').C, self.robot_skeleton.bodynode('l-foot').C,
-                            self.robot_skeleton.bodynode('r-foot').C]
-            target_dposes = [self.robot_skeleton.bodynode('l-lowerarm').dC,
-                            self.robot_skeleton.bodynode('r-lowerarm').C, self.robot_skeleton.bodynode('l-foot').dC,
-                            self.robot_skeleton.bodynode('r-foot').dC]
-
-            self.robot_skeleton.q = current_q
-            self.robot_skeleton.dq = current_dq
-            self.current_pd = current_pd
-            self.vel_enforce_kp = vel_enforce_kp'''
 
         posbefore = self.robot_skeleton.bodynode(self.push_target).com()[0]
 
@@ -506,7 +445,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.65) and (height - self.init_height < 1.0) and (
+                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
                     and np.abs(angle) < 1.2 and
                     np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2
@@ -679,4 +618,3 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.disableViewer:
             # self.track_skeleton_id = 0
             self._get_viewer().scene.tb.trans[2] = -5.5
-
