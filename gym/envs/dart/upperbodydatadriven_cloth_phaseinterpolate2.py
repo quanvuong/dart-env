@@ -39,21 +39,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.restCOMsReward             = True  # if True, penalize displacement between world targets and the positions of local offsets
-        self.rightTargetReward          = True
-        self.taskReward                 = True #if true, an additional reward is provided when the EF is within task success distance of the target
+        self.rightTargetReward          = False
+        self.taskReward                 = False #if true, an additional reward is provided when the EF is within task success distance of the target
         self.leftTargetReward           = False
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
         self.elbowElevationReward       = True  # if true, penalize elbow about hte shoulders
         self.aliveBonus                 = True
-        self.bicepInReward              = True #penalize the active bicep for point away from the other arm
+        self.bicepInReward              = False #penalize the active bicep for point away from the other arm
 
         # reward weights
         self.uprightRewardWeight = 2
         self.stableHeadRewardWeight = 2
         self.elbowFlairRewardWeight = 1
         self.deformationPenaltyWeight = 15  # was 5...
-        self.restPoseRewardWeight = 1
+        self.restPoseRewardWeight = 2
         self.restCOMsRewardWeight = 10
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
@@ -62,7 +62,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.bicepInRewardWeight        = 30
 
         #other flags
-        self.elbowElevationTermination = True
+        self.elbowElevationTermination = False
         self.elbowTerminationElevation = 0.1
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
         self.collarTerminationCD = 0 #number of frames to ignore collar at the start of simulation (gives time for the cloth to drop)
