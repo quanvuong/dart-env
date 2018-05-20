@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         self.gravity = False
@@ -42,7 +42,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.restCOMsReward             = True #if True, penalize displacement between world targets and the positions of local offsets
         self.stabilityCOMReward         = True
         self.contactReward              = False
-        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
+        self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
@@ -58,27 +58,27 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
 
         #reward weights
-        self.restPoseRewardWeight               = 0.5
+        self.restPoseRewardWeight               = 1
         self.restCOMsRewardWeight               = 1
-        self.stabilityCOMRewardWeight           = 5
+        self.stabilityCOMRewardWeight           = 7
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
         self.COMHeightRewardWeight              = 2
-        self.aliveBonusRewardWeight             = 60
+        self.aliveBonusRewardWeight             = 40
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
-        self.footPosRewardWeight                = 20
+        self.footPosRewardWeight                = 10
 
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
-        self.deformationPenaltyWeight           = 5.0
+        self.deformationPenaltyWeight           = 10
         self.footBetweenHandsRewardWeight       = 1
         self.limbProgressRewardWeight           = 15
         self.oracleDisplacementRewardWeight     = 50
         self.contactGeoRewardWeight             = 4
 
         #other flags
-        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = False #if anything except the feet touch the ground, terminate
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
         self.legOutTermination    = True #terminate if the leg is outside of the correct shorts features
@@ -90,6 +90,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.resetDistributionSize = 20
 
         self.COMMinHeight = -0.6
+        self.stabilityCOMDistance = 0.05
 
         #other variables
         self.prevTau = None
@@ -252,11 +253,21 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             self.robot_skeleton.bodynodes[self.footBodyNode].to_world(np.array([0, 0, -0.15])),  # l-foot_toe
         ]
 
-        self.stabilityPolygon = []
-        hull = []
+        xdim = 0.1
+        zdim = 0.1
+        self.stabilityPolygon = [
+            self.robot_skeleton.bodynodes[17].to_world(np.array([-0.035, 0, 0.03])),
+            self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15])),
+            np.array(self.footTargets[0]),
+            np.array(self.footTargets[1])
+        ]
+        for p in self.stabilityPolygon:
+            p[1] = -1.3
+        #print(self.stabilityPolygon)
+        '''hull = []
         for point in points:
             self.stabilityPolygon.append(np.array([point[0], -1.3, point[2]]))
-            hull.append(np.array([point[0], point[2]]))
+            hull.append(np.array([point[0], point[2]]))'''
 
         self.stabilityPolygonCentroid = pyutils.getCentroid(self.stabilityPolygon)
 
@@ -267,7 +278,13 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.projectedCOM[1] = -1.3
 
         #test COM containment
-        self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        self.stableCOM = False#pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        d1, p1 = pyutils.distToTriangle(c0=self.stabilityPolygon[0], c1=self.stabilityPolygon[1], c2=self.stabilityPolygon[2], p=self.projectedCOM, normal=np.array([0,1.0,0]))
+        d2, p2 = pyutils.distToTriangle(c0=self.stabilityPolygon[2], c1=self.stabilityPolygon[3], c2=self.stabilityPolygon[0], p=self.projectedCOM, normal=np.array([0,1.0,0]))
+        #print("distances: " + str(d1) + ", " + str(d2))
+        if d1 <= self.stabilityCOMDistance or d2 <= self.stabilityCOMDistance:
+            self.stableCOM = True
+
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
@@ -921,8 +938,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
             renderUtils.drawPolygon(self.stabilityPolygon)
         renderUtils.setColor([0.0,0,1.0])
         renderUtils.drawSphere(pos=self.projectedCOM)
-        renderUtils.setColor([0.0, 1.0, 1.0])
-        renderUtils.drawSphere(pos=self.targetCOM)
+        renderUtils.setColor([0.0, 1.0, 0.0])
+        renderUtils.drawSphere(pos=self.targetCOM, rad=0.02)
 
         self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[1.0,0.0,0.0])
         self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0.0,1.0,0.0])
