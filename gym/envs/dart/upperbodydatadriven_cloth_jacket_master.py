@@ -104,6 +104,7 @@ class JacketLController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
+        self.env.saveState(name="enter_seq_lsleeve")
         self.env.fingertip = np.array([0.0, -0.095, 0.0])
 
         # geodesic
@@ -120,6 +121,7 @@ class JacketLController(Controller):
         a=0
 
     def update(self):
+        self.env._reset()
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.085,0])), feature=self.env.sleeveLSeamFeature)
         a=0
 
@@ -133,19 +135,27 @@ class PhaseInterpolateController(Controller):
         obs_subset = [(0, 132), (141, 40)]
         name = "PhaseInterpolate"
         #policyfilename = "experiment_2018_01_11_phaseinterpolatejacket"
-        policyfilename = "experiment_2018_01_13_phaseinterpolatejacket_clothplace_warm"
+        #policyfilename = "experiment_2018_01_13_phaseinterpolatejacket_clothplace_warm"
+        policyfilename = "experiment_2018_05_21_jackettransition"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_transition")
+        #self.env.saveState(name="enter_seq_transition")
 
         self.env.fingertip = np.array([0.0, -0.085, 0.0])
         self.env.handleNode.clearHandles()
-        self.env.rightTarget = np.array([ 0.24299472,  0.51030614,  0.29895259])
-        self.env.leftTarget = np.array([ 0.17159357, -0.57064675,  0.05449197])
+        self.env.rightTarget = np.array([0.25825808, 0.52266715, 0.29517964])
+        self.env.leftTarget = np.array([0.16762201, -0.5902483, 0.05456982])
+        self.env.restPose = np.array(
+            [-0.40701562, 0.09377379, 0.72335076, -0.09763787, 0.24877598, 1.52214491, -3.4660477, -1.70725895,
+             1.60078166, -0.49294963, 0.08305921, -0.25002647, 0.23895835, 0.20541631, 1.07185287, 0.80736386,
+             1.52424401, -0.52905266, -0.52166824, 0.22250483, 0.23721241, -0.51535106])
+
+        #self.env.rightTarget = np.array([ 0.24299472,  0.51030614,  0.29895259])
+        #self.env.leftTarget = np.array([ 0.17159357, -0.57064675,  0.05449197])
 
     def update(self):
-        self.env._reset()
+        #self.env._reset()
         a=0
 
     def transition(self):
@@ -155,7 +165,7 @@ class PhaseInterpolateController(Controller):
         distL = np.linalg.norm(efL-self.env.leftTarget)
         distP = np.linalg.norm(self.env.restPose - self.env.robot_skeleton.q)
         #print("distR " + str(distR) + " | distR " + str(distL) + " | distP " + str(distP))
-        if distR < 0.05 and distL < 0.05 and distP < 5.0:
+        if distR < 0.05 and distL < 0.05 and distP < 2.0:
             return True
         return False
 
