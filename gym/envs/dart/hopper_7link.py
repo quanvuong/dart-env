@@ -31,6 +31,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
+        self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
         self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
@@ -46,6 +47,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
         self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
         if not self.include_action_in_obs:
@@ -82,14 +84,56 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[2, 11, 15], 1, [4]])
         self.net_modules.append([[0, 1, 8, 9, 10], 0, [5]])
 
-        self.net_modules.append([[], 4, [6, 5]])
-        self.net_modules.append([[], 4, [6, 4]])
-        self.net_modules.append([[], 4, [6, 3]])
-        self.net_modules.append([[], 4, [6, 2]])
-        self.net_modules.append([[], 4, [6, 1]])
-        self.net_modules.append([[], 4, [6, 0]])
+        self.net_modules.append([[], 6, [6, 5], None, False])
+        self.net_modules.append([[], 6, [6, 4], None, False])
+        self.net_modules.append([[], 6, [6, 3], None, False])
+        self.net_modules.append([[], 6, [6, 2], None, False])
+        self.net_modules.append([[], 6, [6, 1], None, False])
+        self.net_modules.append([[], 6, [6, 0], None, False])
 
-        self.net_modules.append([[], None, [7, 8, 9, 10, 11, 12], None, False])
+        self.net_modules.append([[], 4, [7]])
+        self.net_modules.append([[], 4, [8]])
+        self.net_modules.append([[], 4, [9]])
+        self.net_modules.append([[], 4, [10]])
+        self.net_modules.append([[], 4, [11]])
+        self.net_modules.append([[], 4, [12]])
+
+        self.net_modules.append([[], None, [13, 14, 15, 16, 17, 18], None, False])
+
+        # dynamic model
+        self.dyn_enc_net = []
+        self.dyn_act_net = []  # using actor as decoder
+        self.dyn_merg_net = []
+        self.dyn_net_modules = []
+        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
+        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
+        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
+        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+        self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
+        self.dyn_net_modules.append([[8, 17, 23], 1, None])
+        self.dyn_net_modules.append([[7, 16, 22], 1, [0]])
+        self.dyn_net_modules.append([[6, 15, 21], 1, [1]])
+        self.dyn_net_modules.append([[5, 14, 20], 1, [2]])
+        self.dyn_net_modules.append([[4, 13, 19], 1, [3]])
+        self.dyn_net_modules.append([[3, 12, 18], 1, [4]])
+        self.dyn_net_modules.append([[0, 1, 2, 9, 10, 11], 0, [5]])
+
+        self.dyn_net_modules.append([[], 4, [6, 5], None, False])
+        self.dyn_net_modules.append([[], 4, [6, 4], None, False])
+        self.dyn_net_modules.append([[], 4, [6, 3], None, False])
+        self.dyn_net_modules.append([[], 4, [6, 2], None, False])
+        self.dyn_net_modules.append([[], 4, [6, 1], None, False])
+        self.dyn_net_modules.append([[], 4, [6, 0], None, False])
+
+        self.dyn_net_modules.append([[], 2, [6]])
+        self.dyn_net_modules.append([[], 3, [7]])
+        self.dyn_net_modules.append([[], 3, [8]])
+        self.dyn_net_modules.append([[], 3, [9]])
+        self.dyn_net_modules.append([[], 3, [10]])
+        self.dyn_net_modules.append([[], 3, [11]])
+        self.dyn_net_modules.append([[], 3, [12]])
+        self.dyn_net_modules.append([[], None, [13, 14, 15, 16, 17, 18], None, False])
+        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 14, 16, 3, 4, 5, 7, 9, 11, 13, 15, 17], dtype=np.int32)
 
         utils.EzPickle.__init__(self)
 

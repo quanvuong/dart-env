@@ -47,6 +47,7 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
         self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
         if not self.include_action_in_obs:
@@ -66,9 +67,12 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[3, 8, 10], 1, None])
             self.net_modules.append([[2, 7, 9], 1, [0]])
         self.net_modules.append([[0, 1, 4, 5, 6], 0, [1]])
-        self.net_modules.append([[], 4, [2, 1]])
-        self.net_modules.append([[], 4, [2, 0]])
-        self.net_modules.append([[], None, [3, 4], None, False])
+        self.net_modules.append([[], 6, [2, 1], None, False])
+        self.net_modules.append([[], 6, [2, 0], None, False])
+
+        self.net_modules.append([[], 4, [3]])
+        self.net_modules.append([[], 4, [4]])
+        self.net_modules.append([[], None, [5, 6], None, False])
 
         # dynamics modules
         self.dyn_enc_net = []
@@ -79,13 +83,16 @@ class DartHopper3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
         self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
         self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
+        self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
         self.dyn_net_modules.append([[4, 9, 11], 1, None])
         self.dyn_net_modules.append([[3, 8, 10], 1, [0]])
         self.dyn_net_modules.append([[0, 1, 2, 5, 6, 7], 0, [1]])
+        self.dyn_net_modules.append([[], 4, [2, 1], None, False])
+        self.dyn_net_modules.append([[], 4, [2, 0], None, False])
         self.dyn_net_modules.append([[], 2, [2]])
-        self.dyn_net_modules.append([[], 3, [2, 1]])
-        self.dyn_net_modules.append([[], 3, [2, 0]])
-        self.dyn_net_modules.append([[], None, [3, 4, 5], None, False])
+        self.dyn_net_modules.append([[], 3, [3]])
+        self.dyn_net_modules.append([[], 3, [4]])
+        self.dyn_net_modules.append([[], None, [5, 6, 7], None, False])
         self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 3, 4, 5, 7, 9], dtype=np.int32)
 
         utils.EzPickle.__init__(self)

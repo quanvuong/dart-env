@@ -652,8 +652,8 @@
                         <upper>0.523</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
-                        <stiffness>5.0</stiffness>
+                        <damping>15.0</damping>
+                        <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis>
                 <axis2>
@@ -663,8 +663,8 @@
                         <upper>0.1</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
-                        <stiffness>5.0</stiffness>
+                        <damping>15.0</damping>
+                        <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis2>
                 <init_pos>0 0</init_pos>

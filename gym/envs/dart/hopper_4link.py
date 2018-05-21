@@ -51,6 +51,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
         self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
         if not self.include_action_in_obs:
@@ -74,10 +75,13 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[3, 9, 12], 1, [0]])
             self.net_modules.append([[2, 8, 11], 1, [1]])
         self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
-        self.net_modules.append([[], 4, [3, 2]])
-        self.net_modules.append([[], 4, [3, 1]])
-        self.net_modules.append([[], 4, [3, 0]])
-        self.net_modules.append([[], None, [4, 5, 6], None, False])
+        self.net_modules.append([[], 6, [3, 2], None, False])
+        self.net_modules.append([[], 6, [3, 1], None, False])
+        self.net_modules.append([[], 6, [3, 0], None, False])
+        self.net_modules.append([[], 4, [4]])
+        self.net_modules.append([[], 4, [5]])
+        self.net_modules.append([[], 4, [6]])
+        self.net_modules.append([[], None, [7, 8, 9], None, False])
 
         # dynamics modules
         if self.fwd_bwd_pass:

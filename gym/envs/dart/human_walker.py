@@ -55,7 +55,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.4
         self.alive_bonus_rew = 9.0
 
         self.cur_step = 0
