@@ -93,7 +93,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
                                                           rendering=rendering,
                                                           screensize=(1280,720),
                                                           clothMeshFile="jacketmedium.obj",
-                                                          clothMeshStateFile = "endJacketSleeveR.obj",
+                                                          #clothMeshStateFile = "endJacketSleeveR.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
