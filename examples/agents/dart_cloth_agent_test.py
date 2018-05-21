@@ -26,8 +26,8 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_05_20_matchgrip_pose"
-    #trial = "experiment_2018_05_20_jacketr"
+    #trial = "experiment_2018_05_20_matchgrip_pose"
+    #trial = "experiment_2018_05_20_jacketr" #good to go
     #trial = "experiment_2018_05_20_rfootdown"
 
     #trial = "experiment_2018_05_19_rfootdown2"
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
 
@@ -346,7 +346,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandCrouch-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1')
     #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v2')
-    #env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3')
+    env = gym.make('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3')
 
     #locked foot envs
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothTest-v1')
@@ -363,8 +363,8 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenJacket-v1', record_log=False, record_video=False))
+    if False and policy is None:
+        env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v3', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

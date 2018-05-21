@@ -42,7 +42,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.restCOMsReward             = True #if True, penalize displacement between world targets and the positions of local offsets
         self.stabilityCOMReward         = True
         self.contactReward              = False
-        self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
+        self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
         self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
@@ -97,7 +97,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.restPose = None
         self.restCOMs = []
         self.footOffsets = [np.array([0, 0, -0.2]), np.array([0.05, 0, 0.03]), np.array([-0.05, 0, 0.03])] #local positions of the foot to query for foot location reward
+        self.footOffsets = [np.zeros(3)] #local positions of the foot to query for foot location reward
         self.footTargets = [] #world foot position targets for the foo location reward
+        self.stabilityTargets = []
         self.targetCOM = np.zeros(3) #target for the center of the stability region
         self.stabilityPolygon = [] #an ordered point set representing the stability region of the desired foot contacts
         self.stabilityPolygonCentroid = np.zeros(3)
@@ -255,11 +257,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         xdim = 0.1
         zdim = 0.1
+        np.array([0, 0, -0.2]), np.array([0.05, 0, 0.03])
         self.stabilityPolygon = [
             self.robot_skeleton.bodynodes[17].to_world(np.array([-0.035, 0, 0.03])),
             self.robot_skeleton.bodynodes[17].to_world(np.array([0, 0, -0.15])),
-            np.array(self.footTargets[0]),
-            np.array(self.footTargets[1])
+            self.stabilityTargets[0],
+            self.stabilityTargets[1]
         ]
         for p in self.stabilityPolygon:
             p[1] = -1.3
@@ -408,8 +411,8 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
                 pos = self.robot_skeleton.bodynodes[20].to_world(p)
                 maxError = max(maxError, np.linalg.norm(pos - self.footTargets[ix]))
             #print(maxError)
-            if maxError < 0.05:
-                return True, 1000
+            if maxError < 0.04:
+                return True, 2000
 
         return False, 0
 
@@ -705,6 +708,10 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.footTargets = []
         for p in self.footOffsets:
             self.footTargets.append(self.robot_skeleton.bodynodes[20].to_world(p))
+
+        self.stabilityTargets = []
+        self.stabilityTargets.append(self.robot_skeleton.bodynodes[20].to_world(np.array([0, 0, -0.2])))
+        self.stabilityTargets.append(self.robot_skeleton.bodynodes[20].to_world(np.array([0.05, 0, 0.03])))
 
         self.targetCOM = self.robot_skeleton.com()
         self.targetCOM[1] = -1.3

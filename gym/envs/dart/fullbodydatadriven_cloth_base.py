@@ -170,6 +170,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.actionGraph = None
         self.actionGraphFoci = [6,7]
         self.actionGraphFoci = [14,22,31,37]#[28,29,30,31, 32, 33]
+        self.actionGraphFoci = [11,12,13,14]
         #self.actionGraphFoci = np.arange(39)
         self.updateDelay = 3
         self.lastUpdate = 3
@@ -205,7 +206,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #40 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
-            self.action_scale *= 20
+            self.action_scale *= 40 #TODO: was 20
             if 6 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
