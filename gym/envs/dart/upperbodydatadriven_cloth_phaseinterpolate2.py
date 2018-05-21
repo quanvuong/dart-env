@@ -38,13 +38,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.elbowFlairReward           = False
         self.deformationPenalty         = True
         self.restPoseReward             = True
-        self.restCOMsReward             = True  # if True, penalize displacement between world targets and the positions of local offsets
+        self.restCOMsReward             = False  # if True, penalize displacement between world targets and the positions of local offsets
         self.rightTargetReward          = False
         self.taskReward                 = False #if true, an additional reward is provided when the EF is within task success distance of the target
         self.leftTargetReward           = False
         self.efTargetRewardTiering      = False
         self.rightTargetAltitudeReward  = False #penalize right hand lower than target #TODO: necessary?
-        self.elbowElevationReward       = True  # if true, penalize elbow about hte shoulders
+        self.elbowElevationReward       = False  # if true, penalize elbow about hte shoulders
         self.aliveBonus                 = True
         self.bicepInReward              = False #penalize the active bicep for point away from the other arm
 
@@ -58,7 +58,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
         self.elbowElevationRewardWeight = 10
-        self.aliveBonusWeight           = 160
+        self.aliveBonusWeight           = 20#160
         self.bicepInRewardWeight        = 30
 
         #other flags

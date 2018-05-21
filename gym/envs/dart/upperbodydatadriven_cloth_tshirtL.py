@@ -567,7 +567,7 @@ class DartClothUpperBodyDataDrivenClothTshirtLEnv(DartClothUpperBodyDataDrivenCl
                 self.sleeveLSeamFeature.plane.normal *= -1.0
 
         if self.limbProgressReward:
-            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.sleeveLSeamFeature)
+            self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,offset=self.fingertip), feature=self.sleeveLSeamFeature)
 
         a=0
 
