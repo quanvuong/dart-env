@@ -22,9 +22,11 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
+        dt = 0.002
+        frameskip = 5
 
         #observation terms
         self.contactIDInObs = True  # if true, contact ids are in obs
@@ -33,12 +35,20 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
 
         #reward flags
         self.uprightReward              = True #if true, rewarded for 0 torso angle from vertical
-        self.elbowFlairReward           = False
+        self.stableHeadReward           = True
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.rightTargetReward          = True
         self.leftTargetReward           = True
         self.clothPlacementReward       = True #reward closeness of efL to a vertex
+
+        self.uprightRewardWeight        = 1
+        self.stableHeadRewardWeight     = 1
+        self.deformationPenaltyWeight   = 5
+        self.restPoseRewardWeight       = 2
+        self.rightTargetRewardWeight    = 1
+        self.leftTargetRewardWeight     = 1
+        self.clothPlacementRewardWeight  = 1
 
         #other flags
         self.collarTermination = False  # if true, rollout terminates when collar is off the head/neck
@@ -48,8 +58,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         self.resetPoseFromROMPoints = False
         self.resetTime = 0
         self.resetStateFromDistribution = True
-        self.resetDistributionPrefix = "saved_control_states/JacketR"
-        self.resetDistributionSize = 16
+        self.resetDistributionPrefix = "saved_control_states_jacket/enter_seq_transition"
+        self.resetDistributionSize = 20
         self.state_save_directory = "saved_control_states/"
 
         #other variables
@@ -64,6 +74,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         self.leftTarget = np.zeros(3)
         self.prevErrors = None #stores the errors taken from DART each iteration
         self.previousDeformationReward = 0
+        self.fingertip = np.array([0, -0.085, 0])
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -80,12 +91,14 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1080,720),
+                                                          screensize=(1280,720),
                                                           clothMeshFile="jacketmedium.obj",
                                                           clothMeshStateFile = "endJacketSleeveR.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          dt=dt,
+                                                          frameskip=frameskip)
 
         #define pose and obj files for reset
         '''self.resetStateFileNames = ["endDropGrip1"] #each state name 'n' should refer to both a character state file: " characterState_'n' " and the cloth state file: " 'n'.obj ".
@@ -111,14 +124,44 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        for i in range(len(self.robot_skeleton.dofs)):
+            self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+
+        # load rewards into the RewardsData structure
+        if self.uprightReward:
+            self.rewardsData.addReward(label="upright", rmin=-2.5, rmax=0, rval=0, rweight=self.uprightRewardWeight)
+
+        if self.stableHeadReward:
+            self.rewardsData.addReward(label="stable head",rmin=-1.2,rmax=0,rval=0, rweight=self.stableHeadRewardWeight)
+
+        if self.deformationPenalty:
+            self.rewardsData.addReward(label="deformation", rmin=-1.0, rmax=0, rval=0,
+                                       rweight=self.deformationPenaltyWeight)
+
+        if self.restPoseReward:
+            self.rewardsData.addReward(label="rest pose", rmin=-51.0, rmax=0, rval=0,
+                                       rweight=self.restPoseRewardWeight)
+
+        if self.rightTargetReward:
+            self.rewardsData.addReward(label="right ef", rmin=-1.5, rmax=0, rval=0,
+                                       rweight=self.rightTargetRewardWeight)
+
+        if self.leftTargetReward:
+            self.rewardsData.addReward(label="left ef", rmin=-1.5, rmax=0, rval=0,
+                                       rweight=self.leftTargetRewardWeight)
+
+        if self.clothPlacementReward:
+            self.rewardsData.addReward(label="cloth placement", rmin=-1.5, rmax=0, rval=0,
+                                       rweight=self.clothPlacementRewardWeight)
+
     def _getFile(self):
         return __file__
 
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        #fingertip = np.array([0.0, -0.065, 0.0])
+        wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localRightEfShoulder1 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip1)  # right fingertip in right shoulder local frame
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # left fingertip in left shoulder local frame
         #self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVertices, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVertices, clothscene=self.clothScene)*0.03
@@ -161,9 +204,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
 
     def computeReward(self, tau):
         #compute and return reward at the current state
-        fingertip = np.array([0.0, -0.065, 0.0])
-        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        #fingertip = np.array([0.0, -0.065, 0.0])
+        wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         localRightEfShoulder2 = self.robot_skeleton.bodynodes[3].to_local(wRFingertip2)  # right fingertip in right shoulder local frame
         localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
@@ -174,6 +217,21 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             #print("prevErrors: " +str(self.prevErrors))
 
         self.prevTau = tau
+        reward_record = []
+
+        # force magnitude penalty
+        reward_ctrl = -np.square(tau).sum()
+
+        # reward for maintaining posture
+        reward_upright = 0
+        if self.uprightReward:
+            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
+            reward_record.append(reward_upright)
+
+        reward_stableHead = 0
+        if self.stableHeadReward:
+            reward_stableHead = max(-1.2, -abs(self.robot_skeleton.q[19]) - abs(self.robot_skeleton.q[20]))
+            reward_record.append(reward_stableHead)
 
         clothDeformation = 0
         if self.simulateCloth:
@@ -185,57 +243,55 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             reward_clothdeformation = -(math.tanh(
                 0.14 * (clothDeformation - 25)) + 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
+            reward_record.append(reward_clothdeformation)
 
         self.previousDeformationReward = reward_clothdeformation
 
-        # force magnitude penalty
-        reward_ctrl = -np.square(tau).sum()
-
-        # reward for maintaining posture
-        reward_upright = 0
-        if self.uprightReward:
-            reward_upright = max(-2.5, -abs(self.robot_skeleton.q[0]) - abs(self.robot_skeleton.q[1]))
-
         reward_restPose = 0
-        if self.restPoseReward and self.restPose is not None:
-            '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
-            s = 1.0  # steepness (higher is steeper)
-            l = 4.2  # translation
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
-            dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
-            reward_restPose = max(-51, -dist)
-            # print("distance: " + str(dist) + " -> " + str(reward_restPose))
+        if self.restPoseReward:
+            if self.restPose is not None:
+                '''z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
+                s = 1.0  # steepness (higher is steeper)
+                l = 4.2  # translation
+                dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                reward_restPose = -(z * math.tanh(s * (dist - l)) + z)'''
+                dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                reward_restPose = max(-51, -dist)
+                # print("distance: " + str(dist) + " -> " + str(reward_restPose))
+            reward_record.append(reward_restPose)
 
         reward_rightTarget = 0
         if self.rightTargetReward:
             rDist = np.linalg.norm(self.rightTarget - wRFingertip2)
             reward_rightTarget = -rDist - rDist**2
-            '''if rDist < 0.02:
-                reward_rightTarget += 0.25'''
+            reward_record.append(reward_rightTarget)
 
         reward_leftTarget = 0
         if self.leftTargetReward:
             lDist = np.linalg.norm(self.leftTarget - wLFingertip2)
             reward_leftTarget = -lDist - lDist**2
-            '''if lDist < 0.02:
-                reward_leftTarget += 0.25'''
+            reward_record.append(reward_leftTarget)
 
         reward_clothplacement = 0
         if self.clothPlacementReward:
             vpos = self.clothScene.getVertexPos(cid=0,vid=self.clothPlacementVert) - self.clothScene.getVertNormal(cid=0,vid=self.clothPlacementVert)*0.02
             lDist = np.linalg.norm(vpos - wLFingertip2)
             reward_clothplacement = -lDist - lDist ** 2
+            reward_record.append(reward_clothplacement)
+
+        # update the reward data storage
+        self.rewardsData.update(rewards=reward_record)
 
         #print("reward_restPose: " + str(reward_restPose))
         #print("reward_leftTarget: " + str(reward_leftTarget))
         self.reward = reward_ctrl * 0 \
-                      + reward_upright \
-                      + reward_clothdeformation * 5 \
-                      + reward_restPose*2 \
-                      + reward_rightTarget \
-                      + reward_leftTarget \
-                      + reward_clothplacement
+                      + reward_upright * self.uprightRewardWeight \
+                      + reward_stableHead * self.stableHeadRewardWeight \
+                      + reward_clothdeformation * self.deformationPenaltyWeight \
+                      + reward_restPose * self.restPoseRewardWeight \
+                      + reward_rightTarget * self.rightTargetRewardWeight\
+                      + reward_leftTarget * self.leftTargetRewardWeight\
+                      + reward_clothplacement * self.clothPlacementRewardWeight
         return self.reward
 
     def _get_obs(self):
@@ -247,7 +303,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
-        fingertip = np.array([0.0, -0.065, 0.0])
+        #fingertip = np.array([0.0, -0.065, 0.0])
 
         obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
 
@@ -267,11 +323,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             obs = np.concatenate([obs, HSIDs]).ravel()
 
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             obs = np.concatenate([obs, self.rightTarget, efR, self.rightTarget-efR]).ravel()
 
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             obs = np.concatenate([obs, self.leftTarget, efL, self.leftTarget-efL]).ravel()
 
         return obs
@@ -282,7 +338,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         '''
         self.resetTime = time.time()
         #do any additional resetting here
-        fingertip = np.array([0, -0.065, 0])
+        #fingertip = np.array([0, -0.065, 0])
         '''if self.simulateCloth:
             up = np.array([0,1.0,0])
             varianceR = pyutils.rotateY(((random.random()-0.5)*2.0)*0.3)
@@ -332,9 +388,9 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         self.loadCharacterState("characterState_startJacketSleeveL")
 
         #find end effector targets and set restPose from solution
-        fingertip = np.array([0.0, -0.065, 0.0])
-        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(fingertip)
-        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        #fingertip = np.array([0.0, -0.065, 0.0])
+        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         #print("right target: " + str(self.rightTarget))
         #print("left target: " + str(self.leftTarget))
         self.restPose = np.array(self.robot_skeleton.q)
@@ -395,25 +451,33 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
+        links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+        renderUtils.drawLines(lines=links)
+
         #render targets
-        fingertip = np.array([0,-0.065,0])
+        #fingertip = np.array([0,-0.065,0])
         if self.rightTargetReward:
-            efR = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
             renderUtils.setColor(color=[1.0,0,0])
             renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.rightTarget, efR])
         if self.leftTargetReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
             renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         if self.clothPlacementReward:
-            efL = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             renderUtils.setColor(color=[0, 1.0, 0])
             vpos = self.clothScene.getVertexPos(cid=0,vid=self.clothPlacementVert) - self.clothScene.getVertNormal(cid=0,vid=self.clothPlacementVert)*0.02
             renderUtils.drawSphere(pos=vpos, rad=0.02)
             renderUtils.drawLineStrip(points=[vpos, efL])
+
+        m_viewport = self.viewer.viewport
+        # print(m_viewport)
+        self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
+                                dimensions=[400, -m_viewport[3] + 30])
 
         textHeight = 15
         textLines = 2
@@ -427,6 +491,6 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

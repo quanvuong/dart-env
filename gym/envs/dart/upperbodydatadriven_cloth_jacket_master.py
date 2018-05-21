@@ -37,7 +37,7 @@ class Controller(object):
             obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
         a, a_info = self.policy.get_action(obs_subset)
         a = a_info['mean']
-        print("now using mean action...")
+        #print("now using mean action...")
         return a
 
     def setup(self):
@@ -56,11 +56,12 @@ class JacketRController(Controller):
     def __init__(self, env):
         obs_subset = [(0, 163)]
         name = "JacketR"
-        policyfilename = "experiment_2018_01_06_jacketR2"
+        #policyfilename = "experiment_2018_01_06_jacketR2"
+        policyfilename = "experiment_2018_05_20_jacketr"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.fingertip = np.array([0.0, -0.095, 0.0])
+        self.env.fingertip = np.array([0.0, -0.085, 0.0])
 
         self.env.updateHandleNodeFrom = 12
         if self.env.handleNode is not None:
@@ -74,12 +75,12 @@ class JacketRController(Controller):
         # geodesic
         self.env.separatedMesh.initSeparatedMeshGraph()
         self.env.separatedMesh.updateWeights()
-        self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveRMidFeature, oneSided=True, side=0, normalSide=1)
+        self.env.separatedMesh.computeGeodesic(feature=self.env.sleeveRMidFeature, oneSided=True, side=0, normalSide=0)
 
         # feature/oracle setup
         self.env.focusFeature = self.env.sleeveRMidFeature  # if set, this feature centroid is used to get the "feature" obs
         self.env.focusFeatureNode = 7  # if set, this body node is used to fill feature displacement obs
-        self.env.progressFeature = self.env.sleeveRFeature  # if set, this feature is used to fill oracle normal and check arm progress
+        self.env.progressFeature = self.env.sleeveRSeamFeature  # if set, this feature is used to fill oracle normal and check arm progress
         self.env.contactSensorIX = 12
 
     def update(self):
@@ -87,7 +88,7 @@ class JacketRController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
-        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.095,0])), feature=self.env.sleeveRFeature)
+        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.085,0])), feature=self.env.sleeveRSeamFeature)
 
     def transition(self):
         if self.env.limbProgress > 0.7:
@@ -113,13 +114,13 @@ class JacketLController(Controller):
         # feature/oracle setup
         self.env.focusFeature = self.env.sleeveLMidFeature  # if set, this feature centroid is used to get the "feature" obs
         self.env.focusFeatureNode = 12  # if set, this body node is used to fill feature displacement obs
-        self.env.progressFeature = self.env.sleeveLFeature  # if set, this feature is used to fill oracle normal and check arm progress
+        self.env.progressFeature = self.env.sleeveLSeamFeature  # if set, this feature is used to fill oracle normal and check arm progress
         self.env.contactSensorIX = 21
 
         a=0
 
     def update(self):
-        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.095,0])), feature=self.env.sleeveLFeature)
+        self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.085,0])), feature=self.env.sleeveLSeamFeature)
         a=0
 
     def transition(self):
@@ -136,12 +137,15 @@ class PhaseInterpolateController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.fingertip = np.array([0.0, -0.065, 0.0])
+        self.env.saveState(name="enter_seq_transition")
+
+        self.env.fingertip = np.array([0.0, -0.085, 0.0])
         self.env.handleNode.clearHandles()
         self.env.rightTarget = np.array([ 0.24299472,  0.51030614,  0.29895259])
         self.env.leftTarget = np.array([ 0.17159357, -0.57064675,  0.05449197])
 
     def update(self):
+        self.env._reset()
         a=0
 
     def transition(self):
@@ -161,6 +165,8 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         rendering = True
         clothSimulation = True
         renderCloth = True
+        dt = 0.002
+        frameskip = 5
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
@@ -187,6 +193,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
 
         #other variables
+        self.state_save_directory = "saved_control_states_jacket/"
         self.prevTau = None
         self.elbowFlairNode = 10
         self.maxDeformation = 30.0
@@ -199,7 +206,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         self.limbProgress = 0
         self.previousDeformationReward = 0
         self.handFirst = False #once the hand enters the feature, switches to true
-        self.fingertip = np.array([0.0, -0.065, 0.0])
+        self.fingertip = np.array([0.0, -0.085, 0.0])
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
@@ -240,7 +247,9 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          dt=dt,
+                                                          frameskip=frameskip)
 
         #clothing features
         self.sleeveRVerts = [46, 697, 1196, 696, 830, 812, 811, 717, 716, 718, 968, 785, 1243, 783, 1308, 883, 990, 739, 740, 742, 1318, 902, 903, 919, 737, 1218, 736, 1217]
@@ -251,10 +260,10 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         self.sleeveLEndVerts = [1015, 216, 1036, 217, 1019, 218, 1032, 72, 632, 74, 222, 1038, 221, 1027, 219, 1023, 220, 1034, 215]
 
         self.targetGripVertices = [727, 138, 728, 1361, 730, 961, 1213, 137, 724, 1212, 726, 960, 964, 729, 155, 772]
-        self.sleeveRFeature = ClothFeature(verts=self.sleeveRVerts, clothScene=self.clothScene)
+        self.sleeveRSeamFeature = ClothFeature(verts=self.sleeveRVerts, clothScene=self.clothScene)
         self.sleeveREndFeature = ClothFeature(verts=self.sleeveREndVerts, clothScene=self.clothScene)
         self.sleeveRMidFeature = ClothFeature(verts=self.sleeveRMidVerts, clothScene=self.clothScene)
-        self.sleeveLFeature = ClothFeature(verts=self.sleeveLVerts, clothScene=self.clothScene)
+        self.sleeveLSeamFeature = ClothFeature(verts=self.sleeveLVerts, clothScene=self.clothScene)
         self.sleeveLEndFeature = ClothFeature(verts=self.sleeveLEndVerts, clothScene=self.clothScene)
         self.sleeveLMidFeature = ClothFeature(verts=self.sleeveLMidVerts, clothScene=self.clothScene)
 
@@ -282,22 +291,39 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         self.currentController = 0
         self.stepsSinceControlSwitch = 0
 
+        for i in range(len(self.robot_skeleton.dofs)):
+            self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+
         #self.loadCharacterState(filename="characterState_1starmin")
 
     def _getFile(self):
         return __file__
 
+    def saveState(self, name="unnamed"):
+        fname = self.state_save_directory + name
+        print(fname)
+        count = 0
+        objfname_ix = fname + "%05d" % count
+        charfname_ix = fname + "_char%05d" % count
+        while os.path.isfile(objfname_ix + ".obj"):
+            count += 1
+            objfname_ix = fname + "%05d" % count
+            charfname_ix = fname + "_char%05d" % count
+        print(objfname_ix)
+        self.saveObjState(filename=objfname_ix)
+        self.saveCharacterState(filename=charfname_ix)
+
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         #update features
-        if self.sleeveRFeature is not None:
-            self.sleeveRFeature.fitPlane()
+        if self.sleeveRSeamFeature is not None:
+            self.sleeveRSeamFeature.fitPlane()
         if self.sleeveREndFeature is not None:
             self.sleeveREndFeature.fitPlane()
         if self.sleeveRMidFeature is not None:
             self.sleeveRMidFeature.fitPlane()
-        if self.sleeveLFeature is not None:
-            self.sleeveLFeature.fitPlane()
+        if self.sleeveLSeamFeature is not None:
+            self.sleeveLSeamFeature.fitPlane()
         if self.sleeveLEndFeature is not None:
             self.sleeveLEndFeature.fitPlane()
         if self.sleeveLMidFeature is not None:
@@ -461,18 +487,50 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         self.restPose = qpos
 
         # update features
-        if self.sleeveRFeature is not None:
-            self.sleeveRFeature.fitPlane(normhint=np.array([1.0,0,0]))
+        if self.sleeveRSeamFeature is not None:
+            self.sleeveRSeamFeature.fitPlane(normhint=np.array([1.0, 0, 0]))
         if self.sleeveREndFeature is not None:
             self.sleeveREndFeature.fitPlane(normhint=np.array([-1.0,0,0]))
         if self.sleeveRMidFeature is not None:
             self.sleeveRMidFeature.fitPlane(normhint=np.array([-1.0,0,0]))
-        if self.sleeveLFeature is not None:
-            self.sleeveLFeature.fitPlane(normhint=np.array([1.0,0,0]))
+        if self.sleeveLSeamFeature is not None:
+            self.sleeveLSeamFeature.fitPlane(normhint=np.array([1.0, 0, 0]))
         if self.sleeveLEndFeature is not None:
             self.sleeveLEndFeature.fitPlane(normhint=np.array([1.0,0,0]))
         if self.sleeveLMidFeature is not None:
             self.sleeveLMidFeature.fitPlane(normhint=np.array([-1.0,0,0]))
+
+        # confirm relative normals
+        # ensure relative correctness of normals
+        CP2_CP1R = self.sleeveREndFeature.plane.org - self.sleeveRMidFeature.plane.org
+        CP2_CP0R = self.sleeveRSeamFeature.plane.org - self.sleeveRMidFeature.plane.org
+
+        # if CP2 normal is not facing the sleeve end invert it
+        if CP2_CP1R.dot(self.sleeveRMidFeature.plane.normal) < 0:
+            self.sleeveRMidFeature.plane.normal *= -1.0
+
+        # if CP1 normal is facing the sleeve middle invert it
+        if CP2_CP1R.dot(self.sleeveREndFeature.plane.normal) < 0:
+            self.sleeveREndFeature.plane.normal *= -1.0
+
+        # if CP0 normal is not facing sleeve middle invert it
+        if CP2_CP0R.dot(self.sleeveRSeamFeature.plane.normal) > 0:
+            self.sleeveRSeamFeature.plane.normal *= -1.0
+
+        CP2_CP1L = self.sleeveLEndFeature.plane.org - self.sleeveLMidFeature.plane.org
+        CP2_CP0L = self.sleeveLSeamFeature.plane.org - self.sleeveLMidFeature.plane.org
+
+        # if CP2 normal is not facing the sleeve end invert it
+        if CP2_CP1L.dot(self.sleeveLMidFeature.plane.normal) < 0:
+            self.sleeveLMidFeature.plane.normal *= -1.0
+
+        # if CP1 normal is facing the sleeve middle invert it
+        if CP2_CP1L.dot(self.sleeveLEndFeature.plane.normal) < 0:
+            self.sleeveLEndFeature.plane.normal *= -1.0
+
+        # if CP0 normal is not facing sleeve middle invert it
+        if CP2_CP0L.dot(self.sleeveLSeamFeature.plane.normal) > 0:
+            self.sleeveLSeamFeature.plane.normal *= -1.0
 
         self.controllers[self.currentController].setup()
 
@@ -499,18 +557,18 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         renderUtils.setColor([0.7, 0.4, 0.2])
         renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, 0.05, -0.09])), rad=0.05)
 
-        if self.sleeveRFeature is not None:
-            self.sleeveRFeature.drawProjectionPoly()
+        if self.sleeveRSeamFeature is not None:
+            self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.sleeveREndFeature is not None:
-            self.sleeveREndFeature.drawProjectionPoly()
+            self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.sleeveRMidFeature is not None:
-            self.sleeveRMidFeature.drawProjectionPoly()
-        if self.sleeveLFeature is not None:
-            self.sleeveLFeature.drawProjectionPoly()
+            self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        if self.sleeveLSeamFeature is not None:
+            self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.sleeveLEndFeature is not None:
-            self.sleeveLEndFeature.drawProjectionPoly()
+            self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
         if self.sleeveLMidFeature is not None:
-            self.sleeveLMidFeature.drawProjectionPoly()
+            self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
 
         efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         renderUtils.setColor(color=[1.0, 0, 0])

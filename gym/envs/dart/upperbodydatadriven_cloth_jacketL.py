@@ -25,6 +25,8 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         rendering = True
         clothSimulation = True
         renderCloth = True
+        dt = 0.002
+        frameskip = 5
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
@@ -92,7 +94,9 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
-                                                          simulateCloth=clothSimulation)
+                                                          simulateCloth=clothSimulation,
+                                                          dt=dt,
+                                                          frameskip=frameskip)
 
         #clothing features
         self.sleeveLVerts = [848, 648, 649, 652, 980, 1380, 861, 860, 862, 1369, 92, 1344, 940, 941, 953, 561, 559, 560, 788, 789, 814, 1261, 537, 1122, 535, 1121, 536, 1277, 831, 1278, 834, 1287]
@@ -110,6 +114,9 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
             self.clothScene.renderClothFill = False
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
+
+        for i in range(len(self.robot_skeleton.dofs)):
+            self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
