@@ -39,7 +39,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
 
         #reward flags
         self.restPoseReward             = True
-        self.restCOMsReward             = True #if True, penalize displacement between world targets and the positions of local offsets
+        self.restCOMsReward             = False #if True, penalize displacement between world targets and the positions of local offsets
         self.stabilityCOMReward         = True
         self.contactReward              = False
         self.flatFootReward             = True  # if true, reward the foot for being parallel to the ground
@@ -58,7 +58,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
 
         #reward weights
-        self.restPoseRewardWeight               = 1
+        self.restPoseRewardWeight               = 2
         self.restCOMsRewardWeight               = 1
         self.stabilityCOMRewardWeight           = 7
         self.contactRewardWeight                = 1
@@ -67,7 +67,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShorts3Env(DartClothFullBodyDa
         self.aliveBonusRewardWeight             = 40
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
-        self.footPosRewardWeight                = 10
+        self.footPosRewardWeight                = 20
 
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
