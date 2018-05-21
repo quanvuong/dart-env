@@ -353,7 +353,7 @@ class MatchGripController(Controller):
 
 class MatchGripTransitionController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
-        obs_subset = [(0,163)]
+        obs_subset = [(0,154)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
         policyfilename = "experiment_2018_05_20_matchgrip_pose2"
 
@@ -854,6 +854,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             DropGripController(self),
             RightTuckController(self),
             RightSleeveController(self),
+            MatchGripTransitionController(self),
             MatchGripController(self),
             #SPDController(self),
             #SPDIKController(self),
