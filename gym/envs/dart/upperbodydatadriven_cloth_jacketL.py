@@ -100,7 +100,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
                                                           rendering=rendering,
                                                           screensize=(1280,720),
                                                           clothMeshFile="jacketmedium.obj",
-                                                          clothMeshStateFile = "startJacketSleeveL.obj",
+                                                          #clothMeshStateFile = "startJacketSleeveL.obj",
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([0.7,0.7,0.5]),
                                                           obs_size=observation_size,
