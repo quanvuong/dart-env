@@ -351,6 +351,71 @@ class MatchGripController(Controller):
         return False
         a=0
 
+class MatchGripTransitionController(Controller):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        obs_subset = [(0,163)]
+        #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
+        policyfilename = "experiment_2018_05_20_matchgrip_pose2"
+
+        name="Match Grip Transition"
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+    def setup(self):
+        #self.env.saveState(name="enter_seq_match")
+
+        self.env.fingertip = np.array([0, -0.09, 0])
+        # setup cloth handle
+        self.env.updateHandleNodeFrom = 12
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles()
+        self.env.handleNode = HandleNode(self.env.clothScene, org=np.array([0.05, 0.034, -0.975]))
+        self.env.handleNode.addVertices(verts=self.env.targetGripVerticesL)
+        self.env.handleNode.setOrgToCentroid()
+        self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+        self.env.handleNode.recomputeOffsets()
+
+        self.env.renderContainmentTriangle = False
+        self.env.renderGeodesic = False
+        self.env.renderOracle = False
+        self.env.renderRightTarget = True
+        self.env.renderLeftTarget = False
+
+        self.restPose = np.array(
+            [-0.210940942604, -0.0602436241858, 0.785540563981, 0.132571030392, -0.25, -0.580739841458, -0.803858324899,
+             -1.472, 1.27301394196, -0.295286198863, 0.611311245326, 0.245333463513, 0.225511476131, 1.20063053643,
+             -0.0501794921426, 1.19122509695, 1.97519722198, -0.573360432341, 0.321222466527, 0.580323061076,
+             -0.422112755785, -0.997819593165])
+
+        a=0
+
+    def update(self):
+        self.env.rightTarget = pyutils.getVertCentroid(verts=self.env.targetGripVerticesR, clothscene=self.env.clothScene) + pyutils.getVertAvgNorm(verts=self.env.targetGripVerticesR, clothscene=self.env.clothScene)*0.03
+        if self.env.handleNode is not None:
+            if self.env.updateHandleNodeFrom >= 0:
+                self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
+            self.env.handleNode.step()
+        a=0
+
+    def transition(self):
+        efR = self.env.robot_skeleton.bodynodes[7].to_world(self.env.fingertip)
+
+        shoulderR = self.env.robot_skeleton.bodynodes[4].to_world(np.zeros(3))
+        shoulderL = self.env.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+        elbow = self.env.robot_skeleton.bodynodes[5].to_world(np.zeros(3))
+        shoulderR_torso = self.env.robot_skeleton.bodynodes[1].to_local(shoulderR)
+        shoulderL_torso = self.env.robot_skeleton.bodynodes[1].to_local(shoulderL)
+        elbow_torso = self.env.robot_skeleton.bodynodes[1].to_local(elbow)
+
+        elevation = 0
+        if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
+            elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
+        print(elevation)
+
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
+            return True
+        return False
+        a=0
+
 class RightSleeveController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
         obs_subset = [(0,132), (172, 9), (132, 22)]

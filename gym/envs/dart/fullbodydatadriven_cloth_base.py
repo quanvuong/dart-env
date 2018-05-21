@@ -211,7 +211,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28-6:] *= 4#2.5 #20 -> 50
+            self.action_scale[28-6:] *= 2#2.5 #20 -> 50 #TODO: was 4
             #thighs
             #self.action_scale[28-6] = 100
             #self.action_scale[34-6] = 100
