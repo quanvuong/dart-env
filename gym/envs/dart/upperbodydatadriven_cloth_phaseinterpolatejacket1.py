@@ -385,15 +385,20 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket1Env(DartClothUpper
              -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         #self.set_state(qpos, qvel)
-        self.loadCharacterState("characterState_startJacketSleeveL")
+        #self.loadCharacterState("characterState_startJacketSleeveL")
 
         #find end effector targets and set restPose from solution
         #fingertip = np.array([0.0, -0.065, 0.0])
-        self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        #self.rightTarget = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+        #self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         #print("right target: " + str(self.rightTarget))
         #print("left target: " + str(self.leftTarget))
-        self.restPose = np.array(self.robot_skeleton.q)
+
+        self.rightTarget = np.array([ 0.25825808,  0.52266715,  0.29517964])
+        self.leftTarget = np.array([ 0.16762201, -0.5902483,   0.05456982])
+
+        #self.restPose = np.array(self.robot_skeleton.q)
+        self.restPose = np.array([-0.40701562,  0.09377379,  0.72335076, -0.09763787,  0.24877598,  1.52214491, -3.4660477,  -1.70725895,  1.60078166, -0.49294963,  0.08305921, -0.25002647,  0.23895835,  0.20541631,  1.07185287,  0.80736386,  1.52424401, -0.52905266, -0.52166824,  0.22250483,  0.23721241, -0.51535106])
         #print(self.restPose)
 
         if self.resetStateFromDistribution:
