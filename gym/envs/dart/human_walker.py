@@ -55,7 +55,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.35
         self.alive_bonus_rew = 9.0
 
         self.cur_step = 0
@@ -400,7 +400,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + 0.8 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3])
+        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + \
+                    0.8 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
+                    0.8 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[2])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
