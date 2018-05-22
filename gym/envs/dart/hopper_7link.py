@@ -7,7 +7,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         self.action_scale = 100
-        self.include_action_in_obs = True
+        self.include_action_in_obs = False
         self.randomize_dynamics = False
         obs_dim = 17
 
@@ -27,7 +27,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(3)
 
         # setups for articunet
-        self.state_dim = 16
+        self.state_dim = 32
         self.enc_net = []
         self.act_net = []
         self.vf_net = []

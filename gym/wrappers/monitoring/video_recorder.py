@@ -278,7 +278,7 @@ class ImageEncoder(object):
                      '-i', '-', # this used to be /dev/stdin, which is not Windows-friendly
 
                      # output
-                     '-vcodec', 'libx264',
+                     '-vcodec', 'h264',
                      '-pix_fmt', 'yuv420p',
                      self.output_path
                      )

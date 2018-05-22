@@ -7,7 +7,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0]])
         self.action_scale = 100
-        self.include_action_in_obs = True
+        self.include_action_in_obs = False
         self.randomize_dynamics = False
         obs_dim = 13
 
@@ -165,6 +165,14 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
+    def terminated(self):
+        s = self.state_vector()
+        posafter, ang = self.robot_skeleton.q[0, 2]
+        height = self.robot_skeleton.bodynodes[2].com()[1]
+
+        return not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
+             (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+
     def _step(self, a):
         pre_state = [self.state_vector()]
 
@@ -187,8 +195,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                     (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+        done = self.terminated()
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             reward = 0
         #if fall_on_ground:

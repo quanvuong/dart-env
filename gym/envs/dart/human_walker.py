@@ -55,7 +55,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.4
+        self.energy_weight = 0.3
         self.alive_bonus_rew = 9.0
 
         self.cur_step = 0
@@ -199,8 +199,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d and (self.t < self.assist_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
-                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
-                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
+                #force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
+                #self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and (self.t < self.assist_timeout) and not self.hard_enforce:
                 tvel = self.target_vel
