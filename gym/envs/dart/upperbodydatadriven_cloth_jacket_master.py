@@ -100,11 +100,12 @@ class JacketLController(Controller):
         obs_subset = [(0, 163)]
         name = "JacketL"
         #policyfilename = "experiment_2018_01_12_jacketL_dist_warm"
-        policyfilename = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
+        #policyfilename = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
+        policyfilename = "experiment_2018_05_21_jacketL_restpose"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_lsleeve")
+        #self.env.saveState(name="enter_seq_lsleeve")
         self.env.fingertip = np.array([0.0, -0.095, 0.0])
 
         # geodesic
@@ -121,7 +122,7 @@ class JacketLController(Controller):
         a=0
 
     def update(self):
-        self.env._reset()
+        #self.env._reset()
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.085,0])), feature=self.env.sleeveLSeamFeature)
         a=0
 

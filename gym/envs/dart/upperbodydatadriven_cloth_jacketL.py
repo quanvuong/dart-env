@@ -43,7 +43,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
-        self.restPoseReward             = True
+        self.restPoseReward             = False
 
         self.uprightRewardWeight              = 1  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1

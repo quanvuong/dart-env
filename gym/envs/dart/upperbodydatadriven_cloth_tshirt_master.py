@@ -353,9 +353,10 @@ class MatchGripController(Controller):
 
 class MatchGripTransitionController(Controller):
     def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
-        obs_subset = [(0,154)]
+        obs_subset = [(0,163)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
-        policyfilename = "experiment_2018_05_20_matchgrip_pose2"
+        #policyfilename = "experiment_2018_05_20_matchgrip_pose2"
+        policyfilename = "experiment_2018_05_21_match_warm"
 
         name="Match Grip Transition"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
@@ -409,8 +410,8 @@ class MatchGripTransitionController(Controller):
         elevation = 0
         if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
             elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
-        print(elevation)
-
+        #print(elevation)
+        #print(np.linalg.norm(efR-self.env.rightTarget))
         if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
             return True
         return False
@@ -516,7 +517,7 @@ class LeftSleeveController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        #self.env.saveState(name="enter_seq_2lsleeve")
+        self.env.saveState(name="enter_seq_3lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
@@ -560,6 +561,7 @@ class LeftSleeveController(Controller):
         a=0
 
     def update(self):
+        self.env._reset()
         if self.env.handleNode is not None:
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
@@ -762,7 +764,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         rendering = True
         clothSimulation = True
         renderCloth = True
-        self.simpleUI = True
+        self.simpleUI = False
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
