@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -70,7 +70,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate3Env(DartClothUpperBodyDa
         #self.resetDistributionSize = 17 #3
         #self.resetDistributionPrefix = "saved_control_states/matchgrip"
         #self.resetDistributionSize = 3
-        self.resetDistributionPrefix = "saved_control_states/enter_seq_ltuck"
+        self.resetDistributionPrefix = "saved_control_states/enter_seq3_ltuck"
         self.resetDistributionSize = 20
 
         #other variables

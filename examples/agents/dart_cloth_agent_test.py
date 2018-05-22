@@ -27,9 +27,10 @@ if __name__ == '__main__':
     trial = None
 
     #trial = "experiment_2018_05_21_match_warm"
-    trial = "experiment_2018_05_21_jacketL_restpose"
+    #trial = "experiment_2018_05_21_jacketL"
     #trial = "experiment_2018_05_21_rfootdown"
 
+    # trial = "experiment_2018_05_21_jacketL_restpose"
     # trial = "experiment_2018_05_21_match_setup"
     # trial = "experiment_2018_05_21_jackettransition"
 
@@ -341,7 +342,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
 
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
@@ -374,7 +375,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenJacket-v2', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenPhaseInterpolate-v3', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

@@ -215,7 +215,7 @@ class LeftTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
-        #self.env.saveState(name="enter_seq_ltuck")
+        self.env.saveState(name="enter_seq3_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
         #self.env.fingertip = np.array([0, -0.085, 0])
@@ -246,6 +246,7 @@ class LeftTuckController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
+        self.env._reset()
         a=0
 
     def transition(self):
@@ -344,9 +345,9 @@ class MatchGripController(Controller):
         elevation = 0
         if elbow_torso[1] > shoulderL_torso[1] or elbow[1] > shoulderR_torso[1]:
             elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
-        print(elevation)
+        #print(elevation)
 
-        if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.05 and elevation < 0.1:
             return True
         return False
         a=0
