@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -53,7 +53,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
         self.stableHeadRewardWeight = 2
         self.elbowFlairRewardWeight = 1
         self.deformationPenaltyWeight = 15  # was 5...
-        self.restPoseRewardWeight = 2
+        self.restPoseRewardWeight = 5
         self.restCOMsRewardWeight = 10
         self.leftTargetRewardWeight = 50
         self.rightTargetRewardWeight = 100
@@ -488,7 +488,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
 
         #print("left target: " + str(self.leftTarget))
         #self.restPose = np.array(self.robot_skeleton.q)
-        self.restPose = np.array([-0.210940942604, -0.0602436241858, 0.785540563981, 0.132571030392, -0.25, -0.580739841458, -0.803858324899, -1.472, 1.27301394196, -0.295286198863, 0.611311245326, 0.245333463513, 0.225511476131, 1.20063053643, -0.0501794921426, 1.19122509695, 1.97519722198, -0.573360432341, 0.321222466527, 0.580323061076, -0.422112755785, -0.997819593165])
+        #self.restPose = np.array([-0.210940942604, -0.0602436241858, 0.785540563981, 0.132571030392, -0.25, -0.580739841458, -0.803858324899, -1.472, 1.27301394196, -0.295286198863, 0.611311245326, 0.245333463513, 0.225511476131, 1.20063053643, -0.0501794921426, 1.19122509695, 1.97519722198, -0.573360432341, 0.321222466527, 0.580323061076, -0.422112755785, -0.997819593165])
+        self.restPose = np.array([-0.00986715997836, 0.223003407161, 0.275105630999, 0.138088768959, -0.250163727787, -0.792603414427, -0.804920280511, -0.862550088574, 1.61562521612, -0.276425986159, 0.611311245397, 0.244028977329, 0.224824383388, 1.49406637901, 0.00538037276275, 0.26503355905, 2.20645432815, 0.0232018653794, 0.6, 0.014173694748, -0.0151671966293, -0.023963665039])
         self.robot_skeleton.set_positions(self.restPose)
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
 
@@ -517,7 +518,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate2Env(DartClothUpperBodyDa
             self.robot_skeleton.set_velocities(qvel)
 
         else:
-            self.loadCharacterState(filename="characterState_1starmin")
+            a=0
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
