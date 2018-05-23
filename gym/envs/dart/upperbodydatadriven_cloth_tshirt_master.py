@@ -217,7 +217,7 @@ class LeftTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
-        #self.env.saveState(name="enter_seq3_ltuck")
+        self.env.saveState(name="enter_seq3_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
         #self.env.fingertip = np.array([0, -0.085, 0])
@@ -248,7 +248,7 @@ class LeftTuckController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
-        #self.env._reset()
+        self.env._reset()
         a=0
 
     def transition(self):
@@ -359,7 +359,8 @@ class MatchGripTransitionController(Controller):
         obs_subset = [(0,163)]
         #policyfilename = "experiment_2018_01_04_phaseinterpolate_matchgrip3_cont"
         #policyfilename = "experiment_2018_05_20_matchgrip_pose2"
-        policyfilename = "experiment_2018_05_21_match_warm"
+        #policyfilename = "experiment_2018_05_21_match_warm"
+        policyfilename = "experiment_2018_05_22_match_warm_rest"
 
         name="Match Grip Transition"
         Controller.__init__(self, env, policyfilename, name, obs_subset)

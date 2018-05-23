@@ -26,10 +26,13 @@ if __name__ == '__main__':
 
     trial = None
 
-    #trial = "experiment_2018_05_22_tuckL"
+    #trial = "experiment_2018_05_22_jacketL_warm_rest"
+    #trial = "experiment_2018_05_22_match_warm_rest"
+
+    trial = "experiment_2018_05_22_tuckL"
     #trial = "experiment_2018_05_22_jacketL_warm"
 
-    trial = "experiment_2018_05_21_match_warm" #good enough? ~75%
+    #trial = "experiment_2018_05_21_match_warm" #good enough? ~75%
     #trial = "experiment_2018_05_21_jacketL"
     #trial = "experiment_2018_05_21_rfootdown"
 
@@ -344,8 +347,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
 
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
