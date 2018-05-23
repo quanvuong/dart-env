@@ -50,7 +50,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 3, 64, 1, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, 64, 1, 'ankle_enc'])
 
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
 
