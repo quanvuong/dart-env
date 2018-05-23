@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     #trial = "experiment_2018_05_10_stand_SPD_prevtau"
     #trial = "experiment_2018_05_10_stand_SPD_lowvel"
-    trial = "experiment_2018_05_09_lsleeve2_wide_warmhighdef" #high def correction of "experiment_2018_05_06_lsleeve2_wide"
+    #trial = "experiment_2018_05_09_lsleeve2_wide_warmhighdef" #high def correction of "experiment_2018_05_06_lsleeve2_wide"
     #trial = "experiment_2018_05_09_stand_SPD"  # first SPD trial (local features)
 
     #trial = "experiment_2018_05_09_stand_lowbias" # Reduced bias TRPO (local features)
@@ -343,7 +343,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
@@ -356,6 +356,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2') #jacket left sleeve from grip
+
+    env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
 
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
@@ -382,14 +384,14 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if False and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2', record_log=False, record_video=False))
+    if True and policy is None:
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenLinearTrack-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=0.35 #0.75
+            init_std=0.5
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         all_param_values[4] *= 0.01
