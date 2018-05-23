@@ -22,7 +22,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         dt = 0.002
@@ -57,7 +57,7 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
-        self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
+        self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
 
         #other variables
