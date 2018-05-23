@@ -333,6 +333,62 @@ register(
     max_episode_steps=1000,
 )
 
+register(
+    id='DartSnake3Link-v1',
+    entry_point='gym.envs.dart:DartSnake3LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake4Link-v1',
+    entry_point='gym.envs.dart:DartSnake4LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake5Link-v1',
+    entry_point='gym.envs.dart:DartSnake5LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake6Link-v1',
+    entry_point='gym.envs.dart:DartSnake6LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake7Link-v1',
+    entry_point='gym.envs.dart:DartSnake7LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake8Link-v1',
+    entry_point='gym.envs.dart:DartSnake8LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake9Link-v1',
+    entry_point='gym.envs.dart:DartSnake9LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartSnake10Link-v1',
+    entry_point='gym.envs.dart:DartSnake10LinkEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
 '''register(
     id='DartHopperRBF-v1',
     entry_point='gym.envs.dart:DartHopperRBFEnv',

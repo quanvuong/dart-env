@@ -3,10 +3,10 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartSnake6LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0]])
-        self.action_scale = 100
+        self.action_scale = 200
         self.include_action_in_obs = False
         self.randomize_dynamics = False
         obs_dim = 15
@@ -15,7 +15,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
-        dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_6link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'snake_multilink/snake_6link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         if self.randomize_dynamics:
             self.bodynode_original_masses = []
@@ -26,7 +26,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
-        # setups for articunet
+        # setups for controller articunet
         self.state_dim = 32
         self.enc_net = []
         self.act_net = []
@@ -45,18 +45,9 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
-        # specialize ankle joint
-        self.enc_net.append([self.state_dim, 3, 64, 1, 'ankle_enc'])
-
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
-
-        # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
-
         self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
         self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
-
-        # 4 - 5, 5 - 7, 6 - 8
 
         # value function modules
         if not self.include_action_in_obs:
@@ -72,34 +63,34 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_vf_modules.append([[3, 11, 16], 3, [2]])
             self.net_vf_modules.append([[2, 10, 15], 3, [3]])
         self.net_vf_modules.append([[0, 1, 7, 8, 9], 2, [4]])
-        self.net_vf_modules.append([[], 7, [5]])
+        self.net_vf_modules.append([[], 5, [5]])
 
         # policy modules
         if not self.include_action_in_obs:
-            self.net_modules.append([[6, 14], 4, None])
+            self.net_modules.append([[6, 14], 1, None])
             self.net_modules.append([[5, 13], 1, [0]])
             self.net_modules.append([[4, 12], 1, [1]])
             self.net_modules.append([[3, 11], 1, [2]])
             self.net_modules.append([[2, 10], 1, [3]])
         else:
-            self.net_modules.append([[6, 14, 19], 4, None])
+            self.net_modules.append([[6, 14, 19], 1, None])
             self.net_modules.append([[5, 13, 18], 1, [0]])
             self.net_modules.append([[4, 12, 17], 1, [1]])
             self.net_modules.append([[3, 11, 16], 1, [2]])
             self.net_modules.append([[2, 10, 15], 1, [3]])
         self.net_modules.append([[0, 1, 7, 8, 9], 0, [4]])
 
-        self.net_modules.append([[], 8, [5, 4], None, False])
-        self.net_modules.append([[], 8, [5, 3], None, False])
-        self.net_modules.append([[], 8, [5, 2], None, False])
-        self.net_modules.append([[], 8, [5, 1], None, False])
-        self.net_modules.append([[], 8, [5, 0], None, False])
+        self.net_modules.append([[], 6, [5, 4], None, False])
+        self.net_modules.append([[], 6, [5, 3], None, False])
+        self.net_modules.append([[], 6, [5, 2], None, False])
+        self.net_modules.append([[], 6, [5, 1], None, False])
+        self.net_modules.append([[], 6, [5, 0], None, False])
 
-        self.net_modules.append([[], 5, [6]])
-        self.net_modules.append([[], 5, [7]])
-        self.net_modules.append([[], 5, [8]])
-        self.net_modules.append([[], 5, [9]])
-        self.net_modules.append([[], 6, [10]])
+        self.net_modules.append([[], 4, [6]])
+        self.net_modules.append([[], 4, [7]])
+        self.net_modules.append([[], 4, [8]])
+        self.net_modules.append([[], 4, [9]])
+        self.net_modules.append([[], 4, [10]])
 
         self.net_modules.append([[], None, [11, 12, 13, 14, 15], None, False])
 
@@ -135,7 +126,28 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dyn_net_modules.append([[], None, [11, 12, 13, 14, 15, 16], None, False])
         self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 14, 3, 4, 5, 7, 9, 11, 13, 15], dtype=np.int32)
 
+        for i in range(0, len(self.robot_skeleton.bodynodes)):
+            self.robot_skeleton.bodynodes[i].set_friction_coeff(0)
+        self.robot_skeleton.bodynodes[-1].set_friction_coeff(5)
+
         utils.EzPickle.__init__(self)
+
+    def do_simulation(self, tau, n_frames):
+        for _ in range(n_frames):
+            for bn in self.robot_skeleton.bodynodes:
+                bn_vel = bn.com_spatial_velocity()
+                norm_dir = bn.to_world([0, 0, 1]) - bn.to_world([0, 0, 0])
+                vel_pos = bn_vel[3:] + np.cross(bn_vel[0:3], norm_dir) * 0.05
+                vel_neg = bn_vel[3:] - np.cross(bn_vel[0:3], norm_dir) * 0.05
+                fluid_force = [0.0, 0.0, 0.0]
+                if np.dot(vel_pos, norm_dir) > 0.0:
+                    fluid_force = -50.0 * np.dot(vel_pos, norm_dir) * norm_dir
+                if np.dot(vel_neg, norm_dir) < 0.0:
+                    fluid_force = -50.0 * np.dot(vel_neg, norm_dir) * norm_dir
+                bn.add_ext_force(fluid_force)
+
+            self.robot_skeleton.set_forces(tau)
+            self.dart_world.step()
 
     def advance(self, a):
         clamped_control = np.array(a)
@@ -144,8 +156,10 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+
         if self.include_action_in_obs:
             self.prev_a = np.copy(clamped_control)
+
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[3:] = clamped_control * self.action_scale
 
@@ -156,30 +170,18 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         posbefore = self.robot_skeleton.q[0]
         self.advance(a)
-        posafter,ang = self.robot_skeleton.q[0,2]
-        height = self.robot_skeleton.bodynodes[2].com()[1]
+        posafter = self.robot_skeleton.q[0]
+        deviation = self.robot_skeleton.q[2]
 
-        fall_on_ground = False
-        contacts = self.dart_world.collision_result.contacts
-        for contact in contacts:
-            if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
-                    self.robot_skeleton.bodynodes[2]:
-                fall_on_ground = True
-
-        alive_bonus = 1.0
+        alive_bonus = 0.1
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
+        reward -= np.abs(deviation) * 0.1
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
-        #print(self.num_steps)
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                     (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
-        if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
-            reward = 0
-        #if fall_on_ground:
-        #    done = True
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
         ob = self._get_obs()
 
         return ob, reward, done, {}
@@ -189,7 +191,6 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.q[1:],
             self.robot_skeleton.dq,
         ])
-        state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
         if self.include_action_in_obs:
             state = np.concatenate([state, self.prev_a])
@@ -204,8 +205,6 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
         state = self._get_obs()
-
-        self.init_height = self.robot_skeleton.bodynodes[2].com()[1]
 
         if self.include_action_in_obs:
             self.prev_a = np.zeros(len(self.control_bounds[0]))

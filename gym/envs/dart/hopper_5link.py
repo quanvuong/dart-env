@@ -49,9 +49,18 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
+        # specialize ankle joint
+        self.enc_net.append([self.state_dim, 3, 64, 1, 'ankle_enc'])
+
         self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
+
+        # specialize ankle joint
+        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
+
         self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
         self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
+
+        # 4 - 5, 5 - 7, 6 - 8
 
         # value function modules
         if not self.include_action_in_obs:
@@ -65,30 +74,30 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_vf_modules.append([[3, 10, 14], 3, [1]])
             self.net_vf_modules.append([[2, 9, 13], 3, [2]])
         self.net_vf_modules.append([[0, 1, 6, 7, 8], 2, [3]])
-        self.net_vf_modules.append([[], 5, [4]])
+        self.net_vf_modules.append([[], 7, [4]])
 
         # policy modules
         if not self.include_action_in_obs:
-            self.net_modules.append([[5, 12], 1, None])
+            self.net_modules.append([[5, 12], 4, None])
             self.net_modules.append([[4, 11], 1, [0]])
             self.net_modules.append([[3, 10], 1, [1]])
             self.net_modules.append([[2, 9], 1, [2]])
         else:
-            self.net_modules.append([[5, 12, 16], 1, None])
+            self.net_modules.append([[5, 12, 16], 4, None])
             self.net_modules.append([[4, 11, 15], 1, [0]])
             self.net_modules.append([[3, 10, 14], 1, [1]])
             self.net_modules.append([[2, 9, 13], 1, [2]])
         self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
 
-        self.net_modules.append([[], 6, [4, 3], None, False])
-        self.net_modules.append([[], 6, [4, 2], None, False])
-        self.net_modules.append([[], 6, [4, 1], None, False])
-        self.net_modules.append([[], 6, [4, 0], None, False])
+        self.net_modules.append([[], 8, [4, 3], None, False])
+        self.net_modules.append([[], 8, [4, 2], None, False])
+        self.net_modules.append([[], 8, [4, 1], None, False])
+        self.net_modules.append([[], 8, [4, 0], None, False])
 
-        self.net_modules.append([[], 4, [5]])
-        self.net_modules.append([[], 4, [6]])
-        self.net_modules.append([[], 4, [7]])
-        self.net_modules.append([[], 4, [8]])
+        self.net_modules.append([[], 5, [5]])
+        self.net_modules.append([[], 5, [6]])
+        self.net_modules.append([[], 5, [7]])
+        self.net_modules.append([[], 6, [8]])
 
         self.net_modules.append([[], None, [9, 10, 11, 12], None, False])
 

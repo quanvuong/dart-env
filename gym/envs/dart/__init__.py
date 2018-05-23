@@ -57,3 +57,12 @@ from gym.envs.dart.cartpole_3pole import DartCartPole3PoleEnv
 from gym.envs.dart.cartpole_4pole import DartCartPole4PoleEnv
 from gym.envs.dart.cartpole_5pole import DartCartPole5PoleEnv
 
+from gym.envs.dart.snake_3link import DartSnake3LinkEnv
+from gym.envs.dart.snake_4link import DartSnake4LinkEnv
+from gym.envs.dart.snake_5link import DartSnake5LinkEnv
+from gym.envs.dart.snake_6link import DartSnake6LinkEnv
+from gym.envs.dart.snake_7link import DartSnake7LinkEnv
+from gym.envs.dart.snake_8link import DartSnake8LinkEnv
+from gym.envs.dart.snake_9link import DartSnake9LinkEnv
+from gym.envs.dart.snake_10link import DartSnake10LinkEnv
+
