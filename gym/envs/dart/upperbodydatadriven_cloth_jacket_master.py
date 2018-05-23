@@ -28,7 +28,10 @@ class Controller(object):
         prefix = os.path.join(prefix, '../../../../rllab/data/local/experiment/')
         if name is None:
             self.name = policyfilename
-        self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
+
+        self.policy = None
+        if policyfilename is not None:
+            self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
         self.obs_subset = obs_subset #list of index,length tuples to slice obs for input
 
     def query(self, obs):
@@ -103,7 +106,8 @@ class JacketLController(Controller):
         policyfilename = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
         #policyfilename = "experiment_2018_05_21_jacketL_restpose"
         #policyfilename = "experiment_2018_05_21_jacketL"
-        policyfilename = "experiment_2018_05_22_jacketL_warm"
+        #policyfilename = "experiment_2018_05_22_jacketL_warm"
+        policyfilename = "experiment_2018_05_22_jacketL_warm_rest"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
@@ -181,7 +185,7 @@ class PhaseInterpolate2Controller(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_transition2")
+        #self.env.saveState(name="enter_seq_transition2")
 
         self.env.fingertip = np.array([0.0, -0.085, 0.0])
         self.env.restPose = np.zeros(len(self.env.robot_skeleton.q))
@@ -191,11 +195,90 @@ class PhaseInterpolate2Controller(Controller):
         #self.env.leftTarget = np.array([ 0.17159357, -0.57064675,  0.05449197])
 
     def update(self):
-        self.env._reset()
+        #self.env._reset()
         a=0
 
     def transition(self):
         return False
+
+class SPDController(Controller):
+    def __init__(self, env, target=None):
+        obs_subset = []
+        policyfilename = None
+        name = "SPD"
+        self.target = target
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+        self.h = 0.002
+        self.skel = env.robot_skeleton
+        ndofs = self.skel.ndofs
+        self.qhat = self.skel.q
+        self.Kp = np.diagflat([1600.0] * (ndofs))
+        self.Kd = np.diagflat([64.0] * (ndofs))
+
+        '''
+        for i in range(ndofs):
+            if i ==9 or i==10 or i==17 or i==18:
+                self.Kd[i][i] *= 0.01
+                self.Kp[i][i] *= 0.01
+        '''
+
+        #print(self.Kp)
+        self.preoffset = 0.0
+
+    def setup(self):
+        #self.env.saveState(name="enter_seq_final")
+        self.env.frameskip = 1
+        self.env.SPDTorqueLimits = True
+        #reset the target
+        #cur_q = np.array(self.skel.q)
+        #self.env.loadCharacterState(filename="characterState_regrip")
+        self.target = np.array([ 0., 0., 0., -0.25, 0., 0., 0., 0., 1.0, 0., 0., -0.25, 0., 0., 0., 0., 1.0, 0., 0., 0., 0., 0.])
+        self.target = np.array([ 0., 0., 0., -0.25, 0., 0., -1., 0., 1.0, 0., 0., -0.25, 0., 0., -1., 0., 1.0, 0., 0., 0., 0., 0.])
+        self.env.restPose = np.array(self.target)
+        #self.target = np.array(self.skel.q)
+        #self.env.robot_skeleton.set_positions(cur_q)
+
+        #clear the handles
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles();
+            self.env.handleNode = None
+
+        #self.skel.joint(6).set_damping_coefficient(0, 5)
+        #self.skel.joint(6).set_damping_coefficient(1, 5)
+        #self.skel.joint(11).set_damping_coefficient(0, 5)
+        #self.skel.joint(11).set_damping_coefficient(1, 5)
+
+        a=0
+
+    def update(self):
+        #if self.env.handleNode is not None:
+        #    self.env.handleNode.clearHandles();
+        #    self.env.handleNode = None
+        a=0
+
+    def transition(self):
+        pDist = np.linalg.norm(self.skel.q - self.env.restPose)
+        #print(pDist)
+        #if pDist < 0.1:
+        #    return True
+        return False
+
+    def query(self, obs):
+        #SPD
+        self.qhat = self.target
+        skel = self.skel
+        p = -self.Kp.dot(skel.q + skel.dq * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq)
+        b = -skel.c + p + d + skel.constraint_forces()
+        A = skel.M + self.Kd * self.h
+
+        x = np.linalg.solve(A, b)
+
+        #invM = np.linalg.inv(A)
+        #x = invM.dot(b)
+        tau = p - self.Kd.dot(skel.dq + x * self.h)
+        return tau
 
 class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
@@ -325,7 +408,8 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
             JacketRController(self),
             PhaseInterpolate1Controller(self),
             JacketLController(self),
-            PhaseInterpolate2Controller(self)
+            #PhaseInterpolate2Controller(self)
+            SPDController(self)
         ]
         self.currentController = 0
         self.stepsSinceControlSwitch = 0

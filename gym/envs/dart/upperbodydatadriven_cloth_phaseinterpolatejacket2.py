@@ -426,8 +426,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket2Env(DartClothUpper
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
             #resetStateNumber = 0
-            #resetStateNumber = self.reset_number%self.resetDistributionSize
-            #print(resetStateNumber)
+            resetStateNumber = self.reset_number%self.resetDistributionSize
+            print(resetStateNumber)
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
             self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)

@@ -210,6 +210,7 @@ class LeftTuckController(Controller):
         #policyfilename = "experiment_2018_05_04_ltuck_403"
 
         policyfilename = "experiment_2018_05_22_tuckL"
+        policyfilename = "experiment_2018_05_23_ltuck_warm"
 
 
         name="Left Tuck"
@@ -217,7 +218,7 @@ class LeftTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
-        self.env.saveState(name="enter_seq3_ltuck")
+        #self.env.saveState(name="enter_seq3_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
         #self.env.fingertip = np.array([0, -0.085, 0])
@@ -248,7 +249,7 @@ class LeftTuckController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
-        self.env._reset()
+        #self.env._reset()
         a=0
 
     def transition(self):
@@ -521,7 +522,7 @@ class LeftSleeveController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
-        self.env.saveState(name="enter_seq_3lsleeve")
+        #self.env.saveState(name="enter_seq_3lsleeve")
         self.env.fingertip = np.array([0, -0.08, 0])
         #setup cloth handle
         self.env.updateHandleNodeFrom = 7
@@ -565,7 +566,7 @@ class LeftSleeveController(Controller):
         a=0
 
     def update(self):
-        self.env._reset()
+        #self.env._reset()
         if self.env.handleNode is not None:
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
