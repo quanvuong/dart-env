@@ -36,10 +36,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.stabilityCOMReward         = True
         self.contactReward              = False
         self.flatFootReward             = False  # if true, reward the foot for being parallel to the ground
+        self.flatHipsReward             = True
         self.COMHeightReward            = False
         self.aliveBonusReward           = True #rewards rollout duration to counter suicidal tendencies
         self.stationaryAnkleAngleReward = False #penalizes ankle joint velocity
         self.stationaryAnklePosReward   = False #penalizes planar motion of projected ankle point
+        self.jointLimitsReward          = True #if true, data driven leg joint limits act as penalty
         #dressing reward flags
         self.waistContainmentReward     = True
         self.deformationPenalty         = True
@@ -51,10 +53,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.stabilityCOMRewardWeight           = 5
         self.contactRewardWeight                = 1
         self.flatFootRewardWeight               = 4
+        self.flatHipsRewardWeight               = 6
         self.COMHeightRewardWeight              = 2
         self.aliveBonusRewardWeight             = 15
         self.stationaryAnkleAngleRewardWeight   = 0.025
         self.stationaryAnklePosRewardWeight     = 2
+        self.jointLimitsRewardWeight            = 1
         #dressing reward weights
         self.waistContainmentRewardWeight       = 10
         self.deformationPenaltyWeight           = 2.5
@@ -62,12 +66,12 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.contactSurfaceRewardWeight         = 1
 
         #other flags
-        self.stabilityTermination = False #if COM outside stability region, terminate #TODO: timed?
+        self.stabilityTermination = True #if COM outside stability region, terminate #TODO: timed?
         self.contactTermination   = True #if anything except the feet touch the ground, terminate
         self.wrongEnterTermination= True #terminate if the foot enters the pant legs
         self.COMHeightTermination = True  # terminate if COM drops below a certain height
 
-        self.COMMinHeight = -0.6
+        self.COMMinHeight = -0.45
 
         #other variables
         self.prevTau = None
@@ -95,10 +99,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.actuatedDofs = np.arange(34)
         observation_size = 0
         #observation_size = 37 * 3 + 6 #q[:3], q[3:](sin,cos), dq
-        observation_size = 34 * 3 + 6  # q[6:](sin,cos), dq
+        observation_size = 6 + 34 * 3 + 6  # 6[:6], q[6:](sin,cos), dq
         observation_size += 3 # COM
-        observation_size += 1 # binary contact per foot with ground
-        observation_size += 4 # feet COPs and norm force mags
+        observation_size += 6 # oracle ef pos and direction
         observation_size += 40*3 # haptic sensor readings
         if self.contactSurfaceReward:
             observation_size += 40 #contact surface readings
@@ -167,6 +170,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         if self.flatFootReward:
             self.rewardsData.addReward(label="flat foot", rmin=-1.0, rmax=0, rval=0, rweight=self.flatFootRewardWeight)
 
+        if self.flatHipsReward:
+            self.rewardsData.addReward(label="flat hips", rmin=-1.0, rmax=0, rval=0, rweight=self.flatHipsRewardWeight)
+
         if self.COMHeightReward:
             self.rewardsData.addReward(label="COM height", rmin=-1.0, rmax=0, rval=0, rweight=self.COMHeightRewardWeight)
 
@@ -178,6 +184,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         if self.stationaryAnklePosReward:
             self.rewardsData.addReward(label="ankle pos", rmin=-0.5, rmax=0.0, rval=0, rweight=self.stationaryAnklePosRewardWeight)
+
+        if self.jointLimitsReward:
+            self.rewardsData.addReward(label="joint limits", rmin=-2.0, rmax=0.0, rval=0, rweight=self.jointLimitsRewardWeight)
 
         if self.waistContainmentReward:
             self.rewardsData.addReward(label="waist containment", rmin=-1.0, rmax=1.0, rval=0, rweight=self.waistContainmentRewardWeight)
@@ -216,7 +225,11 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         self.projectedCOM[1] = -1.3
 
         #test COM containment
-        self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        #self.stableCOM = pyutils.polygon2DContains(hull, np.array([self.projectedCOM[0], self.projectedCOM[2]]))
+        triDist, p = pyutils.distToTriangle(c0=self.stabilityPolygon[0], c1=self.stabilityPolygon[1], c2=self.stabilityPolygon[2], p=self.projectedCOM)
+        self.stableCOM = (triDist < 0.05)
+        print("triDist: " + str(triDist))
+        print("COMHeight: " + str(self.robot_skeleton.com()[1]))
         #print("containedCOM: " + str(containedCOM))
 
         #analyze contacts
@@ -295,9 +308,14 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
 
         #print(np.amax(np.absolute(s[:len(self.robot_skeleton.q)]-self.stateTraj[-1])))
-        if self.numSteps > 100:
+        #if self.numSteps > 100:
             #self.saveState(name="enter_seq_rleg")
-            return True, 0
+        #    return True, 0
+
+        #COM height
+        if self.COMHeightTermination:
+            if self.robot_skeleton.com()[1] < self.COMMinHeight:
+                return True, -100
 
         #stability termination
         if self.stabilityTermination:
@@ -360,6 +378,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
             reward_record.append(reward_flatFoot)
 
+        reward_flatHips = 0
+        if self.flatHipsReward:
+            up = np.array([0, 1.0, 0])
+            hipsNorm = self.robot_skeleton.bodynodes[0].to_world(up) - self.robot_skeleton.bodynodes[0].to_world(np.zeros(3))
+            hipsNorm = hipsNorm / np.linalg.norm(hipsNorm)
+
+            reward_flatHips += hipsNorm.dot(up) - 1.0
+
+            reward_record.append(reward_flatHips)
+
         #reward COM height?
         reward_COMHeight = 0
         if self.COMHeightReward:
@@ -388,6 +416,16 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
             projectedAnkle[1] = 0
             reward_stationaryAnklePos += max(-0.5, -np.linalg.norm(self.initialProjectedAnkle - projectedAnkle))
             reward_record.append(reward_stationaryAnklePos)
+
+        reward_jointLimits = 0
+        if self.jointLimitsReward:
+            violationL = self.leftlegConstraint.query(self.dart_world, False)
+            violationR = self.rightlegConstraint.query(self.dart_world, False)
+            if violationL < 0:
+                reward_jointLimits -= 1
+            if violationR < 0:
+                reward_jointLimits -= 1
+            reward_record.append(reward_jointLimits)
 
         reward_waistContainment = 0
         if self.waistContainmentReward:
@@ -418,7 +456,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         if self.deformationPenalty is True:
             # reward_clothdeformation = (math.tanh(9.24 - 0.5 * clothDeformation) - 1) / 2.0  # near 0 at 15, ramps up to -1.0 at ~22 and remains constant
             l = 5
-            s = 0.7
+            s = 0.4
             z = -0.5
             reward_clothdeformation = z*math.tanh(s * (clothDeformation - l)) + z
             reward_record.append(reward_clothdeformation)
@@ -456,7 +494,9 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                     + reward_alive * self.aliveBonusRewardWeight \
                     + reward_stationaryAnkleAngle * self.stationaryAnkleAngleRewardWeight \
                     + reward_stationaryAnklePos * self.stationaryAnklePosRewardWeight \
+                    + reward_jointLimits * self.jointLimitsRewardWeight \
                     + reward_flatFoot * self.flatFootRewardWeight \
+                    + reward_flatHips * self.flatHipsRewardWeight \
                     + reward_waistContainment * self.waistContainmentRewardWeight \
                     + reward_clothdeformation * self.deformationPenaltyWeight \
                     + reward_footBetweenHands * self.footBetweenHandsRewardWeight \
@@ -473,20 +513,17 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         trans = np.array(self.robot_skeleton.q[3:6])
 
         #obs = np.concatenate([np.cos(orientation), np.sin(orientation), trans, np.cos(theta), np.sin(theta), dq]).ravel()
-        obs = np.concatenate([np.cos(theta), np.sin(theta), dq]).ravel()
+        obs = np.concatenate([trans, orientation, np.cos(theta), np.sin(theta), dq]).ravel()
 
         #COM
         com = np.array(self.robot_skeleton.com()).ravel()
         obs = np.concatenate([obs, com]).ravel()
 
-        #foot contacts
-        if self.footContact:
-            obs = np.concatenate([obs, [1.0]]).ravel()
-        else:
-            obs = np.concatenate([obs, [0.0]]).ravel()
-
-        #foot COP and norm force magnitude
-        obs = np.concatenate([obs, self.footCOP, [self.footNormForceMag]]).ravel()
+        #oracle pos and direction
+        pos = self.robot_skeleton.bodynodes[20].to_world(self.toeOffset)
+        dir = self.waistFeature.plane.org-pos
+        dir = dir / np.linalg.norm(dir)
+        obs = np.concatenate([obs, pos, dir]).ravel()
 
         #haptic observations
         f = np.zeros(40*3)
@@ -511,7 +548,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
         #qpos = np.array([0.0876736007526, -0.197663127282, 0.0512116324906, 0.0890321935781, 0.00503663000394, 0.153578012064, 0.0355287603611, 0.188868068244, -0.0393309627431, 0.0468919964458, -0.0157749170449, -0.732901924741, -0.342059517398, 0.0771170149731, 1.63974967002, 0.0234712949278, -0.0123146387565, -0.0224550112983, 0.0314256125072, 0.0304105325139, -0.806838907433, 0.578199999561, 1.2304995663, 0.00308410667268, -0.0020098497117, 0.000671096336519, 0.0160262363305, 0.00983038089353, -0.0139367467948, -0.255746135035, 0.292140467717, 0.585292554732, 0.338902153816, 0.0897545118006, -0.637071641222, -1.56662542487, 0.209168756426, 2.14915980862, -0.177912854867, 0.164453921709])
         #qpos = np.array([0.112736818959, -0.184613672394, 0.0483281279476, 0.0977783961469, -0.0395725338171, 0.118916694347, 0.0225602781819, 0.186664042145, -0.0424497225658, 0.0513031599457, -0.0239023434306, -0.72814835681, -0.338360476232, 0.0678506261861, 1.64682143574, 0.0186850837192, -0.00930510664293, -0.0207839101411, 0.0371876854933, 0.0289668575664, -0.8132911622, 0.581233898831, 1.23126365295, -0.00548656272987, 0.00129006785898, -0.00292524994714, 0.00612636259669, 0.00288579869358, -0.0177117020336, -0.189844550703, 0.403929649975, 0.584144641901, 0.27891744078, 0.0979740469555, -0.635892041362, -1.56305168508, 0.199326525817, 2.15366260278, -0.178666316407, 0.159687854881])
         #qpos = np.array([0.0783082859519, -0.142335807127, 0.142293175071, 0.144942555142, 0.0133898601508, 0.165276500738, 0.0160630842837, 0.190633101962, -0.0300941169552, 0.0450348264227, -0.0254260608645, -0.878047724726, -0.485648077845, 0.239917328593, 1.4876567992, 0.00147541881953, -4.95678764178e-05, -0.0115193558397, 0.0292081008816, 0.424683550591, -1.20586786954, 0.674957465063, 0.935902478547, -0.118767946668, 0.130931065834, -0.00538714909167, 0.0113181295264, 0.000849328006241, -0.025344210202, -0.195371502228, 0.413691811409, 0.588269242275, 0.281748815666, 0.0899108878587, -0.626263215102, -1.5691826733, 0.202581615871, 2.1489384041, -0.171405162264, 0.163236501426])
-        qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.56979781802, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
+        qpos = np.array([0.0780131557357, -0.142593660368, 0.143019989259, 0.144666815206, -0.035, 0.165147835811, 0.0162260416596, 0.19115105848, -0.0299336428088, 0.0445035430603, -0.025419636699, -0.878286887463, -0.485843951506, 0.239911240107, 1.48781704099, 0.00147260210175, -3.84887833923e-05, -0.0116786422327, 0.0287998551014, 0.424678918993, -1.20629912179, 0.675013212728, 0.936068431591, -0.118766088348, 0.130936683699, -0.00550651147978, 0.0111253708206, 0.000890767938847, -0.130121733054, -0.195712660157, 0.413533717103, 0.588166252597, 0.281757292531, 0.0899107535319, -0.625904521458, -1.5, 0.202940224704, 2.14854759605, -0.171377608919, 0.163232950118])
 
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.01, high=0.01, size=self.robot_skeleton.ndofs)
         #qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.01, high=.01, size=self.robot_skeleton.ndofs)
@@ -521,7 +558,7 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
 
         RX = pyutils.rotateX(-1.56)
         self.clothScene.rotateCloth(cid=0, R=RX)
-        self.clothScene.translateCloth(cid=0, T=np.array([0.555, -0.5, -1.45]))
+        self.clothScene.translateCloth(cid=0, T=np.array([0.49, -0.5, -1.43]))
         if self.simulateCloth:
             #self.clothScene.translateCloth(0, np.array([0, 3.0, 0]))
             a=0
@@ -699,6 +736,19 @@ class DartClothFullBodyDataDrivenClothOneFootStandShortsEnv(DartClothFullBodyDat
                 lines.append([np.array([com[0], -s+com[1], com[2]]), np.array([com[0], s+com[1], com[2]])])
                 lines.append([np.array([com[0], com[1], -s+com[2],]), np.array([com[0], com[1], s+com[2]])])
             renderUtils.drawLines(lines)
+
+        #visualize leg constraints
+        if self.jointLimitsReward:
+            violationL = self.leftlegConstraint.query(self.dart_world, False)
+            violationR = self.rightlegConstraint.query(self.dart_world, False)
+            renderUtils.setColor(color=[0,1.0,0])
+            if violationL < 0:
+                renderUtils.setColor(color=[1.0, 0.0, 0])
+            renderUtils.drawSphere(pos = self.robot_skeleton.bodynodes[0].to_world(np.array([-0.25,0,0])), rad=0.05, solid=False)
+            renderUtils.setColor(color=[0, 1.0, 0])
+            if violationR < 0:
+                renderUtils.setColor(color=[1.0, 0.0, 0])
+            renderUtils.drawSphere(pos = self.robot_skeleton.bodynodes[0].to_world(np.array([0.25,0,0])), rad=0.05, solid=False)
 
         m_viewport = self.viewer.viewport
         # print(m_viewport)

@@ -481,6 +481,12 @@ register(
 )
 
 register(
+    id='DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothPhaseInterpolateJacket2Env',
+    #max_episode_steps=250,
+)
+
+register(
     id='DartClothUpperBodyDataDrivenJacketMaster-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothJacketMasterEnv',
     #max_episode_steps=250,

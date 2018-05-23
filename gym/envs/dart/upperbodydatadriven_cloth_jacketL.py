@@ -43,7 +43,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
-        self.restPoseReward             = False
+        self.restPoseReward             = True
 
         self.uprightRewardWeight              = 1  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -52,7 +52,7 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
         self.oracleDisplacementRewardWeight   = 50  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoRewardWeight           = 2  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenaltyWeight         = 5
-        self.restPoseRewardWeight             = 0.05
+        self.restPoseRewardWeight             = 0.6
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -419,8 +419,8 @@ class DartClothUpperBodyDataDrivenClothJacketLEnv(DartClothUpperBodyDataDrivenCl
              -0.0254520098678, 0.172782859361, -1.31351102137, 0.702315566312, 1.73993331669, -0.0422811572637,
              0.586669332152, -0.0122329947565, 0.00179736869435, -8.0625896949e-05])
         '''
-        self.set_state(qpos, qvel)
-        self.restPose = np.array(qpos)
+        #self.set_state(qpos, qvel)
+        self.restPose = np.array(self.robot_skeleton.q)
 
         if self.resetStateFromDistribution:
             if self.reset_number == 0: #load the distribution

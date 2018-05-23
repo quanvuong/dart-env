@@ -103,6 +103,7 @@ class JacketLController(Controller):
         policyfilename = "experiment_2018_01_13_jacketL_dist_warm_curriculum"
         #policyfilename = "experiment_2018_05_21_jacketL_restpose"
         #policyfilename = "experiment_2018_05_21_jacketL"
+        policyfilename = "experiment_2018_05_22_jacketL_warm"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
@@ -128,11 +129,12 @@ class JacketLController(Controller):
         a=0
 
     def transition(self):
+        print(self.env.limbProgress)
         if self.env.limbProgress > 0.7:
             return True
         return False
 
-class PhaseInterpolateController(Controller):
+class PhaseInterpolate1Controller(Controller):
     def __init__(self, env):
         obs_subset = [(0, 132), (141, 40)]
         name = "PhaseInterpolate"
@@ -169,6 +171,30 @@ class PhaseInterpolateController(Controller):
         #print("distR " + str(distR) + " | distR " + str(distL) + " | distP " + str(distP))
         if distR < 0.05 and distL < 0.05 and distP < 2.0:
             return True
+        return False
+
+class PhaseInterpolate2Controller(Controller):
+    def __init__(self, env):
+        obs_subset = [(0, 132), (141, 40)]
+        name = "PhaseInterpolate2"
+        policyfilename = "experiment_2018_05_21_jackettransition" #TODO
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+    def setup(self):
+        self.env.saveState(name="enter_seq_transition2")
+
+        self.env.fingertip = np.array([0.0, -0.085, 0.0])
+        self.env.restPose = np.zeros(len(self.env.robot_skeleton.q))
+        self.env.restPose[8] = 0.21
+        self.env.restPose[16] = 0.21
+        #self.env.rightTarget = np.array([ 0.24299472,  0.51030614,  0.29895259])
+        #self.env.leftTarget = np.array([ 0.17159357, -0.57064675,  0.05449197])
+
+    def update(self):
+        self.env._reset()
+        a=0
+
+    def transition(self):
         return False
 
 class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
@@ -297,8 +323,9 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         # controller initialzation
         self.controllers = [
             JacketRController(self),
-            PhaseInterpolateController(self),
-            JacketLController(self)
+            PhaseInterpolate1Controller(self),
+            JacketLController(self),
+            PhaseInterpolate2Controller(self)
         ]
         self.currentController = 0
         self.stepsSinceControlSwitch = 0

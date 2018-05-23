@@ -446,6 +446,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             outfilename = "../image_matrix_output/%05d" % self.numSteps
         renderUtils.imageMatrixFrom(filenames=filenames, outfilename=outfilename)
         #print("Done graphing constraints. Took " + str(time.time()-startTime) + " seconds.")
+
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         a=0

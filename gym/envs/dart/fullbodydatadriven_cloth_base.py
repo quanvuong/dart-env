@@ -159,6 +159,8 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.lockedRConstraint = None
         self.instabilityDetected = False
         self.terminationPenaltyWeight = -100
+        self.leftlegConstraint = None
+        self.rightlegConstraint = None
 
         self.limbNodesLegL = [15, 16, 17]
         self.limbNodesLegR = [18, 19, 20]
@@ -206,12 +208,13 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #40 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
         if not SPDActionSpace:
-            self.action_scale *= 40 #TODO: was 20
+            self.action_scale *= 30 #TODO: was 20
             if 6 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(6)] = 150
             if 7 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(7)] = 150
-            self.action_scale[28-6:] *= 2#2.5 #20 -> 50 #TODO: was 4
+            #self.action_scale[28-6:] *= 2#2.5 #20 -> 50 #TODO: was 4
+            self.action_scale[28-6: 34-6] *= 4
             #thighs
             #self.action_scale[28-6] = 100
             #self.action_scale[34-6] = 100
@@ -317,10 +320,14 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             leftarmConstraint.add_to_world(self.dart_world)
             rightarmConstraint.add_to_world(self.dart_world)
             #legs #TODO: fix arm/leg side label?
-            leftlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_left'), self.robot_skeleton.joint('j_shin_left'), self.robot_skeleton.joint('j_heel_left'), False)
-            rightlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_right'), self.robot_skeleton.joint('j_shin_right'), self.robot_skeleton.joint('j_heel_right'), True)
-            leftlegConstraint.add_to_world(self.dart_world)
-            rightlegConstraint.add_to_world(self.dart_world)
+            self.leftlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_left'), self.robot_skeleton.joint('j_shin_left'), self.robot_skeleton.joint('j_heel_left'), False)
+            self.rightlegConstraint = pydart.constraints.HumanLegJointLimitConstraint(self.robot_skeleton.joint('j_thigh_right'), self.robot_skeleton.joint('j_shin_right'), self.robot_skeleton.joint('j_heel_right'), True)
+            self.leftlegConstraint.add_to_world(self.dart_world)
+            self.rightlegConstraint.add_to_world(self.dart_world)
+            self.leftlegConstraint.setResponsive(self.dart_world, False)
+            self.rightlegConstraint.setResponsive(self.dart_world, False)
+            #self.leftlegConstraint.unexcite(self.dart_world)
+            #print(self.leftlegConstraint.getResponsive(self.dart_world))
 
             #Add a weld joint foot to world
             if self.lockedRFoot:
@@ -388,6 +395,7 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print(self.robot_skeleton.bodynodes[i])
             
         for i in range(len(self.robot_skeleton.dofs)):
+            self.robot_skeleton.dofs[i].set_damping_coefficient(1.0)
             if(i > 5):
                 self.robot_skeleton.dofs[i].set_damping_coefficient(5.0)
                 #self.robot_skeleton.dofs[i].set_spring_stiffness(50.0)d
@@ -587,6 +595,9 @@ class DartClothFullBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
     def _step(self, a):
         #print("a: " + str(a))
+        #if self.reset_number > 0:
+        #    print("left violation: " + str(self.leftlegConstraint.query(self.dart_world, False)))
+        #    print("right violation: " + str(self.rightlegConstraint.query(self.dart_world, False)))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
