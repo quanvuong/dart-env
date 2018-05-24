@@ -23,7 +23,7 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
 
@@ -108,7 +108,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
         # clothing features
         #self.collarVertices = [117, 115, 113, 900, 108, 197, 194, 8, 188, 5, 120]
         #self.targetGripVerticesL = [46, 437, 955, 1185, 47, 285, 711, 677, 48, 905, 1041, 49, 741, 889, 45]
-        #self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
+        self.targetGripVerticesR = [905, 1041, 49, 435, 50, 570, 992, 1056, 51, 676, 283, 52, 489, 892, 362, 53]
         #self.targetGripVertices = [570, 1041, 285, 1056, 435, 992, 50, 489, 787, 327, 362, 676, 887, 54, 55]
         #self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         #self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
@@ -117,8 +117,8 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
         #self.interiorTuckFeature = ClothFeature(verts=[403], clothScene=self.clothScene)
 
         self.simulateCloth = clothSimulation
-        #if self.simulateCloth:
-        #    self.handleNode = HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975]))
+        if self.simulateCloth:
+            self.handleNode = HandleNode(self.clothScene, org=np.array([0.05, 0.034, -0.975]))
 
         if not renderCloth:
             self.clothScene.renderClothFill = False
@@ -178,11 +178,11 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
                 #self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
             ]
 
+        '''
         # update handle nodes
         if self.handleNode is not None:
-            if self.updateHandleNodeFrom >= 0:
-                self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            self.handleNode.step()'''
+            self.handleNode.clearHandles()
+            #self.handleNode = None
 
         a=0
 
@@ -495,7 +495,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
                     targetFound = True
         self.set_state(qpos, qvel)'''
 
-        self.loadCharacterState(filename="characterState_startarm2")
+        #self.loadCharacterState(filename="characterState_startarm2")
 
         #find end effector targets and set restPose from solution
         self.leftTarget = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
@@ -515,12 +515,13 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
-            resetStateNumber = self.reset_number%self.resetDistributionSize
+            #resetStateNumber = self.reset_number%self.resetDistributionSize
             #resetStateNumber = 0
-            print("resetState: " + str(resetStateNumber))
+            #print("resetState: " + str(resetStateNumber))
             charfname_ix = self.resetDistributionPrefix + "_char%05d" % resetStateNumber
-            self.clothScene.setResetState(cid=0, index=resetStateNumber)
             self.loadCharacterState(filename=charfname_ix)
+            #self.updateClothCollisionStructures(hapticSensors=True)
+            self.clothScene.setResetState(cid=0, index=resetStateNumber)
             qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-0.2, high=0.2, size=self.robot_skeleton.ndofs)
             self.robot_skeleton.set_velocities(qvel)
         else:
@@ -528,12 +529,12 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
-            self.handleNode = None
-            '''self.handleNode.addVertices(verts=self.targetGripVerticesR)
+            #self.handleNode = None
+            self.handleNode.addVertices(verts=self.targetGripVerticesR)
             self.handleNode.setOrgToCentroid()
             if self.updateHandleNodeFrom >= 0:
                 self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            self.handleNode.recomputeOffsets()'''
+            self.handleNode.recomputeOffsets()
 
         '''if self.simulateCloth:
             self.collarFeature.fitPlane()

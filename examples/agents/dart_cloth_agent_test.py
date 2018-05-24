@@ -353,7 +353,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
-    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
+    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
 
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
@@ -361,7 +361,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2') #jacket left sleeve from grip
 
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
-    env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
+    #env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
 
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
@@ -389,13 +389,13 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenAssistLinearTrack-v1', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenPhaseInterpolate-v4', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=1.0
+            init_std=0.5
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         all_param_values[4] *= 0.01
