@@ -79,15 +79,15 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         # policy modules
         if not self.include_action_in_obs:
             self.net_modules.append([[7, 16], 4, None])
-            self.net_modules.append([[6, 15], 1, [0]])
-            self.net_modules.append([[5, 14], 1, [1]])
+            self.net_modules.append([[6, 15], 4, [0]])
+            self.net_modules.append([[5, 14], 4, [1]])
             self.net_modules.append([[4, 13], 1, [2]])
             self.net_modules.append([[3, 12], 1, [3]])
             self.net_modules.append([[2, 11], 1, [4]])
         else:
             self.net_modules.append([[7, 16, 19], 4, None])
-            self.net_modules.append([[6, 15, 19], 1, [0]])
-            self.net_modules.append([[5, 14, 18], 1, [1]])
+            self.net_modules.append([[6, 15, 19], 4, [0]])
+            self.net_modules.append([[5, 14, 18], 4, [1]])
             self.net_modules.append([[4, 13, 17], 1, [2]])
             self.net_modules.append([[3, 12, 16], 1, [3]])
             self.net_modules.append([[2, 11, 15], 1, [4]])
