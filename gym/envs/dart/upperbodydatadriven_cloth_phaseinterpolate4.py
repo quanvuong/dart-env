@@ -292,6 +292,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
             reward_record.append(reward_contact_surface)
 
         avgContactGeodesic = None
+        '''
         if self.numSteps > 0 and self.simulateCloth:
             contactInfo = pyutils.getContactIXGeoSide(sensorix=21, clothscene=self.clothScene,
                                                       meshgraph=self.separatedMesh)
@@ -301,6 +302,7 @@ class DartClothUpperBodyDataDrivenClothPhaseInterpolate4Env(DartClothUpperBodyDa
                     avgContactGeodesic += c[1]
                 avgContactGeodesic /= len(contactInfo)
         self.previousContactGeo = avgContactGeodesic
+        '''
 
         reward_contactGeo = 0
         if self.contactGeoReward:
