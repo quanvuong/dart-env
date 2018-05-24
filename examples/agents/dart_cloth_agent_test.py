@@ -26,9 +26,12 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_05_23_lsleeve_warm"
+    #trial = "experiment_2018_05_23_lineartrack"
+
     #trial = "experiment_2018_05_22_jacketL_warm_rest"
-    #trial = "experiment_2018_05_23_ltuck_warm"
-    #trial = "experiment_2018_05_22_match_warm_rest"
+    #trial = "experiment_2018_05_23_ltuck_warm"         #good seq 3
+    #trial = "experiment_2018_05_22_match_warm_rest"    #good seq 3
 
     #trial = "experiment_2018_05_22_tuckL"
     #trial = "experiment_2018_05_22_jacketL_warm"
@@ -357,7 +360,8 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v1') #jacket left sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2') #jacket left sleeve from grip
 
-    env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
+    #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
+    env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
 
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
@@ -385,13 +389,13 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenLinearTrack-v1', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenAssistLinearTrack-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=0.5
+            init_std=1.0
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         all_param_values[4] *= 0.01
@@ -428,7 +432,7 @@ if __name__ == '__main__':
         while(env.numSteps < rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")
-            a = np.zeros(len(env.actuatedDofs)+env.recurrency) #22 dof upper body, ?? dof full body
+            a = np.zeros(env.act_dim) #22 dof upper body, ?? dof full body
 
             #SPD target
             #start_pose[31-6] += 0.01

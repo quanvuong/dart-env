@@ -18,6 +18,8 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
+import pickle
+
 class SPDController():
     def __init__(self, env, target=None):
         self.name = "SPD"
@@ -63,8 +65,8 @@ class SPDController():
         #print("tau_out: " + str(tau))
         return tau
 
-class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=4, dt=0.002):
+class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickle):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, human_obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=5, dt=0.002, humanPolicyFile=None):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -97,7 +99,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #output for rendering controls
         self.recordForRendering = False
         #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
-        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtseq_spd/tshirtseq"
+        self.recordForRenderingOutputPrefix = "saved_render_states/assistive/assistive"
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -179,6 +181,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = None
 
+        self.robot_actuatedDofs = np.arange(6)
+        self.robot_action_scale = np.ones(6)*2.0
+        self.robot_control_bounds = np.array([np.ones(len(self.robot_action_scale)), np.ones(len(self.robot_action_scale))*-1])
+
+
         if clothMeshStateFile is not None:
             clothScene = pyphysx.ClothScene(step=0.01,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
@@ -200,15 +207,16 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.deformation = 0
 
         self.obs_size = obs_size
+        self.human_obs_size = human_obs_size
         skelFile = 'UpperBodyCapsules_datadriven.skel'
 
         #intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
-                                  observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
+                                  observation_size=obs_size, action_bounds=self.robot_control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
-                                  observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
+                                  observation_size=obs_size, action_bounds=self.robot_control_bounds , disableViewer = True, visualize = False)
 
         #rescaling actions for SPD
         if SPDActionSpace:
@@ -285,6 +293,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         for i in range(len(self.robot_skeleton.dofs)):
             print(self.robot_skeleton.dofs[i])
 
+        for i in range(len(self.dart_world.skeletons[0].dofs)):
+            print(self.dart_world.skeletons[0].dofs[i])
+            self.dart_world.skeletons[0].dofs[i].set_damping_coefficient(1.0)
+
         #enable joint limits
         for i in range(len(self.robot_skeleton.joints)):
             print(self.robot_skeleton.joints[i])
@@ -302,6 +314,15 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.clothScene.setSelfCollisionDistance(distance=0.03)
         self.clothScene.step()
         self.clothScene.reset()
+
+        #setup the character controller
+        self.humanPolicyFile = humanPolicyFile
+        if self.humanPolicyFile is None:
+            print("using default policy file")
+            self.humanPolicyFile = "experiment_2018_05_23_lineartrack"
+        prefix = os.path.dirname(os.path.abspath(__file__))
+        prefix = os.path.join(prefix, '../../../../rllab/data/local/experiment/')
+        self.humanPolicy = pickle.load(open(prefix+self.humanPolicyFile + "/policy.pkl", "rb"))
 
     def _getFile(self):
         return __file__
@@ -516,6 +537,20 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.robot_skeleton.q))
+
+        #query the human policy
+        human_obs = self._get_human_obs()
+        human_a, human_a_info = self.humanPolicy.get_action(human_obs)
+        human_a = human_a_info['mean']
+        human_clamped_control = np.array(human_a)
+        for i in range(len(human_clamped_control)):
+            if human_clamped_control[i] > self.control_bounds[0][i]:
+                human_clamped_control[i] = self.control_bounds[0][i]
+            if human_clamped_control[i] < self.control_bounds[1][i]:
+                human_clamped_control[i] = self.control_bounds[1][i]
+        human_tau = np.array(human_clamped_control)
+        human_tau = np.multiply(human_clamped_control, self.action_scale)
+
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation
         # print("updateBeforeSimulation took " + str(time.time() - startTime2))
@@ -524,80 +559,28 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         except:
             self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
-        full_control = np.array(a)
+        robot_clamped_control = np.array(a)
+        for i in range(len(robot_clamped_control)):
+            if robot_clamped_control[i] > self.robot_control_bounds[0][i]:
+                robot_clamped_control[i] = self.robot_control_bounds[0][i]
+            if robot_clamped_control[i] < self.robot_control_bounds[1][i]:
+                robot_clamped_control[i] = self.robot_control_bounds[1][i]
 
-        if self.SPDTarget is not None and self.SPD is not None and self.SPDPerFrame is False:
-            self.SPD.target = np.array(self.SPDTarget)
-            self.additionalAction += self.SPD.query()
-            #print(self.additionalAction)
-        else:
-            full_control[:len(self.additionalAction)] = full_control[:len(self.additionalAction)] + self.additionalAction
-        #print("full_control = " + str(full_control))
-        clamped_control = np.array(full_control)
-        if not self.SPDTorqueLimits:
-            for i in range(len(clamped_control)):
-                if clamped_control[i] > self.control_bounds[0][i]:
-                    clamped_control[i] = self.control_bounds[0][i]
-                if clamped_control[i] < self.control_bounds[1][i]:
-                    clamped_control[i] = self.control_bounds[1][i]
-        else:
-            for i in range(len(clamped_control)):
-                if clamped_control[i] > self.action_scale[i]:
-                    clamped_control[i] = self.action_scale[i]
-                if clamped_control[i] < -self.action_scale[i]:
-                    clamped_control[i] = -self.action_scale[i]
-        #print("clamped_control = " + str(clamped_control))
-
-        if self.recordROMPoints:
-            violation = self.dart_world.getMaxConstraintViolation()
-            if violation > 0:
-                #print(violation)
-                minDist = None
-                for p in self.ROMPoints:
-                    dist = np.linalg.norm(self.robot_skeleton.q-p)
-                    if minDist is None:
-                        minDist = dist
-                    if dist < minDist:
-                        minDist = dist
-                        if minDist < self.ROMPointMinDistance:
-                            break
-                if minDist is not None:
-                    if minDist > self.ROMPointMinDistance:
-                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
-                        print("Saved poses = " + str(len(self.ROMPoints)))
-                else: #auto-add when list is empty
-                    self.ROMPoints.append(np.array(self.robot_skeleton.q))
-
-        tau = np.array(clamped_control)
-        if not self.SPDTorqueLimits:
-            tau = np.multiply(clamped_control, self.action_scale)
+        robot_tau = np.array(robot_clamped_control)
+        robot_tau = np.multiply(robot_clamped_control, self.robot_action_scale)
 
         #apply action and simulate
-        if len(tau) < len(self.robot_skeleton.q):
-            newtau = np.array(tau)
-            tau = np.zeros(len(self.robot_skeleton.q))
-            for ix,dof in enumerate(self.actuatedDofs):
-                tau[dof] = newtau[ix]
+        if len(robot_tau) < len(self.dart_world.skeletons[0].q):
+            newtau = np.array(robot_tau)
+            robot_tau = np.zeros(len(self.dart_world.skeletons[0].q))
+            for ix,dof in enumerate(self.robot_actuatedDofs):
+                robot_tau[dof] = newtau[ix]
 
         startTime2 = time.time()
-        if self.SPDTarget is not None and self.SPD is not None:
-            #print(self.additionalAction)
-            #print("Additional Action: " + str(self.additionalAction))
-            self.do_simulation(self.additionalAction, self.frame_skip)
-        else:
-            #if len(self.actionTrajectory) == 0:
-            #    self.actionTrajectory = pyutils.loadListOfVecs(filename="actionTraj.txt")
-            #if self.reset_number < 2:
-                #if self.reset_number == 1:
-                #    self.actionTrajectory.append(np.array(tau))
-            self.do_simulation(tau[:len(self.robot_skeleton.q)], self.frame_skip)
-            #else:
-                #pyutils.saveList(list=self.actionTrajectory, filename="actionTraj.txt", listoflists=True)
-                #exit()
-            #print(self.actionTrajectory)
-            #self.do_simulation(self.actionTrajectory[self.numSteps][:len(self.robot_skeleton.q)], self.frame_skip)
 
-        #print("do_simulation took " + str(time.time() - startTime2))
+        combo_tau = np.concatenate([human_tau, robot_tau]).ravel()
+        self.do_simulation(combo_tau, self.frame_skip)
+
         try:
             self.avgtimings["do_simulation"] += time.time() - startTime2
         except:
@@ -613,7 +596,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
         startTime2 = time.time()
-        reward = self.computeReward(tau=tau)
+        reward = self.computeReward(tau=combo_tau)
         #print("computeReward took " + str(time.time() - startTime2))
         try:
             self.avgtimings["computeReward"] += time.time() - startTime2
@@ -634,7 +617,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #update physx capsules
         self.updateClothCollisionStructures(hapticSensors=True)
 
-        done, terminationReward = self.checkTermination(tau, s, ob)
+        done, terminationReward = self.checkTermination(combo_tau, s, ob)
         reward += terminationReward
         self.reward = reward
         self.cumulativeReward += self.reward
@@ -655,7 +638,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #self.step(action=np.zeros(len(a)))
 
     def do_simulation(self, tau, n_frames):
-        'Overwrite of DartClothEnv.do_simulation to add cloth simulation stepping in a more intelligent manner without compromising upper body'
+        human_tau = tau[:22]
+        robot_tau = tau[22:]
+
+        'Override of DartClothEnv.do_simulation to add cloth simulation stepping in a more intelligent manner without compromising upper body'
         if not self.simulating:
             return
 
@@ -665,39 +651,25 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print("dt: " + str(self.dart_world.time_step()))
         clothStepRatio = self.dart_world.time_step()/self.clothScene.timestep
         clothStepsTaken = 0
-        pre_q = np.array(self.robot_skeleton.q)
-        pre_dq = np.array(self.robot_skeleton.dq)
+        human_pre_q = np.array(self.robot_skeleton.q)
+        human_pre_dq = np.array(self.robot_skeleton.dq)
+        robot_pre_q = np.array(self.dart_world.skeletons[0].q)
+        robot_pre_dq = np.array(self.dart_world.skeletons[0].dq)
         for i in range(n_frames):
             #print("step " + str(i))
             if self.add_perturbation:
                 self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
 
             if not self.kinematic:
-                combinedTau = np.array(tau)
-                try:
-                    combinedTau += self.supplementalTau
-                except:
-                    print("could not combine tau")
-
-                if self.SPDActionSpace and self.SPD is not None and self.SPDPerFrame:
-                    #self.SPDTarget = tau[6:]
-                    self.SPD.target = np.array(self.SPDTarget)
-                    full_control = self.SPD.query(obs=None)
-                    clamped_control = np.array(full_control)
-                    if self.SPDTorqueLimits:
-                        for c in range(len(clamped_control)):
-                            if clamped_control[c] > self.SPDTorqueBounds[0]:
-                                clamped_control[c] = self.SPDTorqueBounds[0]
-                            if clamped_control[c] < self.SPDTorqueBounds[1]:
-                                clamped_control[c] = self.SPDTorqueBounds[1]
-                    combinedTau = clamped_control
-
-                self.robot_skeleton.set_forces(combinedTau)
+                self.robot_skeleton.set_forces(human_tau)
+                self.dart_world.skeletons[0].set_forces(robot_tau)
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
                     print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
-                    self.set_state(pre_q, pre_dq)
+                    self.set_state(human_pre_q, human_pre_dq)
+                    self.dart_world.skeletons[0].set_positions(robot_pre_q)
+                    self.dart_world.skeletons[0].set_velocities(robot_pre_dq)
                     return
             #pyPhysX step
             if self.simulateCloth:# and (clothStepRatio * i)-clothStepsTaken >= 1:
@@ -715,9 +687,27 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):
         #    self._reset()
 
+    def checkInvalidDynamics(self):
+        if not np.isfinite(self.robot_skeleton.q).all():
+            print("Infinite value detected..." + str(self.robot_skeleton.q))
+            return True
+        elif np.amax(np.absolute(self.robot_skeleton.q)) > 5:
+            print("Detecting potential instability..." + str(self.robot_skeleton.q))
+            return True
+        if not np.isfinite(self.dart_world.skeletons[0].q).all():
+            print("Infinite value detected (robot)..." + str(self.dart_world.skeletons[0].q))
+            return True
+        elif np.amax(np.absolute(self.dart_world.skeletons[0].q)) > 5:
+            print("Detecting potential instability (robot)..." + str(self.dart_world.skeletons[0].q))
+            return True
+
     def _get_obs(self):
         print("base observation")
         return np.zeros(self.obs_size)
+
+    def _get_human_obs(self):
+        print("base observation")
+        return np.zeros(self.human_obs_size)
 
     def additionalResets(self):
         #do any additional reseting here
@@ -933,7 +923,6 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
-
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:

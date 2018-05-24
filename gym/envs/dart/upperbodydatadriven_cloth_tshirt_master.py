@@ -516,7 +516,9 @@ class LeftSleeveController(Controller):
         #policyfilename = "experiment_2018_04_30_sleeveL_wide_highdef"
         #policyfilename = "experiment_2018_05_01_sleevel_widewarm"
         #policyfilename = "experiment_2018_05_06_lsleeve2_wide"
-        policyfilename = "experiment_2018_05_09_lsleeve2_wide_warmhighdef"
+        #policyfilename = "experiment_2018_05_09_lsleeve2_wide_warmhighdef"
+
+        policyfilename = "experiment_2018_05_23_lsleeve_warm"
 
         name="Left Sleeve"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
@@ -585,15 +587,26 @@ class SPDController(Controller):
         obs_subset = []
         policyfilename = None
         name = "SPD"
-        self.target = target
+        self.target = target #overriden often
+        self.endPose = np.array(target) #stable target pose for interp
+        self.initialPose = np.array(target) #stable start pose for interp
+        self.interpTime = 100
+        self.steps = 0
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
         self.h = 0.002
         self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs
         self.qhat = self.skel.q
-        self.Kp = np.diagflat([1600.0] * (ndofs))
-        self.Kd = np.diagflat([16.0] * (ndofs))
+        p = 200
+        d = p*self.h*8
+        self.Kp = np.diagflat([p] * (ndofs))
+        self.Kd = np.diagflat([d] * (ndofs))
+
+        self.Kd[0][0] *= 8
+        self.Kp[0][0] *= 32
+        self.Kd[1][1] *= 8
+        self.Kp[1][1] *= 32
 
         '''
         for i in range(ndofs):
@@ -606,40 +619,45 @@ class SPDController(Controller):
         self.preoffset = 0.0
 
     def setup(self):
-        #self.env.saveState(name="enter_seq_final")
-        self.env.frameskip = 1
-        self.env.SPDTorqueLimits = True
+        self.env.saveState(name="enter_seq_final")
+        #self.env.frameskip = 1
         #reset the target
-        #cur_q = np.array(self.skel.q)
-        #self.env.loadCharacterState(filename="characterState_regrip")
+        self.steps = 0
         self.target = np.array([ 0., 0., 0., 0., 0., 0., 0., 0., 0.302, 0., 0., 0., 0., 0., 0., 0., 0.302, 0., 0., 0., 0., 0.])
-        self.env.restPose = np.array(self.target)
-        #self.target = np.array(self.skel.q)
-        #self.env.robot_skeleton.set_positions(cur_q)
+        self.endPose = np.array(self.target)
+        self.initialPose = np.array(self.env.robot_skeleton.q)
+        #self.env.restPose = np.array(self.target)
 
         #clear the handles
         if self.env.handleNode is not None:
-            self.env.handleNode.clearHandles();
+            self.env.handleNode.clearHandles()
             self.env.handleNode = None
 
-        #self.skel.joint(6).set_damping_coefficient(0, 5)
-        #self.skel.joint(6).set_damping_coefficient(1, 5)
-        #self.skel.joint(11).set_damping_coefficient(0, 5)
-        #self.skel.joint(11).set_damping_coefficient(1, 5)
-
-        a=0
+        '''self.env.SPDTorqueLimits = False
+        self.env.SPD = self
+        self.env.SPDTarget = np.array(self.initialPose)#self.target
+        self.env.SPDPerFrame = True'''
 
     def update(self):
         #if self.env.handleNode is not None:
         #    self.env.handleNode.clearHandles();
         #    self.env.handleNode = None
+        self.env._reset()
+        '''self.steps += 1
+        fraq = float(self.steps)/self.interpTime
+        self.env.SPDTarget = self.endPose*fraq + self.initialPose*(1.0-fraq)
+        self.target = np.array(self.env.SPDTarget)
+        if self.steps > self.interpTime:
+            self.env.SPDTarget = np.array(self.endPose)
+            self.target = np.array(self.env.SPDTarget)
+        self.env.restPose = np.array(self.env.SPDTarget)'''
         a=0
 
     def transition(self):
         pDist = np.linalg.norm(self.skel.q - self.env.restPose)
         #print(pDist)
-        if pDist < 0.1:
-            return True
+        #if pDist < 0.1:
+        #    return True
         return False
 
     def query(self, obs):
@@ -858,6 +876,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
         #controller initialzation
         self.controllers = [
+            #SPDController(self),
             DropGripController(self),
             RightTuckController(self),
             RightSleeveController(self),
@@ -1060,6 +1079,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
     def additionalResets(self):
         self.frameskip = 4
         self.SPDTorqueLimits = False
+        self.SPDPerFrame = False
+        self.SPD = None
 
         #reset these in case the SPD controller has already run...
         self.robot_skeleton.joint(6).set_damping_coefficient(0, 1)
@@ -1068,10 +1089,10 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.robot_skeleton.joint(11).set_damping_coefficient(1, 1)
 
         count = 0
-        recordForRenderingDirectory = "saved_render_states/tshirtseq2" + str(count)
+        recordForRenderingDirectory = "saved_render_states/tshirtseq3" + str(count)
         while(os.path.exists(recordForRenderingDirectory)):
             count += 1
-            recordForRenderingDirectory = "saved_render_states/tshirtseq2" + str(count)
+            recordForRenderingDirectory = "saved_render_states/tshirtseq3" + str(count)
         self.recordForRenderingOutputPrefix = recordForRenderingDirectory+"/tshirtseq"
         if self.recordForRendering:
             if not os.path.exists(recordForRenderingDirectory):

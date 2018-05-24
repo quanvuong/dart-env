@@ -1291,7 +1291,8 @@
                 <init_vel>0 0</init_vel>
             </joint>
             
-        </skeleton>	
+        </skeleton>
+        
         
     </world>
 </skel>

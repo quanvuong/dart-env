@@ -3,7 +3,7 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart.dart_cloth_env import *
-from gym.envs.dart.upperbodydatadriven_cloth_base import *
+from gym.envs.dart.upperbodydatadriven_cloth_assist_base import *
 import random
 import time
 import math
@@ -19,10 +19,10 @@ import OpenGL.GL as GL
 import OpenGL.GLU as GLU
 import OpenGL.GLUT as GLUT
 
-class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = True
         renderCloth = True
         dt = 0.002
@@ -78,34 +78,42 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
         self.trackEndRange = [np.array([0.21, 0.1,-0.1]),np.array([0.21, 0.1,-0.1])]
         self.trackTraversalSteps = 250 #seconds for track traversal
-        self.linearTrackActive = True
+        self.linearTrackActive = False
         self.linearTrackTarget = np.zeros(3)
         self.linearTrackOrigin = np.zeros(3)
+
+        #robot control variables
+        self.robot_control_active = True
+        self.preStepRobotOrg = np.zeros(3)
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
 
         self.actuatedDofs = np.arange(22)
-        observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
+        human_observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
         if self.prevTauObs:
-            observation_size += len(self.actuatedDofs)
+            human_observation_size += len(self.actuatedDofs)
         if self.hapticsInObs:
-            observation_size += 66
+            human_observation_size += 66
         if self.featureInObs:
-            observation_size += 6
+            human_observation_size += 6
         if self.oracleInObs:
-            observation_size += 3
+            human_observation_size += 3
         if self.contactIDInObs:
-            observation_size += 22
+            human_observation_size += 22
 
-        DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
+        robot_observation_size = len(self.actuatedDofs)*3 #human q(sin,cos), dq
+        robot_observation_size += 12 #robot q, dq
+
+        DartClothUpperBodyDataDrivenClothAssistBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=(1280,720),
                                                           clothMeshFile="fullgown1.obj",
                                                           clothMeshStateFile = "hanginggown.obj",
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([1.3, 1.3, 1.3]),
-                                                          obs_size=observation_size,
+                                                          human_obs_size=human_observation_size,
+                                                          obs_size=robot_observation_size,
                                                           simulateCloth=clothSimulation,
                                                           dt=dt,
                                                           frameskip=frameskip)
@@ -183,14 +191,18 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
         if self.handleNode is not None:
             #if self.updateHandleNodeFrom >= 0:
             #    self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            #TODO: linear track
             if self.linearTrackActive:
                 self.handleNode.org = LERP(self.linearTrackOrigin, self.linearTrackTarget, self.numSteps/self.trackTraversalSteps)
+            if self.robot_control_active:
+                self.handleNode.org = self.dart_world.skeletons[0].q[3:]
+                gripperOrientation = self.dart_world.skeletons[0].bodynodes[0].T[:3, :3]
+                self.handleNode.setOrientation(R=gripperOrientation)
             self.handleNode.step()
 
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
+        self.preStepRobotOrg = self.dart_world.skeletons[0].bodynodes[0].to_world(np.zeros(3))
         a=0
 
     def checkTermination(self, tau, s, obs):
@@ -282,8 +294,17 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
         if self.oracleDisplacementReward:
             if np.linalg.norm(self.prevOracle) > 0 and self.localLeftEfShoulder1 is not None:
                 # world_ef_displacement = wRFingertip2 - wRFingertip1
+
+                #robot centric
+                #curRobotOrg = self.dart_world.skeletons[0].bodynodes[0].to_world(np.zeros(3))
+                #relative_displacement =curRobotOrg-self.preStepRobotOrg
+                #oracle0 = self.dart_world.skeletons[0].bodynodes[0].to_local(curRobotOrg + self.prevOracle) - self.preStepRobotOrg
+
+                #human centric
                 relative_displacement = localLeftEfShoulder2 - self.localLeftEfShoulder1
                 oracle0 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2 + self.prevOracle) - localLeftEfShoulder2
+
+
                 # oracle0 = oracle0/np.linalg.norm(oracle0)
                 reward_oracleDisplacement += relative_displacement.dot(oracle0)
             reward_record.append(reward_oracleDisplacement)
@@ -339,7 +360,7 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
                       + reward_restPose * self.restPoseRewardWeight
         return self.reward
 
-    def _get_obs(self):
+    def _get_human_obs(self):
         f_size = 66
         '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
         theta = np.zeros(len(self.actuatedDofs))
@@ -405,12 +426,28 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
 
         return obs
 
+    def _get_obs(self):
+        f_size = 66
+        '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
+        theta = np.zeros(len(self.actuatedDofs))
+        dtheta = np.zeros(len(self.actuatedDofs))
+        for ix, dof in enumerate(self.actuatedDofs):
+            theta[ix] = self.robot_skeleton.q[dof]
+            dtheta[ix] = self.robot_skeleton.dq[dof]
+
+        obs = np.concatenate([np.cos(theta), np.sin(theta), dtheta]).ravel()
+
+        #include the gripper dofs
+        obs = np.concatenate([obs, self.dart_world.skeletons[0].q, self.dart_world.skeletons[0].dq]).ravel()
+
+        return obs
+
     def additionalResets(self):
         #do any additional resetting here
         self.handFirst = False
         #print(self.robot_skeleton.bodynodes[9].to_world(np.zeros(3)))
 
-        if self.simulateCloth and self.linearTrackActive:
+        if self.simulateCloth and self.linearTrackActive or self.robot_control_active:
             self.clothScene.translateCloth(0, np.array([-0.155, -0.1, 0.285]))
             #draw an initial location
             randoms = np.random.rand(6)
@@ -449,6 +486,9 @@ class DartClothUpperBodyDataDrivenClothLinearTrack1Env(DartClothUpperBodyDataDri
             #if self.updateHandleNodeFrom >= 0:
             #    self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
             self.handleNode.recomputeOffsets()
+            robo_pose = np.array(self.dart_world.skeletons[0].q)
+            robo_pose[3:] = self.handleNode.org
+            self.dart_world.skeletons[0].set_positions(robo_pose)
 
         if self.simulateCloth:
             if self.sleeveLSeamFeature is not None:

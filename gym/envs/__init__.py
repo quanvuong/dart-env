@@ -498,6 +498,12 @@ register(
     #max_episode_steps=250,
 )
 
+register(
+    id='DartClothUpperBodyDataDrivenAssistLinearTrack-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env',
+    #max_episode_steps=250,
+)
+
 # Full Body Data Driven Envs
 #---------------------------------------------------
 

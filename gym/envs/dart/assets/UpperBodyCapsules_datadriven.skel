@@ -8,8 +8,8 @@
         </physics>
         
         <skeleton name="target">
-           <mobile>false</mobile>
-           <body name="link 1">
+           <mobile>true</mobile>
+           <body name="gripper">
                 <transformation>0.0 0.0 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
@@ -18,14 +18,14 @@
                 <visualization_shape>
                     <geometry>
                         <box>
-                            <size>0.1 0.1 0.1</size>
+                            <size>0.1 0.025 0.1</size>
                         </box>
                     </geometry>
                 </visualization_shape>
             </body>
              <joint type="free" name="joint 1">
                 <parent>world</parent>
-                <child>link 1</child>
+                <child>gripper</child>
                 <transformation>0 0 0 0 0 0</transformation>
             </joint>
         </skeleton>	
