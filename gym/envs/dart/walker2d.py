@@ -11,6 +11,12 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, 'walker2d.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 
+        try:
+            self.dart_world.set_collision_detector(3)
+        except Exception as e:
+            print('Does not have ODE collision detector, reverted to bullet collision detector')
+            self.dart_world.set_collision_detector(2)
+
         utils.EzPickle.__init__(self)
 
     def _step(self, a):

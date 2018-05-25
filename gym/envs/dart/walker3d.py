@@ -17,6 +17,12 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, 'walker3d_waist.skel', 4, obs_dim, self.control_bounds, disableViewer=False)
 
+        try:
+            self.dart_world.set_collision_detector(3)
+        except Exception as e:
+            print('Does not have ODE collision detector, reverted to bullet collision detector')
+            self.dart_world.set_collision_detector(2)
+
         self.robot_skeleton.set_self_collision_check(True)
 
         for i in range(1, len(self.dart_world.skeletons[0].bodynodes)):
