@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_05_24_assistivelineartrack"
+    #trial = "experiment_2018_05_24_assistivelineartrack"
     #trial = "experiment_2018_05_24_tshirt_final"
 
     #trial = "experiment_2018_05_23_lsleeve_warm"
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
@@ -364,7 +364,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2') #jacket left sleeve from grip
 
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
-    env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
+    #env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
 
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
@@ -392,7 +392,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenPhaseInterpolate-v4', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenTshirt-v2', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

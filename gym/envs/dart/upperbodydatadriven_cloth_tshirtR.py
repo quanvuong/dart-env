@@ -561,6 +561,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                     objfname_ix = self.resetDistributionPrefix + "%05d" % count
 
             resetStateNumber = random.randint(0,self.resetDistributionSize-1)
+            resetStateNumber = 5 #ablation study state
             #resetStateNumber = 7 #best in the rtuck set?
             #resetStateNumber = 0 #best in the triangle_rtuck set?
             #resetStateNumber = self.reset_number%self.resetDistributionSize
