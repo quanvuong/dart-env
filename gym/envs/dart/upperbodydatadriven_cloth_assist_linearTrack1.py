@@ -483,12 +483,14 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
             #self.handleNode.addVertices(verts=[727, 138, 728, 1361, 730, 961, 1213, 137, 724, 1212, 726, 960, 964, 729, 155, 772])
             self.handleNode.addVertices(verts=[1552, 2090, 1525, 954, 1800, 663, 1381, 1527, 1858, 1077, 759, 533, 1429, 1131])
             self.handleNode.setOrgToCentroid()
-            #if self.updateHandleNodeFrom >= 0:
-            #    self.handleNode.setTransform(self.robot_skeleton.bodynodes[self.updateHandleNodeFrom].T)
-            self.handleNode.recomputeOffsets()
             robo_pose = np.array(self.dart_world.skeletons[0].q)
             robo_pose[3:] = self.handleNode.org
+            print(robo_pose)
             self.dart_world.skeletons[0].set_positions(robo_pose)
+            gripperOrientation = self.dart_world.skeletons[0].bodynodes[0].T[:3, :3]
+            self.handleNode.setOrientation(R=gripperOrientation)
+            self.handleNode.recomputeOffsets()
+
 
         if self.simulateCloth:
             if self.sleeveLSeamFeature is not None:

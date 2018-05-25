@@ -582,6 +582,26 @@ class LeftSleeveController(Controller):
             return True
         return False
 
+class FinalTransitionController(Controller):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        obs_subset = [(0, 154)]
+
+        policyfilename = "experiment_2018_05_24_tshirt_final"
+
+        name = "Final Transition"
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+    def setup(self):
+        if self.env.handleNode is not None:
+            self.env.handleNode.clearHandles()
+        self.env.renderOracle = False
+
+    def update(self):
+        a=0
+
+    def transition(self):
+        return False
+
 class SPDController(Controller):
     def __init__(self, env, target=None):
         obs_subset = []
@@ -619,7 +639,7 @@ class SPDController(Controller):
         self.preoffset = 0.0
 
     def setup(self):
-        self.env.saveState(name="enter_seq_final")
+        #self.env.saveState(name="enter_seq_final")
         #self.env.frameskip = 1
         #reset the target
         self.steps = 0
@@ -642,7 +662,7 @@ class SPDController(Controller):
         #if self.env.handleNode is not None:
         #    self.env.handleNode.clearHandles();
         #    self.env.handleNode = None
-        self.env._reset()
+        #self.env._reset()
         '''self.steps += 1
         fraq = float(self.steps)/self.interpTime
         self.env.SPDTarget = self.endPose*fraq + self.initialPose*(1.0-fraq)
@@ -887,7 +907,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             #MatchGripController(self),
             LeftTuckController(self),
             LeftSleeveController(self),
-            SPDController(self)
+            FinalTransitionController(self)
+            #SPDController(self)
         ]
         self.currentController = None
         self.stepsSinceControlSwitch = 0

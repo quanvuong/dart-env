@@ -26,6 +26,9 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_05_24_assistivelineartrack"
+    #trial = "experiment_2018_05_24_tshirt_final"
+
     #trial = "experiment_2018_05_23_lsleeve_warm"
     #trial = "experiment_2018_05_23_lineartrack"
 
@@ -353,7 +356,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v1') #dropgrip to tuck right
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v2') #end right sleeve to match grip
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v3') #end match grip to left tuck
-    env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
+    #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolate-v4') #end match grip to left tuck
 
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v1') #jacket right sleeve from grip
     #env = gym.make('DartClothUpperBodyDataDrivenJacket-v2') #jacket left sleeve from grip
@@ -361,7 +364,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothUpperBodyDataDrivenPhaseInterpolateJacket-v2') #jacket left sleeve from grip
 
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1') #jacket left sleeve from grip
-    #env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
+    env = gym.make('DartClothUpperBodyDataDrivenAssistLinearTrack-v1') #jacket left sleeve from grip
 
     #Full Body Data Driven Envs
     #env = gym.make('DartClothFullBodyDataDrivenClothTest-v1') #testing the full body data driven cloth base env setup
