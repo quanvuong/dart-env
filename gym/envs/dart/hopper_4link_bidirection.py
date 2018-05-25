@@ -3,7 +3,7 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopper4LinkBidirectionEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 100
@@ -16,11 +16,8 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
         self.fwd_bwd_pass = False
-
-        self.supp_input = True
-
-        if self.supp_input:
-            obs_dim += 3*4 # [contact, local_x, local_y]
+        #if self.fwd_bwd_pass:
+        #    obs_dim += 2
 
         dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_4link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -41,16 +38,11 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
-        if self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
-        elif self.supp_input:
-            self.enc_net.append([self.state_dim, 5 + 3, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
-        else:
-            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
+        if not self.include_action_in_obs:
             self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
-
+        else:
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
         self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
             self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
@@ -81,22 +73,15 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[], 7, [3]])
 
         # policy modules
-        if self.include_action_in_obs:
-            self.net_modules.append([[4, 10, 3], 1, None])
-            self.net_modules.append([[3, 9, 12], 1, [0]])
-            self.net_modules.append([[2, 8, 11], 1, [1]])
-            self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
-        elif self.supp_input:
-            self.net_modules.append([[4, 10] + [20, 21, 22], 1, None])
-            self.net_modules.append([[3, 9] + [17, 18, 19], 1, [0]])
-            self.net_modules.append([[2, 8] + [14, 15, 16], 1, [1]])
-            self.net_modules.append([[0, 1, 5, 6, 7] + [11, 12, 13], 0, [2]])
+        if not self.include_action_in_obs:
+            self.net_modules.append([[4, 10], 4, None])
+            self.net_modules.append([[3, 9], 4, [0]])
+            self.net_modules.append([[2, 8], 4, [1]])
         else:
-            self.net_modules.append([[4, 10], 1, None])
-            self.net_modules.append([[3, 9], 1, [0]])
-            self.net_modules.append([[2, 8], 1, [1]])
-            self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
-
+            self.net_modules.append([[4, 10, 3], 4, None])
+            self.net_modules.append([[3, 9, 12], 4, [0]])
+            self.net_modules.append([[2, 8, 11], 4, [1]])
+        self.net_modules.append([[0, 1, 5, 6, 7], 0, [2]])
         self.net_modules.append([[], 8, [3, 2], None, False])
         self.net_modules.append([[], 8, [3, 1], None, False])
         self.net_modules.append([[], 8, [3, 0], None, False])
@@ -104,57 +89,6 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 5, [5]])
         self.net_modules.append([[], 6, [6]])
         self.net_modules.append([[], None, [7, 8, 9], None, False])
-
-        # dynamics modules
-        if self.fwd_bwd_pass:
-            self.dyn_enc_net = []
-            self.dyn_act_net = [] # using actor as decoder
-            self.dyn_merg_net = []
-            self.dyn_net_modules = []
-            self.dyn_enc_net.append([self.state_dim, 6+1, 256, 1, 'dyn_planar_enc'])
-            self.dyn_enc_net.append([self.state_dim, 3+1, 256, 1, 'dyn_revolute_enc'])
-            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
-            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
-            self.dyn_net_modules.append([[5, 11, 14, 15], 1, None])
-            self.dyn_net_modules.append([[4, 10, 13, 15], 1, [0]])
-            self.dyn_net_modules.append([[3, 9, 12, 15], 1, [1]])
-            self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8, 15], 0, [2]])
-
-            self.dyn_net_modules.append([[3, 9, 12, 16], 1, [3]])
-            self.dyn_net_modules.append([[4, 10, 13, 16], 1, [4]])
-            self.dyn_net_modules.append([[5, 11, 14, 16], 1, [5]])
-
-            self.dyn_net_modules.append([[], 2, [3]])
-            self.dyn_net_modules.append([[], 3, [4]])
-            self.dyn_net_modules.append([[], 3, [5]])
-            self.dyn_net_modules.append([[], 3, [6]])
-            self.dyn_net_modules.append([[], None, [7, 8, 9, 10], None, False])
-            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
-        else:
-            self.dyn_enc_net = []
-            self.dyn_act_net = []  # using actor as decoder
-            self.dyn_merg_net = []
-            self.dyn_net_modules = []
-            self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
-            self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
-            self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
-            self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
-            self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
-            self.dyn_net_modules.append([[5, 11, 14], 1, None])
-            self.dyn_net_modules.append([[4, 10, 13], 1, [0]])
-            self.dyn_net_modules.append([[3, 9, 12], 1, [1]])
-            self.dyn_net_modules.append([[0, 1, 2, 6, 7, 8], 0, [2]])
-
-            self.dyn_net_modules.append([[], 4, [3, 2], None, False])
-            self.dyn_net_modules.append([[], 4, [3, 1], None, False])
-            self.dyn_net_modules.append([[], 4, [3, 0], None, False])
-
-            self.dyn_net_modules.append([[], 2, [3]])
-            self.dyn_net_modules.append([[], 3, [4]])
-            self.dyn_net_modules.append([[], 3, [5]])
-            self.dyn_net_modules.append([[], 3, [6]])
-            self.dyn_net_modules.append([[], None, [7,8,9,10], None, False])
-            self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
 
 
         utils.EzPickle.__init__(self)
@@ -195,13 +129,6 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
                     self.robot_skeleton.bodynodes[2]:
                 fall_on_ground = True
-            if self.supp_input:
-                for bid, bn in enumerate(self.robot_skeleton.bodynodes):
-                    if bid >= 2:
-                        if contact.bodynode1 == bn or contact.bodynode2 == bn:
-                            self.body_contact_list[bid-2] = 1.0
-                        else:
-                            self.body_contact_list[bid-2] = 0.0
 
         joint_limit_penalty = 0
         for j in [-2]:
@@ -238,11 +165,8 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.include_action_in_obs:
             state = np.concatenate([state, self.prev_a])
 
-        if self.supp_input:
-            for i, bn in enumerate(self.robot_skeleton.bodynodes):
-                if i >= 2:
-                    com_off = bn.C - self.robot_skeleton.C
-                    state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1]]])
+        #if self.fwd_bwd_pass:
+        #    state = np.concatenate([state, [0, 1]])
 
         return state
 
@@ -252,9 +176,6 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
-
-        if self.supp_input:
-            self.body_contact_list = [0.0] * (len(self.robot_skeleton.bodynodes) - 2)
 
         state = self._get_obs()
 

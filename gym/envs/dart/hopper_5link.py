@@ -19,6 +19,11 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         # if self.fwd_bwd_pass:
         #    obs_dim += 2
 
+        self.supp_input = True
+
+        if self.supp_input:
+            obs_dim += 3 * 5  # [contact, local_x, local_y]
+
         dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_5link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         if self.randomize_dynamics:
@@ -38,11 +43,16 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
-        self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-        if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
-        else:
+        if self.include_action_in_obs:
+            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
             self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
+        elif self.supp_input:
+            self.enc_net.append([self.state_dim, 5 + 3, 64, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
+        else:
+            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
+
         self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
             self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
@@ -77,17 +87,24 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[], 7, [4]])
 
         # policy modules
-        if not self.include_action_in_obs:
-            self.net_modules.append([[5, 12], 4, None])
-            self.net_modules.append([[4, 11], 4, [0]])
-            self.net_modules.append([[3, 10], 4, [1]])
-            self.net_modules.append([[2, 9], 1, [2]])
-        else:
-            self.net_modules.append([[5, 12, 16], 4, None])
-            self.net_modules.append([[4, 11, 15], 4, [0]])
-            self.net_modules.append([[3, 10, 14], 4, [1]])
+        if self.include_action_in_obs:
+            self.net_modules.append([[5, 12, 16], 1, None])
+            self.net_modules.append([[4, 11, 15], 1, [0]])
+            self.net_modules.append([[3, 10, 14], 1, [1]])
             self.net_modules.append([[2, 9, 13], 1, [2]])
-        self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
+            self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
+        elif self.supp_input:
+            self.net_modules.append([[5, 12] + [25, 26, 27], 1, None])
+            self.net_modules.append([[4, 11] + [22,23,24], 1, [0]])
+            self.net_modules.append([[3, 10] + [19,20,21], 1, [1]])
+            self.net_modules.append([[2, 9] + [16,17,18], 1, [2]])
+            self.net_modules.append([[0, 1, 6, 7, 8] + [13,14,15], 0, [3]])
+        else:
+            self.net_modules.append([[5, 12], 1, None])
+            self.net_modules.append([[4, 11], 1, [0]])
+            self.net_modules.append([[3, 10], 1, [1]])
+            self.net_modules.append([[2, 9], 1, [2]])
+            self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
 
         self.net_modules.append([[], 8, [4, 3], None, False])
         self.net_modules.append([[], 8, [4, 2], None, False])
@@ -196,6 +213,13 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
                     self.robot_skeleton.bodynodes[2]:
                 fall_on_ground = True
+            if self.supp_input:
+                for bid, bn in enumerate(self.robot_skeleton.bodynodes):
+                    if bid >= 2:
+                        if contact.bodynode1 == bn or contact.bodynode2 == bn:
+                            self.body_contact_list[bid-2] = 1.0
+                        else:
+                            self.body_contact_list[bid-2] = 0.0
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
@@ -223,6 +247,12 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.include_action_in_obs:
             state = np.concatenate([state, self.prev_a])
 
+        if self.supp_input:
+            for i, bn in enumerate(self.robot_skeleton.bodynodes):
+                if i >= 2:
+                    com_off = bn.C - self.robot_skeleton.C
+                    state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1]]])
+
         return state
 
 
@@ -232,6 +262,9 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         #qpos[2] += 1.0
         self.set_state(qpos, qvel)
+
+        if self.supp_input:
+            self.body_contact_list = [0.0] * (len(self.robot_skeleton.bodynodes) - 2)
 
         state = self._get_obs()
 
