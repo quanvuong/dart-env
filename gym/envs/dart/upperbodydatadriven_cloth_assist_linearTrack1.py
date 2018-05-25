@@ -485,7 +485,7 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
             self.handleNode.setOrgToCentroid()
             robo_pose = np.array(self.dart_world.skeletons[0].q)
             robo_pose[3:] = self.handleNode.org
-            print(robo_pose)
+            #print(robo_pose)
             self.dart_world.skeletons[0].set_positions(robo_pose)
             gripperOrientation = self.dart_world.skeletons[0].bodynodes[0].T[:3, :3]
             self.handleNode.setOrientation(R=gripperOrientation)
