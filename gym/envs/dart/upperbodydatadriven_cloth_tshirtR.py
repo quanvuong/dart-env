@@ -29,8 +29,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = False  # if true, contact ids are in obs
-        self.hapticsInObs   = False # if true, haptics are in observation
+        self.contactIDInObs = True  # if true, contact ids are in obs
+        self.hapticsInObs   = True # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
         self.recurrency     = 0 #if > 0, specifies the number of recurrent features
 
@@ -40,7 +40,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
-        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.sleeveForwardReward        = False #penalize sleeve for being behind the character
