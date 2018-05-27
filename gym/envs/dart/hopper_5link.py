@@ -19,7 +19,11 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         # if self.fwd_bwd_pass:
         #    obs_dim += 2
 
-        self.supp_input = True
+        self.supp_input = False
+
+        self.reverse_order = False
+
+        self.feet_specialized = False
 
         if self.supp_input:
             obs_dim += 3 * 5  # [contact, local_x, local_y]
@@ -87,36 +91,54 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[], 7, [4]])
 
         # policy modules
-        if self.include_action_in_obs:
-            self.net_modules.append([[5, 12, 16], 1, None])
-            self.net_modules.append([[4, 11, 15], 1, [0]])
-            self.net_modules.append([[3, 10, 14], 1, [1]])
-            self.net_modules.append([[2, 9, 13], 1, [2]])
-            self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
-        elif self.supp_input:
-            self.net_modules.append([[5, 12] + [25, 26, 27], 1, None])
-            self.net_modules.append([[4, 11] + [22,23,24], 1, [0]])
-            self.net_modules.append([[3, 10] + [19,20,21], 1, [1]])
-            self.net_modules.append([[2, 9] + [16,17,18], 1, [2]])
-            self.net_modules.append([[0, 1, 6, 7, 8] + [13,14,15], 0, [3]])
-        else:
-            self.net_modules.append([[5, 12], 1, None])
-            self.net_modules.append([[4, 11], 1, [0]])
+        if not self.reverse_order:
+            self.net_modules.append([[5, 12], 1 if not self.feet_specialized else 4, None])
+            self.net_modules.append([[4, 11], 1 if not self.feet_specialized else 4, [0]])
             self.net_modules.append([[3, 10], 1, [1]])
             self.net_modules.append([[2, 9], 1, [2]])
             self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
 
-        self.net_modules.append([[], 8, [4, 3], None, False])
-        self.net_modules.append([[], 8, [4, 2], None, False])
-        self.net_modules.append([[], 8, [4, 1], None, False])
-        self.net_modules.append([[], 8, [4, 0], None, False])
+            if self.include_action_in_obs:
+                self.net_modules[0][0] += [16]
+                self.net_modules[1][0] += [15]
+                self.net_modules[2][0] += [14]
+                self.net_modules[3][0] += [13]
+            elif self.supp_input:
+                self.net_modules[0][0] += [25, 26, 27]
+                self.net_modules[1][0] += [22,23,24]
+                self.net_modules[2][0] += [19,20,21]
+                self.net_modules[3][0] += [16,17,18]
+                self.net_modules[4][0] += [13,14,15]
 
-        self.net_modules.append([[], 5, [5]])
-        self.net_modules.append([[], 5, [6]])
-        self.net_modules.append([[], 5, [7]])
-        self.net_modules.append([[], 6, [8]])
+            self.net_modules.append([[], 8, [4, 3], None, False])
+            self.net_modules.append([[], 8, [4, 2], None, False])
+            self.net_modules.append([[], 8, [4, 1], None, False])
+            self.net_modules.append([[], 8, [4, 0], None, False])
 
-        self.net_modules.append([[], None, [9, 10, 11, 12], None, False])
+            self.net_modules.append([[], 5, [5]])
+            self.net_modules.append([[], 5, [6]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [7]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [8]])
+
+            self.net_modules.append([[], None, [9, 10, 11, 12], None, False])
+        else:
+            self.net_modules.append([[0, 1, 6, 7, 8], 0, None])
+            self.net_modules.append([[2, 9], 1, [0]])
+            self.net_modules.append([[3, 10], 1, [1]])
+            self.net_modules.append([[4, 11], 1, [2]])
+            self.net_modules.append([[5, 12], 1, [3]])
+
+            self.net_modules.append([[], 8, [4, 1], None, False])
+            self.net_modules.append([[], 8, [4, 2], None, False])
+            self.net_modules.append([[], 8, [4, 3], None, False])
+
+            self.net_modules.append([[], 5, [5]])
+            self.net_modules.append([[], 5, [6]])
+            self.net_modules.append([[], 5, [7]])
+            self.net_modules.append([[], 5, [4]])
+
+            self.net_modules.append([[], None, [8, 9, 10, 11], None, False])
+
 
         # dynamics modules
         if self.fwd_bwd_pass:

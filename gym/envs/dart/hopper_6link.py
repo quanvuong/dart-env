@@ -15,7 +15,11 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
-        self.supp_input = True
+        self.supp_input = False
+
+        self.reverse_order = False
+
+        self.feet_specialized = False
 
         if self.supp_input:
             obs_dim += 3 * 6  # [contact, local_x, local_y]
@@ -85,41 +89,61 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[], 7, [5]])
 
         # policy modules
-        if self.include_action_in_obs:
-            self.net_modules.append([[6, 14, 19], 1, None])
-            self.net_modules.append([[5, 13, 18], 1, [0]])
-            self.net_modules.append([[4, 12, 17], 1, [1]])
-            self.net_modules.append([[3, 11, 16], 1, [2]])
-            self.net_modules.append([[2, 10, 15], 1, [3]])
-            self.net_modules.append([[0, 1, 7, 8, 9], 0, [4]])
-        elif self.supp_input:
-            self.net_modules.append([[6, 14] + [30, 31, 32], 1, None])
-            self.net_modules.append([[5, 13] + [27, 28, 29], 1, [0]])
-            self.net_modules.append([[4, 12] + [24, 25, 26], 1, [1]])
-            self.net_modules.append([[3, 11] + [21, 22, 23], 1, [2]])
-            self.net_modules.append([[2, 10] + [18, 19, 20], 1, [3]])
-            self.net_modules.append([[0, 1, 7, 8, 9] + [15, 16, 17], 0, [4]])
-        else:
-            self.net_modules.append([[6, 14], 1, None])
-            self.net_modules.append([[5, 13], 1, [0]])
+        if not self.reverse_order:
+            self.net_modules.append([[6, 14], 1 if not self.feet_specialized else 4, None])
+            self.net_modules.append([[5, 13], 1 if not self.feet_specialized else 4, [0]])
             self.net_modules.append([[4, 12], 1, [1]])
             self.net_modules.append([[3, 11], 1, [2]])
             self.net_modules.append([[2, 10], 1, [3]])
             self.net_modules.append([[0, 1, 7, 8, 9], 0, [4]])
 
-        self.net_modules.append([[], 8, [5, 4], None, False])
-        self.net_modules.append([[], 8, [5, 3], None, False])
-        self.net_modules.append([[], 8, [5, 2], None, False])
-        self.net_modules.append([[], 8, [5, 1], None, False])
-        self.net_modules.append([[], 8, [5, 0], None, False])
+            if self.include_action_in_obs:
+                self.net_modules[0][0] += [19]
+                self.net_modules[1][0] += [18]
+                self.net_modules[2][0] += [17]
+                self.net_modules[3][0] += [16]
+                self.net_modules[4][0] += [15]
+            elif self.supp_input:
+                self.net_modules[0][0] += [30, 31, 32]
+                self.net_modules[1][0] += [27, 28, 29]
+                self.net_modules[2][0] += [24, 25, 26]
+                self.net_modules[3][0] += [21, 22, 23]
+                self.net_modules[4][0] += [18, 19, 20]
+                self.net_modules[5][0] += [15, 16, 17]
 
-        self.net_modules.append([[], 5, [6]])
-        self.net_modules.append([[], 5, [7]])
-        self.net_modules.append([[], 5, [8]])
-        self.net_modules.append([[], 5, [9]])
-        self.net_modules.append([[], 6, [10]])
+            self.net_modules.append([[], 8, [5, 4], None, False])
+            self.net_modules.append([[], 8, [5, 3], None, False])
+            self.net_modules.append([[], 8, [5, 2], None, False])
+            self.net_modules.append([[], 8, [5, 1], None, False])
+            self.net_modules.append([[], 8, [5, 0], None, False])
 
-        self.net_modules.append([[], None, [11, 12, 13, 14, 15], None, False])
+            self.net_modules.append([[], 5, [6]])
+            self.net_modules.append([[], 5, [7]])
+            self.net_modules.append([[], 5, [8]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [9]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [10]])
+
+            self.net_modules.append([[], None, [11, 12, 13, 14, 15], None, False])
+        else:
+            self.net_modules.append([[0, 1, 7, 8, 9], 0, None])
+            self.net_modules.append([[2, 10], 1, [0]])
+            self.net_modules.append([[3, 11], 1, [1]])
+            self.net_modules.append([[4, 12], 1, [2]])
+            self.net_modules.append([[5, 13], 1, [3]])
+            self.net_modules.append([[6, 14], 1, [4]])
+
+            self.net_modules.append([[], 8, [5, 1], None, False])
+            self.net_modules.append([[], 8, [5, 2], None, False])
+            self.net_modules.append([[], 8, [5, 3], None, False])
+            self.net_modules.append([[], 8, [5, 4], None, False])
+
+            self.net_modules.append([[], 5, [6]])
+            self.net_modules.append([[], 5, [7]])
+            self.net_modules.append([[], 5, [8]])
+            self.net_modules.append([[], 5, [9]])
+            self.net_modules.append([[], 5, [5]])
+
+            self.net_modules.append([[], None, [10, 11, 12, 13, 14], None, False])
 
         # dynamic model
         self.dyn_enc_net = []
@@ -222,7 +246,8 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.supp_input:
             for i, bn in enumerate(self.robot_skeleton.bodynodes):
                 if i >= 2:
-                    com_off = bn.C - self.robot_skeleton.C
+                    #com_off = bn.C - self.robot_skeleton.C
+                    com_off = bn.C - self.robot_skeleton.bodynodes[2].C # offset from root
                     state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1]]])
 
         return state
