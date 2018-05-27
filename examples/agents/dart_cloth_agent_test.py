@@ -26,6 +26,10 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2018_05_25_tshirtR_ablationbaseline_cont"
+    #trial = "experiment_2018_05_25_tshirtR_ablationbaseline"
+    #trial = "experiment_2018_05_25_assistivelinear1"
+
     #trial = "experiment_2018_05_24_assistivelineartrack"
     #trial = "experiment_2018_05_24_tshirt_final"
 

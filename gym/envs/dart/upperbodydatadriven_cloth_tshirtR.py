@@ -29,8 +29,8 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = True  # if true, contact ids are in obs
-        self.hapticsInObs   = True # if true, haptics are in observation
+        self.contactIDInObs = False  # if true, contact ids are in obs
+        self.hapticsInObs   = False # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
         self.recurrency     = 0 #if > 0, specifies the number of recurrent features
 

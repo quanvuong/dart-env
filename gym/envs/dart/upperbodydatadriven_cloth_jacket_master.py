@@ -6,6 +6,7 @@ from gym.envs.dart.dart_cloth_env import *
 from gym.envs.dart.upperbodydatadriven_cloth_base import *
 import random
 import time
+import datetime
 import math
 import pickle
 
@@ -107,7 +108,7 @@ class JacketLController(Controller):
         #policyfilename = "experiment_2018_05_21_jacketL_restpose"
         #policyfilename = "experiment_2018_05_21_jacketL"
         #policyfilename = "experiment_2018_05_22_jacketL_warm"
-        policyfilename = "experiment_2018_05_22_jacketL_warm_rest"
+        #policyfilename = "experiment_2018_05_22_jacketL_warm_rest"
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
@@ -133,9 +134,12 @@ class JacketLController(Controller):
         a=0
 
     def transition(self):
-        print(self.env.limbProgress)
+        #print(self.env.limbProgress)
         if self.env.limbProgress > 0.7:
             return True
+        if self.env.stepsSinceControlSwitch > 150:
+            self.env.successRecord.append((False, self.env.numSteps, 2))
+            self.env._reset()
         return False
 
 class PhaseInterpolate1Controller(Controller):
@@ -175,6 +179,9 @@ class PhaseInterpolate1Controller(Controller):
         #print("distR " + str(distR) + " | distR " + str(distL) + " | distP " + str(distP))
         if distR < 0.05 and distL < 0.05 and distP < 2.0:
             return True
+        if self.env.stepsSinceControlSwitch > 100:
+            self.env.successRecord.append((False, self.env.numSteps, 1))
+            self.env._reset()
         return False
 
 class PhaseInterpolate2Controller(Controller):
@@ -208,14 +215,19 @@ class SPDController(Controller):
         name = "SPD"
         self.target = target
         Controller.__init__(self, env, policyfilename, name, obs_subset)
+        self.phase = 0
 
         self.h = 0.002
+        self.h = 0.01
         self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs
         self.qhat = self.skel.q
-        self.Kp = np.diagflat([1600.0] * (ndofs))
-        self.Kd = np.diagflat([64.0] * (ndofs))
-
+        self.Kp = np.diagflat([5.0] * (ndofs))
+        self.Kd = np.diagflat([0.2] * (ndofs))
+        self.Kp[0][0] *= 5.0
+        self.Kp[1][1] *= 5.0
+        self.Kd[0][0] *= 100.0
+        self.Kd[1][1] *= 100.0
         '''
         for i in range(ndofs):
             if i ==9 or i==10 or i==17 or i==18:
@@ -227,8 +239,11 @@ class SPDController(Controller):
         self.preoffset = 0.0
 
     def setup(self):
+        self.phase = 0
         #self.env.saveState(name="enter_seq_final")
         self.env.frameskip = 1
+        self.env.dart_world.set_time_step(0.01)
+        self.env.robot_skeleton.set_velocities(self.env.robot_skeleton.dq*0.2) #1/5 of current velocities?
         self.env.SPDTorqueLimits = True
         #reset the target
         #cur_q = np.array(self.skel.q)
@@ -241,7 +256,7 @@ class SPDController(Controller):
 
         #clear the handles
         if self.env.handleNode is not None:
-            self.env.handleNode.clearHandles();
+            self.env.handleNode.clearHandles()
             self.env.handleNode = None
 
         #self.skel.joint(6).set_damping_coefficient(0, 5)
@@ -260,8 +275,14 @@ class SPDController(Controller):
     def transition(self):
         pDist = np.linalg.norm(self.skel.q - self.env.restPose)
         #print(pDist)
-        #if pDist < 0.1:
-        #    return True
+        if pDist < 0.4 and self.phase == 0:
+            self.target = np.array([ 0., 0., 0., 0., 0., 0., 0., 0., 0.21, 0., 0., 0., 0., 0., 0., 0., 0.21, 0., 0., 0., 0., 0.])
+            self.env.restPose = np.array(self.target)
+            self.phase = 1
+            #return True
+        elif pDist < 0.2 and self.phase == 1:
+            self.env.successRecord.append((True, self.env.numSteps, 3))
+            self.env._reset()
         return False
 
     def query(self, obs):
@@ -288,6 +309,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         renderCloth = True
         dt = 0.002
         frameskip = 5
+        self.renderDetails = False
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
@@ -331,6 +353,10 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
 
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
+
+        #success tracking
+        self.successRecord = [] #contains a list of tuples, one for each rollout: (success/failure, steps excecuted, furthest active controller)
+        self.successTrackingFile = "jacket_success_tracking"
 
         self.actuatedDofs = np.arange(22)
         observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
@@ -465,6 +491,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
                 if changed:
                     self.controllers[self.currentController].setup()
                     self.controllers[self.currentController].update()
+                    self.stepsSinceControlSwitch = 0
             obs = self._get_obs()
             self.additionalAction = self.controllers[self.currentController].query(obs)
 
@@ -592,6 +619,24 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
 
     def additionalResets(self):
         #do any additional resetting here
+        print("Success Record so far: " + str(self.successRecord))
+        print("numTrials = " + str(len(self.successRecord)))
+        if len(self.successRecord) > 0:
+            successfulCount = 0
+            failCounter = np.zeros(4)
+            for r in self.successRecord:
+                if r[0]:
+                    successfulCount+=1
+                else:
+                    failCounter[r[2]] += 1
+            print("Success Rate: " + str(successfulCount/len(self.successRecord)))
+            print("Failure Counter: " + str(failCounter))
+            self.saveSuccessData()
+
+        self.dart_world.skeletons[0].set_positions(np.ones(6)*-1)
+        self.dart_world.set_time_step(0.002)
+        self.frame_skip = 5
+        self.SPDTorqueLimits = False
         self.currentController = 0
         self.handFirst = False
         if self.simulateCloth:
@@ -660,48 +705,51 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         a=0
 
     def extraRenderFunction(self):
-        renderUtils.setColor(color=[0.0, 0.0, 0])
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex3d(0,0,0)
-        GL.glVertex3d(-1,0,0)
-        GL.glEnd()
+
+        renderUtils.setColor([0.7, 0.4, 0.2])
+        renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, 0.05, -0.09])), rad=0.05)
 
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
-                                          self.prevOracle+self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
-                                          ])
-        renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.075, 0.0])),
-                                          self.prevOracle+self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.075, 0.0])),
-                                          ])
+        if self.renderDetails:
+            renderUtils.setColor(color=[0.0, 0.0, 0])
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3d(0, 0, 0)
+            GL.glVertex3d(-1, 0, 0)
+            GL.glEnd()
+            renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[7].to_world(np.array([0.0, -0.075, 0.0])),
+                                              self.prevOracle + self.robot_skeleton.bodynodes[7].to_world(
+                                                  np.array([0.0, -0.075, 0.0])),
+                                              ])
+            renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[12].to_world(np.array([0.0, -0.075, 0.0])),
+                                              self.prevOracle + self.robot_skeleton.bodynodes[12].to_world(
+                                                  np.array([0.0, -0.075, 0.0])),
+                                              ])
 
-        renderUtils.setColor([0.7, 0.4, 0.2])
-        renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[14].to_world(np.array([0.0, 0.05, -0.09])), rad=0.05)
+            if self.sleeveRSeamFeature is not None:
+                self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            if self.sleeveREndFeature is not None:
+                self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            if self.sleeveRMidFeature is not None:
+                self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            if self.sleeveLSeamFeature is not None:
+                self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            if self.sleeveLEndFeature is not None:
+                self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            if self.sleeveLMidFeature is not None:
+                self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
 
-        if self.sleeveRSeamFeature is not None:
-            self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.sleeveREndFeature is not None:
-            self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.sleeveRMidFeature is not None:
-            self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.sleeveLSeamFeature is not None:
-            self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.sleeveLEndFeature is not None:
-            self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        if self.sleeveLMidFeature is not None:
-            self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+            renderUtils.setColor(color=[1.0, 0, 0])
+            renderUtils.drawSphere(pos=self.rightTarget, rad=0.02)
+            renderUtils.drawLineStrip(points=[self.rightTarget, efR])
 
-        efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        renderUtils.setColor(color=[1.0, 0, 0])
-        renderUtils.drawSphere(pos=self.rightTarget, rad=0.02)
-        renderUtils.drawLineStrip(points=[self.rightTarget, efR])
-
-        efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-        renderUtils.setColor(color=[0, 1.0, 0])
-        renderUtils.drawSphere(pos=self.leftTarget, rad=0.02)
-        renderUtils.drawLineStrip(points=[self.leftTarget, efL])
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            renderUtils.setColor(color=[0, 1.0, 0])
+            renderUtils.drawSphere(pos=self.leftTarget, rad=0.02)
+            renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
         # render geodesic
         '''
@@ -720,7 +768,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         textHeight = 15
         textLines = 2
 
-        if self.renderUI:
+        if self.renderUI and self.renderDetails:
             renderUtils.setColor(color=[0.,0,0])
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
             textLines += 1
@@ -734,7 +782,7 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
             textLines += 1
 
             if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=True)
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
@@ -743,3 +791,36 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
                 label = self.controllers[self.currentController].name
                 self.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 60,
                                          text="Active Controller = " + str(label), color=(0., 0, 0))
+
+    def viewer_setup(self):
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -2.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+        self.track_skeleton_id = 0
+        if not self.renderDARTWorld:
+            self.viewer.renderWorld = False
+        self.clothScene.renderCollisionCaps = True
+        self.clothScene.renderCollisionSpheres = True
+
+    def saveSuccessData(self):
+        f = open(self.successTrackingFile, 'w')
+
+        successfulCount = 0
+        failCounter = np.zeros(4)
+        if len(self.successRecord) > 0:
+            for r in self.successRecord:
+                if r[0]:
+                    successfulCount += 1
+                else:
+                    failCounter[r[2]] += 1
+
+        f.write("Data Collected: " + str(datetime.datetime.today().strftime('%Y-%m-%d')) + "\n")
+        f.write("Number of Trials: " + str(len(self.successRecord)) + "\n")
+        f.write("Success rate: " + str(successfulCount / len(self.successRecord)) + "\n")
+        f.write("Failure Counter: " + str(failCounter) + "\n")
+
+        for r in self.successRecord:
+            f.write(str(r) + "\n")
+
+        f.close()

@@ -934,7 +934,6 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
 
-
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
             self._get_viewer().scene.tb.trans[2] = -3.5

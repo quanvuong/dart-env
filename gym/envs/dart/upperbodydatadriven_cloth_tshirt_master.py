@@ -6,6 +6,7 @@ from gym.envs.dart.dart_cloth_env import *
 from gym.envs.dart.upperbodydatadriven_cloth_base import *
 import random
 import time
+import datetime
 import math
 
 from pyPhysX.colors import *
@@ -102,6 +103,9 @@ class DropGripController(Controller):
         if self.prevPositionError < 0.05:
             if self.prevOrientationError < 0.15: #slightly wider acceptance than training ...
                 return True
+        if self.env.stepsSinceControlSwitch > 100:
+            self.env.successRecord.append((False, self.env.numSteps, 0))
+            self.env._reset()
         return False
 
 class RightTuckController(Controller):
@@ -181,6 +185,10 @@ class RightTuckController(Controller):
 
         if self.framesContained > 15:
             return True
+
+        if self.env.stepsSinceControlSwitch > 100:
+            self.env.successRecord.append((False, self.env.numSteps, 1))
+            self.env._reset()
 
         '''
         v0 = efR-shoulderR
@@ -289,6 +297,10 @@ class LeftTuckController(Controller):
         if self.framesContained > 20 and CID == 1.0:
             return True
 
+        if self.env.stepsSinceControlSwitch > 100:
+            self.env.successRecord.append((False, self.env.numSteps, 4))
+            self.env._reset()
+
         return False
 
 class MatchGripController(Controller):
@@ -352,6 +364,11 @@ class MatchGripController(Controller):
 
         if np.linalg.norm(efR-self.env.rightTarget) < 0.05 and elevation < 0.1:
             return True
+
+        if self.env.stepsSinceControlSwitch > 125:
+            self.env.successRecord.append((False, self.env.numSteps, 3))
+            self.env._reset()
+
         return False
         a=0
 
@@ -419,6 +436,11 @@ class MatchGripTransitionController(Controller):
         #print(np.linalg.norm(efR-self.env.rightTarget))
         if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
             return True
+
+        if self.env.stepsSinceControlSwitch > 125:
+            self.env.successRecord.append((False, self.env.numSteps, 3))
+            self.env._reset()
+
         return False
         a=0
 
@@ -498,6 +520,9 @@ class RightSleeveController(Controller):
     def transition(self):
         if self.env.limbProgress > 0.6:
             return True
+        if self.env.stepsSinceControlSwitch > 100:
+            self.env.successRecord.append((False, self.env.numSteps, 2))
+            self.env._reset()
         return False
 
 class LeftSleeveController(Controller):
@@ -580,6 +605,9 @@ class LeftSleeveController(Controller):
     def transition(self):
         if self.env.limbProgress > 0.55:
             return True
+        if self.env.stepsSinceControlSwitch > 125:
+            self.env.successRecord.append((False, self.env.numSteps, 5))
+            self.env._reset()
         return False
 
 class FinalTransitionController(Controller):
@@ -595,11 +623,19 @@ class FinalTransitionController(Controller):
         if self.env.handleNode is not None:
             self.env.handleNode.clearHandles()
         self.env.renderOracle = False
+        self.env.restPose = np.array([ 0., 0., 0., 0., 0., 0., 0., 0., 0.21, 0., 0., 0., 0., 0., 0., 0., 0.21, 0., 0., 0., 0., 0.])
 
     def update(self):
         a=0
 
     def transition(self):
+        pDist = np.linalg.norm(self.env.robot_skeleton.q - self.env.restPose)
+        if self.env.stepsSinceControlSwitch > 125:
+            self.env.successRecord.append((False, self.env.numSteps, 6))
+            self.env._reset()
+        if pDist < 0.5:
+            self.env.successRecord.append((True, self.env.numSteps, 6))
+            self.env._reset()
         return False
 
 class SPDController(Controller):
@@ -808,6 +844,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         clothSimulation = True
         renderCloth = True
         self.simpleUI = False
+        self.renderDetails = False
 
         #other flags
         self.collarTermination = True  # if true, rollout terminates when collar is off the head/neck
@@ -836,6 +873,10 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.limbProgress = -1
         self.fingertip = np.array([0, -0.085, 0])
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
+
+        # success tracking
+        self.successRecord = []  # contains a list of tuples, one for each rollout: (success/failure, steps excecuted, furthest active controller)
+        self.successTrackingFile = "tshirt_success_tracking"
 
         self.localLeftOrientationTarget = np.array([-0.5, -1.0, -1.0])
         self.localLeftOrientationTarget /= np.linalg.norm(self.localLeftOrientationTarget)
@@ -969,6 +1010,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 if changed:
                     self.controllers[self.currentController].setup()
                     self.controllers[self.currentController].update()
+                    self.stepsSinceControlSwitch = 0
             obs = self._get_obs()
             self.additionalAction = self.controllers[self.currentController].query(obs)
 
@@ -1098,6 +1140,22 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+        # do any additional resetting here
+        self.stepsSinceControlSwitch = 0
+        print("Success Record so far: " + str(self.successRecord))
+        print("numTrials = " + str(len(self.successRecord)))
+        if len(self.successRecord) > 0:
+            successfulCount = 0
+            failCounter = np.zeros(7)
+            for r in self.successRecord:
+                if r[0]:
+                    successfulCount += 1
+                else:
+                    failCounter[r[2]] += 1
+            print("Success Rate: " + str(successfulCount / len(self.successRecord)))
+            print("Failure Counter: " + str(failCounter))
+            self.saveSuccessData()
+
         self.frameskip = 4
         self.SPDTorqueLimits = False
         self.SPDPerFrame = False
@@ -1275,96 +1333,132 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         a=0
 
     def extraRenderFunction(self):
-        renderUtils.setColor(color=[0.0, 0.0, 0])
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex3d(0,0,0)
-        GL.glVertex3d(-1,0,0)
-        GL.glEnd()
-
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
         bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
         bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
 
         renderUtils.drawLineStrip(points=[bottomNeck, bottomHead, topHead])
 
-        if not self.simpleUI:
-            self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
-            self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
-            self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0,1,0])
-            self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-            self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-            self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-            self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-            self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-            self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-
         renderUtils.setColor([0,0,0])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
-        #restPose rendering
-        if self.renderRestPose:
-            links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
-            renderUtils.drawLines(lines=links)
 
-        if self.renderGeodesic:
-            for v in range(self.clothScene.getNumVertices()):
-                side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
-                side0geo = self.separatedMesh.nodes[v].geodesic
+        if self.renderDetails:
+            renderUtils.setColor(color=[0.0, 0.0, 0])
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3d(0, 0, 0)
+            GL.glVertex3d(-1, 0, 0)
+            GL.glEnd()
 
-                pos = self.clothScene.getVertexPos(vid=v)
-                norm = self.clothScene.getVertNormal(vid=v)
-                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
-                renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01, slices=3)
-                renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
-                renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01, slices=3)
+            if not self.simpleUI:
+                self.collarFeature.drawProjectionPoly(renderNormal=False, renderBasis=False)
+                self.gripFeatureL.drawProjectionPoly(renderNormal=False, renderBasis=False)
+                self.gripFeatureR.drawProjectionPoly(renderNormal=False, renderBasis=False, fillColor=[0,1,0])
+                self.sleeveRSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+                self.sleeveRMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+                self.sleeveREndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+                self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+                self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+                self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
 
-        if self.renderOracle and not self.simpleUI:
-            ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
-            renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
+
+            #restPose rendering
+            if self.renderRestPose:
+                links = pyutils.getRobotLinks(self.robot_skeleton, pose=self.restPose)
+                renderUtils.drawLines(lines=links)
+
+            if self.renderGeodesic:
+                for v in range(self.clothScene.getNumVertices()):
+                    side1geo = self.separatedMesh.nodes[v + self.separatedMesh.numv].geodesic
+                    side0geo = self.separatedMesh.nodes[v].geodesic
+
+                    pos = self.clothScene.getVertexPos(vid=v)
+                    norm = self.clothScene.getVertNormal(vid=v)
+                    renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side0geo))
+                    renderUtils.drawSphere(pos=pos-norm*0.01, rad=0.01, slices=3)
+                    renderUtils.setColor(color=renderUtils.heatmapColor(minimum=0, maximum=self.separatedMesh.maxGeo, value=self.separatedMesh.maxGeo-side1geo))
+                    renderUtils.drawSphere(pos=pos + norm * 0.01, rad=0.01, slices=3)
+
+            if self.renderOracle and not self.simpleUI:
+                ef = self.robot_skeleton.bodynodes[self.focusFeatureNode].to_world(self.fingertip)
+                renderUtils.drawArrow(p0=ef, p1=ef + self.prevOracle)
 
 
         #render targets
         #fingertip = np.array([0,-0.065,0])
 
-        efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
-        if self.renderRightTarget and not self.simpleUI:
-            renderUtils.setColor(color=[1.0,0,0])
-            renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
-            renderUtils.drawLineStrip(points=[self.rightTarget, efR])
+            efR = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
+            if self.renderRightTarget and not self.simpleUI:
+                renderUtils.setColor(color=[1.0,0,0])
+                renderUtils.drawSphere(pos=self.rightTarget,rad=0.02)
+                renderUtils.drawLineStrip(points=[self.rightTarget, efR])
 
-        efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-        if self.renderLeftTarget and not self.simpleUI:
-            renderUtils.setColor(color=[0, 1.0, 0])
-            renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
-            renderUtils.drawLineStrip(points=[self.leftTarget, efL])
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            if self.renderLeftTarget and not self.simpleUI:
+                renderUtils.setColor(color=[0, 1.0, 0])
+                renderUtils.drawSphere(pos=self.leftTarget,rad=0.02)
+                renderUtils.drawLineStrip(points=[self.leftTarget, efL])
 
-        if self.renderContainmentTriangle and not self.simpleUI:
-            renderUtils.setColor([1.0, 1.0, 0])
-            renderUtils.drawTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2])
-            U = self.previousContainmentTriangle[1] - self.previousContainmentTriangle[0]
-            V = self.previousContainmentTriangle[2] - self.previousContainmentTriangle[0]
+            if self.renderContainmentTriangle and not self.simpleUI:
+                renderUtils.setColor([1.0, 1.0, 0])
+                renderUtils.drawTriangle(self.previousContainmentTriangle[0],self.previousContainmentTriangle[1],self.previousContainmentTriangle[2])
+                U = self.previousContainmentTriangle[1] - self.previousContainmentTriangle[0]
+                V = self.previousContainmentTriangle[2] - self.previousContainmentTriangle[0]
 
-            tnorm = np.cross(U, V)
-            tnorm /= np.linalg.norm(tnorm)
-            centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
-            renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
+                tnorm = np.cross(U, V)
+                tnorm /= np.linalg.norm(tnorm)
+                centroid = (self.previousContainmentTriangle[0] + self.previousContainmentTriangle[1] + self.previousContainmentTriangle[2])/3.0
+                renderUtils.drawLines(lines=[[centroid, centroid+tnorm]])
 
-        textHeight = 15
-        textLines = 2
+            textHeight = 15
+            textLines = 2
 
-        if self.renderUI:
-            renderUtils.setColor(color=[0.,0,0])
-            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
-            textLines += 1
-            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
-            textLines += 1
-            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
-            textLines += 1
-            if self.numSteps > 0:
-                renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=self.renderRestPose)
+            if self.renderUI:
+                renderUtils.setColor(color=[0.,0,0])
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps), color=(0., 0, 0))
+                textLines += 1
+                self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
+                textLines += 1
+                self.clothScene.drawText(x=15., y=textLines * textHeight, text="Cumulative Reward = " + str(self.cumulativeReward), color=(0., 0, 0))
+                textLines += 1
+                if self.numSteps > 0:
+                    renderUtils.renderDofs(robot=self.robot_skeleton, restPose=self.restPose, renderRestPose=self.renderRestPose)
 
-            if self.stepsSinceControlSwitch < 50 and len(self.controllers) > 0:
-                label = self.controllers[self.currentController].name
-                self.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 60,
-                                         text="Active Controller = " + str(label), color=(0., 0, 0))
+                if self.stepsSinceControlSwitch < 50 and len(self.controllers) > 0:
+                    label = self.controllers[self.currentController].name
+                    self.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 60,
+                                             text="Active Controller = " + str(label), color=(0., 0, 0))
+
+    def saveSuccessData(self):
+        f = open(self.successTrackingFile, 'w')
+
+        successfulCount = 0
+        failCounter = np.zeros(7)
+        if len(self.successRecord) > 0:
+            for r in self.successRecord:
+                if r[0]:
+                    successfulCount += 1
+                else:
+                    failCounter[r[2]] += 1
+
+        f.write("Data Collected: " + str(datetime.datetime.today().strftime('%Y-%m-%d')) + "\n")
+        f.write("Number of Trials: " + str(len(self.successRecord)) + "\n")
+        f.write("Success rate: " + str(successfulCount / len(self.successRecord)) + "\n")
+        f.write("Failure Counter: " + str(failCounter) + "\n")
+
+        for r in self.successRecord:
+            f.write(str(r) + "\n")
+
+        f.close()
+
+    def viewer_setup(self):
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -2.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+        self.track_skeleton_id = 0
+        if not self.renderDARTWorld:
+            self.viewer.renderWorld = False
+        self.clothScene.renderCollisionCaps = True
+        self.clothScene.renderCollisionSpheres = True
