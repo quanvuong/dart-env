@@ -37,6 +37,14 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
+        self.initialize_articunet()
+
+        utils.EzPickle.__init__(self)
+
+    def initialize_articunet(self, supp_input = None, reverse_order = None, feet_specialized = None):
+        self.supp_input = supp_input if supp_input is not None else self.supp_input
+        self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
+        self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for controller articunet
         self.state_dim = 32
         self.enc_net = []
@@ -125,11 +133,11 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         # dynamics modules
         if self.fwd_bwd_pass:
             self.dyn_enc_net = []
-            self.dyn_act_net = [] # using actor as decoder
+            self.dyn_act_net = []  # using actor as decoder
             self.dyn_merg_net = []
             self.dyn_net_modules = []
-            self.dyn_enc_net.append([self.state_dim, 6+1, 256, 1, 'dyn_planar_enc'])
-            self.dyn_enc_net.append([self.state_dim, 3+1, 256, 1, 'dyn_revolute_enc'])
+            self.dyn_enc_net.append([self.state_dim, 6 + 1, 256, 1, 'dyn_planar_enc'])
+            self.dyn_enc_net.append([self.state_dim, 3 + 1, 256, 1, 'dyn_revolute_enc'])
             self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
             self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
             self.dyn_net_modules.append([[5, 11, 14, 15], 1, None])
@@ -170,11 +178,8 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.dyn_net_modules.append([[], 3, [4]])
             self.dyn_net_modules.append([[], 3, [5]])
             self.dyn_net_modules.append([[], 3, [6]])
-            self.dyn_net_modules.append([[], None, [7,8,9,10], None, False])
+            self.dyn_net_modules.append([[], None, [7, 8, 9, 10], None, False])
             self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 3, 4, 5, 7, 9, 11], dtype=np.int32)
-
-
-        utils.EzPickle.__init__(self)
 
     def advance(self, a):
         clamped_control = np.array(a)
@@ -196,7 +201,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
         return not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-             (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+             (height > self.init_height - 0.4) and (height < self.init_height + 0.5))
 
     def _step(self, a):
         pre_state = [self.state_vector()]

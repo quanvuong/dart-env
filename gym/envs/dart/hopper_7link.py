@@ -35,6 +35,14 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(3)
 
+        self.initialize_articunet()
+
+        utils.EzPickle.__init__(self)
+
+    def initialize_articunet(self, supp_input = None, reverse_order = None, feet_specialized = None):
+        self.supp_input = supp_input if supp_input is not None else self.supp_input
+        self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
+        self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for articunet
         self.state_dim = 32
         self.enc_net = []
@@ -190,8 +198,6 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dyn_net_modules.append([[], None, [13, 14, 15, 16, 17, 18], None, False])
         self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 14, 16, 3, 4, 5, 7, 9, 11, 13, 15, 17], dtype=np.int32)
 
-        utils.EzPickle.__init__(self)
-
     def advance(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -237,7 +243,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.num_steps += 1.0
         #print(self.num_steps)
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > self.init_height - 0.4) and (height < self.init_height + 0.5) and (abs(ang) < .4))
+                    (height > self.init_height - 0.4) and (height < self.init_height + 0.5))
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             reward = 0
         #if fall_on_ground:
