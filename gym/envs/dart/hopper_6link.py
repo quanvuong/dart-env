@@ -17,7 +17,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.supp_input = False
 
-        self.reverse_order = True
+        self.reverse_order = False
 
         self.feet_specialized = False
 

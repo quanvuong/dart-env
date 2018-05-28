@@ -23,7 +23,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.reverse_order = False
 
-        self.feet_specialized = True
+        self.feet_specialized = False
 
         if self.supp_input:
             obs_dim += 3 * 5  # [contact, local_x, local_y]

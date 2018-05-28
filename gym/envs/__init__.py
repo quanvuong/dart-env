@@ -313,10 +313,48 @@ register(
 )
 
 register(
+    id='DartHopper4LinkSPD-v1',
+    entry_point='gym.envs.dart:DartHopper4LinkSPDEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
+    id='DartHopper5LinkSPD-v1',
+    entry_point='gym.envs.dart:DartHopper5LinkSPDEnv',
+    reward_threshold=3800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartHopper6Link2Foot-v1',
     entry_point='gym.envs.dart:DartHopper6Link2FootEnv',
     reward_threshold=3800.0,
     max_episode_steps=1000,
+)
+
+register(
+    id='DartReacher3Link-v1',
+    entry_point='gym.envs.dart:DartReacher3LinkEnv',
+    max_episode_steps=500,
+)
+
+register(
+    id='DartReacher4Link-v1',
+    entry_point='gym.envs.dart:DartReacher4LinkEnv',
+    max_episode_steps=500,
+)
+
+register(
+    id='DartReacher5Link-v1',
+    entry_point='gym.envs.dart:DartReacher5LinkEnv',
+    max_episode_steps=500,
+)
+
+register(
+    id='DartReacher6Link-v1',
+    entry_point='gym.envs.dart:DartReacher6LinkEnv',
+    max_episode_steps=500,
 )
 
 register(

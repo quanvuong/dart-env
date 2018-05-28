@@ -32,7 +32,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.assist_timeout = 10.0  # do not provide pushing assistance after certain time
+        self.assist_timeout = 0.0  # do not provide pushing assistance after certain time
         self.assist_schedule = [[0.0, [6.3, 6.3]], [30.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
