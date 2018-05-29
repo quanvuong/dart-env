@@ -19,7 +19,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def initialize_articunet(self, reverse_order = None):
         # setups for articunet
         self.state_dim = 32
-        self.task_dim = 6
+        self.task_dim = 6 if self.include_task else 0
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
