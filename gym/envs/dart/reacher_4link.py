@@ -37,7 +37,7 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[4, 5, 12, 13], 1, [0]])
         self.net_vf_modules.append([[2, 3, 10, 11], 1, [1]])
         self.net_vf_modules.append([[0, 1, 8, 9], 1, [2]])
-        self.net_vf_modules.append([[], None, [3], [16, 17, 18, 19, 20, 21] if self.include_task else []])
+        self.net_vf_modules.append([[], None, [3], [16, 17, 18, 19, 20, 21] if self.include_task else None])
         self.net_vf_modules.append([[], 3, [4]])
 
         # policy modules
@@ -48,10 +48,10 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 4, [3, 2], None, False])
         self.net_modules.append([[], 4, [3, 1], None, False])
         self.net_modules.append([[], 4, [3, 0], None, False])
-        self.net_modules.append([[], None, [3], [16, 17, 18, 19, 20, 21] if self.include_task else []])
-        self.net_modules.append([[], None, [4], [16, 17, 18, 19, 20, 21] if self.include_task else []])
-        self.net_modules.append([[], None, [5], [16, 17, 18, 19, 20, 21] if self.include_task else []])
-        self.net_modules.append([[], None, [6], [16, 17, 18, 19, 20, 21] if self.include_task else []])
+        self.net_modules.append([[], None, [3], [16, 17, 18, 19, 20, 21] if self.include_task else None])
+        self.net_modules.append([[], None, [4], [16, 17, 18, 19, 20, 21] if self.include_task else None])
+        self.net_modules.append([[], None, [5], [16, 17, 18, 19, 20, 21] if self.include_task else None])
+        self.net_modules.append([[], None, [6], [16, 17, 18, 19, 20, 21] if self.include_task else None])
 
         self.net_modules.append([[], 2, [7]])
         self.net_modules.append([[], 2, [8]])

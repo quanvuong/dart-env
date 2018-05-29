@@ -40,7 +40,7 @@ class DartReacher6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[4, 5, 16, 17], 1, [2]])
         self.net_vf_modules.append([[2, 3, 14, 15], 1, [3]])
         self.net_vf_modules.append([[0, 1, 12, 13], 1, [4]])
-        self.net_vf_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else []])
+        self.net_vf_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else None])
         self.net_vf_modules.append([[], 3, [6]])
 
         # policy modules
@@ -55,12 +55,12 @@ class DartReacher6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 4, [5, 2], None, False])
         self.net_modules.append([[], 4, [5, 1], None, False])
         self.net_modules.append([[], 4, [5, 0], None, False])
-        self.net_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else []])
-        self.net_modules.append([[], None, [6], [24, 25, 26, 27, 28, 29] if self.include_task else []])
-        self.net_modules.append([[], None, [7], [24, 25, 26, 27, 28, 29] if self.include_task else []])
-        self.net_modules.append([[], None, [8], [24, 25, 26, 27, 28, 29] if self.include_task else []])
-        self.net_modules.append([[], None, [9], [24, 25, 26, 27, 28, 29] if self.include_task else []])
-        self.net_modules.append([[], None, [10], [24, 25, 26, 27, 28, 29] if self.include_task else []])
+        self.net_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+        self.net_modules.append([[], None, [6], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+        self.net_modules.append([[], None, [7], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+        self.net_modules.append([[], None, [8], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+        self.net_modules.append([[], None, [9], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+        self.net_modules.append([[], None, [10], [24, 25, 26, 27, 28, 29] if self.include_task else None])
 
         self.net_modules.append([[], 2, [11]])
         self.net_modules.append([[], 2, [12]])
