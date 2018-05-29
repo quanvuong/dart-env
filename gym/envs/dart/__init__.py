@@ -73,3 +73,4 @@ from gym.envs.dart.reacher_3link import DartReacher3LinkEnv
 from gym.envs.dart.reacher_4link import DartReacher4LinkEnv
 from gym.envs.dart.reacher_5link import DartReacher5LinkEnv
 from gym.envs.dart.reacher_6link import DartReacher6LinkEnv
+from gym.envs.dart.reacher_7link import DartReacher7LinkEnv

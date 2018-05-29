@@ -358,6 +358,12 @@ register(
 )
 
 register(
+    id='DartReacher7Link-v1',
+    entry_point='gym.envs.dart:DartReacher7LinkEnv',
+    max_episode_steps=500,
+)
+
+register(
     id='DartHopperRSS-v1',
     entry_point='gym.envs.dart:DartHopperRSSEnv',
     reward_threshold=3800.0,

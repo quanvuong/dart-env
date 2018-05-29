@@ -8,7 +8,11 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.target = np.array([0.8, -0.6, 0.6])
         self.action_scale = np.array([10, 10, 10, 10, 10, 10])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
-        dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, 18, self.control_bounds, disableViewer=True)
+        obs_dim = 18
+        self.include_task = True
+        if not self.include_task:
+            obs_dim -= 6
+        dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
         utils.EzPickle.__init__(self)
 
@@ -32,7 +36,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules.append([[4, 5, 10, 11], 1, None])
         self.net_vf_modules.append([[2, 3, 8, 9], 1, [0]])
         self.net_vf_modules.append([[0, 1, 6, 7], 1, [1]])
-        self.net_vf_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17]])
+        self.net_vf_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17] if self.include_task else []])
         self.net_vf_modules.append([[], 3, [3]])
 
         # policy modules
@@ -41,9 +45,9 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[0, 1, 6, 7], 0, [1]])
         self.net_modules.append([[], 4, [2, 1], None, False])
         self.net_modules.append([[], 4, [2, 0], None, False])
-        self.net_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17]])
-        self.net_modules.append([[], None, [3], [12, 13, 14, 15, 16, 17]])
-        self.net_modules.append([[], None, [4], [12, 13, 14, 15, 16, 17]])
+        self.net_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17] if self.include_task else []])
+        self.net_modules.append([[], None, [3], [12, 13, 14, 15, 16, 17] if self.include_task else []])
+        self.net_modules.append([[], None, [4], [12, 13, 14, 15, 16, 17] if self.include_task else []])
 
         self.net_modules.append([[], 2, [5]])
         self.net_modules.append([[], 2, [6]])
@@ -85,7 +89,10 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         theta = self.robot_skeleton.q
         fingertip = np.array([0.0, -0.25, 0.0])
         vec = self.robot_skeleton.bodynodes[-1].to_world(fingertip) - self.target
-        return np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq, self.target, vec]).ravel()
+        if self.include_task:
+            return np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq, self.target, vec]).ravel()
+        else:
+            return np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]).ravel()
 
     def reset_model(self):
         self.dart_world.reset()
