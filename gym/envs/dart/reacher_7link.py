@@ -100,10 +100,10 @@ class DartReacher7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.num_steps += 1
 
-        done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
+        done = not (np.isfinite(s).all())
 
-        if done:
-            reward += 10.0
+        if (-reward_dist < 0.1):
+            reward += 2.0
 
         return ob, reward, done, {}
 

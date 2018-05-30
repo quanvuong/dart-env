@@ -9,7 +9,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([10, 10, 10, 10, 10, 10])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         obs_dim = 18
-        self.include_task = True
+        self.include_task = False
         if not self.include_task:
             obs_dim -= 6
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
@@ -78,10 +78,10 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.num_steps += 1
 
-        done = not (np.isfinite(s).all() and (-reward_dist > 0.1))
+        done = not (np.isfinite(s).all())
 
-        if done:
-            reward += 10.0
+        if (-reward_dist < 0.1):
+            reward += 2.0
 
         return ob, reward, done, {}
 

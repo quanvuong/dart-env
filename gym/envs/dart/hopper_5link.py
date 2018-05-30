@@ -63,11 +63,11 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 2+3, 64, 1, 'revolute_enc'])
 
         self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2+3, 64, 1, 'vf_revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
@@ -86,10 +86,10 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # value function modules
         if not self.include_action_in_obs:
-            self.net_vf_modules.append([[5, 12], 3, None])
-            self.net_vf_modules.append([[4, 11], 3, [0]])
-            self.net_vf_modules.append([[3, 10], 3, [1]])
-            self.net_vf_modules.append([[2, 9], 3, [2]])
+            self.net_vf_modules.append([[5, 12, 6, 7, 8], 3, None])
+            self.net_vf_modules.append([[4, 11, 6, 7, 8], 3, [0]])
+            self.net_vf_modules.append([[3, 10, 6, 7, 8], 3, [1]])
+            self.net_vf_modules.append([[2, 9, 6, 7, 8], 3, [2]])
         else:
             self.net_vf_modules.append([[5, 12, 16], 3, None])
             self.net_vf_modules.append([[4, 11, 15], 3, [0]])
@@ -100,10 +100,10 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # policy modules
         if not self.reverse_order:
-            self.net_modules.append([[5, 12], 1 if not self.feet_specialized else 4, None])
-            self.net_modules.append([[4, 11], 1 if not self.feet_specialized else 4, [0]])
-            self.net_modules.append([[3, 10], 1, [1]])
-            self.net_modules.append([[2, 9], 1, [2]])
+            self.net_modules.append([[5, 12, 6, 7, 8], 1 if not self.feet_specialized else 4, None])
+            self.net_modules.append([[4, 11, 6, 7, 8], 1 if not self.feet_specialized else 4, [0]])
+            self.net_modules.append([[3, 10, 6, 7, 8], 1, [1]])
+            self.net_modules.append([[2, 9, 6, 7, 8], 1, [2]])
             self.net_modules.append([[0, 1, 6, 7, 8], 0, [3]])
 
             if self.include_action_in_obs:
@@ -252,6 +252,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
+        reward -= 1e-2 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
