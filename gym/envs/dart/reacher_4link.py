@@ -9,7 +9,7 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([10, 10, 10, 10, 10, 10, 10, 10])
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         obs_dim = 22
-        self.include_task = False
+        self.include_task = True
         if not self.include_task:
             obs_dim -= 6
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_4link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)

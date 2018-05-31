@@ -15,7 +15,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += len(self.control_bounds[0])
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
-        self.supp_input = False
+        self.supp_input = True
 
         self.reverse_order = False
 
@@ -59,11 +59,11 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2+3, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
 
         self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2+3, 64, 1, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
@@ -82,12 +82,12 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # value function modules
         if not self.include_action_in_obs:
-            self.net_vf_modules.append([[7, 16, 8, 9, 10], 3, None])
-            self.net_vf_modules.append([[6, 15, 8, 9, 10], 3, [0]])
-            self.net_vf_modules.append([[5, 14, 8, 9, 10], 3, [1]])
-            self.net_vf_modules.append([[4, 13, 8, 9, 10], 3, [2]])
-            self.net_vf_modules.append([[3, 12, 8, 9, 10], 3, [3]])
-            self.net_vf_modules.append([[2, 11, 8, 9, 10], 3, [4]])
+            self.net_vf_modules.append([[7, 16], 3, None])
+            self.net_vf_modules.append([[6, 15], 3, [0]])
+            self.net_vf_modules.append([[5, 14], 3, [1]])
+            self.net_vf_modules.append([[4, 13], 3, [2]])
+            self.net_vf_modules.append([[3, 12], 3, [3]])
+            self.net_vf_modules.append([[2, 11], 3, [4]])
         else:
             self.net_vf_modules.append([[7, 16, 19], 3, None])
             self.net_vf_modules.append([[6, 15, 19], 3, [0]])
@@ -100,12 +100,12 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # policy modules
         if not self.reverse_order:
-            self.net_modules.append([[7, 16, 8, 9, 10], 1 if not self.feet_specialized else 4, None])
-            self.net_modules.append([[6, 15, 8, 9, 10], 1 if not self.feet_specialized else 4, [0]])
-            self.net_modules.append([[5, 14, 8, 9, 10], 1, [1]])
-            self.net_modules.append([[4, 13, 8, 9, 10], 1, [2]])
-            self.net_modules.append([[3, 12, 8, 9, 10], 1, [3]])
-            self.net_modules.append([[2, 11, 8, 9, 10], 1, [4]])
+            self.net_modules.append([[7, 16], 1 if not self.feet_specialized else 4, None])
+            self.net_modules.append([[6, 15], 1 if not self.feet_specialized else 4, [0]])
+            self.net_modules.append([[5, 14], 1, [1]])
+            self.net_modules.append([[4, 13], 1, [2]])
+            self.net_modules.append([[3, 12], 1, [3]])
+            self.net_modules.append([[2, 11], 1, [4]])
             self.net_modules.append([[0, 1, 8, 9, 10], 0, [5]])
 
             if self.include_action_in_obs:
@@ -238,13 +238,13 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
-        reward -= 1e-2 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
+        reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
         #print(self.num_steps)
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > self.init_height - 0.4) and (height < self.init_height + 0.5))
+                    (height > self.init_height - 1.4) and (height < self.init_height + 0.5))
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             reward = 0
         #if fall_on_ground:
