@@ -531,7 +531,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>8.0</damping>
                         <spring_rest_position>0.0</spring_rest_position>
 	                    <spring_stiffness>50.0</spring_stiffness>
 	                    <spring_damping>2.0</spring_damping>
@@ -619,7 +619,7 @@
                         <upper>0.8</upper>
                     </limit>
                     <dynamics>
-                        <damping>5.0</damping>
+                        <damping>8.0</damping>
                         <stiffness>0.0</stiffness>
                         <spring_rest_position>0.0</spring_rest_position>
 	                    <spring_stiffness>50.0</spring_stiffness>
