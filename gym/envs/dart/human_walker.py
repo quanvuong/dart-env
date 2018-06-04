@@ -14,7 +14,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 160, 60, 100, 80, 60, 60, 160, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
@@ -55,8 +55,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.35
-        self.alive_bonus_rew = 9.0
+        self.energy_weight = 0.3
+        self.alive_bonus_rew = 7.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -199,8 +199,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             if self.constrain_2d and (self.t < self.assist_timeout):
                 force = self._bodynode_spd(self.robot_skeleton.bodynode(self.push_target), self.current_pd, 2)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([0, 0, force]))
-                #force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
-                #self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('thorax'), self.current_pd, 2)
+                self.robot_skeleton.bodynode('thorax').add_ext_force(np.array([0, 0, force]))
 
             if self.enforce_target_vel and (self.t < self.assist_timeout) and not self.hard_enforce:
                 tvel = self.target_vel
@@ -393,16 +393,19 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
-        # action_pen += 0.02 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
+        #action_pen += 0.002 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
         deviation_pen = 3 * abs(side_deviation)
 
         contact_pen = 0.5 * np.square(np.clip(l_foot_force, -2000, 2000)/ 1000.0).sum()+np.square(np.clip(r_foot_force, -2000, 2000)/ 1000.0).sum()
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.0 * np.sum(np.abs(self.robot_skeleton.q[[18, 19]])) + 1.5 * np.abs(self.robot_skeleton.q[20]) + \
-                    0.8 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
-                    0.8 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[2])
+        spine_pen = 1.7 * np.abs(self.robot_skeleton.q[18]) + \
+                    0.1 * np.abs(self.robot_skeleton.q[19]) + \
+                    0.5 * np.abs(self.robot_skeleton.q[20]) + \
+                    1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
+                    0.5 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[5])# + \
+                    #0.8 * np.abs(self.robot_skeleton.q[20] + self.robot_skeleton.q[4])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
@@ -447,7 +450,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
+                    (height - self.init_height > -0.45) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
                     and np.abs(angle) < 1.2 and
                     np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2
