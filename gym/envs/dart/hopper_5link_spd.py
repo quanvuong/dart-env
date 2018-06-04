@@ -3,10 +3,10 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopper5LinkSPDEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0]])
-        self.action_scale = 100
+        self.action_scale = 200
         self.include_action_in_obs = False
         self.randomize_dynamics = False
         obs_dim = 13
@@ -40,6 +40,12 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(3)
 
         self.initialize_articunet()
+
+        kp_diag = np.array([0.0] * 3 + [100.0] * (4))
+        self.Kp = np.diagflat(kp_diag)
+        self.Kd = np.diagflat(kp_diag * 0.05)
+
+        self.torque_limit = np.array([self.action_scale] * 4)
 
         utils.EzPickle.__init__(self)
 
@@ -204,6 +210,32 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.dyn_net_modules.append([[], None, [9, 10, 11, 12, 13], None, False])
             self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 3, 4, 5, 7, 9, 11, 13], dtype=np.int32)
 
+    def _fullspd(self, target_q):
+        p = -self.Kp.dot(self.robot_skeleton.q + self.robot_skeleton.dq * self.dt - target_q)
+        d = -self.Kd.dot(self.robot_skeleton.dq)
+        qddot = np.linalg.solve(self.robot_skeleton.M + self.Kd * self.dt, -self.robot_skeleton.c + p + d + self.robot_skeleton.constraint_forces())
+        tau = p + d - self.Kd.dot(qddot) * self.dt
+
+        tau[0:3] = 0
+
+        for i in range(len(self.torque_limit)):
+            if abs(tau[i+3]) > self.torque_limit[i]:
+                tau[i+3] = np.sign(tau[i+3]) * self.torque_limit[i]
+
+        return tau
+
+    def do_simulation_spd(self, target_q, n_frames):
+        total_torque = np.zeros(len(target_q))
+        for _ in range(n_frames):
+            tau = self._fullspd(target_q)
+            total_torque += tau
+            self.robot_skeleton.set_forces(tau)
+            self.dart_world.step()
+            s = self.state_vector()
+            if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
+                break
+        return total_torque
+
     def advance(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -213,10 +245,14 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         if self.include_action_in_obs:
             self.prev_a = np.copy(clamped_control)
-        tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[3:] = clamped_control * self.action_scale
 
-        self.do_simulation(tau, self.frame_skip)
+        target_q = np.zeros(self.robot_skeleton.ndofs)
+        for i in range(len(self.control_bounds[0])):
+            target_q[3 + i] = (clamped_control[i] + 1.0) / 2.0 * (
+                    self.robot_skeleton.q_upper[i + 3] - self.robot_skeleton.q_lower[i + 3]) + \
+                              self.robot_skeleton.q_lower[i + 3]
+
+        return self.do_simulation_spd(target_q, self.frame_skip)
 
     def terminated(self):
         s = self.state_vector()
@@ -224,13 +260,13 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
         return not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-             (height > self.init_height - 1.4) and (height < self.init_height + 0.5))
+             (height > self.init_height - 0.4) and (height < self.init_height + 0.5))
 
     def _step(self, a):
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.q[0]
-        self.advance(a)
+        total_torque = self.advance(a)
         posafter,ang = self.robot_skeleton.q[0,2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
@@ -251,8 +287,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
+        reward -= 0.001 * np.square(total_torque * 1e-3).sum()
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0

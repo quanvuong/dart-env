@@ -35,16 +35,16 @@
             </joint>
         </skeleton>
 
-        <skeleton name="hopper">
+        <skeleton name="crawler">
             <transformation>0 0.0 0 0 0 0</transformation>
-            <body name="h_pelvis">
-                <transformation> 0.0 0.8 0 0 0 0</transformation>
+            <body name="h_head">
+                <transformation> 0.0 0.051 0 0 0 0</transformation>
                 <inertia>
                     <mass>4.0</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 0 0.0 1.57079632679 0 0</transformation>
+                    <transformation>0.0 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -53,7 +53,7 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 0 0.0 1.57079632679 0 0</transformation>
+                    <transformation>0.0 0 0.0 0 1.57079632679 0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -63,31 +63,31 @@
                 </collision_shape>
             </body>
 
-            <body name="h_pelvis_aux">
-                <transformation> 0.0 0.8 0 0 0 0</transformation>
+            <body name="h_head_aux">
+                <transformation> 0.0 0.051 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
             </body>
 
-            <body name="h_pelvis_aux2">
-                <transformation> 0.0 0.8 0 0 0 0</transformation>
+            <body name="h_head_aux1">
+                <transformation> 0.0 0.051 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
                 </inertia>
             </body>
 
-            <!-- Right Leg -->
-            <body name="h_shin">
-                <transformation>0.0 0.575 0.0 0.0 0.0 0.0</transformation>
+
+            <body name="h_body1">
+                <transformation>-0.225 0.051 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>4.0</mass>
-                    <offset>0.0 -0.225 0.0</offset>
+                    <offset>-0.225 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0 0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -96,7 +96,7 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0 0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -106,14 +106,14 @@
                 </collision_shape>
             </body>
 
-            <body name="h_foot">
-                <transformation>0.0 0.125 0.0 0.0 0.0 0.0</transformation>
+            <body name="h_body2">
+                <transformation>-0.675 0.051 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>4.0</mass>
-                    <offset>0.0 -0.225 0.0</offset>
+                    <offset>-0.225 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0 0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -122,7 +122,7 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0  0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -132,14 +132,14 @@
                 </collision_shape>
             </body>
 
-            <!--<body name="h_foot1">
-                <transformation>0.0 0.125 0.0 0.0 0.0 0.0</transformation>
+            <body name="h_body3">
+                <transformation>-1.125 0.051 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
                     <mass>4.0</mass>
-                    <offset>0.0 -0.225 0.0</offset>
+                    <offset>-0.225 0.0 0.0</offset>
                 </inertia>
                 <visualization_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0 0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -148,7 +148,7 @@
                     </geometry>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <transformation>-0.225 0.0 0.0  0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
                             <height>0.45</height>
@@ -156,13 +156,12 @@
                         </capsule>
                     </geometry>
                 </collision_shape>
-            </body>-->
-
+            </body>
 
             <!-- JOINT: Pelvis -->
             <joint type="prismatic" name="j_pelvis_x">
                 <parent>world</parent>
-                <child>h_pelvis_aux2</child>
+                <child>h_head_aux1</child>
                 <axis>
                       <xyz>1.0 0.0 0.0</xyz>
                 </axis>
@@ -170,9 +169,19 @@
                 <init_vel>0</init_vel>
             </joint>
 
-            <joint type="prismatic" name="j_pelvis_y">
-                <parent>h_pelvis_aux2</parent>
-                <child>h_pelvis_aux</child>
+            <joint type="prismatic" name="j_pelvis_z">
+                <parent>h_head_aux1</parent>
+                <child>h_head_aux</child>
+                <axis>
+                      <xyz>0.0 0.0 1.0</xyz>
+                </axis>
+                <init_pos>0</init_pos>
+                <init_vel>0</init_vel>
+            </joint>
+
+            <joint type="revolute" name="j_pelvis_rot">
+                <parent>h_head_aux</parent>
+                <child>h_head</child>
                 <axis>
                       <xyz>0.0 1.0 0.0</xyz>
                 </axis>
@@ -180,30 +189,36 @@
                 <init_vel>0</init_vel>
             </joint>
 
-            <joint type="revolute" name="j_pelvis_rot">
-                <parent>h_pelvis_aux</parent>
-                <child>h_pelvis</child>
+            <joint type="revolute" name="j_body1">
+                <parent>h_head</parent>
+                <child>h_body1</child>
                 <axis>
-                      <xyz>0.0 0.0 -1.0</xyz>
+                    <xyz>0.0 1.0 0.0</xyz>
+		            <limit>
+                    	<lower>-2</lower>
+                    	<upper>2</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>5.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
                 </axis>
                 <init_pos>0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
 
-
-            <!-- JOINT: Leg -->
-            <joint type="revolute" name="j_shin">
+            <joint type="revolute" name="j_body2">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>h_pelvis</parent>
-                <child>h_shin</child>
+                <parent>h_body1</parent>
+                <child>h_body2</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
-		     <limit>
-                    	<lower>-3</lower>
-                    	<upper>3</upper>
+                    <xyz>0.0 1.0 0.0</xyz>
+		            <limit>
+                    	<lower>-2</lower>
+                    	<upper>2</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>5.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -211,44 +226,24 @@
                 <init_vel>0</init_vel>
             </joint>
 
-            <joint type="revolute" name="j_foot">
+            <joint type="revolute" name="j_body3">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>h_shin</parent>
-                <child>h_foot</child>
+                <parent>h_body2</parent>
+                <child>h_body3</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
-		     <limit>
-                    	<lower>-3</lower>
-                    	<upper>3</upper>
+                    <xyz>0.0 1.0 0.0</xyz>
+		            <limit>
+                    	<lower>-2</lower>
+                    	<upper>2</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>5.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
-                <init_pos>1.57</init_pos>
+                <init_pos>0.0</init_pos>
                 <init_vel>0</init_vel>
             </joint>
-
-            <!--<joint type="revolute" name="j_foot1">
-                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
-                <parent>h_shin</parent>
-                <child>h_foot1</child>
-                <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
-		     <limit>
-                    	<lower>-3</lower>
-                    	<upper>3</upper>
-                    </limit>
-                    <dynamics>
-                        <damping>1.0</damping>
-                        <friction>0.0</friction>
-                    </dynamics>
-                </axis>
-                <init_pos>-1.57</init_pos>
-                <init_vel>0</init_vel>
-            </joint>-->
-
 
         </skeleton>
 
