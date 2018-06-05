@@ -88,7 +88,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.curriculum_id = 0
         self.spd_kp_candidates = None
 
-        self.vel_reward_weight = 3.0
+        self.vel_reward_weight = 3.5
         self.stride_weight = 0.0
 
         self.init_qs = []
@@ -450,7 +450,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height - self.init_height > -0.45) and (height - self.init_height < 1.0) and (
+                    (height - self.init_height > -0.35) and (height - self.init_height < 1.0) and (
                     abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
                     and np.abs(angle) < 1.2 and
                     np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2

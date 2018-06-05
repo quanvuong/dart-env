@@ -46,7 +46,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
         self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for controller articunet
-        self.state_dim = 32
+        self.state_dim = 16
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
@@ -54,31 +54,31 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules = []
         self.net_vf_modules = []
         if self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, 32, 2, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 3, 32, 2, 'revolute_enc'])
         elif self.supp_input:
-            self.enc_net.append([self.state_dim, 5 + 3, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5 + 3, 32, 2, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2 + 3, 32, 2, 'revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, 32, 2, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2, 32, 2, 'revolute_enc'])
 
-        self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
+        self.enc_net.append([self.state_dim, 5, 32, 2, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 32, 2, 'vf_revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 3, 32, 2, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 2, 64, 1, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, 32, 2, 'ankle_enc'])
 
-        self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
+        self.act_net.append([self.state_dim, 1, 32, 2, 'revolute_act'])
 
         # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
+        self.act_net.append([self.state_dim, 1, 32, 2, 'ankle_act'])
 
-        self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
+        self.vf_net.append([self.state_dim, 1, 32, 2, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 32, 2, 'merger'])
 
         # value function modules
         if not self.include_action_in_obs:
@@ -201,7 +201,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
         return not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-             (height > self.init_height - 1.0) and (height < self.init_height + 0.5))
+             (height > 0.9) and (height < self.init_height + 0.5))
 
     def _step(self, a):
         pre_state = [self.state_vector()]
@@ -213,6 +213,8 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         fall_on_ground = False
         contacts = self.dart_world.collision_result.contacts
+        if self.supp_input:
+            self.body_contact_list *= 0
         for contact in contacts:
             if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
                     self.robot_skeleton.bodynodes[2]:
@@ -222,8 +224,6 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
                     if bid >= 2:
                         if contact.bodynode1 == bn or contact.bodynode2 == bn:
                             self.body_contact_list[bid-2] = 1.0
-                        else:
-                            self.body_contact_list[bid-2] = 0.0
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
@@ -269,7 +269,7 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
         if self.supp_input:
-            self.body_contact_list = [0.0] * (len(self.robot_skeleton.bodynodes) - 2)
+            self.body_contact_list = np.zeros(len(self.robot_skeleton.bodynodes) - 2)
 
         state = self._get_obs()
 
