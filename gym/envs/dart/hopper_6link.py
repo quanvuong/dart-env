@@ -210,7 +210,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         fall_on_ground = False
         contacts = self.dart_world.collision_result.contacts
         if self.supp_input:
-            self.body_contact_list *= 0
+            self.body_contact_list *= 0.0
         for contact in contacts:
             if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
                     self.robot_skeleton.bodynodes[2]:
@@ -219,7 +219,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 for bid, bn in enumerate(self.robot_skeleton.bodynodes):
                     if bid >= 2:
                         if contact.bodynode1 == bn or contact.bodynode2 == bn:
-                            self.body_contact_list[bid-2] = 1.0
+                            self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt

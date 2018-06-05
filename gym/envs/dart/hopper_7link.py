@@ -232,7 +232,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 for bid, bn in enumerate(self.robot_skeleton.bodynodes):
                     if bid >= 2:
                         if contact.bodynode1 == bn or contact.bodynode2 == bn:
-                            self.body_contact_list[bid-2] = 1.0
+                            self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
@@ -266,7 +266,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.supp_input:
             for i, bn in enumerate(self.robot_skeleton.bodynodes):
                 if i >= 2:
-                    com_off = bn.C - self.robot_skeleton.C
+                    com_off = bn.C - self.robot_skeleton.bodynodes[2].C
                     state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1]]])
 
         return state

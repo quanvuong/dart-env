@@ -26,11 +26,11 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'universal_enc'])
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'vf_universal_enc'])
-        self.act_net.append([self.state_dim+self.task_dim, 2, 64, 1, 'universal_act'])
-        self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 1, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
+        self.enc_net.append([self.state_dim, 4, 64, 3, 'universal_enc'])
+        self.enc_net.append([self.state_dim, 4, 64, 3, 'vf_universal_enc'])
+        self.act_net.append([self.state_dim+self.task_dim, 2, 64, 3, 'universal_act'])
+        self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 3, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 3, 'merger'])
 
         # value function modules
         self.net_vf_modules.append([[6, 7, 14, 15], 1, None])
@@ -86,7 +86,8 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all())
 
         if (-reward_dist < 0.1):
-            reward += 2.0
+            reward += 30.0
+            done = True
 
         return ob, reward, done, {}
 
@@ -107,7 +108,8 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.target) < 1.5: break
-        self.target = np.array([0.7, -0.4, 0.2])
+        #target_set = [np.array([0.7, -0.4, 0.2]), np.array([-0.3, -0.1, -0.7])]
+        #self.target = target_set[np.random.randint(len(target_set))]
 
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 

@@ -67,17 +67,17 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.enc_net.append([self.state_dim, 5, 32, 2, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 32, 2, 'vf_revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 3, 32, 2, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 2, 64, 1, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, 32, 2, 'ankle_enc'])
 
         self.act_net.append([self.state_dim, 1, 32, 2, 'revolute_act'])
 
         # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
+        self.act_net.append([self.state_dim, 1, 32, 2, 'ankle_act'])
 
         self.vf_net.append([self.state_dim, 1, 32, 2, 'vf_out'])
         self.merg_net.append([self.state_dim, 1, 32, 2, 'merger'])
@@ -246,7 +246,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 for bid, bn in enumerate(self.robot_skeleton.bodynodes):
                     if bid >= 2:
                         if contact.bodynode1 == bn or contact.bodynode2 == bn:
-                            self.body_contact_list[bid-2] = 1.0
+                            self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
