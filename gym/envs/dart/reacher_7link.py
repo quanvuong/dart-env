@@ -125,7 +125,9 @@ class DartReacher7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.target) < 1.5: break
-        target_set = [np.array([0.7, -0.4, 0.2]), np.array([-0.3, -0.1, -0.7])]
+        target_set = [np.array([0.7, 0.0, 0.0]), np.array([-0.3, -0.0, -0.0]), np.array([0, 0.7, 0.0]),
+                      np.array([-0.0, -0.3, -0.0]),
+                      np.array([-0.0, -0.0, -0.7]), np.array([-0.0, -0.0, -0.3])]
         self.target = target_set[np.random.randint(len(target_set))]
 
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]

@@ -212,8 +212,9 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.supp_input:
             self.body_contact_list *= 0.0
         for contact in contacts:
-            if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
-                    self.robot_skeleton.bodynodes[2]:
+            if contact.bodynode1.skid == 1 and contact.bodynode1.id < len(self.robot_skeleton.bodynodes) - 3:
+                fall_on_ground = True
+            if contact.bodynode2.skid == 1 and contact.bodynode2.id < len(self.robot_skeleton.bodynodes) - 3:
                 fall_on_ground = True
             if self.supp_input:
                 for bid, bn in enumerate(self.robot_skeleton.bodynodes):
@@ -222,7 +223,7 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
                             self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
-        reward = (posafter - posbefore) / self.dt
+        reward = 0.4*(posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
@@ -234,8 +235,8 @@ class DartHopper6LinkEnv(dart_env.DartEnv, utils.EzPickle):
                      (height > 0.9) and (height < self.init_height + 0.5))
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             reward = 0
-        #if fall_on_ground:
-        #    done = True
+        if fall_on_ground:
+            done = True
         ob = self._get_obs()
 
         return ob, reward, done, {}
