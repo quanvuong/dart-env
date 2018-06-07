@@ -40,7 +40,7 @@ class DartReacher2LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # policy modules
         self.net_modules.append([[2, 3, 6, 7], 0, None])
-        self.net_modules.append([[0, 1, 4, 5], 0, [1]])
+        self.net_modules.append([[0, 1, 4, 5], 0, [0]])
         self.net_modules.append([[], 4, [1, 0], None, False])
         self.net_modules.append([[], None, [1], [8, 9, 10, 11, 12 ,13] if self.include_task else None])
         self.net_modules.append([[], None, [2], [8, 9, 10, 11, 12 ,13] if self.include_task else None])
