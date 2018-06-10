@@ -3,16 +3,16 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartReacher2LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.target = np.array([0.8, -0.6, 0.6])
-        self.action_scale = np.array([10, 10, 10, 10, 10, 10])
-        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
-        obs_dim = 18
+        self.action_scale = np.array([10, 10, 10, 10])
+        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0], [-1.0, -1.0, -1.0, -1.0]])
+        obs_dim = 14
         self.include_task = True
         if not self.include_task:
             obs_dim -= 6
-        dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_2link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
         utils.EzPickle.__init__(self)
 
@@ -33,27 +33,22 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
-        self.net_vf_modules.append([[4, 5, 10, 11], 1, None])
-        self.net_vf_modules.append([[2, 3, 8, 9], 1, [0]])
-        self.net_vf_modules.append([[0, 1, 6, 7], 1, [1]])
-        self.net_vf_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17] if self.include_task else None])
-        self.net_vf_modules.append([[], 3, [3]])
+        self.net_vf_modules.append([[2, 3, 6, 7], 1, None])
+        self.net_vf_modules.append([[0, 1, 4, 5], 1, [0]])
+        self.net_vf_modules.append([[], None, [1], [8, 9, 10, 11, 12 ,13] if self.include_task else None])
+        self.net_vf_modules.append([[], 3, [2]])
 
         # policy modules
-        self.net_modules.append([[4, 5, 10, 11], 0, None])
-        self.net_modules.append([[2, 3, 8, 9], 0, [0]])
-        self.net_modules.append([[0, 1, 6, 7], 0, [1]])
-        self.net_modules.append([[], 4, [2, 1], None, False])
-        self.net_modules.append([[], 4, [2, 0], None, False])
-        self.net_modules.append([[], None, [2], [12, 13, 14, 15, 16, 17] if self.include_task else None])
-        self.net_modules.append([[], None, [3], [12, 13, 14, 15, 16, 17] if self.include_task else None])
-        self.net_modules.append([[], None, [4], [12, 13, 14, 15, 16, 17] if self.include_task else None])
+        self.net_modules.append([[2, 3, 6, 7], 0, None])
+        self.net_modules.append([[0, 1, 4, 5], 0, [0]])
+        self.net_modules.append([[], 4, [1, 0], None, False])
+        self.net_modules.append([[], None, [1], [8, 9, 10, 11, 12 ,13] if self.include_task else None])
+        self.net_modules.append([[], None, [2], [8, 9, 10, 11, 12 ,13] if self.include_task else None])
 
-        self.net_modules.append([[], 2, [5]])
-        self.net_modules.append([[], 2, [6]])
-        self.net_modules.append([[], 2, [7]])
+        self.net_modules.append([[], 2, [3]])
+        self.net_modules.append([[], 2, [4]])
 
-        self.net_modules.append([[], None, [8, 9, 10], None, False])
+        self.net_modules.append([[], None, [5, 6], None, False])
 
     def _step(self, a):
         clamped_control = np.array(a)

@@ -334,6 +334,12 @@ register(
 )
 
 register(
+    id='DartReacher2Link-v1',
+    entry_point='gym.envs.dart:DartReacher2LinkEnv',
+    max_episode_steps=500,
+)
+
+register(
     id='DartReacher3Link-v1',
     entry_point='gym.envs.dart:DartReacher3LinkEnv',
     max_episode_steps=500,

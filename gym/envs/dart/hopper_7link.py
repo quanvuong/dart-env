@@ -44,7 +44,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
         self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for articunet
-        self.state_dim = 16
+        self.state_dim = 32
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
@@ -52,31 +52,31 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules = []
         self.net_vf_modules = []
         if self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 5, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 3, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
         elif self.supp_input:
-            self.enc_net.append([self.state_dim, 5 + 3, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2 + 3, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5 + 3, 64, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2 + 3, 64, 1, 'revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
             self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
 
-        self.enc_net.append([self.state_dim, 5, 32, 2, 'vf_planar_enc'])
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 3, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 2, 32, 2, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, 64, 1, 'ankle_enc'])
 
-        self.act_net.append([self.state_dim, 1, 32, 2, 'revolute_act'])
+        self.act_net.append([self.state_dim, 1, 64, 1, 'revolute_act'])
 
         # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 32, 2, 'ankle_act'])
+        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
 
-        self.vf_net.append([self.state_dim, 1, 32, 2, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 32, 2, 'merger'])
+        self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # 4 - 5, 5 - 7, 6 - 8
 
@@ -225,8 +225,9 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if self.supp_input:
             self.body_contact_list *= 0
         for contact in contacts:
-            if contact.bodynode1 == self.robot_skeleton.bodynodes[2] or contact.bodynode2 == \
-                    self.robot_skeleton.bodynodes[2]:
+            if contact.bodynode1.skid == 1 and contact.bodynode1.id < len(self.robot_skeleton.bodynodes) - 3:
+                fall_on_ground = True
+            if contact.bodynode2.skid == 1 and contact.bodynode2.id < len(self.robot_skeleton.bodynodes) - 3:
                 fall_on_ground = True
             if self.supp_input:
                 for bid, bn in enumerate(self.robot_skeleton.bodynodes):
@@ -235,7 +236,7 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
                             self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
-        reward = (posafter - posbefore) / self.dt
+        reward = 0.4 * (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
@@ -247,8 +248,8 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
                     (height > 0.9) and (height < self.init_height + 0.5))
         if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
             reward = 0
-        #if fall_on_ground:
-        #    done = True
+        if fall_on_ground:
+            done = True
         ob = self._get_obs()
 
         return ob, reward, done, {}

@@ -69,6 +69,7 @@ from gym.envs.dart.snake_10link import DartSnake10LinkEnv
 from gym.envs.dart.hopper_4link_spd import DartHopper4LinkSPDEnv
 from gym.envs.dart.hopper_5link_spd import DartHopper5LinkSPDEnv
 
+from gym.envs.dart.reacher_2link import DartReacher2LinkEnv
 from gym.envs.dart.reacher_3link import DartReacher3LinkEnv
 from gym.envs.dart.reacher_4link import DartReacher4LinkEnv
 from gym.envs.dart.reacher_5link import DartReacher5LinkEnv
