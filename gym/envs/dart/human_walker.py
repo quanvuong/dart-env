@@ -14,15 +14,15 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
         self.action_scale *= 1.0
-        self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         obs_dim = 57
 
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.5
+        self.final_tv = 1.2
         self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
@@ -55,7 +55,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.28
         self.alive_bonus_rew = 7.0
 
         self.cur_step = 0
@@ -400,12 +400,12 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.7 * np.abs(self.robot_skeleton.q[18]) + \
+        spine_pen = 1.6 * np.abs(self.robot_skeleton.q[18]) + \
                     0.1 * np.abs(self.robot_skeleton.q[19]) + \
                     0.5 * np.abs(self.robot_skeleton.q[20]) + \
-                    1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
-                    0.5 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[5])# + \
-                    #0.8 * np.abs(self.robot_skeleton.q[20] + self.robot_skeleton.q[4])
+                    1.6 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
+                    0.5 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[5]) + \
+                    0.1 * np.abs(self.robot_skeleton.q[20] + self.robot_skeleton.q[4])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 
