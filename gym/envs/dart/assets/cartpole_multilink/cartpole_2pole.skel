@@ -28,6 +28,48 @@
             </joint>
         </skeleton>
 
+        <skeleton name="shadow1">
+           <mobile>false</mobile>
+           <body name="pole 1">
+                <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                <visualization_shape>
+                    <geometry>
+                        <box>
+                            <size>0.12 0.12 0.12</size>
+                        </box>
+                    </geometry>
+                    <color>0.8 0.3 0.7 1</color>
+                </visualization_shape>
+            </body>
+
+
+             <joint type="free" name="joint 1">
+                <parent>world</parent>
+                <child>pole 1</child>
+            </joint>
+
+        </skeleton>
+
+        <skeleton name="shadow2">
+           <mobile>false</mobile>
+            <body name="pole 2">
+                <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                <visualization_shape>
+                    <geometry>
+                        <box>
+                            <size>0.12 0.12 0.12</size>
+                        </box>
+                    </geometry>
+                    <color>0.3 0.8 0.7 1</color>
+                </visualization_shape>
+            </body>
+
+            <joint type="free" name="joint 2">
+                <parent>world</parent>
+                <child>pole 2</child>
+            </joint>
+        </skeleton>
+
         <skeleton name="cartpole">
             <transformation>0 0.0 0 0 0 0</transformation>
             <body name="pole">
@@ -81,6 +123,8 @@
                     </geometry>
                 </collision_shape>
             </body>
+
+
 
 
             <!-- JOINT: Pelvis -->

@@ -5,11 +5,23 @@ from gym.envs.dart import dart_env
 
 class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0]])
+        act_dim = 4
+        self.state_dim = 32
+        obs_dim = 13
+
+        self.bidirectional_artnet = True
+
+        self.latent_feedback = False
+        if self.latent_feedback:
+            act_dim += self.state_dim
+            self.latent_obs = np.zeros(self.state_dim)
+            obs_dim += self.state_dim
+
+        self.control_bounds = np.array([[1.0] * act_dim, [-1.0] * act_dim])
+
         self.action_scale = 100
         self.include_action_in_obs = False
         self.randomize_dynamics = False
-        obs_dim = 13
 
         if self.include_action_in_obs:
             obs_dim += len(self.control_bounds[0])
@@ -26,7 +38,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.feet_specialized = False
 
         if self.supp_input:
-            obs_dim += 3 * 5  # [contact, local_x, local_y]
+            obs_dim += 7 * 5  # [contact, local_x, local_y]
 
         dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_5link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -48,39 +60,40 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
         self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for articunet
-        self.state_dim = 16
+
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
         self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
+        self.generic_modules = []
         if self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 3, 64, 1, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, 128, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 3, 128, 1, 'revolute_enc'])
         elif self.supp_input:
-            self.enc_net.append([self.state_dim, 5 + 3, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2 + 3, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5 + 7, 64, 1, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2 + 7, 64, 1, 'revolute_enc'])
         else:
             self.enc_net.append([self.state_dim, 5, 64, 1, 'planar_enc'])
             self.enc_net.append([self.state_dim, 2, 64, 1, 'revolute_enc'])
 
-        self.enc_net.append([self.state_dim, 5, 32, 2, 'vf_planar_enc'])
+        self.enc_net.append([self.state_dim, 5, 64, 1, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, 64, 1, 'vf_revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 3, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 3, 64, 1, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 2, 32, 2, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, 64, 1, 'ankle_enc'])
 
-        self.act_net.append([self.state_dim, 1, 32, 2, 'revolute_act'])
+        self.act_net.append([self.state_dim, 1, 32, 1, 'revolute_act'])
 
         # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 32, 2, 'ankle_act'])
+        self.act_net.append([self.state_dim, 1, 64, 1, 'ankle_act'])
 
-        self.vf_net.append([self.state_dim, 1, 32, 2, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 32, 2, 'merger'])
+        self.vf_net.append([self.state_dim, 1, 64, 1, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # 4 - 5, 5 - 7, 6 - 8
 
@@ -112,23 +125,47 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
                 self.net_modules[2][0] += [14]
                 self.net_modules[3][0] += [13]
             elif self.supp_input:
-                self.net_modules[0][0] += [25, 26, 27]
-                self.net_modules[1][0] += [22, 23, 24]
-                self.net_modules[2][0] += [19, 20, 21]
-                self.net_modules[3][0] += [16, 17, 18]
-                self.net_modules[4][0] += [13, 14, 15]
+                self.net_modules[0][0] += [41, 42, 43, 44, 45, 46, 47]
+                self.net_modules[1][0] += [34, 35, 36, 37, 38, 39, 40]
+                self.net_modules[2][0] += [27, 28, 29, 30, 31, 32, 33]
+                self.net_modules[3][0] += [20, 21, 22, 23, 24, 25, 26]
+                self.net_modules[4][0] += [13, 14, 15, 16, 17, 18, 19]
 
-            self.net_modules.append([[], 8, [4, 3], None, False])
-            self.net_modules.append([[], 8, [4, 2], None, False])
-            self.net_modules.append([[], 8, [4, 1], None, False])
-            self.net_modules.append([[], 8, [4, 0], None, False])
+            if self.bidirectional_artnet:
+                self.net_modules.append([[2, 9], 1, [4]])
+                self.net_modules.append([[3, 10], 1, [5]])
+                self.net_modules.append([[4, 11], 1 if not self.feet_specialized else 4, [6]])
+                self.net_modules.append([[5, 12], 1 if not self.feet_specialized else 4, [7]])
+                if self.supp_input:
+                    self.net_modules[5][0] += [20, 21, 22, 23, 24, 25, 26]
+                    self.net_modules[6][0] += [27, 28, 29, 30, 31, 32, 33]
+                    self.net_modules[7][0] += [34, 35, 36, 37, 38, 39, 40]
+                    self.net_modules[8][0] += [41, 42, 43, 44, 45, 46, 47]
+                self.net_modules.append([[], 8, [5, 3], None, False])
+                self.net_modules.append([[], 8, [6, 2], None, False])
+                self.net_modules.append([[], 8, [7, 1], None, False])
+                self.net_modules.append([[], 8, [8, 0], None, False])
 
-            self.net_modules.append([[], 5, [5]])
-            self.net_modules.append([[], 5, [6]])
-            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [7]])
-            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [8]])
+                self.net_modules.append([[], 5, [9]])
+                self.net_modules.append([[], 5, [10]])
+                self.net_modules.append([[], 5, [11]])
+                self.net_modules.append([[], 5 if not self.feet_specialized else 6, [12]])
 
-            self.net_modules.append([[], None, [9, 10, 11, 12], None, False])
+                self.net_modules.append([[], None, [13, 14, 15, 16], None, False])
+            else:
+                self.net_modules.append([[], 8, [4, 3], None, False])
+                self.net_modules.append([[], 8, [4, 2], None, False])
+                self.net_modules.append([[], 8, [4, 1], None, False])
+                self.net_modules.append([[], 8, [4, 0], None, False])
+
+                self.net_modules.append([[], 5, [5]])
+                self.net_modules.append([[], 5, [6]])
+                self.net_modules.append([[], 5 if not self.feet_specialized else 6, [7]])
+                self.net_modules.append([[], 5 if not self.feet_specialized else 6, [8]])
+
+                self.net_modules.append([[], None, [9, 10, 11, 12], None, False])
+                if self.latent_feedback:
+                    self.net_modules[-1][2] += [4]
         else:
             self.net_modules.append([[0, 1, 6, 7, 8], 0, None])
             self.net_modules.append([[2, 9], 1, [0]])
@@ -146,6 +183,7 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.net_modules.append([[], 5, [4]])
 
             self.net_modules.append([[], None, [8, 9, 10, 11], None, False])
+
 
         # dynamics modules
         if self.fwd_bwd_pass:
@@ -224,9 +262,12 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
         return not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-             (height > 0.9) and (height < self.init_height + 0.5))
+             (height > 0.5) and (height < self.init_height + 0.5))
 
     def _step(self, a):
+        if self.latent_feedback:
+            self.latent_obs = a[-self.state_dim:]
+            a = a[0:len(a) - self.state_dim]
         pre_state = [self.state_vector()]
 
         posbefore = self.robot_skeleton.q[0]
@@ -249,10 +290,14 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
                             self.body_contact_list[bid - 2] = 1.0
 
         alive_bonus = 1.0
-        reward = (posafter - posbefore) / self.dt
+        reward = 0.2 * (posafter - posbefore) / self.dt
         reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
+        reward -= 2e-3 * np.square(a).sum()
         reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
+
+        # penalize distance between whole-body COM and foot COM
+        reward -= 1e-4 * np.square(self.robot_skeleton.bodynodes[2].C - self.robot_skeleton.bodynodes[-1].C).sum()
+
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
@@ -276,10 +321,19 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, self.prev_a])
 
         if self.supp_input:
+            rot = 0
             for i, bn in enumerate(self.robot_skeleton.bodynodes):
                 if i >= 2:
-                    com_off = bn.C - self.robot_skeleton.bodynodes[2].C
-                    state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1]]])
+                    rot += self.robot_skeleton.q[i]
+                    #com_off = bn.C - self.robot_skeleton.C
+                    com_off = bn.C - self.robot_skeleton.bodynodes[2].C # offset from root
+                    com_vel = bn.dC
+                    ang_vel = self.robot_skeleton.dq[i]
+                    state = np.concatenate([state, [self.body_contact_list[i-2], com_off[0], com_off[1], rot, \
+                                                    com_vel[0], com_vel[1], ang_vel]])
+
+        if self.latent_feedback:
+            state = np.concatenate([state, self.latent_obs])
 
         return state
 
@@ -300,6 +354,8 @@ class DartHopper5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.include_action_in_obs:
             self.prev_a = np.zeros(len(self.control_bounds[0]))
+
+        self.latent_obs = np.zeros(self.state_dim)
 
         self.accumulated_rew = 0.0
         self.num_steps = 0.0

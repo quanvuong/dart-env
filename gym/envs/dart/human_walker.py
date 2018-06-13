@@ -14,7 +14,7 @@ import pydart2 as pydart
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,100,15, 30, 15,100,15, 30])
+        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0]*23)#np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         obs_dim = 57
@@ -22,8 +22,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.5
-        self.tv_endtime = 1.0
+        self.final_tv = 5.0
+        self.tv_endtime = 2.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -32,7 +32,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.assist_timeout = 0.0  # do not provide pushing assistance after certain time
+        self.assist_timeout = 100.0  # do not provide pushing assistance after certain time
         self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
@@ -55,8 +55,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.3
-        self.alive_bonus_rew = 7.0
+        self.energy_weight = 0.15 / 1.5
+        self.alive_bonus_rew = 9.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -140,6 +140,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 if hasattr(bn.shapenodes[0].shape, 'size'):
                     shapesize = bn.shapenodes[0].shape.size()
                     print('density of ', bn.name, ' is ', bn.mass()/np.prod(shapesize))
+                if hasattr(bn.shapenodes[0].shape, 'radius') and hasattr(bn.shapenodes[0].shape, 'height'):
+                    radius = bn.shapenodes[0].shape.radius()
+                    height = bn.shapenodes[0].shape.height()
+                    print('density of ', bn.name, ' is ', bn.mass()/(height * np.pi * radius ** 2))
         print('Total mass: ', self.robot_skeleton.mass())
 
         self.use_ref_policy = False
@@ -393,19 +397,19 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         # vel_rew *= 0
         # action_pen = 5e-1 * (np.square(a)* actuator_pen_multiplier).sum()
         action_pen = self.energy_weight * np.abs(a * self.action_penalty_weight).sum()# * (1.5/np.max([2.0,self.target_vel]))
-        #action_pen += 0.002 * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
+        #action_pen += 0.25 * self.energy_weight * np.sum(np.abs(a* self.robot_skeleton.dq[6:]))
         deviation_pen = 3 * abs(side_deviation)
 
         contact_pen = 0.5 * np.square(np.clip(l_foot_force, -2000, 2000)/ 1000.0).sum()+np.square(np.clip(r_foot_force, -2000, 2000)/ 1000.0).sum()
 
         rot_pen = 0.3 * (abs(ang_cos_uwd)) + 0.3 * (abs(ang_cos_fwd)) + 1.5 * (abs(ang_cos_ltl))
         # penalize bending of spine
-        spine_pen = 1.7 * np.abs(self.robot_skeleton.q[18]) + \
-                    0.1 * np.abs(self.robot_skeleton.q[19]) + \
+        spine_pen = 2.0 * np.abs(self.robot_skeleton.q[18]) + \
+                    0.5 * np.abs(self.robot_skeleton.q[19]) + \
                     0.5 * np.abs(self.robot_skeleton.q[20]) + \
-                    1.5 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
-                    0.5 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[5])# + \
-                    #0.8 * np.abs(self.robot_skeleton.q[20] + self.robot_skeleton.q[4])
+                    1.6 * np.abs(self.robot_skeleton.q[19] + self.robot_skeleton.q[3]) + \
+                    0.2 * np.abs(self.robot_skeleton.q[18] + self.robot_skeleton.q[5]) + \
+                    0.2 * np.abs(self.robot_skeleton.q[20] + self.robot_skeleton.q[4])
 
         #spine_pen += 0.05 * np.sum(np.abs(self.robot_skeleton.q[[8, 14]]))
 

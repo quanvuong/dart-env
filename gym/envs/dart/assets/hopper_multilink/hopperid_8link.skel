@@ -38,7 +38,7 @@
         <skeleton name="hopper">
             <transformation>0 0.0 0 0 0 0</transformation>
             <body name="h_pelvis">
-                <transformation> 0.0 2.15 0 0 0 0</transformation>
+                <transformation> 0.0 3.05 0 0 0 0</transformation>
                 <inertia>
                     <mass>4.0</mass>
                     <offset>0.0 0 0.0</offset>
@@ -64,7 +64,7 @@
             </body>
 
             <body name="h_pelvis_aux">
-                <transformation> 0.0 2.15 0 0 0 0</transformation>
+                <transformation> 0.0 3.05 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
@@ -72,7 +72,7 @@
             </body>
 
             <body name="h_pelvis_aux2">
-                <transformation> 0.0 2.15 0 0 0 0</transformation>
+                <transformation> 0.0 3.05 0 0 0 0</transformation>
                 <inertia>
                     <mass>0</mass>
                     <offset>0.0 0 0.0</offset>
@@ -80,6 +80,58 @@
             </body>
 
             <!-- Right Leg -->
+            <body name="h_thigh000">
+                <transformation>0.0 2.825 0.0 0.0 0.0 0.0</transformation>
+                <inertia>
+                    <mass>4.0</mass>
+                    <offset>0.0 -0.225 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <geometry>
+                        <capsule>
+                            <height>0.45</height>
+                            <radius>0.05</radius>
+                        </capsule>
+                    </geometry>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <geometry>
+                        <capsule>
+                            <height>0.45</height>
+                            <radius>0.05</radius>
+                        </capsule>
+                    </geometry>
+                </collision_shape>
+            </body>
+
+            <body name="h_thigh00">
+                <transformation>0.0 2.375 0.0 0.0 0.0 0.0</transformation>
+                <inertia>
+                    <mass>4.0</mass>
+                    <offset>0.0 -0.225 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <geometry>
+                        <capsule>
+                            <height>0.45</height>
+                            <radius>0.05</radius>
+                        </capsule>
+                    </geometry>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 -0.225 0.0 1.57079632679 0.0 0.0</transformation>
+                    <geometry>
+                        <capsule>
+                            <height>0.45</height>
+                            <radius>0.05</radius>
+                        </capsule>
+                    </geometry>
+                </collision_shape>
+            </body>
+
             <body name="h_thigh0">
                 <transformation>0.0 1.925 0.0 0.0 0.0 0.0</transformation>
                 <inertia>
@@ -270,9 +322,47 @@
 
 
             <!-- JOINT: Leg -->
-            <joint type="revolute" name="j_thigh0">
+            <joint type="revolute" name="j_thigh000">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>h_pelvis</parent>
+                <child>h_thigh000</child>
+                <axis>
+                    <xyz>0.0 0.0 1.0</xyz>
+		     <limit>
+                    	<lower>-2</lower>
+                    	<upper>2</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis>
+                <init_pos>0</init_pos>
+                <init_vel>0</init_vel>
+            </joint>
+
+            <joint type="revolute" name="j_thigh00">
+                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
+                <parent>h_thigh000</parent>
+                <child>h_thigh00</child>
+                <axis>
+                    <xyz>0.0 0.0 1.0</xyz>
+		     <limit>
+                    	<lower>-2</lower>
+                    	<upper>2</upper>
+                    </limit>
+                    <dynamics>
+                        <damping>1.0</damping>
+                        <friction>0.0</friction>
+                    </dynamics>
+                </axis>
+                <init_pos>0</init_pos>
+                <init_vel>0</init_vel>
+            </joint>
+
+            <joint type="revolute" name="j_thigh0">
+                <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
+                <parent>h_thigh00</parent>
                 <child>h_thigh0</child>
                 <axis>
                     <xyz>0.0 0.0 1.0</xyz>

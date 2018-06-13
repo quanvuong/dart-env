@@ -46,7 +46,9 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.reverse_order = reverse_order if reverse_order is not None else self.reverse_order
         self.feet_specialized = feet_specialized if feet_specialized is not None else self.feet_specialized
         # setups for controller articunet
-        self.state_dim = 16
+        self.state_dim = 32
+        hid_size = 64
+        hid_num = 1
         self.enc_net = []
         self.act_net = []
         self.vf_net = []
@@ -54,31 +56,31 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules = []
         self.net_vf_modules = []
         if self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 5, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 3, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, hid_size, hid_num, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 3, hid_size, hid_num, 'revolute_enc'])
         elif self.supp_input:
-            self.enc_net.append([self.state_dim, 5 + 3, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2 + 3, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5 + 3, hid_size, hid_num, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2 + 3, hid_size, hid_num, 'revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 5, 32, 2, 'planar_enc'])
-            self.enc_net.append([self.state_dim, 2, 32, 2, 'revolute_enc'])
+            self.enc_net.append([self.state_dim, 5, hid_size, hid_num, 'planar_enc'])
+            self.enc_net.append([self.state_dim, 2, hid_size, hid_num, 'revolute_enc'])
 
-        self.enc_net.append([self.state_dim, 5, 32, 2, 'vf_planar_enc'])
+        self.enc_net.append([self.state_dim, 5, hid_size, 2, 'vf_planar_enc'])
         if not self.include_action_in_obs:
-            self.enc_net.append([self.state_dim, 2, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 2, hid_size, hid_num, 'vf_revolute_enc'])
         else:
-            self.enc_net.append([self.state_dim, 3, 32, 2, 'vf_revolute_enc'])
+            self.enc_net.append([self.state_dim, 3, hid_size, hid_num, 'vf_revolute_enc'])
 
         # specialize ankle joint
-        self.enc_net.append([self.state_dim, 2, 32, 2, 'ankle_enc'])
+        self.enc_net.append([self.state_dim, 2, hid_size, hid_num, 'ankle_enc'])
 
-        self.act_net.append([self.state_dim, 1, 32, 2, 'revolute_act'])
+        self.act_net.append([self.state_dim, 1, hid_size, hid_num, 'revolute_act'])
 
         # specialize ankle joint
-        self.act_net.append([self.state_dim, 1, 32, 2, 'ankle_act'])
+        self.act_net.append([self.state_dim, 1, hid_size, hid_num, 'ankle_act'])
 
-        self.vf_net.append([self.state_dim, 1, 32, 2, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 32, 2, 'merger'])
+        self.vf_net.append([self.state_dim, 1, hid_size, hid_num, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, hid_size, hid_num, 'merger'])
 
         # value function modules
         if not self.include_action_in_obs:
@@ -226,10 +228,14 @@ class DartHopper4LinkEnv(dart_env.DartEnv, utils.EzPickle):
                             self.body_contact_list[bid-2] = 1.0
 
         alive_bonus = 1.0
-        reward = (posafter - posbefore) / self.dt
+        reward = 0.2 * (posafter - posbefore) / self.dt
         reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
+        reward -= 2e-3 * np.square(a).sum()
         reward -= 3e-3 * np.abs(np.dot(a, self.robot_skeleton.dq[3:])).sum()
+
+        # penalize distance between whole-body COM and foot COM
+        reward -= 1e-4 * np.square(self.robot_skeleton.bodynodes[2].C - self.robot_skeleton.bodynodes[-1].C).sum()
+
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0

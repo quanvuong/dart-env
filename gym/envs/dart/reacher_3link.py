@@ -14,6 +14,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim -= 6
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
+        self.target_index = 0
         utils.EzPickle.__init__(self)
 
     def initialize_articunet(self, reverse_order = None):
@@ -28,8 +29,8 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_vf_modules = []
         self.enc_net.append([self.state_dim, 4, 64, 1, 'universal_enc'])
         self.enc_net.append([self.state_dim, 4, 64, 1, 'vf_universal_enc'])
-        self.act_net.append([self.state_dim+self.task_dim, 2, 64, 1, 'universal_act'])
-        self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 1, 'vf_out'])
+        self.act_net.append([self.state_dim + self.task_dim, 2, 64, 1, 'universal_act'])
+        self.vf_net.append([self.state_dim + self.task_dim, 1, 64, 1, 'vf_out'])
         self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
@@ -81,7 +82,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all())
 
         if (-reward_dist < 0.1):
-            reward += 30.0
+            reward += 3.0
             done = True
 
         return ob, reward, done, {}
@@ -107,7 +108,9 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         target_set = [np.array([0.7, 0.0, 0.0]), np.array([-0.3, -0.0, -0.0]), np.array([0, 0.7, 0.0]),
                       np.array([-0.0, -0.3, -0.0]),
                       np.array([-0.0, -0.0, -0.7]), np.array([-0.0, -0.0, -0.3])]
-        self.target = target_set[np.random.randint(len(target_set))]
+        #self.target = target_set[np.random.randint(len(target_set))]
+        self.target_index += 1
+        self.target = target_set[self.target_index % len(target_set)]
 
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 

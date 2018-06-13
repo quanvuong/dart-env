@@ -31,7 +31,7 @@ class DartReacher6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.enc_net.append([self.state_dim, 4, 64, 1, 'vf_universal_enc'])
         self.act_net.append([self.state_dim+self.task_dim, 2, 64, 1, 'universal_act'])
         self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 1, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 64, 3, 'merger'])
+        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
 
         # value function modules
         self.net_vf_modules.append([[10, 11, 22, 23], 1, None])

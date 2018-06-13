@@ -14,11 +14,12 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim -= 6
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_4link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
+        self.target_index = 0
         utils.EzPickle.__init__(self)
 
     def initialize_articunet(self, reverse_order = None):
         # setups for articunet
-        self.state_dim = 32
+        self.state_dim = 8
         self.task_dim = 6 if self.include_task else 0
         self.enc_net = []
         self.act_net = []
@@ -26,11 +27,12 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.merg_net = []
         self.net_modules = []
         self.net_vf_modules = []
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'universal_enc'])
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'vf_universal_enc'])
-        self.act_net.append([self.state_dim+self.task_dim, 2, 64, 1, 'universal_act'])
-        self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 1, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 64, 3, 'merger'])
+        self.generic_modules = []
+        self.enc_net.append([self.state_dim, 4, 64, 2, 'universal_enc'])
+        self.enc_net.append([self.state_dim, 4, 64, 2, 'vf_universal_enc'])
+        self.act_net.append([self.state_dim + self.task_dim, 2, 16, 1, 'universal_act'])
+        self.vf_net.append([self.state_dim + self.task_dim, 1, 64, 2, 'vf_out'])
+        self.merg_net.append([self.state_dim, 1, 64, 2, 'merger'])
 
         # value function modules
         self.net_vf_modules.append([[6, 7, 14, 15], 1, None])
@@ -86,7 +88,7 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all())
 
         if (-reward_dist < 0.1):
-            reward += 30.0
+            reward += 3.0
             done = True
 
         return ob, reward, done, {}
@@ -109,9 +111,11 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.target) < 1.5: break
         target_set = [np.array([0.7, 0.0, 0.0]), np.array([-0.3, -0.0, -0.0]), np.array([0, 0.7, 0.0]),
-                      np.array([-0.0, -0.3, -0.0]),
-                      np.array([-0.0, -0.0, -0.7]), np.array([-0.0, -0.0, -0.3])]
-        self.target = target_set[np.random.randint(len(target_set))]
+                      np.array([-0.0, -0.0, -0.9])]#,
+                      #np.array([-0.0, -0.0, -0.7]), np.array([-0.0, -0.0, -0.3])]
+        #self.target = target_set[np.random.randint(len(target_set))]
+        self.target_index += 1
+        self.target = target_set[self.target_index % len(target_set)]
 
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 

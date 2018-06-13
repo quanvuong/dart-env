@@ -3,13 +3,13 @@ from gym import utils
 from gym.envs.dart import dart_env
 
 
-class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopper8LinkEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
+        self.control_bounds = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]])
         self.action_scale = 100
         self.include_action_in_obs = False
         self.randomize_dynamics = False
-        obs_dim = 17
+        obs_dim = 19
 
         if self.include_action_in_obs:
             obs_dim += len(self.control_bounds[0])
@@ -22,9 +22,9 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.feet_specialized = False
 
         if self.supp_input:
-            obs_dim += 3 * 7  # [contact, local_x, local_y]
+            obs_dim += 3 * 8  # [contact, local_x, local_y]
 
-        dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_7link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'hopper_multilink/hopperid_8link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
         if self.randomize_dynamics:
             self.bodynode_original_masses = []
@@ -82,121 +82,71 @@ class DartHopper7LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         # value function modules
         if not self.include_action_in_obs:
-            self.net_vf_modules.append([[7, 16], 3, None])
-            self.net_vf_modules.append([[6, 15], 3, [0]])
-            self.net_vf_modules.append([[5, 14], 3, [1]])
-            self.net_vf_modules.append([[4, 13], 3, [2]])
-            self.net_vf_modules.append([[3, 12], 3, [3]])
-            self.net_vf_modules.append([[2, 11], 3, [4]])
+            self.net_vf_modules.append([[8, 18], 3, None])
+            self.net_vf_modules.append([[7, 17], 3, [0]])
+            self.net_vf_modules.append([[6, 16], 3, [1]])
+            self.net_vf_modules.append([[5, 15], 3, [2]])
+            self.net_vf_modules.append([[4, 14], 3, [3]])
+            self.net_vf_modules.append([[3, 13], 3, [4]])
+            self.net_vf_modules.append([[2, 12], 3, [5]])
         else:
-            self.net_vf_modules.append([[7, 16, 19], 3, None])
-            self.net_vf_modules.append([[6, 15, 19], 3, [0]])
-            self.net_vf_modules.append([[5, 14, 18], 3, [1]])
-            self.net_vf_modules.append([[4, 13, 17], 3, [2]])
-            self.net_vf_modules.append([[3, 12, 16], 3, [3]])
-            self.net_vf_modules.append([[2, 11, 15], 3, [4]])
-        self.net_vf_modules.append([[0, 1, 8, 9, 10], 2, [5]])
-        self.net_vf_modules.append([[], 7, [6]])
+            self.net_vf_modules.append([[8, 18, 25], 3, None])
+            self.net_vf_modules.append([[7, 17, 24], 3, [0]])
+            self.net_vf_modules.append([[6, 16, 23], 3, [1]])
+            self.net_vf_modules.append([[5, 15, 22], 3, [2]])
+            self.net_vf_modules.append([[4, 14, 21], 3, [3]])
+            self.net_vf_modules.append([[3, 13, 20], 3, [4]])
+            self.net_vf_modules.append([[2, 12, 19], 3, [5]])
+        self.net_vf_modules.append([[0, 1, 9, 10, 11], 2, [6]])
+        self.net_vf_modules.append([[], 7, [7]])
 
         # policy modules
         if not self.reverse_order:
-            self.net_modules.append([[7, 16], 1 if not self.feet_specialized else 4, None])
-            self.net_modules.append([[6, 15], 1 if not self.feet_specialized else 4, [0]])
-            self.net_modules.append([[5, 14], 1, [1]])
-            self.net_modules.append([[4, 13], 1, [2]])
-            self.net_modules.append([[3, 12], 1, [3]])
-            self.net_modules.append([[2, 11], 1, [4]])
-            self.net_modules.append([[0, 1, 8, 9, 10], 0, [5]])
+            self.net_modules.append([[8, 18], 1 if not self.feet_specialized else 4, None])
+            self.net_modules.append([[7, 17], 1 if not self.feet_specialized else 4, [0]])
+            self.net_modules.append([[6, 16], 1, [1]])
+            self.net_modules.append([[5, 15], 1, [2]])
+            self.net_modules.append([[4, 14], 1, [3]])
+            self.net_modules.append([[3, 13], 1, [4]])
+            self.net_modules.append([[2, 12], 1, [5]])
+            self.net_modules.append([[0, 1, 9, 10, 11], 0, [6]])
 
             if self.include_action_in_obs:
-                self.net_modules[0][0] += [22]
-                self.net_modules[1][0] += [21]
-                self.net_modules[2][0] += [20]
-                self.net_modules[3][0] += [19]
-                self.net_modules[4][0] += [18]
-                self.net_modules[5][0] += [17]
+                self.net_modules[0][0] += [25]
+                self.net_modules[1][0] += [24]
+                self.net_modules[2][0] += [23]
+                self.net_modules[3][0] += [22]
+                self.net_modules[4][0] += [21]
+                self.net_modules[5][0] += [20]
+                self.net_modules[6][0] += [19]
             elif self.supp_input:
-                self.net_modules[0][0] += [35, 36, 37]
-                self.net_modules[1][0] += [32, 33, 34]
-                self.net_modules[2][0] += [29, 30, 31]
-                self.net_modules[3][0] += [26, 27, 28]
-                self.net_modules[4][0] += [23, 24, 25]
-                self.net_modules[5][0] += [20, 21, 22]
-                self.net_modules[6][0] += [17, 18, 19]
+                self.net_modules[0][0] += [40, 41, 42]
+                self.net_modules[1][0] += [37, 38, 39]
+                self.net_modules[2][0] += [34, 35, 36]
+                self.net_modules[3][0] += [31, 32, 33]
+                self.net_modules[4][0] += [28, 29, 30]
+                self.net_modules[5][0] += [25, 26, 27]
+                self.net_modules[6][0] += [22, 23, 24]
+                self.net_modules[7][0] += [19, 20, 21]
 
-            self.net_modules.append([[], 8, [6, 5], None, False])
-            self.net_modules.append([[], 8, [6, 4], None, False])
-            self.net_modules.append([[], 8, [6, 3], None, False])
-            self.net_modules.append([[], 8, [6, 2], None, False])
-            self.net_modules.append([[], 8, [6, 1], None, False])
-            self.net_modules.append([[], 8, [6, 0], None, False])
+            self.net_modules.append([[], 8, [7, 6], None, False])
+            self.net_modules.append([[], 8, [7, 5], None, False])
+            self.net_modules.append([[], 8, [7, 4], None, False])
+            self.net_modules.append([[], 8, [7, 3], None, False])
+            self.net_modules.append([[], 8, [7, 2], None, False])
+            self.net_modules.append([[], 8, [7, 1], None, False])
+            self.net_modules.append([[], 8, [7, 0], None, False])
 
-            self.net_modules.append([[], 5, [7]])
-            self.net_modules.append([[], 5, [8]])
-            self.net_modules.append([[], 5, [9]])
-            self.net_modules.append([[], 5, [10]])
-            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [11]])
-            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [12]])
-
-            self.net_modules.append([[], None, [13, 14, 15, 16, 17, 18], None, False])
-        else:
-            self.net_modules.append([[0, 1, 8, 9, 10], 0, None])
-            self.net_modules.append([[2, 11], 1, [0]])
-            self.net_modules.append([[3, 12], 1, [1]])
-            self.net_modules.append([[4, 13], 1, [2]])
-            self.net_modules.append([[5, 14], 1, [3]])
-            self.net_modules.append([[6, 15], 1, [4]])
-            self.net_modules.append([[7, 16], 1, [5]])
-
-            self.net_modules.append([[], 8, [6, 1], None, False])
-            self.net_modules.append([[], 8, [6, 2], None, False])
-            self.net_modules.append([[], 8, [6, 3], None, False])
-            self.net_modules.append([[], 8, [6, 4], None, False])
-            self.net_modules.append([[], 8, [6, 5], None, False])
-
-            self.net_modules.append([[], 5, [7]])
             self.net_modules.append([[], 5, [8]])
             self.net_modules.append([[], 5, [9]])
             self.net_modules.append([[], 5, [10]])
             self.net_modules.append([[], 5, [11]])
-            self.net_modules.append([[], 5, [6]])
+            self.net_modules.append([[], 5, [12]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [13]])
+            self.net_modules.append([[], 5 if not self.feet_specialized else 6, [14]])
 
-            self.net_modules.append([[], None, [12, 13, 14, 15, 16, 17], None, False])
+            self.net_modules.append([[], None, [15, 16, 17, 18, 19, 20, 21], None, False])
 
-        # dynamic model
-        self.dyn_enc_net = []
-        self.dyn_act_net = []  # using actor as decoder
-        self.dyn_merg_net = []
-        self.dyn_net_modules = []
-        self.dyn_enc_net.append([self.state_dim, 6, 256, 1, 'dyn_planar_enc'])
-        self.dyn_enc_net.append([self.state_dim, 3, 256, 1, 'dyn_revolute_enc'])
-        self.dyn_act_net.append([self.state_dim, 2, 256, 1, 'dyn_planar_dec'])
-        self.dyn_act_net.append([self.state_dim, 6, 256, 1, 'dyn_revolute_dec'])
-        self.dyn_merg_net.append([self.state_dim, 1, 256, 1, 'dyn_merger'])
-        self.dyn_net_modules.append([[8, 17, 23], 1, None])
-        self.dyn_net_modules.append([[7, 16, 22], 1, [0]])
-        self.dyn_net_modules.append([[6, 15, 21], 1, [1]])
-        self.dyn_net_modules.append([[5, 14, 20], 1, [2]])
-        self.dyn_net_modules.append([[4, 13, 19], 1, [3]])
-        self.dyn_net_modules.append([[3, 12, 18], 1, [4]])
-        self.dyn_net_modules.append([[0, 1, 2, 9, 10, 11], 0, [5]])
-
-        self.dyn_net_modules.append([[], 4, [6, 5], None, False])
-        self.dyn_net_modules.append([[], 4, [6, 4], None, False])
-        self.dyn_net_modules.append([[], 4, [6, 3], None, False])
-        self.dyn_net_modules.append([[], 4, [6, 2], None, False])
-        self.dyn_net_modules.append([[], 4, [6, 1], None, False])
-        self.dyn_net_modules.append([[], 4, [6, 0], None, False])
-
-        self.dyn_net_modules.append([[], 2, [6]])
-        self.dyn_net_modules.append([[], 3, [7]])
-        self.dyn_net_modules.append([[], 3, [8]])
-        self.dyn_net_modules.append([[], 3, [9]])
-        self.dyn_net_modules.append([[], 3, [10]])
-        self.dyn_net_modules.append([[], 3, [11]])
-        self.dyn_net_modules.append([[], 3, [12]])
-        self.dyn_net_modules.append([[], None, [13, 14, 15, 16, 17, 18], None, False])
-        self.dyn_net_reorder = np.array([0, 1, 2, 6, 8, 10, 12, 14, 16, 3, 4, 5, 7, 9, 11, 13, 15, 17], dtype=np.int32)
 
     def advance(self, a):
         clamped_control = np.array(a)
