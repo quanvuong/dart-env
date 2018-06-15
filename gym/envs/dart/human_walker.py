@@ -22,8 +22,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 5.0
-        self.tv_endtime = 2.0
+        self.final_tv = 1.2
+        self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -55,8 +55,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.15 / 1.5
-        self.alive_bonus_rew = 9.0
+        self.energy_weight = 0.45 / 1.5
+        self.alive_bonus_rew = 7.0 + 2.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -220,9 +220,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                         force = 0
                 self.push_forces.append(force)
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(np.array([force, 0, 0]))
+
             self.total_act_force += np.linalg.norm(tau)
 
-            self.total_ass_force += np.abs(force)
+            #self.total_ass_force += np.abs(force)
 
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()

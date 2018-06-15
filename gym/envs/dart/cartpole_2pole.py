@@ -13,7 +13,7 @@ class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
             self.prev_a = np.zeros(len(self.control_bounds[0]))
 
         dart_env.DartEnv.__init__(self, 'cartpole_multilink/cartpole_2pole.skel', 2, obs_dim, self.control_bounds,
-                                  dt=0.02, disableViewer=True)
+                                  dt=0.005, disableViewer=True)
 
         # setups for articunet
         self.state_dim = 32
