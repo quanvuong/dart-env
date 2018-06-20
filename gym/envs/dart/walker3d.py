@@ -30,9 +30,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_ang = None
 
-        self.assist_timeout = 0.0
+        self.assist_timeout = 100.0
         self.assist_prob = 1.0 # probability of providing assistance
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
+        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500]], [60.0, [1125.0, 1125.0]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -50,7 +50,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.3
+        self.energy_weight = 0.4/1.5
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True

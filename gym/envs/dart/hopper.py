@@ -12,68 +12,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0])
-        #self.action_scale = np.array([80.0, 80.0, 80.0])
         self.train_UP = False
         self.noisy_input = False
-        self.avg_div = 0
-
-        self.input_exp = 0  # dim of input exploration
-
-        self.enforce_task_id = None
-        self.append_taskid = False
+        obs_dim = 11
 
         self.resample_MP = False  # whether to resample the model paraeters
-        self.train_mp_sel = False
-        self.perturb_MP = False
-        obs_dim = 11 + self.input_exp
         self.param_manager = hopperContactMassManager(self)
-
-        self.use_disc_ref_policy = False
-        self.disc_ref_weight = 0.03
-        self.disc_funcs = []  # vfunc, obs_disc, act_disc
-
-        self.state_index = 0
-
-        self.learn_acro = False
-
-        self.learn_jump = False
-        self.heigh_threshold_multiplier = 1.0
-        if self.learn_acro:
-            self.heigh_threshold_multiplier = 0.0
-            self.action_scale[-1] = 100.0
-            self.action_scale /= 2.0
-
-        self.split_task_test = False
-        self.learn_diff_style = False
-
-        self.learn_forwardbackward = False
-        self.tasks = TaskList(2)
-        self.tasks.add_world_choice_tasks([0,0])
-        #self.tasks.add_fix_param_tasks([0, [0.1, 1.0]])
-        #self.tasks.add_fix_param_tasks([1, [0.3, 0.0]])
-        self.tasks.add_fix_param_tasks([2, [0.1, 1.0]])
-        #self.tasks.add_fix_param_tasks([4, [0.4, 0.7]])
-
-        #self.tasks.add_range_param_tasks([2, [[0.0, 1.0]]], expand=0.0)
-        #self.tasks.add_range_param_tasks([2, [[0.4, 0.5]]])
-        #self.tasks.add_joint_limit_tasks([-2, [[-2.61799, 0], [0, 2.61799]]])
-        self.task_expand_flag = False
-
-        self.upselector = None
-        modelpath = os.path.join(os.path.dirname(__file__), "models")
-        #self.upselector = joblib.load(os.path.join(modelpath, 'UPSelector_torso_lrange35_sd17_3seg.pkl'))
-
-        #self.param_manager.sampling_selector = upselector
-        #self.param_manager.selector_target = 2
-
-        if self.train_UP:
-            obs_dim += self.param_manager.param_dim
-        if self.train_mp_sel:
-            obs_dim += 1
-        if self.avg_div > 1:
-            obs_dim += self.avg_div
-        if self.append_taskid and self.split_task_test:
-            obs_dim += self.tasks.task_num
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -95,30 +39,50 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
-        '''self.current_param = self.param_manager.get_simulator_parameters()
-        curcontparam = copy.copy(self.param_manager.controllable_param)
-        self.param_manager.controllable_param = [1]
-        self.param_manager.set_simulator_parameters([1.0])
-        self.param_manager.controllable_param = curcontparam'''
 
-        #if self.learn_acro:
-        #    self.robot_skeleton.joints[-3].set_position_upper_limit(0, 1.57)
-        #    self.robot_skeleton.joints[-3].set_position_lower_limit(0, -0.4)
+        # setups for articunet
+        self.state_dim = 32
+        self.enc_net = []
+        self.act_net = []
+        self.vf_net = []
+        self.merg_net = []
+        self.net_modules = []
+        self.net_vf_modules = []
+        self.generic_modules = []
 
-        #if self.learn_diff_style:
-        #    for world in self.dart_worlds:
-        #        world.skeletons[-1].joints[-3].set_position_upper_limit(0, 2.5)
-        #        world.skeletons[-1].joints[-3].set_position_lower_limit(0, -0.2)
+        # build dynamics model
+        self.generic_modules.append([0, [self.state_dim] * 3, self.state_dim, 128, 2, 'world_node1'])
+        self.generic_modules.append([3, [self.state_dim] * 3, self.state_dim, 128, 2, 'revolute_node1'])
+        self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node1'])
+        self.generic_modules.append([0, [self.state_dim] * 2, 6, 128, 2, 'pole_predictor'])
+        self.generic_modules.append([0, [self.state_dim] * 2, 2, 128, 2, 'revolute_predictor'])
 
-        if self.learn_diff_style:
-            for world in self.dart_worlds:
-                world.skeletons[-1].joints[-3].set_position_upper_limit(0, 1.4)
-                world.skeletons[-1].joints[-3].set_position_lower_limit(0, -1.4)
-                world.skeletons[-1].joints[-1].set_position_upper_limit(0, 0.02)
-                world.skeletons[-1].joints[-1].set_position_lower_limit(0, -4.13)
-                world.skeletons[-1].joints[-1].set_position_upper_limit(0, 1.2)
-                world.skeletons[-1].joints[-1].set_position_lower_limit(0, -1.2)
+        self.generic_modules.append([0, [self.state_dim] * 3, self.state_dim, 128, 2, 'world_node2'])
+        self.generic_modules.append([3, [self.state_dim] * 3, self.state_dim, 128, 2, 'revolute_node2'])
+        self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node2'])
 
+        # first pass
+        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2, [None, None, None]])  # [world, jnt, bdnd]
+        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2, [None, None, None]])
+        self.net_modules.append([[0, 2, 16], 1, [None, None, [0]]])
+        self.net_modules.append([[1, 3, 17], 1, [None, None, [0, 1]]])
+        self.net_modules.append([[], 0, [None, [2, 3], [0, 1]]])
+
+        # second pass
+        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2 + 5, [[4], [2, 3], [1]]])  # [world, jnt, bdnd]
+        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2 + 5, [[4], [3], [0]]])
+        self.net_modules.append([[0, 2, 16], 1 + 5, [[4], [2, 3], [5]]])
+        self.net_modules.append([[1, 3, 17], 1 + 5, [[4], [2, 3], [5, 6]]])
+        self.net_modules.append([[], 0 + 5, [[4], [7, 8], [5, 6]]])
+
+        # pass to predictor
+        self.net_modules.append([[], 4, [[9], [7]]])
+        self.net_modules.append([[], 4, [[9], [8]]])
+        self.net_modules.append([[], 3, [[9], [5]]])
+        self.net_modules.append([[], 3, [[9], [6]]])
+
+        self.net_modules.append([[], None, [[10], [11], [12], [13]], None, False])
+        self.reorder_output = np.array([0, 2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int32)
 
         utils.EzPickle.__init__(self)
 
@@ -133,49 +97,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[3:] = clamped_control * self.action_scale
 
-        if self.dyn_model_id == 0 or self.dyn_models[self.dyn_model_id-1] is None:
-            self.do_simulation(tau, self.frame_skip)
-        elif self.dyn_models[self.dyn_model_id-1] is not None and self.base_path is None:
-            self.total_dist.append(0)
-            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), a, self.frame_skip)
-            self.set_state_vector(new_state)
-        elif self.dyn_models[self.dyn_model_id-1] is not None:
-            #self.total_dist.append(np.linalg.norm(self.base_path['env_infos']['state_act'][self.cur_step] - np.concatenate([self.state_vector(), clamped_control])))
-            self.total_dist.append(0)
-            #ref_state = self.base_path['env_infos']['state_act'][self.cur_step][0:len(self.state_vector())] + self.base_path['env_infos']['next_state'][self.cur_step]
-            #new_state = self.dyn_models[self.dyn_model_id-1].do_simulation(self.state_vector(), clamped_control, self.frame_skip)
-            #self.set_state_vector(new_state)
-            tau = np.zeros(self.robot_skeleton.ndofs)
-            tau[3:] = clamped_control * self.action_scale
-            self.do_simulation(tau, self.frame_skip)
-            #diff_size = np.linalg.norm(self.state_vector() - ref_state)
-            #move_direction = (self.state_vector() - ref_state) / np.linalg.norm(self.state_vector() - ref_state)
-            #if diff_size > 0.01:
-            #    self.set_state_vector(ref_state + 0.01 * move_direction)
-
-            #print('diff: ', np.linalg.norm(new_state - self.state_vector()))
-
-            '''cur_state = self.state_vector()
-            cur_act = a
-            if self.transition_locator is None:
-                base_state_act = self.base_path['env_infos']['state_act'][self.cur_step]
-                base_state = base_state_act[0:len(cur_state)]
-                base_act = base_state_act[-len(cur_act):]
-                base_next_state = base_state+self.base_path['env_infos']['next_state'][self.cur_step]
-                self.total_dist.append(np.linalg.norm(base_state_act-np.concatenate([cur_state,cur_act])))
-            else:
-                query = self.transition_locator.kneighbors([np.concatenate([cur_state, cur_act])])
-                dist = query[0][0][0]
-                #print('distance: ', dist)
-                ind = query[1][0][0]
-                base_state_act = self.transition_locator._fit_X[ind]
-                base_state = base_state_act[0:len(cur_state)]
-                base_act = base_state_act[-len(cur_act):]
-                base_next_state = base_state + self.transition_locator._y[ind]
-                self.total_dist.append(dist)
-            new_state = self.dyn_models[self.dyn_model_id-1].do_simulation_corrective(base_state, base_act, \
-                                            self.frame_skip, base_next_state, cur_state - base_state, cur_act-base_act)
-            self.set_state_vector(new_state)'''
+        self.do_simulation(tau, self.frame_skip)
 
     def _step(self, a):
         self.t += self.dt
@@ -208,85 +130,23 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         alive_bonus = 1.0
         reward = (posafter - posbefore) / self.dt
-        if self.learn_forwardbackward and self.state_index == 1:
-            reward *= -1
-        if self.learn_acro:
-            if self.state_index == 0: # learn to jump high
-                reward = np.max([(heightafter)*10,0])
-            if self.state_index == 1 and self.t > 0.5: # learn to backflip
-                reward = -self.robot_skeleton.dq[2]
-                reward += 1.2-np.abs(heightafter - 1.2)
-            joint_limit_penalty = 0
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
 
-        #reward -= 1e-7 * total_force_mag
-
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > self.height_threshold_low*self.heigh_threshold_multiplier) and (abs(ang) < .2 or self.learn_acro))
+                    (height > self.height_threshold_low) and (abs(ang) < .2))
 
-        #if not((height > .7) and (height < 1.8) and (abs(ang) < .4)):
-        #    reward -= 1
-        #if fall_on_ground:
-        #    done = True
-
-        if self.learn_diff_style and self.t > 0.5:
-            if self.state_index == 0:  # avoid contact
-                done = done or not (height > 0.8)
-            elif self.state_index == 1:  # encourage contact
-                done = done or not (height < 1.2)
-
-        if self.learn_diff_style:
-            if self.state_index == 0: # avoid contact
-                if height > self.height_threshold_low + 0.15:
-                    done = True
-            elif self.state_index == 1: # encourage contact
-                if height < self.height_threshold_low - 0.1 or height > 1.65:
-                    done = True 
- 
         ob = self._get_obs()
-
-        if self.perturb_MP:
-            # bounded random walk of mp
-            rdwk_step = 0.005
-            bound_size = 0.05
-            mp = self.param_manager.get_simulator_parameters() + self.np_random.uniform(-rdwk_step, rdwk_step, len(
-                self.param_manager.get_simulator_parameters()))
-            for dim in range(len(self.current_param)):
-                if mp[dim] > self.current_param[dim] + bound_size:
-                    dist = mp[dim] - self.current_param[dim] - bound_size
-                    samp_range = 2 * rdwk_step - dist
-                    mp[dim] -= dist + self.np_random.uniform(0, samp_range)
-                elif mp[dim] < self.current_param[dim] - bound_size:
-                    dist = self.current_param[dim] - bound_size - mp[dim]
-                    samp_range = 2 * rdwk_step - dist
-                    mp[dim] += dist + self.np_random.uniform(0, samp_range)
-            self.param_manager.set_simulator_parameters(mp)
-            # simply add noise
-            #self.param_manager.set_simulator_parameters(self.current_param + np.random.uniform(-0.01, 0.01, len(self.current_param)))
 
         self.cur_step += 1
 
-        if self.learn_jump:
-            done = False
-            reward = -1e-5 * np.square(a).sum()
-            self.highest_point = np.max([self.highest_point, height])
-            if self.cur_step == 100:
-                reward += 10 * height
-                done = True
 
         envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(), 'vel_rew': (posafter - posbefore) / self.dt,
          'action_rew': 1e-3 * np.square(a).sum(), 'forcemag': 1e-7 * total_force_mag, 'done_return': done,
-         'state_act': state_act, 'next_state': self.state_vector() - state_pre, 'dyn_model_id': self.dyn_model_id,
-         'task_id': self.state_index, 'plot_info':[self.robot_skeleton.C[0], self.robot_skeleton.C[1]]}
-        if self.use_disc_ref_policy:
-            if self.disc_funcs[1](self.disc_funcs[3](self.state_vector())) in self.disc_funcs[0]:
-                ref_reward = self.disc_ref_weight * self.disc_funcs[0][self.disc_funcs[1](self.disc_funcs[3](self.state_vector()))]
-                envinfo['sub_disc_ref_reward'] = ref_reward
-                reward += ref_reward
-                print(ref_reward/self.disc_ref_weight)
+         'state_act': state_act, 'next_state': self.state_vector() - state_pre,
+         'plot_info':[self.robot_skeleton.C[0], self.robot_skeleton.C[1]]}
 
         return ob, reward, done, envinfo
 
@@ -300,16 +160,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
-        if self.train_mp_sel:
-            state = np.concatenate([state, [np.random.random()]])
-
-        if self.split_task_test and self.append_taskid:
-            append = np.zeros(self.tasks.task_num)
-            append[self.state_index] = 1.0
-            state = np.concatenate([state, append])
-
-        if self.input_exp > 0:
-            state = np.concatenate([state, self.sampled_input_exp])
 
         return state
 
@@ -322,73 +172,16 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         if self.resample_MP:
             self.param_manager.resample_parameters()
-            #self.param_manager.set_simulator_parameters(np.array([0.6, 0.5]) + self.np_random.uniform(low=-0.05, high=0.05, size=2))
-            #self.param_manager.set_simulator_parameters(np.array([0.6, 0.5]))
             self.current_param = self.param_manager.get_simulator_parameters()
-            #self.param_manager.set_simulator_parameters(mp)
 
-        if self.input_exp > 0:
-            self.sampled_input_exp = np.random.random(self.input_exp)  # uniform distribution
-            #self.sampled_input_exp = np.random.normal(0, 1, self.input_exp)
-            #self.sampled_input_exp = [np.random.randint(2)]
-
-        # Split the mp space by left and right for now
-        if self.train_UP:
-            self.state_index = 0
-            if len(self.param_manager.get_simulator_parameters()) > 1:
-                if self.param_manager.get_simulator_parameters()[0] < 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                    self.state_index = 1
-                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] < 0.5:
-                    self.state_index = 2
-                elif self.param_manager.get_simulator_parameters()[0] >= 0.5 and self.param_manager.get_simulator_parameters()[1] >= 0.5:
-                    self.state_index = 3
-            if self.upselector is not None:
-                self.state_index = self.upselector.classify([self.param_manager.get_simulator_parameters()], False)
-
-        if self.split_task_test:
-            if self.task_expand_flag:
-                self.tasks.expand_range_param_tasks()
-                self.task_expand_flag = False
-            self.state_index = np.random.randint(self.tasks.task_num)
-            if self.enforce_task_id is not None:
-                self.state_index = self.enforce_task_id
-            world_choice, pm_id, pm_val, jt_id, jt_val = self.tasks.resample_task(self.state_index)
-            if self.dart_world != self.dart_worlds[world_choice]:
-                self.dart_world = self.dart_worlds[world_choice]
-                self.robot_skeleton = self.dart_world.skeletons[-1]
-                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-                self.set_state(qpos, qvel)
-                if not self.disableViewer:
-                    self._get_viewer().sim = self.dart_world
-            self.param_manager.controllable_param = pm_id
-            self.param_manager.set_simulator_parameters(np.array(pm_val))
-            for ind, jtid in enumerate(jt_id):
-                self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
-                self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
-
-        #if self.learn_forwardbackward:
-        #    self.state_index = np.random.randint(2)
-
-        self.state_action_buffer = [] # for UPOSI
+        self.state_action_buffer = [] # for delay
 
         state = self._get_obs()
 
         self.cur_step = 0
 
-        if self.base_path is not None and self.dyn_model_id != 0:
-            base_len = len(self.base_path['env_infos']['state_act'])
-            self.cur_step = 0#np.random.randint(base_len-1)
-            self.start_step = self.cur_step
-            base_state = self.base_path['env_infos']['state_act'][self.cur_step][0:len(self.state_vector())]
-            self.set_state_vector(base_state + self.np_random.uniform(low=-0.01, high=0.01, size=len(base_state)))
-
-        self.total_dist = []
-
         self.height_threshold_low = 0.56*self.robot_skeleton.bodynodes[2].com()[1]
         self.t = 0
-
-        self.highest_point = 0
 
         return state
 

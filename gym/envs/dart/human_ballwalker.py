@@ -9,10 +9,9 @@ import os
 import time
 
 import pydart2 as pydart
-from pydart2.utils.transformations import quaternion_from_matrix
 
 
-class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
         self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
@@ -20,19 +19,11 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         obs_dim = 57
 
-        self.use_cartedian_obs = False
-
-        if self.use_cartedian_obs:
-            self.obs_bodynodes = ['l-upperleg', 'l-lowerleg', 'l-foot', 'r-upperleg', 'r-lowerleg', 'r-foot', 'abdomen',
-                         'thorax', 'l-clavicle', 'l-upperarm', 'l-lowerarm', 'r-clavicle', 'r-upperarm', 'r-lowerarm']
-            self.obs_root = 'pelvis'
-            obs_dim = 13 * (len(self.obs_bodynodes) + 1) - 2
-
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 6.0
-        self.tv_endtime = 3.5
+        self.final_tv = 1.0
+        self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -64,8 +55,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.15 / 1.5
-        self.alive_bonus_rew = 11.0 + 2.0
+        self.energy_weight = 0.45 / 1.5
+        self.alive_bonus_rew = 7.0 + 2.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
@@ -107,7 +98,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             dart_env.DartEnv.__init__(self, 'kima/kima_human_edited_treadmill.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
         else:
-            dart_env.DartEnv.__init__(self, 'kima/kima_human_edited.skel', 15, obs_dim, self.control_bounds,
+            dart_env.DartEnv.__init__(self, 'kima/kima_human_ballwalk.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
         # add human joint limit
@@ -499,29 +490,10 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                                   }
 
     def _get_obs(self):
-        if self.use_cartedian_obs:
-            state = np.concatenate([
-                self.robot_skeleton.q[1:6],
-                self.robot_skeleton.dq[0:6],
-            ])
-
-            root_trans_inv = np.linalg.inv(self.robot_skeleton.bodynode(self.obs_root).transform()[0:3,0:3])
-
-            for bn in self.obs_bodynodes:
-                local_offset = np.dot(root_trans_inv, self.robot_skeleton.bodynode(bn).C -
-                                        self.robot_skeleton.bodynode(self.obs_root).C)
-                rotq = quaternion_from_matrix(
-                                            np.dot(self.robot_skeleton.bodynode(bn).transform()[0:3, 0:3],
-                                                   root_trans_inv))
-                local_vel = np.dot(root_trans_inv, self.robot_skeleton.bodynode(bn).dC)
-                angvel = np.dot(self.robot_skeleton.bodynode(bn).angular_jacobian(), self.robot_skeleton.dq)
-                state = np.concatenate([state, local_offset, rotq, local_vel, angvel
-                                        ])
-        else:
-            state = np.concatenate([
-                self.robot_skeleton.q[1:],
-                self.robot_skeleton.dq,
-            ])
+        state = np.concatenate([
+            self.robot_skeleton.q[1:],
+            self.robot_skeleton.dq,
+        ])
 
         if self.include_additional_info:
             state = np.concatenate([state, self.contact_info])
