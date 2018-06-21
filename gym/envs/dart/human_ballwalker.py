@@ -130,8 +130,10 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(20)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
             self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
+        for i in range(0, len(self.dart_world.skeletons[2].bodynodes)):
+            self.dart_world.skeletons[2].bodynodes[i].set_friction_coeff(20)
 
-        # self.dart_world.set_collision_detector(3)
+        #self.dart_world.set_collision_detector(3)
 
         self.sim_dt = self.dt / self.frame_skip
 
