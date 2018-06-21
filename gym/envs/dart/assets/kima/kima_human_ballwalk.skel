@@ -765,7 +765,7 @@
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
-                <init_pos>0.0 0.0 0.0</init_pos>
+                <init_pos>-1.57 0.0 0.0</init_pos>
                 <init_vel>0 0.0 0.0</init_vel>
             </joint>
             <joint name="j_forearm_left" type="revolute">
@@ -828,7 +828,7 @@
                         <stiffness>0.0</stiffness>
                     </dynamics>
                 </axis3>
-                <init_pos>0.0 0.0 0.0</init_pos>
+                <init_pos>1.57 0.0 0.0</init_pos>
                 <init_vel>0 0.0 0.0</init_vel>
             </joint>
             <joint name="j_forearm_right" type="revolute">
