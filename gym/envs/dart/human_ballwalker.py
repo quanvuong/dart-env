@@ -22,8 +22,8 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.0
-        self.tv_endtime = 1.0
+        self.final_tv = 0.8
+        self.tv_endtime = 0.8
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -55,8 +55,8 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_act_force = 0
         self.total_ass_force = 0
 
-        self.energy_weight = 0.45 / 1.5
-        self.alive_bonus_rew = 7.0 + 2.0
+        self.energy_weight = 0.35 / 1.5
+        self.alive_bonus_rew = 11.0 + 2.0
 
         self.cur_step = 0
         self.stepwise_rewards = []
