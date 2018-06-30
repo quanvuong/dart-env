@@ -30,9 +30,9 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_ang = None
 
-        self.assist_timeout = 100.0
+        self.assist_timeout = 10.0
         self.assist_prob = 1.0 # probability of providing assistance
-        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500]], [60.0, [1125.0, 1125.0]]]
+        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
 
         self.hard_enforce = False
         self.treadmill = False
@@ -50,7 +50,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
         self.current_pd = self.init_balance_pd
         self.vel_enforce_kp = self.init_vel_pd
 
-        self.energy_weight = 0.4/1.5
+        self.energy_weight = 0.4
         self.vel_reward_weight = 3.0
 
         self.local_spd_curriculum = True
@@ -263,8 +263,11 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > 1.0) and (height < 3.0) and (abs(ang_cos_uwd) < 100000.2) and (abs(ang_cos_fwd) < 100000.2)
-                    and np.abs(angle) < 100000.1 and np.abs(self.robot_skeleton.q[5]) < 100000.2 and np.abs(side_deviation) < 900000.9)
+                    (height > 1.0) and (height < 3.0) and (abs(ang_cos_uwd) < 1.2) and (abs(ang_cos_fwd) < 1.2)
+                    and np.abs(angle) < 1.2 and np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(side_deviation) < 0.9)
+
+        if not self.disableViewer:
+            done = False
 
         self.stepwise_rewards.append(reward)
 

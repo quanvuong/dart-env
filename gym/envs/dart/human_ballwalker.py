@@ -14,7 +14,7 @@ import pydart2 as pydart
 class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
+        self.action_scale = np.array([60.0, 130, 30, 100, 80, 60, 60, 130, 30, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
         self.action_scale *= 1.0
         self.action_penalty_weight = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         obs_dim = 57
@@ -22,8 +22,8 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.8
-        self.tv_endtime = 0.8
+        self.final_tv = -0.6
+        self.tv_endtime = 0.5
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -32,8 +32,8 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.assist_timeout = 100.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
+        self.assist_timeout = 0.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -127,11 +127,11 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.set_self_collision_check(True)
 
         for i in range(0, len(self.dart_world.skeletons[0].bodynodes)):
-            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(20)
+            self.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(1)
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
-            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
+            self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(0.7)
         for i in range(0, len(self.dart_world.skeletons[2].bodynodes)):
-            self.dart_world.skeletons[2].bodynodes[i].set_friction_coeff(20)
+            self.dart_world.skeletons[2].bodynodes[i].set_friction_coeff(0.7)
 
         #self.dart_world.set_collision_detector(3)
 

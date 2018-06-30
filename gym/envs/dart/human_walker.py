@@ -31,8 +31,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 6.0
-        self.tv_endtime = 3.5
+        self.final_tv = 1.2
+        self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
         self.running_average_velocity = False
@@ -41,8 +41,8 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
-        self.assist_timeout = 100.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
+        self.assist_timeout = 0.0  # do not provide pushing assistance after certain time
+        self.assist_schedule = [[0.0, [150, 150]], [30.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -469,6 +469,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     and np.abs(angle) < 1.2 and
                     np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and np.abs(self.robot_skeleton.q[3]) < 1.2
                     and np.abs(side_deviation) < 0.9)
+
+        if not self.disableViewer:
+            done = False
 
         if self.use_ref_policy and self.cur_step > self.max_eps_step_ref:
             done = True

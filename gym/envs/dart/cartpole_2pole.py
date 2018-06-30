@@ -15,17 +15,20 @@ class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_multilink/cartpole_2pole.skel', 2, obs_dim, self.control_bounds,
                                   dt=0.005, disableViewer=True)
 
-        # setups for articunet
-        self.state_dim = 32
-        self.enc_net = []
-        self.act_net = []
-        self.vf_net = []
-        self.merg_net = []
-        self.net_modules = []
-        self.net_vf_modules = []
-        self.generic_modules = []
+        self.ignore_joint_list = []
+        self.ignore_body_list = []
+        self.joint_property = ['damping', 'limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass', 'inertia']
+        self.root_type = 'None'
+        self.root_id = 0
+        self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
         # build dynamics model
+        self.state_dim = 32
+        self.normalization_indices = np.arange(len(self.state_vector())).tolist()  # which dimensions to perform normalization
+        self.state_size = len(self.state_vector())  # size of pure states
+        self.net_modules = []
+        self.generic_modules = []
         self.generic_modules.append([0, [self.state_dim] * 3, self.state_dim, 128, 2, 'world_node1'])
         self.generic_modules.append([3, [self.state_dim] * 3, self.state_dim, 128, 2, 'revolute_node1'])
         self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node1'])
@@ -37,18 +40,18 @@ class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
         self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node2'])
 
         # first pass
-        self.net_modules.append([[4,5,6,7,8,9], 2, [None, None, None]]) # [world, jnt, bdnd]
-        self.net_modules.append([[10,11,12,13,14,15], 2, [None, None, None]])
+        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2, [None, None, None]])  # [world, jnt, bdnd]
+        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2, [None, None, None]])
         self.net_modules.append([[0, 2, 16], 1, [None, None, [0]]])
         self.net_modules.append([[1, 3, 17], 1, [None, None, [0, 1]]])
         self.net_modules.append([[], 0, [None, [2, 3], [0, 1]]])
 
         # second pass
-        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2+5, [[4], [2,3], [1]]])  # [world, jnt, bdnd]
-        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2+5, [[4], [3], [0]]])
-        self.net_modules.append([[0, 2, 16], 1+5, [[4], [2, 3], [5]]])
-        self.net_modules.append([[1, 3, 17], 1+5, [[4], [2, 3], [5, 6]]])
-        self.net_modules.append([[], 0+5, [[4], [7, 8], [5, 6]]])
+        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2 + 5, [[4], [2, 3], [1]]])  # [world, jnt, bdnd]
+        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2 + 5, [[4], [3], [0]]])
+        self.net_modules.append([[0, 2, 16], 1 + 5, [[4], [2, 3], [5]]])
+        self.net_modules.append([[1, 3, 17], 1 + 5, [[4], [2, 3], [5, 6]]])
+        self.net_modules.append([[], 0 + 5, [[4], [7, 8], [5, 6]]])
 
         # pass to predictor
         self.net_modules.append([[], 4, [[9], [7]]])
@@ -57,7 +60,7 @@ class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 3, [[9], [6]]])
 
         self.net_modules.append([[], None, [[10], [11], [12], [13]], None, False])
-        self.reorder_output = np.array([0, 2, 1, 3, 4,5,6,7,8,9, 10,11,12,13,14,15], dtype=np.int32)
+        self.reorder_output = np.array([0, 2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int32)
 
         utils.EzPickle.__init__(self)
 
@@ -125,7 +128,17 @@ class DartCartPole2PoleEnv(dart_env.DartEnv, utils.EzPickle):
         #self.dart_world.skeletons[2].q = [0, 0, 0, self.robot_skeleton.bodynodes[1].C[0],
         #                                  self.robot_skeleton.bodynodes[1].C[1], 0]
 
+    def gnn_state_vector(self):
+        return self.state_vector()
+
+    def set_gnn_state_vector(self, state):
+        self.set_state_vector(state)
+
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -3.5
         self._get_viewer().scene.tb._set_theta(0)
         self.track_skeleton_id = 0
+
+    @property
+    def env(self):
+        return self

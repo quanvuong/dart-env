@@ -15,6 +15,15 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_4link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
         self.target_index = 0
+
+        # info for building gnn for dynamics
+        self.ignore_joint_list = [0, 1, 2]
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['damping', 'limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass', 'inertia']
+        self.root_type = 'None'
+        self.root_id = 0
+
         utils.EzPickle.__init__(self)
 
     def initialize_articunet(self, reverse_order = None):
@@ -62,6 +71,10 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.net_modules.append([[], None, [11, 12, 13, 14], None, False])
 
+    def terminated(self):
+        s = self.state_vector()
+        return not (np.isfinite(s).all())
+
     def _step(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -85,7 +98,7 @@ class DartReacher4LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.num_steps += 1
 
-        done = not (np.isfinite(s).all())
+        done = self.terminated()
 
         if (-reward_dist < 0.1):
             reward += 3.0

@@ -7,17 +7,21 @@ from gym.envs.dart.sub_tasks import *
 import copy
 
 import joblib, os
+from pydart2.utils.transformations import quaternion_from_matrix, euler_from_matrix, euler_from_quaternion
 
 class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
-        self.action_scale = np.array([200.0, 200.0, 200.0])
-        self.train_UP = False
+        self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
+        self.train_UP = True
         self.noisy_input = False
         obs_dim = 11
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
+
+        if self.train_UP:
+            obs_dim += len(self.param_manager.activated_param)
 
         self.dyn_models = [None]
         self.dyn_model_id = 0
@@ -25,13 +29,18 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.transition_locator = None
         self.baseline = None
 
+        self.external_dynamic_model = None
+        self.external_dynamic_model_mode = 0 # 0: use external model only   1: input dart result into external model
+
         self.t = 0
 
         self.total_dist = []
 
         dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
-
+        #self.param_manager.set_simulator_parameters([1.0])
         self.current_param = self.param_manager.get_simulator_parameters()
+        self.curriculum_up = True
+        self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
 
         self.dart_worlds[0].set_collision_detector(3)
         self.dart_worlds[1].set_collision_detector(0)
@@ -40,49 +49,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
 
-        # setups for articunet
-        self.state_dim = 32
-        self.enc_net = []
-        self.act_net = []
-        self.vf_net = []
-        self.merg_net = []
-        self.net_modules = []
-        self.net_vf_modules = []
-        self.generic_modules = []
-
-        # build dynamics model
-        self.generic_modules.append([0, [self.state_dim] * 3, self.state_dim, 128, 2, 'world_node1'])
-        self.generic_modules.append([3, [self.state_dim] * 3, self.state_dim, 128, 2, 'revolute_node1'])
-        self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node1'])
-        self.generic_modules.append([0, [self.state_dim] * 2, 6, 128, 2, 'pole_predictor'])
-        self.generic_modules.append([0, [self.state_dim] * 2, 2, 128, 2, 'revolute_predictor'])
-
-        self.generic_modules.append([0, [self.state_dim] * 3, self.state_dim, 128, 2, 'world_node2'])
-        self.generic_modules.append([3, [self.state_dim] * 3, self.state_dim, 128, 2, 'revolute_node2'])
-        self.generic_modules.append([6, [self.state_dim] * 3, self.state_dim, 128, 2, 'pole_node2'])
-
-        # first pass
-        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2, [None, None, None]])  # [world, jnt, bdnd]
-        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2, [None, None, None]])
-        self.net_modules.append([[0, 2, 16], 1, [None, None, [0]]])
-        self.net_modules.append([[1, 3, 17], 1, [None, None, [0, 1]]])
-        self.net_modules.append([[], 0, [None, [2, 3], [0, 1]]])
-
-        # second pass
-        self.net_modules.append([[4, 5, 6, 7, 8, 9], 2 + 5, [[4], [2, 3], [1]]])  # [world, jnt, bdnd]
-        self.net_modules.append([[10, 11, 12, 13, 14, 15], 2 + 5, [[4], [3], [0]]])
-        self.net_modules.append([[0, 2, 16], 1 + 5, [[4], [2, 3], [5]]])
-        self.net_modules.append([[1, 3, 17], 1 + 5, [[4], [2, 3], [5, 6]]])
-        self.net_modules.append([[], 0 + 5, [[4], [7, 8], [5, 6]]])
-
-        # pass to predictor
-        self.net_modules.append([[], 4, [[9], [7]]])
-        self.net_modules.append([[], 4, [[9], [8]]])
-        self.net_modules.append([[], 3, [[9], [5]]])
-        self.net_modules.append([[], 3, [[9], [6]]])
-
-        self.net_modules.append([[], None, [[10], [11], [12], [13]], None, False])
-        self.reorder_output = np.array([0, 2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int32)
+        # info for building gnn for dynamics
+        self.ignore_joint_list = [0, 1, 2]
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['damping', 'limit'] # what to include in the joint property part
+        self.bodynode_property = ['mass', 'inertia']
+        self.root_type = '2d'
+        self.root_id = 2
+        self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
         utils.EzPickle.__init__(self)
 
@@ -94,10 +68,32 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
-        tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[3:] = clamped_control * self.action_scale
 
-        self.do_simulation(tau, self.frame_skip)
+        if self.external_dynamic_model is None:
+            tau = np.zeros(self.robot_skeleton.ndofs)
+            tau[3:] = clamped_control * self.action_scale
+            self.do_simulation(tau, self.frame_skip)
+        else:
+            if self.external_dynamic_model_mode == 0:
+                current_state = self.state_vector()
+                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
+                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
+            elif self.external_dynamic_model_mode == 1:
+                tau = np.zeros(self.robot_skeleton.ndofs)
+                tau[3:] = clamped_control * self.action_scale
+                self.do_simulation(tau, self.frame_skip)
+                current_state = self.state_vector()
+                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
+                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
+
+    def terminated(self):
+        s = self.state_vector()
+        height = self.robot_skeleton.bodynodes[2].com()[1]
+        ang = self.robot_skeleton.q[2]
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
+            #and not self.fall_on_ground)
+             and (height > self.height_threshold_low) and (abs(ang) < .2))
+        return done
 
     def _step(self, a):
         self.t += self.dt
@@ -113,13 +109,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         posafter, heightafter, ang = self.robot_skeleton.q[0,1,2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
-        fall_on_ground = False
+        self.fall_on_ground = False
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
             if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != self.robot_skeleton.bodynodes[-1]:
-                fall_on_ground = True
+                self.fall_on_ground = True
 
         joint_limit_penalty = 0
         for j in [-2]:
@@ -135,17 +131,34 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
 
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all() and
-                    (height > self.height_threshold_low) and (abs(ang) < .2))
+        done = self.terminated()
 
         ob = self._get_obs()
 
         self.cur_step += 1
 
+        if self.curriculum_up and abs(self.t - self.curriculum_step[0][0]) < 0.05:
+            valid = False
+            while not valid:
+                pm = np.random.uniform(-0.05, self.curriculum_step[1][1], len(self.param_manager.activated_param))
+                valid = True
+                #for p in pm:
+                #    if p < self.curriculum_step[0][1]:
+                #        valid = False
+            self.param_manager.set_simulator_parameters(pm)
+        if self.curriculum_up and abs(self.t - self.curriculum_step[1][0]) < 0.05:
+            valid = False
+            while not valid:
+                pm = np.random.uniform(-0.05, self.curriculum_step[2][1], len(self.param_manager.activated_param))
+                valid = True
+                #for p in pm:
+                #    if p < self.curriculum_step[1][1]:
+                #        valid = False
+            self.param_manager.set_simulator_parameters(pm)
 
         envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(), 'vel_rew': (posafter - posbefore) / self.dt,
          'action_rew': 1e-3 * np.square(a).sum(), 'forcemag': 1e-7 * total_force_mag, 'done_return': done,
-         'state_act': state_act, 'next_state': self.state_vector() - state_pre,
+         'state_act': state_act, 'state_delta': self.state_vector() - state_pre,
          'plot_info':[self.robot_skeleton.C[0], self.robot_skeleton.C[1]]}
 
         return ob, reward, done, envinfo
@@ -171,7 +184,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.set_state(qpos, qvel)
         if self.resample_MP:
-            self.param_manager.resample_parameters()
+            if not self.curriculum_up:
+                self.param_manager.resample_parameters()
+            else:
+                pm = np.random.uniform(-0.05, self.curriculum_step[0][1], len(self.param_manager.activated_param))
+                self.param_manager.set_simulator_parameters(pm)
             self.current_param = self.param_manager.get_simulator_parameters()
 
         self.state_action_buffer = [] # for delay
@@ -187,3 +204,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self._get_viewer().scene.tb.trans[2] = -5.5
+
+    def state_vector(self):
+        return np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq])
+
+    def set_state_vector(self, s):
+        self.robot_skeleton.q = s[0:len(self.robot_skeleton.q)]
+        self.robot_skeleton.dq = s[len(self.robot_skeleton.q):]
