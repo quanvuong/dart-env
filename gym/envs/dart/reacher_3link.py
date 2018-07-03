@@ -15,6 +15,14 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_3link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
         self.initialize_articunet()
         self.target_index = 0
+
+        self.ignore_joint_list = []
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass']
+        self.root_type = 'None'
+        self.root_id = 0
+
         utils.EzPickle.__init__(self)
 
     def initialize_articunet(self, reverse_order = None):
@@ -55,6 +63,14 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.net_modules.append([[], 2, [7]])
 
         self.net_modules.append([[], None, [8, 9, 10], None, False])
+
+    def pad_action(self, a):
+        return a
+
+    def terminated(self):
+        s = self.state_vector()
+        done = not (np.isfinite(s).all())
+        return done
 
     def _step(self, a):
         clamped_control = np.array(a)

@@ -41,6 +41,7 @@ from gym.envs.dart.hopper_rss import DartHopperRSSEnv
 
 from gym.envs.dart.hexapod import DartHexapodEnv
 
+from gym.envs.dart.hopper_1link import DartHopper1LinkEnv
 from gym.envs.dart.hopper_3link import DartHopper3LinkEnv
 from gym.envs.dart.hopper_4link import DartHopper4LinkEnv
 from gym.envs.dart.hopper_5link import DartHopper5LinkEnv

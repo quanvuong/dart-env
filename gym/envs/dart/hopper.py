@@ -13,11 +13,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         obs_dim = 11
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
 
         if self.train_UP:
@@ -39,7 +39,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
         #self.param_manager.set_simulator_parameters([1.0])
         self.current_param = self.param_manager.get_simulator_parameters()
-        self.curriculum_up = True
+        self.curriculum_up = False
         self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
 
         self.dart_worlds[0].set_collision_detector(3)
@@ -50,16 +50,20 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton=self.dart_world.skeletons[-1]
 
         # info for building gnn for dynamics
-        self.ignore_joint_list = [0, 1, 2]
+        self.ignore_joint_list = []
         self.ignore_body_list = [0, 1]
-        self.joint_property = ['damping', 'limit'] # what to include in the joint property part
-        self.bodynode_property = ['mass', 'inertia']
-        self.root_type = '2d'
-        self.root_id = 2
-        self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
+        self.joint_property = ['limit'] # what to include in the joint property part
+        self.bodynode_property = ['mass']
+        self.root_type = 'None'
+        self.root_id = 0
+        #self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
         utils.EzPickle.__init__(self)
 
+    def pad_action(self, a):
+        full_ac = np.zeros(len(self.robot_skeleton.q))
+        full_ac[3:] = a
+        return full_ac
 
     def advance(self, a):
         clamped_control = np.array(a)
@@ -86,13 +90,16 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
                 self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
 
+    def about_to_contact(self):
+        return False
+
     def terminated(self):
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            #and not self.fall_on_ground)
-             and (height > self.height_threshold_low) and (abs(ang) < .2))
+            and not self.fall_on_ground)
+             #and (height > self.height_threshold_low) and (abs(ang) < .2))
         return done
 
     def _step(self, a):

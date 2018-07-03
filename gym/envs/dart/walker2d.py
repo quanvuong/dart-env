@@ -41,7 +41,28 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.disableViewer:
             self._get_viewer().sim = self.dart_world
 
+        # info for building gnn for dynamics
+        self.ignore_joint_list = []
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass']
+        self.root_type = 'None'
+        self.root_id = 0
+
         utils.EzPickle.__init__(self)
+
+    def pad_action(self, a):
+        full_ac = np.zeros(len(self.robot_skeleton.q))
+        full_ac[3:] = a
+        return full_ac
+
+    def terminated(self):
+        s = self.state_vector()
+        height = self.robot_skeleton.bodynodes[2].com()[1]
+        ang = self.robot_skeleton.q[2]
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
+                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
+        return done
 
     def _step(self, a):
         # dropout of action

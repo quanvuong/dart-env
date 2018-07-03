@@ -121,7 +121,24 @@ class DartSnake5LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.bodynodes[i].set_friction_coeff(0)
         self.robot_skeleton.bodynodes[-1].set_friction_coeff(5)
 
+        # info for building gnn for dynamics
+        self.ignore_joint_list = []
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass']
+        self.root_type = 'None'
+        self.root_id = 0
+
         utils.EzPickle.__init__(self)
+
+    def pad_action(self, a):
+        full_ac = np.zeros(len(self.robot_skeleton.q))
+        full_ac[3:] = a
+        return full_ac
+
+
+    def about_to_contact(self):
+        return False
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
@@ -156,6 +173,12 @@ class DartSnake5LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
+    def terminated(self):
+        s = self.state_vector()
+        deviation = self.robot_skeleton.q[2]
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
+        return done
+
     def _step(self, a):
         pre_state = [self.state_vector()]
 
@@ -172,7 +195,7 @@ class DartSnake5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         self.accumulated_rew += reward
         self.num_steps += 1.0
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
+        done = self.terminated()
         ob = self._get_obs()
 
         return ob, reward, done, {}
