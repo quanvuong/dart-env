@@ -14,64 +14,33 @@ class DartReacher6LinkEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.include_task:
             obs_dim -= 6
         dart_env.DartEnv.__init__(self, 'reacher_multilink/reacher_6link.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
-        self.initialize_articunet()
+
+        self.ignore_joint_list = []
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['limit']  # what to include in the joint property part
+        self.bodynode_property = []
+        self.root_type = 'None'
+        self.root_id = 0
+
         utils.EzPickle.__init__(self)
 
-    def initialize_articunet(self, reverse_order = None):
-        # setups for articunet
-        self.state_dim = 32
-        self.task_dim = 6 if self.include_task else 0
-        self.enc_net = []
-        self.act_net = []
-        self.vf_net = []
-        self.merg_net = []
-        self.net_modules = []
-        self.net_vf_modules = []
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'universal_enc'])
-        self.enc_net.append([self.state_dim, 4, 64, 1, 'vf_universal_enc'])
-        self.act_net.append([self.state_dim+self.task_dim, 2, 64, 1, 'universal_act'])
-        self.vf_net.append([self.state_dim+self.task_dim, 1, 64, 1, 'vf_out'])
-        self.merg_net.append([self.state_dim, 1, 64, 1, 'merger'])
+    def about_to_contact(self):
+        return False
 
-        # value function modules
-        self.net_vf_modules.append([[10, 11, 22, 23], 1, None])
-        self.net_vf_modules.append([[8, 9, 20, 21], 1, [0]])
-        self.net_vf_modules.append([[6, 7, 18, 19], 1, [1]])
-        self.net_vf_modules.append([[4, 5, 16, 17], 1, [2]])
-        self.net_vf_modules.append([[2, 3, 14, 15], 1, [3]])
-        self.net_vf_modules.append([[0, 1, 12, 13], 1, [4]])
-        self.net_vf_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_vf_modules.append([[], 3, [6]])
+    def pad_action(self, a):
+        return a
 
-        # policy modules
-        self.net_modules.append([[10, 11, 22, 23], 0, None])
-        self.net_modules.append([[8, 9, 20, 21], 0, [0]])
-        self.net_modules.append([[6, 7, 18, 19], 0, [1]])
-        self.net_modules.append([[4, 5, 16, 17], 0, [2]])
-        self.net_modules.append([[2, 3, 14, 15], 0, [3]])
-        self.net_modules.append([[0, 1, 12, 13], 0, [4]])
-        self.net_modules.append([[], 4, [5, 4], None, False])
-        self.net_modules.append([[], 4, [5, 3], None, False])
-        self.net_modules.append([[], 4, [5, 2], None, False])
-        self.net_modules.append([[], 4, [5, 1], None, False])
-        self.net_modules.append([[], 4, [5, 0], None, False])
-        self.net_modules.append([[], None, [5], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_modules.append([[], None, [6], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_modules.append([[], None, [7], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_modules.append([[], None, [8], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_modules.append([[], None, [9], [24, 25, 26, 27, 28, 29] if self.include_task else None])
-        self.net_modules.append([[], None, [10], [24, 25, 26, 27, 28, 29] if self.include_task else None])
+    def terminated(self):
+        s = self.state_vector()
+        done = not (np.isfinite(s).all())
+        fingertip = np.array([0.0, -0.25, 0.0])
+        vec = self.robot_skeleton.bodynodes[-1].to_world(fingertip) - self.target
+        reward_dist = - np.linalg.norm(vec)
+        if (-reward_dist < 0.1):
+            done = True
+        return done
 
-        self.net_modules.append([[], 2, [11]])
-        self.net_modules.append([[], 2, [12]])
-        self.net_modules.append([[], 2, [13]])
-        self.net_modules.append([[], 2, [14]])
-        self.net_modules.append([[], 2, [15]])
-        self.net_modules.append([[], 2, [16]])
-
-        self.net_modules.append([[], None, [17, 18, 19, 20, 21, 22], None, False])
-
-    def _step(self, a):
+    def advance(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -79,26 +48,31 @@ class DartReacher6LinkEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
+        self.do_simulation(tau, self.frame_skip)
 
+    def reward_func(self, a):
         fingertip = np.array([0.0, -0.25, 0.0])
         vec = self.robot_skeleton.bodynodes[-1].to_world(fingertip) - self.target
         reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(tau).sum() * 0.002
+        reward_ctrl = - np.square(a).sum() * 0.1
         alive_bonus = 0
         reward = reward_dist + reward_ctrl + alive_bonus
+        if (-reward_dist < 0.1):
+            reward += 30.0
+        return reward
 
-        self.do_simulation(tau, self.frame_skip)
+    def _step(self, a):
+        self.advance(a)
+
+        reward = self.reward_func(a)
+
         ob = self._get_obs()
 
         s = self.state_vector()
 
         self.num_steps += 1
 
-        done = not (np.isfinite(s).all())
-
-        if (-reward_dist < 0.1):
-            reward += 30.0
-            done = True
+        done = self.terminated()
 
         return ob, reward, done, {}
 

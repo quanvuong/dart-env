@@ -11,7 +11,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         #self.control_bounds[1][1] = -0.3
         #self.control_bounds[1][4] = -0.3
-        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
+        self.action_scale = np.array([100, 100, 20, 100, 100, 20]) *0.01
         obs_dim = 17
         self.param_manager = hopperContactMassManager(self)
 
