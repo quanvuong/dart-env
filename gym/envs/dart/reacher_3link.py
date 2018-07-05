@@ -19,7 +19,7 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         self.ignore_joint_list = []
         self.ignore_body_list = [0, 1]
         self.joint_property = ['limit']  # what to include in the joint property part
-        self.bodynode_property = ['mass']
+        self.bodynode_property = []
         self.root_type = 'None'
         self.root_id = 0
 
@@ -64,15 +64,23 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.net_modules.append([[], None, [8, 9, 10], None, False])
 
+    def about_to_contact(self):
+        return False
+
     def pad_action(self, a):
         return a
 
     def terminated(self):
         s = self.state_vector()
         done = not (np.isfinite(s).all())
+        fingertip = np.array([0.0, -0.25, 0.0])
+        vec = self.robot_skeleton.bodynodes[-1].to_world(fingertip) - self.target
+        reward_dist = - np.linalg.norm(vec)
+        if (-reward_dist < 0.1):
+            done = True
         return done
 
-    def _step(self, a):
+    def advance(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -80,26 +88,32 @@ class DartReacher3LinkEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.multiply(clamped_control, self.action_scale)
+        self.do_simulation(tau, self.frame_skip)
 
+    def reward_func(self, a):
         fingertip = np.array([0.0, -0.25, 0.0])
         vec = self.robot_skeleton.bodynodes[-1].to_world(fingertip) - self.target
         reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(tau).sum() * 0.002
+        reward_ctrl = - np.square(a).sum() * 0.1
         alive_bonus = 0
         reward = reward_dist + reward_ctrl + alive_bonus
+        if (-reward_dist < 0.1):
+            reward += 3.0
+        return reward
 
-        self.do_simulation(tau, self.frame_skip)
+
+    def _step(self, a):
+        self.advance(a)
+
+        reward = self.reward_func(a)
+
         ob = self._get_obs()
 
         s = self.state_vector()
 
         self.num_steps += 1
 
-        done = not (np.isfinite(s).all())
-
-        if (-reward_dist < 0.1):
-            reward += 3.0
-            done = True
+        done = self.terminated()
 
         return ob, reward, done, {}
 

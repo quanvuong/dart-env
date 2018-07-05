@@ -66,6 +66,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         return full_ac
 
     def advance(self, a):
+        self.posbefore = self.robot_skeleton.q[0]
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -89,6 +90,14 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 current_state = self.state_vector()
                 pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
                 self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
+        self.fall_on_ground = False
+        contacts = self.dart_world.collision_result.contacts
+        total_force_mag = 0
+        for contact in contacts:
+            total_force_mag += np.square(contact.force).sum()
+            if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != \
+                    self.robot_skeleton.bodynodes[-1]:
+                self.fall_on_ground = True
 
     def about_to_contact(self):
         return False
@@ -98,75 +107,38 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            and not self.fall_on_ground)
-             #and (height > self.height_threshold_low) and (abs(ang) < .2))
+            #and not self.fall_on_ground)
+             and (height > self.height_threshold_low) and (abs(ang) < .2))
         return done
 
-    def _step(self, a):
-        self.t += self.dt
-        prev_obs = self._get_obs()
-        pre_state = [self.state_vector()]
-        if self.train_UP:
-            pre_state.append(self.param_manager.get_simulator_parameters())
-        posbefore = self.robot_skeleton.q[0]
-        heightbefore = self.robot_skeleton.q[1]
-        state_act = np.concatenate([self.state_vector(), np.clip(a,-1,1)])
-        state_pre = np.copy(self.state_vector())
-        self.advance(a)
-        posafter, heightafter, ang = self.robot_skeleton.q[0,1,2]
-        height = self.robot_skeleton.bodynodes[2].com()[1]
-
-        self.fall_on_ground = False
-        contacts = self.dart_world.collision_result.contacts
-        total_force_mag = 0
-        for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
-            if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != self.robot_skeleton.bodynodes[-1]:
-                self.fall_on_ground = True
-
+    def reward_func(self, a):
+        posafter = self.robot_skeleton.q[0]
+        alive_bonus = 1.0
         joint_limit_penalty = 0
         for j in [-2]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
                 joint_limit_penalty += abs(1.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
-
-        alive_bonus = 1.0
-        reward = (posafter - posbefore) / self.dt
+        reward = (posafter - self.posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
+        return reward
 
-        s = self.state_vector()
+    def _step(self, a):
+        self.t += self.dt
+        self.advance(a)
+
+        reward = self.reward_func(a)
+
         done = self.terminated()
 
         ob = self._get_obs()
 
         self.cur_step += 1
 
-        if self.curriculum_up and abs(self.t - self.curriculum_step[0][0]) < 0.05:
-            valid = False
-            while not valid:
-                pm = np.random.uniform(-0.05, self.curriculum_step[1][1], len(self.param_manager.activated_param))
-                valid = True
-                #for p in pm:
-                #    if p < self.curriculum_step[0][1]:
-                #        valid = False
-            self.param_manager.set_simulator_parameters(pm)
-        if self.curriculum_up and abs(self.t - self.curriculum_step[1][0]) < 0.05:
-            valid = False
-            while not valid:
-                pm = np.random.uniform(-0.05, self.curriculum_step[2][1], len(self.param_manager.activated_param))
-                valid = True
-                #for p in pm:
-                #    if p < self.curriculum_step[1][1]:
-                #        valid = False
-            self.param_manager.set_simulator_parameters(pm)
-
-        envinfo = {'model_parameters': self.param_manager.get_simulator_parameters(), 'vel_rew': (posafter - posbefore) / self.dt,
-         'action_rew': 1e-3 * np.square(a).sum(), 'forcemag': 1e-7 * total_force_mag, 'done_return': done,
-         'state_act': state_act, 'state_delta': self.state_vector() - state_pre,
-         'plot_info':[self.robot_skeleton.C[0], self.robot_skeleton.C[1]]}
+        envinfo = {}
 
         return ob, reward, done, envinfo
 

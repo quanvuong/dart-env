@@ -49,7 +49,19 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.root_type = 'None'
         self.root_id = 0
 
+        # no joint limit
+        for world in self.dart_worlds:
+            for skeleton in world.skeletons:
+                for jt in range(0, len(skeleton.joints)):
+                    for dof in range(len(skeleton.joints[jt].dofs)):
+                        if skeleton.joints[jt].has_position_limit(dof):
+                            skeleton.joints[jt].set_position_limit_enforced(False)
+
+
         utils.EzPickle.__init__(self)
+
+    def about_to_contact(self):
+        return False
 
     def pad_action(self, a):
         full_ac = np.zeros(len(self.robot_skeleton.q))
@@ -60,44 +72,19 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())# and
+                   # (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
         return done
 
-    def _step(self, a):
-        # dropout of action
-        #a[np.random.randint(6)] = 0
-
-        pre_state = [self.state_vector()]
-
-        clamped_control = np.array(a)
-        for i in range(len(clamped_control)):
-            if clamped_control[i] > self.control_bounds[0][i]:
-                clamped_control[i] = self.control_bounds[0][i]
-            if clamped_control[i] < self.control_bounds[1][i]:
-                clamped_control[i] = self.control_bounds[1][i]
-        tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[3:] = clamped_control * self.action_scale
-        posbefore = self.robot_skeleton.q[0]
-        self.do_simulation(tau, self.frame_skip)
-        posafter,ang = self.robot_skeleton.q[0,2]
+    def reward_func(self, a):
+        posafter, ang = self.robot_skeleton.q[0, 2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
-        contacts = self.dart_world.collision_result.contacts
-        total_force_mag = 0
-        for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
-
         alive_bonus = 1.0
-        vel = (posafter - posbefore) / self.dt
-        #if self.state_index == 1 and self.learn_forwardbackward:
-        #    vel *= -1
+        vel = (posafter - self.posbefore) / self.dt
         reward = vel
         reward += alive_bonus
         reward -= 1e-1 * np.square(a).sum()
-
-
-        # uncomment to enable knee joint limit penalty
         joint_limit_penalty = 0
         for j in [-2, -5]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
@@ -107,14 +94,32 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward -= 5e-1 * joint_limit_penalty
 
-        s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
-        '''qpos = self.robot_skeleton.q
-        qvel = self.robot_skeleton.dq
-        qpos[0:3] = np.array([0, 0, 0.8])
-        qvel[0:3] = np.array([0, 0, 0])
-        self.set_state(qpos, qvel)'''
+        return reward
+
+    def advance(self, a):
+        clamped_control = np.array(a)
+        #print(clamped_control)
+        for i in range(len(clamped_control)):
+            if clamped_control[i] > self.control_bounds[0][i]:
+                clamped_control[i] = self.control_bounds[0][i]
+            if clamped_control[i] < self.control_bounds[1][i]:
+                clamped_control[i] = self.control_bounds[1][i]
+        tau = np.zeros(self.robot_skeleton.ndofs)
+        tau[3:] = clamped_control * self.action_scale
+        self.posbefore = self.robot_skeleton.q[0]
+
+        # compensate for gravity
+        tau[1] = self.robot_skeleton.mass() * 9.81
+
+        self.do_simulation(tau, self.frame_skip)
+
+
+
+    def _step(self, a):
+        self.advance(a)
+        reward = self.reward_func(a)
+
+        done = self.terminated()
 
         ob = self._get_obs()
 

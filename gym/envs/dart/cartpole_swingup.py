@@ -121,7 +121,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         ob = self._get_obs()
 
-        reward = self.reward_func()
+        reward = self.reward_func(a)
 
         done = self.terminated()
 
