@@ -11,7 +11,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         #self.control_bounds[1][1] = -0.3
         #self.control_bounds[1][4] = -0.3
-        self.action_scale = np.array([100, 100, 20, 100, 100, 20]) *0.01
+        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
         self.param_manager = hopperContactMassManager(self)
 
@@ -50,12 +50,12 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.root_id = 0
 
         # no joint limit
-        for world in self.dart_worlds:
+        '''for world in self.dart_worlds:
             for skeleton in world.skeletons:
                 for jt in range(0, len(skeleton.joints)):
                     for dof in range(len(skeleton.joints[jt].dofs)):
                         if skeleton.joints[jt].has_position_limit(dof):
-                            skeleton.joints[jt].set_position_limit_enforced(False)
+                            skeleton.joints[jt].set_position_limit_enforced(False)'''
 
 
         utils.EzPickle.__init__(self)
@@ -109,7 +109,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.posbefore = self.robot_skeleton.q[0]
 
         # compensate for gravity
-        tau[1] = self.robot_skeleton.mass() * 9.81
+        #tau[1] = self.robot_skeleton.mass() * 9.81
 
         self.do_simulation(tau, self.frame_skip)
 

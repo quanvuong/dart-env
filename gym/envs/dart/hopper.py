@@ -126,6 +126,36 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         return reward
 
+    def reward_func_forward(self, a):
+        posafter = self.robot_skeleton.q[0]
+        alive_bonus = 0.01
+        joint_limit_penalty = 0
+        for j in [-2]:
+            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
+                joint_limit_penalty += abs(1.5)
+            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
+                joint_limit_penalty += abs(1.5)
+        reward = (posafter - self.posbefore) / self.dt
+        reward += alive_bonus
+        reward -= 1e-3 * np.square(a).sum()
+        reward -= 5e-1 * joint_limit_penalty
+        return reward
+
+    def reward_func_balance(self, a):
+        posafter = self.robot_skeleton.q[0]
+        alive_bonus = 1.0
+        joint_limit_penalty = 0
+        for j in [-2]:
+            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
+                joint_limit_penalty += abs(1.5)
+            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
+                joint_limit_penalty += abs(1.5)
+        reward = 0.01 * (posafter - self.posbefore) / self.dt
+        reward += alive_bonus
+        reward -= 1e-3 * np.square(a).sum()
+        reward -= 5e-1 * joint_limit_penalty
+        return reward
+
     def _step(self, a):
         self.t += self.dt
         self.advance(a)
