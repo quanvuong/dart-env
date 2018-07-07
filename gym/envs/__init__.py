@@ -415,7 +415,7 @@ register(
     id='DartSnake5Link-v1',
     entry_point='gym.envs.dart:DartSnake5LinkEnv',
     reward_threshold=3800.0,
-    max_episode_steps=100,
+    max_episode_steps=1000,
 )
 
 register(

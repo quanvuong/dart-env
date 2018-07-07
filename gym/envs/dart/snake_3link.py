@@ -98,7 +98,32 @@ class DartSnake3LinkEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(0, len(self.robot_skeleton.bodynodes)):
             self.robot_skeleton.bodynodes[i].set_friction_coeff(0)
 
+        # info for building gnn for dynamics
+        self.ignore_joint_list = []
+        self.ignore_body_list = [0, 1]
+        self.joint_property = ['limit']  # what to include in the joint property part
+        self.bodynode_property = ['mass']
+        self.root_type = 'None'
+        self.root_id = 0
+
+        # no joint limit
+        for world in self.dart_worlds:
+            for skeleton in world.skeletons:
+                for jt in range(0, len(skeleton.joints)):
+                    for dof in range(len(skeleton.joints[jt].dofs)):
+                        if skeleton.joints[jt].has_position_limit(dof):
+                            skeleton.joints[jt].set_position_limit_enforced(False)
+
         utils.EzPickle.__init__(self)
+
+    def pad_action(self, a):
+        full_ac = np.zeros(len(self.robot_skeleton.q))
+        full_ac[3:] = a
+        return full_ac
+
+
+    def about_to_contact(self):
+        return False
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
@@ -118,6 +143,7 @@ class DartSnake3LinkEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.step()
 
     def advance(self, a):
+        self.posbefore = self.robot_skeleton.q[0]
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -133,23 +159,31 @@ class DartSnake3LinkEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
-        pre_state = [self.state_vector()]
+    def terminated(self):
+        s = self.state_vector()
+        deviation = self.robot_skeleton.q[2]
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
+        return done
 
-        posbefore = self.robot_skeleton.q[0]
-        self.advance(a)
+    def reward_func(self, a):
         posafter = self.robot_skeleton.q[0]
         deviation = self.robot_skeleton.q[2]
 
         alive_bonus = 0.1
-        reward = (posafter - posbefore) / self.dt
+        reward = (posafter - self.posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= np.abs(deviation) * 0.1
-        s = self.state_vector()
-        self.accumulated_rew += reward
+        return reward
+
+    def _step(self, a):
+
+        self.advance(a)
+
+        reward = self.reward_func(a)
+
         self.num_steps += 1.0
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
+        done = self.terminated()
         ob = self._get_obs()
 
         return ob, reward, done, {}
