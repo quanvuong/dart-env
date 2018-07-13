@@ -65,6 +65,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         full_ac[3:] = a
         return full_ac
 
+    def unpad_action(self, a):
+        return a[3:]
+
     def advance(self, a):
         self.posbefore = self.robot_skeleton.q[0]
         clamped_control = np.array(a)
@@ -90,26 +93,33 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 current_state = self.state_vector()
                 pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
                 self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
-        self.fall_on_ground = False
-        contacts = self.dart_world.collision_result.contacts
-        total_force_mag = 0
-        for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
-            if contact.bodynode1 != self.robot_skeleton.bodynodes[-1] and contact.bodynode2 != \
-                    self.robot_skeleton.bodynodes[-1]:
-                self.fall_on_ground = True
 
     def about_to_contact(self):
         return False
 
+    def post_advance(self):
+        self.dart_world.check_collision()
+
     def terminated(self):
+        self.fall_on_ground = False
+        contacts = self.dart_world.collision_result.contacts
+        total_force_mag = 0
+        permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2]]
+        for contact in contacts:
+            total_force_mag += np.square(contact.force).sum()
+            if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
+                self.fall_on_ground = True
+
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            #and not self.fall_on_ground)
-             and (height > self.height_threshold_low) and (abs(ang) < .2))
+            and not self.fall_on_ground)
+            # and (height > self.height_threshold_low) and (abs(ang) < .2))
         return done
+
+    def pre_advance(self):
+        self.posbefore = self.robot_skeleton.q[0]
 
     def reward_func(self, a):
         posafter = self.robot_skeleton.q[0]
@@ -158,6 +168,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
     def _step(self, a):
         self.t += self.dt
+        self.pre_advance()
         self.advance(a)
 
         reward = self.reward_func(a)
@@ -209,6 +220,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.height_threshold_low = 0.56*self.robot_skeleton.bodynodes[2].com()[1]
         self.t = 0
 
+        self.fall_on_ground = False
+
         return state
 
     def viewer_setup(self):
@@ -220,3 +233,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def set_state_vector(self, s):
         self.robot_skeleton.q = s[0:len(self.robot_skeleton.q)]
         self.robot_skeleton.dq = s[len(self.robot_skeleton.q):]
+
+    def set_sim_parameters(self, pm):
+        self.param_manager.set_simulator_parameters(pm)
+
+    def get_sim_parameters(self):
+        return self.param_manager.get_simulator_parameters()

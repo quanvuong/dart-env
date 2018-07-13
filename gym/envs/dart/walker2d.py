@@ -68,6 +68,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         full_ac[3:] = a
         return full_ac
 
+    def pre_advance(self, a):
+        self.posbefore = self.robot_skeleton.q[0]
+
     def terminated(self):
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]

@@ -188,6 +188,9 @@ class DartSnake5LinkEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and abs(deviation) < 1.5)
         return done
 
+    def pre_advance(self, a):
+        self.posbefore = self.robot_skeleton.q[0]
+
     def reward_func(self, a):
         posafter = self.robot_skeleton.q[0]
         deviation = self.robot_skeleton.q[2]
