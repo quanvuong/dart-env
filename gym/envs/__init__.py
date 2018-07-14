@@ -277,6 +277,12 @@ register(
     max_episode_steps=300,
 )
 
+register(
+    id='DartSnake7Link-v1',
+    entry_point='gym.envs.dart:DartSnake7LinkEnv',
+    max_episode_steps=1000,
+)
+
 # Mujoco
 # ----------------------------------------
 

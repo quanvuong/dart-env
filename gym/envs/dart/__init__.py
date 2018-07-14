@@ -15,3 +15,5 @@ from gym.envs.dart.reacher2d import DartReacher2dEnv
 
 from gym.envs.dart.walker3d_spd import DartWalker3dSPDEnv
 from gym.envs.dart.human_walker import DartHumanWalkerEnv
+
+from gym.envs.dart.snake_7link import DartSnake7LinkEnv
