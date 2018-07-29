@@ -29,6 +29,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
+        self.include_obs_history = 6
+        self.include_act_history = 5
+        obs_dim *= self.include_obs_history
+        obs_dim += len(self.control_bounds[0]) * self.include_act_history
+
         dart_env.DartEnv.__init__(self, ['walker2d.skel', 'walker2d_variation1.skel'\
                                          , 'walker2d_variation2.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -57,6 +62,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                         if skeleton.joints[jt].has_position_limit(dof):
                             skeleton.joints[jt].set_position_limit_enforced(False)'''
 
+        # data structure for modeling delays in observation and action
+        self.observation_buffer = []
+        self.action_buffer = []
+        self.obs_delay = 3
+        self.act_delay = 3
 
         utils.EzPickle.__init__(self)
 
@@ -75,8 +85,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())# and
-                   # (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
+                   (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
         return done
 
     def reward_func(self, a):
@@ -100,8 +110,13 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         return reward
 
     def advance(self, a):
+        self.action_buffer.append(np.copy(a))
+        if len(self.action_buffer) < self.act_delay + 1:
+            a *= 0
+        else:
+            a = self.action_buffer[-self.act_delay - 1]
+
         clamped_control = np.array(a)
-        #print(clamped_control)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
@@ -115,8 +130,6 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #tau[1] = self.robot_skeleton.mass() * 9.81
 
         self.do_simulation(tau, self.frame_skip)
-
-
 
     def _step(self, a):
         self.advance(a)
@@ -138,13 +151,22 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.split_task_test:
             state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
 
-        if self.avg_div > 1:
-            return_state = np.zeros(len(state) + self.avg_div)
-            return_state[0:len(state)] = state
-            return_state[len(state) + self.state_index] = 1
-            return return_state
+        self.observation_buffer.append(np.copy(state))
 
-        return state
+        final_obs = np.array([])
+        for i in range(self.include_obs_history):
+            if self.obs_delay + i < len(self.observation_buffer):
+                final_obs = np.concatenate([final_obs, self.observation_buffer[-self.obs_delay - 1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, self.observation_buffer[0] * 0.0])
+
+        for i in range(self.include_act_history):
+            if i < len(self.action_buffer):
+                final_obs = np.concatenate([final_obs, self.action_buffer[-1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, [0.0] * len(self.control_bounds[0])])
+
+        return final_obs
 
     def reset_model(self):
         self.dart_world.reset()
@@ -171,6 +193,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             for ind, jtid in enumerate(jt_id):
                 self.robot_skeleton.joints[jtid].set_position_upper_limit(0, jt_val[ind][1])
                 self.robot_skeleton.joints[jtid].set_position_lower_limit(0, jt_val[ind][0])
+
+        self.observation_buffer = []
+        self.action_buffer = []
 
         return self._get_obs()
 

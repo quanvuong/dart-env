@@ -13,11 +13,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
-        self.train_UP = False
-        self.noisy_input = False
+        self.train_UP = True
+        self.noisy_input = True
         obs_dim = 11
 
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
 
         if self.train_UP:
@@ -36,8 +36,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
+        self.include_obs_history = 1
+        self.include_act_history = 0
+        obs_dim *= self.include_obs_history
+        obs_dim += len(self.control_bounds[0]) * self.include_act_history
+
         dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
-        #self.param_manager.set_simulator_parameters([1.0])
+
         self.current_param = self.param_manager.get_simulator_parameters()
         self.curriculum_up = False
         self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
@@ -58,6 +63,20 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.root_id = 0
         #self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
+        # data structure for modeling delays in observation and action
+        self.observation_buffer = []
+        self.action_buffer = []
+        self.obs_delay = 0
+        self.act_delay = 0
+
+        #self.param_manager.set_simulator_parameters([0.12095943, 0.98765449, 0.70759732, 0.53055203, 0.31706673])
+
+        print('sim parameters: ', self.param_manager.get_simulator_parameters())
+
+        # data structure for actuation modeling
+
+        self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
+
         utils.EzPickle.__init__(self)
 
     def pad_action(self, a):
@@ -69,6 +88,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         return a[3:]
 
     def advance(self, a):
+        self.action_buffer.append(np.copy(a))
+        if len(self.action_buffer) < self.act_delay + 1:
+            a *= 0
+        else:
+            a = self.action_buffer[-self.act_delay-1]
+
         self.posbefore = self.robot_skeleton.q[0]
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -94,6 +119,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
                 self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
 
+        #state = self.state_vector()
+        #self.set_state_vector(state / self.dt * self.dof_timesteps)
+
     def about_to_contact(self):
         return False
 
@@ -114,8 +142,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         height = self.robot_skeleton.bodynodes[2].com()[1]
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            and not self.fall_on_ground)
-            # and (height > self.height_threshold_low) and (abs(ang) < .2))
+            #and not self.fall_on_ground)
+             and (height > self.height_threshold_low) and (abs(ang) < .4))
         return done
 
     def pre_advance(self):
@@ -170,7 +198,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.t += self.dt
         self.pre_advance()
         self.advance(a)
-
         reward = self.reward_func(a)
 
         done = self.terminated()
@@ -183,7 +210,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         return ob, reward, done, envinfo
 
-    def _get_obs(self):
+    def _get_obs(self, update_buffer = True):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
             self.robot_skeleton.dq,
@@ -194,11 +221,28 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
 
-        return state
+        if update_buffer:
+            self.observation_buffer.append(np.copy(state))
+
+        final_obs = np.array([])
+        for i in range(self.include_obs_history):
+            if self.obs_delay + i < len(self.observation_buffer):
+                final_obs = np.concatenate([final_obs, self.observation_buffer[-self.obs_delay-1-i]])
+            else:
+                final_obs = np.concatenate([final_obs, self.observation_buffer[0]*0.0])
+
+        for i in range(self.include_act_history):
+            if i < len(self.action_buffer):
+                final_obs = np.concatenate([final_obs, self.action_buffer[-1-i]])
+            else:
+                final_obs = np.concatenate([final_obs, [0.0]*len(self.control_bounds[0])])
+
+        return final_obs
 
     def reset_model(self):
         for world in self.dart_worlds:
             world.reset()
+        self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
 
@@ -211,9 +255,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.param_manager.set_simulator_parameters(pm)
             self.current_param = self.param_manager.get_simulator_parameters()
 
-        self.state_action_buffer = [] # for delay
+        self.observation_buffer = []
+        self.action_buffer = []
 
-        state = self._get_obs()
+        state = self._get_obs(update_buffer = True)
 
         self.cur_step = 0
 
@@ -228,11 +273,15 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self._get_viewer().scene.tb.trans[2] = -5.5
 
     def state_vector(self):
-        return np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq])
+        s = np.copy(np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]))
+        s[1] += self.zeroed_height
+        return s
 
     def set_state_vector(self, s):
-        self.robot_skeleton.q = s[0:len(self.robot_skeleton.q)]
-        self.robot_skeleton.dq = s[len(self.robot_skeleton.q):]
+        snew = np.copy(s)
+        snew[1] -= self.zeroed_height
+        self.robot_skeleton.q = snew[0:len(self.robot_skeleton.q)]
+        self.robot_skeleton.dq = snew[len(self.robot_skeleton.q):]
 
     def set_sim_parameters(self, pm):
         self.param_manager.set_simulator_parameters(pm)

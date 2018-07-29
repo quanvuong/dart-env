@@ -83,6 +83,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         self.use_qdqstate = True
 
+        # data structure for modeling delays in observation and action
+        self.observation_buffer = []
+        self.action_buffer = []
+        self.obs_delay = 1
+        self.act_delay = 1
+
         utils.EzPickle.__init__(self)
 
     def about_to_contact(self):
@@ -92,6 +98,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         full_ac = np.zeros(len(self.robot_skeleton.q))
         full_ac[0] = a[0]
         return full_ac
+
+    def unpad_action(self, a):
+        return [a[0]]
 
     def terminated(self):
         done = abs(self.robot_skeleton.dq[1]) > 35 or abs(self.robot_skeleton.q[0]) > 2.0
@@ -137,6 +146,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
         return ob, reward, done, envinfo
 
     def advance(self, a):
+        self.action_buffer.append(np.copy(a))
+        if len(self.action_buffer) < self.act_delay + 1:
+            a *= 0
+        else:
+            a = self.action_buffer[-self.act_delay - 1]
+
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -189,6 +204,12 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         if self.input_exp > 0:
             state = np.concatenate([state, self.sampled_input_exp])
+
+        self.observation_buffer.append(np.copy(state))
+        if len(self.observation_buffer) < self.obs_delay + 1:
+            state = self.observation_buffer[0]
+        else:
+            state = self.observation_buffer[-self.obs_delay - 1]
 
         return state
 
@@ -285,6 +306,9 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
 
         self.cur_step = 0
 
+        self.observation_buffer = []
+        self.action_buffer = []
+
         return self._get_obs()
 
     def viewer_setup(self):
@@ -298,3 +322,15 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
     def set_state_vector(self, s):
         self.robot_skeleton.q = s[0:len(self.robot_skeleton.q)]
         self.robot_skeleton.dq = s[len(self.robot_skeleton.q):]
+
+    def set_sim_parameters(self, pm):
+        self.param_manager.set_simulator_parameters(pm)
+
+    def get_sim_parameters(self):
+        return self.param_manager.get_simulator_parameters()
+
+    def pre_advance(self):
+        pass
+
+    def post_advance(self):
+        pass
