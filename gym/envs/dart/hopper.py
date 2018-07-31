@@ -13,11 +13,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
-        self.train_UP = True
-        self.noisy_input = True
+        self.train_UP = False
+        self.noisy_input = False
         obs_dim = 11
 
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
 
         if self.train_UP:
@@ -69,7 +69,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
-        #self.param_manager.set_simulator_parameters([0.12095943, 0.98765449, 0.70759732, 0.53055203, 0.31706673])
+        #self.param_manager.set_simulator_parameters([0.20380598, 0.19777815, 0.93994749, 0.97609129, 0.84441813, 0.82192204, 0.6144563, 0.06673267, 0.88133593, 0.44165071])
 
         print('sim parameters: ', self.param_manager.get_simulator_parameters())
 

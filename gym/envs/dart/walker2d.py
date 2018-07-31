@@ -11,9 +11,12 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         #self.control_bounds[1][1] = -0.3
         #self.control_bounds[1][4] = -0.3
-        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
+        self.action_scale = 100 #np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
-        self.param_manager = hopperContactMassManager(self)
+        self.train_UP = False
+        self.noisy_input = False
+        self.resample_MP = False
+        self.param_manager = walker2dParamManager(self)
 
         self.avg_div = 0
         self.target_vel = 0.9
@@ -29,10 +32,13 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         if self.avg_div > 1:
             obs_dim += self.avg_div
 
-        self.include_obs_history = 6
-        self.include_act_history = 5
+        self.include_obs_history = 1
+        self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
+
+        if self.train_UP:
+            obs_dim += len(self.param_manager.activated_param)
 
         dart_env.DartEnv.__init__(self, ['walker2d.skel', 'walker2d_variation1.skel'\
                                          , 'walker2d_variation2.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
@@ -67,6 +73,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_buffer = []
         self.obs_delay = 3
         self.act_delay = 3
+
+        print('sim parameters: ', self.param_manager.get_simulator_parameters())
 
         utils.EzPickle.__init__(self)
 
@@ -144,7 +152,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
     def _get_obs(self):
         state =  np.concatenate([
             self.robot_skeleton.q[1:],
-            np.clip(self.robot_skeleton.dq,-10,10)
+            self.robot_skeleton.dq
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
@@ -166,6 +174,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             else:
                 final_obs = np.concatenate([final_obs, [0.0] * len(self.control_bounds[0])])
 
+        if self.train_UP:
+            final_obs = np.concatenate([final_obs, self.param_manager.get_simulator_parameters()])
+        if self.noisy_input:
+            final_obs = final_obs + np.random.normal(0, .01, len(final_obs))
+
         return final_obs
 
     def reset_model(self):
@@ -173,6 +186,10 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         self.set_state(qpos, qvel)
+
+        if self.resample_MP:
+            self.param_manager.resample_parameters()
+            self.current_param = self.param_manager.get_simulator_parameters()
 
         if self.split_task_test:
             if self.task_expand_flag:

@@ -34,7 +34,7 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         qpos = self.sim.data.qpos
         qvel = self.sim.data.qvel
-        return np.concatenate([qpos[1:], np.clip(qvel, -10, 10)]).ravel()
+        return np.concatenate([qpos[1:], qvel]).ravel()
 
     def reset_model(self):
         self.set_state(

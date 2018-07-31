@@ -162,6 +162,10 @@ class DartEnv(gym.Env):
     def dt(self):
         return self.dart_world.dt * self.frame_skip
 
+    @property
+    def sim_dt(self):
+        return self.dart_world.dt
+
     def do_simulation(self, tau, n_frames):
         if self.add_perturbation:
             if self.perturbation_duration == 0:

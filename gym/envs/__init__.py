@@ -588,6 +588,12 @@ register(
 )
 
 register(
+    id='DartHumanBalance-v1',
+    entry_point='gym.envs.dart:DartHumanBalanceEnv',
+    max_episode_steps=500,
+)
+
+register(
     id='DartHumanBallWalker-v1',
     entry_point='gym.envs.dart:DartHumanBallWalkerEnv',
     max_episode_steps=500,

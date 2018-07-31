@@ -477,48 +477,71 @@ class CartPoleManager:
 class walker2dParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.range = [0.4, 1.0] # friction range
+        self.mass_range = [2.0, 10.0]
+        self.damping_range = [0.5, 3.0]
+        self.friction_range = [0.2, 1.0] # friction range
         self.restitution_range = [0.0, 0.3]
-        self.backpack_mass_range = [0.05, 10.0]
-        self.activated_param = [2]
-        self.controllable_param = [2]
+        self.power_range = [150, 250]
+        #self.obs_delay = [0.0, 3.5]
+        #self.act_delay = [0.0, 3.5]
+        self.activated_param = [0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
+        self.controllable_param = [0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
         self.selector_target = -1
 
     def get_simulator_parameters(self):
+        mass_param = []
+        for bid in range(2, 9):
+            cur_mass = self.simulator.robot_skeleton.bodynodes[bid].m
+            mass_param.append((cur_mass - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0]))
+
+        damp_param = []
+        for jid in range(3, 9):
+            cur_damp = self.simulator.robot_skeleton.joints[jid].damping_coefficient(0)
+            damp_param.append((cur_damp - self.damping_range[0]) / (self.damping_range[1] - self.damping_range[0]))\
+
         cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
-        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
+        friction_param = (cur_friction - self.friction_range[0]) / (self.friction_range[1] - self.friction_range[0])
 
         cur_rest = self.simulator.dart_world.skeletons[0].bodynodes[0].restitution_coeff()
         restitution_param = (cur_rest - self.restitution_range[0]) / (self.restitution_range[1] - self.restitution_range[0])
 
-        cur_mass = self.simulator.robot_skeleton.bodynodes[3].m
-        mass_param = (cur_mass - self.backpack_mass_range[0]) / (self.backpack_mass_range[1] - self.backpack_mass_range[0])
+        cur_power = self.simulator.action_scale
+        power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
 
-        return np.array([friction_param, restitution_param, mass_param])[self.activated_param]
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
-        if 0 in self.controllable_param:
-            friction = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
+
+        for bid in range(0, 7):
+            if bid in self.controllable_param:
+                mass = x[cur_id] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0]
+                self.simulator.robot_skeleton.bodynodes[bid+2].set_mass(mass)
+                cur_id += 1
+        for jid in range(7, 13):
+            if jid in self.controllable_param:
+                damp = x[cur_id] * (self.damping_range[1] - self.damping_range[0]) + self.damping_range[0]
+                self.simulator.robot_skeleton.joints[jid - 5].set_damping_coefficient(0, damp)
+                cur_id += 1
+
+        if 13 in self.controllable_param:
+            friction = x[cur_id] * (self.friction_range[1] - self.friction_range[0]) + self.friction_range[0]
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(friction)
             cur_id += 1
-        if 1 in self.controllable_param:
+        if 14 in self.controllable_param:
             restitution = x[cur_id] * (self.restitution_range[1] - self.restitution_range[0]) + self.restitution_range[0]
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_restitution_coeff(restitution)
             self.simulator.dart_world.skeletons[1].bodynodes[-1].set_restitution_coeff(1.0)
             cur_id += 1
-        if 2 in self.controllable_param:
-            mass = x[cur_id] * (self.backpack_mass_range[1] - self.backpack_mass_range[0]) + self.backpack_mass_range[0]
-            self.simulator.robot_skeleton.bodynodes[3].set_mass(mass)
+        if 15 in self.controllable_param:
+            power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
+            self.simulator.action_scale = power
             cur_id += 1
 
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        if self.sampling_selector is not None:
-            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
-                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)
