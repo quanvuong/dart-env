@@ -14,7 +14,7 @@ import pydart2 as pydart
 class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
+        self.action_scale = 200#np.array([60.0, 200, 60, 100, 80, 60, 60, 200, 60, 100, 80, 60, 150, 150, 100, 15,80,15, 30, 15,80,15, 30])
         obs_dim = 57
 
         dart_env.DartEnv.__init__(self, 'kima/kima_human_edited.skel', 15, obs_dim, self.control_bounds,
@@ -48,7 +48,8 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
     def do_simulation(self, tau, n_frames):
         for _ in range(n_frames):
-            self.robot_skeleton.bodynode(self.push_target).add_ext_force(self.push_direction * self.push_strength)
+            if self.cur_step < 30:
+                self.robot_skeleton.bodynode(self.push_target).add_ext_force(self.push_direction * self.push_strength)
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
@@ -63,7 +64,7 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         height = self.robot_skeleton.bodynode('head').com()[1]
 
-        alive_bonus = 1.0
+        alive_bonus = 3.0
 
         reward = alive_bonus - np.square(a).sum() * 0.1
 
@@ -74,8 +75,8 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height - self.init_height > -0.35) and
-                    np.abs(self.robot_skeleton.q[5]) < 1.2 and np.abs(self.robot_skeleton.q[4]) < 1.2 and
-                    np.abs(self.robot_skeleton.q[3]) < 1.2)
+                    np.abs(self.robot_skeleton.q[5]) < 0.7 and np.abs(self.robot_skeleton.q[4]) < 0.7 and
+                    np.abs(self.robot_skeleton.q[3]) < 0.7)
 
         ob = self._get_obs()
 
@@ -105,8 +106,10 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_height = self.robot_skeleton.bodynode('head').com()[1]
 
         self.push_direction = np.random.uniform(-1, 1, 3)
+        self.push_direction[1] = 0
+        self.push_direction[0] = np.abs(self.push_direction[0])
         self.push_direction /= np.linalg.norm(self.push_direction)
-        self.push_strength = np.random.random() * 200
+        self.push_strength = (np.random.random() + 1.0) * 100
 
         return self._get_obs()
 
