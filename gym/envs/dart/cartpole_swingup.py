@@ -11,7 +11,7 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole_swingup.skel', 2, 4, self.control_bounds, dt=0.01)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau[0] = a[0] * self.action_scale
 

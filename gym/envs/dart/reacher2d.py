@@ -14,7 +14,7 @@ class DartReacher2dEnv(dart_env.DartEnv, utils.EzPickle):
                 n.set_collidable(False)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:

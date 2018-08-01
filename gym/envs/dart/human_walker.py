@@ -63,7 +63,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.step()
 
     def advance(self, a):
-        a*=0
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -75,7 +74,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
+    def step(self, a):
         posbefore = self.robot_skeleton.bodynodes[1].com()[0]
         self.advance(np.copy(a))
         posafter = self.robot_skeleton.bodynodes[1].com()[0]

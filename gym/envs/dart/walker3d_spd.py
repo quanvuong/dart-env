@@ -54,7 +54,7 @@ class DartWalker3dSPDEnv(dart_env.DartEnv, utils.EzPickle):
             tau = self._spd(target)
             self.do_simulation(tau, 1)
 
-    def _step(self, a):
+    def step(self, a):
         pre_state = [self.state_vector()]
 
         clamped_control = np.array(a)

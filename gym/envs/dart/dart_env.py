@@ -136,7 +136,7 @@ class DartEnv(gym.Env):
 
     # -----------------------------
 
-    def _reset(self):
+    def reset(self):
         self.perturbation_duration = 0
         ob = self.reset_model()
         return ob
@@ -173,7 +173,7 @@ class DartEnv(gym.Env):
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[0] = -self.dart_world.skeletons[self.track_skeleton_id].com()[0]*1
         if close:

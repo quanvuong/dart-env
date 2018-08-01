@@ -9,7 +9,7 @@ class DartCartPoleEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'cartpole.skel', 2, 4, control_bounds, dt=0.02, disableViewer=False)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         reward = 1.0
 
         tau = np.zeros(self.robot_skeleton.ndofs)

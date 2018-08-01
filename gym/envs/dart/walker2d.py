@@ -19,7 +19,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         pre_state = [self.state_vector()]
 
         clamped_control = np.array(a)

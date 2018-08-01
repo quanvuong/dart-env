@@ -42,7 +42,7 @@ class DartWalker3dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
+    def step(self, a):
         posbefore = self.robot_skeleton.bodynodes[0].com()[0]
         self.advance(a)
 

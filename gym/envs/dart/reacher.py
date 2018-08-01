@@ -12,7 +12,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'reacher.skel', 4, 21, self.control_bounds)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:

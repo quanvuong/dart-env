@@ -25,7 +25,7 @@ class DartCartPoleImgEnv(dart_env.DartEnv, utils.EzPickle):
                                   screen_width=self.screen_width, screen_height=self.screen_height)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         tau = np.zeros(self.robot_skeleton.ndofs)
         if a == 0:
             tau[0] = -10
@@ -51,7 +51,7 @@ class DartCartPoleImgEnv(dart_env.DartEnv, utils.EzPickle):
         
         return ob, reward, done, {}
 
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
         if close:
             if self.viewer is not None:
                 self._get_viewer().close()
