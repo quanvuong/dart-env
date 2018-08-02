@@ -2,7 +2,7 @@ __author__ = 'yuwenhao'
 
 import numpy as np
 from gym import utils
-from gym_dart.envs import dart_env
+from gym.envs.dart import dart_env
 
 # swing up and balance of double inverted pendulum
 class DartDoubleInvertedPendulumEnv(dart_env.DartEnv, utils.EzPickle):
