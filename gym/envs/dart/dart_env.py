@@ -11,6 +11,7 @@ import six
 
 
 from gym.envs.dart.static_window import *
+from gym.envs.dart.dart_world import *
 
 try:
     import pydart2 as pydart
@@ -53,10 +54,10 @@ class DartEnv(gym.Env):
         if full_paths[0][-5:] == '.skel':
             self.dart_worlds = []
             for i in range(len(model_paths)):
-                self.dart_worlds.append(pydart.World(dt, full_paths[i]))
+                self.dart_worlds.append(DartWorld(dt, full_paths[i]))
             self.dart_world = self.dart_worlds[0]
         else:
-            self.dart_world = pydart.World(dt)
+            self.dart_world = DartWorld(dt)
             for fullpath in full_paths:
                 self.dart_world.add_skeleton(fullpath)
 
@@ -156,7 +157,7 @@ class DartEnv(gym.Env):
 
     def set_state_vector(self, state):
         self.robot_skeleton.set_positions(state[0:int(len(state)/2)])
-        self.robot_skeleton.set_velocities(state[int(len(state)/2):]*10.0)
+        self.robot_skeleton.set_velocities(state[int(len(state)/2):])
 
     @property
     def dt(self):
@@ -185,7 +186,7 @@ class DartEnv(gym.Env):
             self.robot_skeleton.set_forces(tau)
             self.dart_world.step()
 
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
         if not self.disableViewer:
             self._get_viewer().scene.tb.trans[0] = -self.dart_world.skeletons[self.track_skeleton_id].com()[0]*1
         if close:
@@ -222,7 +223,7 @@ class DartEnv(gym.Env):
     def state_vector(self):
         return np.concatenate([
             self.robot_skeleton.q,
-            self.robot_skeleton.dq/10.0
+            self.robot_skeleton.dq
         ])
 
 

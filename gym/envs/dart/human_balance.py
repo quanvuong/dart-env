@@ -6,19 +6,28 @@ from gym.envs.dart import dart_env
 
 class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
+        # define the control signal bounds
         self.control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
-        self.action_scale = 200
-        obs_dim = 57
 
+        # define the observation dimension
+        obs_dim = 56
+
+        # initialize pydart world
         dart_env.DartEnv.__init__(self, 'kima/kima_human_balance.skel', 15, obs_dim, self.control_bounds,
                                       disableViewer=True, dt=0.002)
 
+        # define the perturbation model
         self.push_direction = np.array([1, 0, 0])
         self.push_strength = 100.0
-        self.push_target = 'thorax'
+        self.push_target = 'head'
 
+        # scales for the control signal
+        self.action_scale = 200
+
+        # enable self-collision check
         self.robot_skeleton.set_self_collision_check(True)
 
+        # initialize EzPickle s.t. pickle/joblib can work with pydart correctly
         utils.EzPickle.__init__(self)
 
     def do_simulation(self, tau, n_frames):
@@ -34,28 +43,17 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
+    def step(self, a):
         self.advance(np.clip(a, -1, 1))
 
         height = self.robot_skeleton.bodynode('head').com()[1]
 
         alive_bonus = 3.0
 
-        head_position = self.robot_skeleton.bodynode('head').C
-        hand_left_position = self.robot_skeleton.bodynode('l-lowerarm').C
-        hand_right_position = self.robot_skeleton.bodynode('r-lowerarm').C
-        foot_left_position = self.robot_skeleton.bodynode('l-foot').C
-        foot_right_position = self.robot_skeleton.bodynode('r-foot').C
-        pose_dev = np.exp(-np.square(np.clip(head_position - self.init_head_position,-10, 10)).sum())
-        pose_dev += np.exp(-np.square(np.clip(hand_left_position - self.init_hand_left_position,-10, 10)).sum())
-        pose_dev += np.exp(-np.square(np.clip(hand_right_position - self.init_hand_right_position,-10, 10)).sum())
-        pose_dev += np.exp(-np.square(np.clip(foot_left_position - self.init_foot_left_position,-10, 10)).sum())
-        pose_dev += np.exp(-np.square(np.clip(foot_right_position - self.init_foot_right_position,-10, 10)).sum())
+        current_q = self.robot_skeleton.q
+        q_dev = np.exp(-np.square(np.clip(current_q,-10, 10)).sum())
 
-        current_q = self.robot_skeleton.q[6:]
-        q_dev = np.exp(-np.square(np.clip(self.init_q - current_q,-10, 10)).sum())
-
-        reward = alive_bonus - np.square(a).sum() * 0.1 + pose_dev + q_dev
+        reward = alive_bonus - np.square(a).sum()*0.1 + q_dev * 5
 
         self.cur_step += 1
 
@@ -66,8 +64,8 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         done = not (np.isfinite(s).all() and (np.abs(s) < 100).all() and
                     (height - self.init_height > -0.35) and
-                    np.abs(self.robot_skeleton.q[5]) < 0.7 and np.abs(self.robot_skeleton.q[4]) < 0.7 and
-                    np.abs(self.robot_skeleton.q[3]) < 0.7)
+                    np.abs(self.robot_skeleton.q[5]) < 1.0 and np.abs(self.robot_skeleton.q[4]) < 1.0 and
+                    np.abs(self.robot_skeleton.q[3]) < 1.0)
 
         ob = self._get_obs()
 
@@ -75,7 +73,8 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
     def _get_obs(self):
         state = np.concatenate([
-            self.robot_skeleton.q[1:],
+            self.robot_skeleton.q[[1]],
+            self.robot_skeleton.q[3:],
             self.robot_skeleton.dq,
         ])
 
@@ -92,16 +91,7 @@ class DartHumanBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.init_height = self.robot_skeleton.bodynode('head').com()[1]
 
-        self.init_head_position = self.robot_skeleton.bodynode('head').C
-        self.init_hand_left_position = self.robot_skeleton.bodynode('l-lowerarm').C
-        self.init_hand_right_position = self.robot_skeleton.bodynode('r-lowerarm').C
-        self.init_foot_left_position = self.robot_skeleton.bodynode('l-foot').C
-        self.init_foot_right_position = self.robot_skeleton.bodynode('r-foot').C
-        self.init_q = self.robot_skeleton.q[6:]
-
-        self.push_direction = np.random.uniform(-1, 1, 3)
-        self.push_direction[1] = 0
-        #self.push_direction[0] = np.abs(self.push_direction[0])
+        self.push_direction = np.array([np.random.uniform(-1, 1), 0.0, np.random.uniform(-1, 1)])
         self.push_direction /= np.linalg.norm(self.push_direction)
         self.push_strength = (np.random.random() + 1.0) * 100
 

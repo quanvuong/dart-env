@@ -21,11 +21,10 @@ class hopperContactMassManager:
         self.damping_range = [0.5, 3.0]
         self.power_range = [150, 250]
         self.ankle_range = [40, 300]
+        self.velrew_weight_range = [-1.0, 1.0]
 
-        self.dof_timestep_range = [0.002, 0.008]
-
-        self.activated_param = [0, 1, 2,3,4,5, 6,7,8, 9]# + np.arange(6, 18).tolist()
-        self.controllable_param = [0, 1, 2,3,4,5, 6,7,8, 9]# + np.arange(6, 18).tolist()
+        self.activated_param = [0, 1, 2,3,4,5, 6,7,8, 9, 11]
+        self.controllable_param = [0, 1, 2,3,4,5, 6,7,8, 9, 11]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -56,7 +55,10 @@ class hopperContactMassManager:
         cur_ank_power = self.simulator.action_scale[2]
         ank_power_param = (cur_ank_power - self.ankle_range[0]) / (self.ankle_range[1] - self.ankle_range[0])
 
-        params = np.array([friction_param, restitution_param]+ mass_param + damp_param + [power_param, ank_power_param])[self.activated_param]
+        cur_velrew_weight = self.simulator.velrew_weight
+        velrew_param = (cur_velrew_weight - self.velrew_weight_range[0]) / (self.velrew_weight_range[1] - self.velrew_weight_range[0])
+
+        params = np.array([friction_param, restitution_param]+ mass_param + damp_param + [power_param, ank_power_param, velrew_param])[self.activated_param]
         if self.binned_param > 0:
             for i in range(len(params)):
                 params[i] = int(params[i] / (1.0 / self.binned_param)) * (1.0/self.binned_param) + 0.5 / self.binned_param
@@ -90,6 +92,10 @@ class hopperContactMassManager:
         if 10 in self.controllable_param:
             ankpower = x[cur_id] * (self.ankle_range[1] - self.ankle_range[0]) + self.ankle_range[0]
             self.simulator.action_scale[2] = ankpower
+            cur_id += 1
+        if 11 in self.controllable_param:
+            velrew_weight = x[cur_id] * (self.velrew_weight_range[1] - self.velrew_weight_range[0]) + self.velrew_weight_range[0]
+            self.simulator.velrew_weight = velrew_weight
             cur_id += 1
 
 
@@ -482,6 +488,7 @@ class walker2dParamManager:
         self.friction_range = [0.2, 1.0] # friction range
         self.restitution_range = [0.0, 0.3]
         self.power_range = [150, 250]
+
         #self.obs_delay = [0.0, 3.5]
         #self.act_delay = [0.0, 3.5]
         self.activated_param = [0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]

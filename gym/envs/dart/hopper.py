@@ -17,6 +17,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = False
         obs_dim = 11
 
+        self.velrew_weight = 1.0
         self.resample_MP = False  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
 
@@ -69,7 +70,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
-        #self.param_manager.set_simulator_parameters([0.20380598, 0.19777815, 0.93994749, 0.97609129, 0.84441813, 0.82192204, 0.6144563, 0.06673267, 0.88133593, 0.44165071])
+        self.current_param[0] = 0.0
+        self.param_manager.set_simulator_parameters(self.current_param)
 
         print('sim parameters: ', self.param_manager.get_simulator_parameters())
 
@@ -158,7 +160,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
-        reward = (posafter - self.posbefore) / self.dt
+        reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
@@ -194,7 +196,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         return reward
 
-    def _step(self, a):
+    def step(self, a):
         self.t += self.dt
         self.pre_advance()
         self.advance(a)
