@@ -22,13 +22,13 @@ import OpenGL.GLUT as GLUT
 class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = True
         renderCloth = True
 
         #observation terms
         self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
-        self.oracleInObs    = True  # if true, oracle vector is in obs
+        self.oracleInObs    = False  # if true, oracle vector is in obs
         self.contactIDInObs = True  # if true, contact ids are in obs
         self.hapticsInObs   = True # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
@@ -40,7 +40,7 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
-        self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.sleeveForwardReward        = False #penalize sleeve for being behind the character
@@ -88,6 +88,15 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
         self.efHistory = []
 
+        # reward graphing
+        self.rewardGraphing = False
+        self.rewardGraph = None
+        self.cumulativeRewardGraph = None
+        if self.rewardGraphing:
+            self.rewardGraph = pyutils.LineGrapher(title="Rewards")
+            self.cumulativeRewardGraph = pyutils.LineGrapher(title="Cumulative Rewards")
+        self.cumulativeReward = 0
+
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
 
@@ -131,7 +140,6 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
         self.collarFeature = ClothFeature(verts=self.collarVertices, clothScene=self.clothScene)
         self.gripFeatureL = ClothFeature(verts=self.targetGripVerticesL, clothScene=self.clothScene, b1spanverts=[889,1041], b2spanverts=[47,677])
         self.gripFeatureR = ClothFeature(verts=self.targetGripVerticesR, clothScene=self.clothScene, b1spanverts=[362,889], b2spanverts=[51,992])
-
 
         self.simulateCloth = clothSimulation
         if self.simulateCloth:
@@ -422,6 +430,14 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
                       + reward_recurrency_stability \
                       + reward_sleeveForward * self.sleeveForwardRewardWeight \
                       + reward_dynamicef * self.dynamicEfRewardWeight
+
+        if self.rewardGraphing and self.rewardGraph is not None:
+            self.rewardGraph.yData[-1][self.numSteps] = self.reward
+            self.rewardGraph.update()
+            self.cumulativeReward += self.reward
+            self.cumulativeRewardGraph.yData[-1][self.numSteps] = self.cumulativeReward
+            self.cumulativeRewardGraph.update()
+
         return self.reward
 
     def _get_obs(self):
@@ -506,6 +522,15 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
     def additionalResets(self):
         #do any additional resetting here
         self.efHistory = []
+
+        self.cumulativeReward = 0
+        if self.rewardGraphing:
+            self.rewardGraph.save("AblationStudy_tshirtR/rewardGraph", "AblationStudy_tshirtR/rewardGraphData")
+            self.rewardGraph.xdata = np.arange(175)
+            self.rewardGraph.plotData(ydata=np.zeros(175))
+            self.cumulativeRewardGraph.save("AblationStudy_tshirtR/cumulativeRewardGraph", "AblationStudy_tshirtR/cumulativeRewardGraphData")
+            self.cumulativeRewardGraph.xdata = np.arange(175)
+            self.cumulativeRewardGraph.plotData(ydata=np.zeros(175))
 
         if self.simulateCloth:
             self.sleeveRSeamFeature.fitPlane()
@@ -693,9 +718,12 @@ class DartClothUpperBodyDataDrivenClothTshirtREnv(DartClothUpperBodyDataDrivenCl
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines * textHeight, text="Max Deformation = " + str(maxDeformation), color=(0., 0, 0))
             textLines += 1
-            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
-            textLines += 1
-            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
+            #self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
+            #textLines += 1
+            #self.clothScene.drawText(x=15., y=textLines * textHeight, text="Sum of Squared Deformation = " + str(sumSquaredDeformation), color=(0., 0, 0))
+            #textLines += 1
+            #Text showing Controller Name
+            self.clothScene.drawText(x=15., y=textLines * textHeight, text="Ablation Study: Baseline", color=(0., 0, 0))
             textLines += 1
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)

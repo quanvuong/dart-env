@@ -26,15 +26,22 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2018_05_25_tshirtR_ablationbaseline_cont"
-    #trial = "experiment_2018_05_25_tshirtR_ablationbaseline"
-    #trial = "experiment_2018_05_25_assistivelinear1"
+    #Sawyer Trials
 
-    #trial = "experiment_2018_05_24_assistivelineartrack"
-    #trial = "experiment_2018_05_24_tshirt_final"
+
+    #trial = "experiment_2018_05_27_tshirtR_ablationhaptics"
+    #trial = "experiment_2018_05_27_tshirtR_ablationgeo"
+    #trial = "experiment_2018_05_26_tshirtR_ablaton_oracle"
+    #trial = "experiment_2018_05_25_tshirtR_ablationbaseline_cont"
+    #trial = "experiment_2018_05_25_tshirtR_ablationbaseline"
+
+    #trial = "experiment_2018_05_25_assistivelinear1" #good
+
+    #trial = "experiment_2018_05_24_assistivelineartrack" #bugged
+    #trial = "experiment_2018_05_24_tshirt_final" #good
 
     #trial = "experiment_2018_05_23_lsleeve_warm"
-    #trial = "experiment_2018_05_23_lineartrack"
+    #trial = "experiment_2018_05_23_lineartrack" #good linear
 
     #trial = "experiment_2018_05_22_jacketL_warm_rest"
     #trial = "experiment_2018_05_23_ltuck_warm"         #good seq 3
@@ -352,7 +359,7 @@ if __name__ == '__main__':
     #env = gym.make('DartClothGownDemo-v1')
     #env = gym.make('DartClothUpperBodyDataDriven-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v1')
-    env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
+    #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v2')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirt-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenTshirtL_HapticHighRes-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenReacher-v1')
@@ -385,6 +392,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothBalance-v1')
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1')
 
+    #Sawyer Env
+    env = gym.make('DartSawyer-v1')
+
     useMeanPolicy = False
 
     #print("policy time")
@@ -396,7 +406,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartClothUpperBodyDataDrivenTshirt-v2', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartSawyer-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
@@ -422,7 +432,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
-    for i in range(100):
+    for i in range(11):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
@@ -430,12 +440,13 @@ if __name__ == '__main__':
         env.render()
         #time.sleep(0.5)
         rolloutHorizon = 10000
+        rolloutHorizon = 250
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000
         startTime = time.time()
         #for j in range(rolloutHorizon):
-        start_pose = np.array(env.robot_skeleton.q[6:])
+        #start_pose = np.array(env.robot_skeleton.q[6:])
         while(env.numSteps < rolloutHorizon):
             #if j%(rolloutHorizon/10) == 0:
             #    print("------- Checkpoint: " + str(j/(rolloutHorizon/10)) + "/10 --------")

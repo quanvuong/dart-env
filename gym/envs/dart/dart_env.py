@@ -55,6 +55,7 @@ class DartEnv(gym.Env):
             self.dart_world = pydart.World(dt, full_paths[0])
         else:
             self.dart_world = pydart.World(dt)
+            
             for fullpath in full_paths:
                 self.dart_world.add_skeleton(fullpath)
 

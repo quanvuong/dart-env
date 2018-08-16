@@ -95,9 +95,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
         #output for rendering controls
-        self.recordForRendering = False
+        self.recordForRendering = True
         #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
-        self.recordForRenderingOutputPrefix = "saved_render_states/tshirtseq_spd/tshirtseq"
+        self.recordForRenderingOutputPrefix = "saved_render_states/siggraph_asia_finals/tshirt_failures/"
+        self.renderSaveSteps = 0
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -112,6 +113,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.clothViolationGraph = None
         if self.graphClothViolation:
             self.clothViolationGraph = pyutils.LineGrapher(title="Cloth Violation", numPlots=3)
+
+        #recording/saving/replaying trajectories
+        self.actionTrajectory = [] #torque trajectory to replace the action
+        self.actionTrajectoryGripEvents = []
+        self.nextTrajectoryEvent = 0
+        self.recordingActionTrajectory = False
+        self.actionTrajectoryFile = "actionTraj"
+        self.replayingActionTrajectory = False
 
         #randomness graphing
         self.initialRand = 0
@@ -480,10 +489,11 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #save state for rendering
         if self.recordForRendering:
             fname = self.recordForRenderingOutputPrefix
-            objfname_ix = fname + "%05d" % self.numSteps
-            charfname_ix = fname + "_char%05d" % self.numSteps
+            objfname_ix = fname + "%05d" % self.renderSaveSteps
+            charfname_ix = fname + "_char%05d" % self.renderSaveSteps
             self.saveObjState(filename=objfname_ix)
             self.saveCharacterRenderState(filename=charfname_ix)
+            self.renderSaveSteps += 1
 
         #try:
         if self.graphViolation:
@@ -659,6 +669,12 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         if not self.simulating:
             return
 
+        #if self.recordingActionTrajectory:
+        #    self.actionTrajectory.append(tau)
+
+        #if self.replayingActionTrajectory:
+        #    tau = np.array(self.actionTrajectory[self.numSteps])
+
         clothSteps = (n_frames*self.dart_world.time_step()) / self.clothScene.timestep
         #print("cloth steps: " + str(clothSteps))
         #print("n_frames: " + str(n_frames))
@@ -693,7 +709,29 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     combinedTau = clamped_control
 
                 self.robot_skeleton.set_forces(combinedTau)
+
+                if self.replayingActionTrajectory:
+                    self.robot_skeleton.set_forces(np.zeros(len(self.robot_skeleton.q)))
+                    self.robot_skeleton.set_velocities(np.zeros(len(self.robot_skeleton.q)))
+
                 self.dart_world.step()
+
+                if self.replayingActionTrajectory:
+                    self.robot_skeleton.set_forces(np.zeros(len(self.robot_skeleton.q)))
+                    self.robot_skeleton.set_velocities(np.zeros(len(self.robot_skeleton.q)))
+                    #print(self.actionTrajectory[self.numSteps*n_frames + i])
+                    if self.numSteps*n_frames + i == len(self.actionTrajectory):
+                        print("trajectory end.")
+                        self._reset()
+                    self.robot_skeleton.set_positions(self.actionTrajectory[self.numSteps*n_frames + i])
+                    #print(self.robot_skeleton.q)
+
+                if self.recordingActionTrajectory:
+                    #print(self.robot_skeleton.q)
+                    self.actionTrajectory.append(np.array(self.robot_skeleton.q))
+                    #pyutils.saveList(self.actionTrajectory)
+                    #print(self.actionTrajectory[-1])
+
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
                     print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
@@ -742,6 +780,26 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         seeds=[]
         #seeds = [0, 2, 5, 8, 11, 20, 27, 35, 36, 47, 50, 51] #success seeds for stochastic policy
         #seeds = [0, 1, 2, 3, 5, 8, 11, 12, 13, 14, 18, 19, 20, 23, 27, 35, 38, 50] #success seeds for mean policy
+        #seeds = np.arange(20)
+        #seeds = [1,18,5,8] #visual diversity
+        #seeds = [0,0,1,2,3,4,5,6,7,8,9,10] #trajectory replay
+        #seeds = [0,1,2,3,4,5,6,7,8,9,10] #control comparison against trajectory replay
+        seeds = np.arange(100)
+        seeds = [32, 43, 53]
+        #failSeeds = [27, 32, 36, 38, 39, 42, 48, 49, 53, 57, 58, 61, 63, 71, 73, 76, 87, 88, 91, 93, 97]
+        #seeds = np.arange(100)
+        #seeds = [0,0,1,2,4]
+        #seeds = [0,7,8]
+        #seeds = [1,3,6,7,12,13,15]
+        #seeds = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        '''successSeeds = []
+        for seed in seeds:
+            if not seed in failSeeds:
+                successSeeds.append(seed)
+        seeds = successSeeds
+        seeds = [2,2,2,2,2,2,2]
+        print(seeds)'''
+
         #difficultySeeds = [37, 39, 42]
         #seeds = seeds+difficultySeeds
         #seed = self.reset_number
@@ -749,13 +807,16 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         try:
             seed = seeds[self.reset_number]
         except:
+            exit()
             seed = self.reset_number
             #print("all given seeds simulated")
         #seed = 8
         #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
-        #random.seed(seed)
-        #self.np_random.seed(seed)
-        #np.random.seed(seed)
+        print("Seeding: " + str(seed))
+        random.seed(seed)
+        self.np_random.seed(seed)
+        np.random.seed(seed)
+        self.setSeed = seed
         #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))

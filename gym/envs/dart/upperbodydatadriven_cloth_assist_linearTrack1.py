@@ -82,6 +82,14 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
         self.linearTrackTarget = np.zeros(3)
         self.linearTrackOrigin = np.zeros(3)
 
+        #limb progress tracking
+        self.limbProgressGraphing = False
+        self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
+
+        #restPose error tracking
+        self.restPoseErrorGraphing = False
+        self.restPoseErrorGraph = pyutils.LineGrapher(title="Rest Pose Error")
+
         #robot control variables
         self.robot_control_active = True
         self.preStepRobotOrg = np.zeros(3)
@@ -206,6 +214,12 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
         a=0
 
     def checkTermination(self, tau, s, obs):
+        # save state for rendering
+        if self.recordForRendering:
+            fname = self.recordForRenderingOutputPrefix
+            gripperfname_ix = fname + "_grip%05d" % self.renderSaveSteps
+            self.saveGripperState(gripperfname_ix)
+
         #check the termination conditions and return: done,reward
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
         bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
@@ -277,6 +291,7 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
                 if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
                     reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
+        print(reward_limbprogress)
 
         avgContactGeodesic = None
         if self.numSteps > 0 and self.simulateCloth:
@@ -335,12 +350,14 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
         reward_ctrl = -np.square(tau).sum()
 
         reward_restPose = 0
+        restPoseError = 0
         if self.restPoseReward:
             if self.restPose is not None:
                 #z = 0.5  # half the max magnitude (e.g. 0.5 -> [0,1])
                 #s = 1.0  # steepness (higher is steeper)
                 #l = 4.2  # translation
                 dist = np.linalg.norm(self.robot_skeleton.q - self.restPose)
+                restPoseError = dist
                 #reward_restPose = -(z * math.tanh(s * (dist - l)) + z)
                 reward_restPose = max(-51, -dist)
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
@@ -348,6 +365,20 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
 
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
+
+        #update graphs
+        if self.limbProgressGraphing and self.reset_number > 0:
+            #print(self.reset_number-1)
+            #print(len(self.limbProgressGraph.yData))
+            self.limbProgressGraph.yData[self.reset_number-1][self.numSteps] = self.limbProgress
+            if self.numSteps%5 == 0:
+                self.limbProgressGraph.update()
+
+        #update graphs
+        if self.restPoseErrorGraphing and self.reset_number > 0:
+            self.restPoseErrorGraph.yData[self.reset_number-1][self.numSteps] = restPoseError
+            if self.numSteps%5 == 0:
+                self.restPoseErrorGraph.update()
 
         self.reward = reward_ctrl * 0 \
                       + reward_upright * self.uprightRewardWeight\
@@ -443,6 +474,19 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
         return obs
 
     def additionalResets(self):
+        if self.limbProgressGraphing:
+            #print("here!")
+            self.limbProgressGraph.save("limbProgressGraph", "limbProgressGraphData")
+            self.limbProgressGraph.xdata = np.arange(250)
+            self.limbProgressGraph.plotData(ydata=np.zeros(250))
+            self.limbProgressGraph.update()
+
+        if self.restPoseErrorGraphing:
+            self.restPoseErrorGraph.save("restPoseErrorGraph", "restPoseErrorGraphData")
+            self.restPoseErrorGraph.xdata = np.arange(250)
+            self.restPoseErrorGraph.plotData(ydata=np.zeros(250))
+            self.restPoseErrorGraph.update()
+
         #do any additional resetting here
         self.handFirst = False
         #print(self.robot_skeleton.bodynodes[9].to_world(np.zeros(3)))
@@ -451,6 +495,24 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
             self.clothScene.translateCloth(0, np.array([-0.155, -0.1, 0.285]))
             #draw an initial location
             randoms = np.random.rand(6)
+
+            # scripted 4 corners
+            '''if self.reset_number == 0:
+                randoms = np.zeros(6)
+            elif self.reset_number == 1:
+                randoms = np.array([0, 0, 0, 0, 1, 0])
+            elif self.reset_number == 2:
+                randoms = np.array([0, 0, 0, 1, 1, 0])
+            elif self.reset_number == 3:
+                randoms = np.array([0, 0, 0, 1, 0, 0])
+            else:
+                exit()'''
+
+            if self.reset_number == 0:
+                randoms = np.array([0, 0, 0, 0, 1, 0])
+            else:
+                exit()
+
             self.linearTrackTarget = np.array([
                 LERP(self.trackEndRange[0][0], self.trackEndRange[1][0], randoms[0]),
                 LERP(self.trackEndRange[0][1], self.trackEndRange[1][1], randoms[1]),
@@ -599,6 +661,25 @@ class DartClothUpperBodyDataDrivenClothAssistLinearTrack1Env(DartClothUpperBodyD
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
+
+    def saveGripperState(self, filename=None):
+        print("saving gripper state")
+        if filename is None:
+            filename = "gripperState"
+        print("filename " + str(filename))
+        f = open(filename, 'w')
+        for ix, dof in enumerate(self.dart_world.skeletons[0].q):
+            if ix > 0:
+                f.write(" ")
+            f.write(str(dof))
+
+        f.write("\n")
+
+        for ix, dof in enumerate(self.dart_world.skeletons[0].dq):
+            if ix > 0:
+                f.write(" ")
+            f.write(str(dof))
+        f.close()
 
 def LERP(p0, p1, t):
     return p0 + (p1 - p0) * t

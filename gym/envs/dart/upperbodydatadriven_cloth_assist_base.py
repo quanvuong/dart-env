@@ -96,10 +96,11 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
-        #output for rendering controls
-        self.recordForRendering = False
-        #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
-        self.recordForRenderingOutputPrefix = "saved_render_states/assistive/assistive"
+        # output for rendering controls
+        self.recordForRendering = True
+        # self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
+        self.recordForRenderingOutputPrefix = "saved_render_states/siggraph_asia_finals/assistive_gown2/"
+        self.renderSaveSteps = 0
 
         #other tracking variables
         self.rewardTrajectory = [] #store all rewards since the last reset
@@ -501,10 +502,11 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         #save state for rendering
         if self.recordForRendering:
             fname = self.recordForRenderingOutputPrefix
-            objfname_ix = fname + "%05d" % self.numSteps
-            charfname_ix = fname + "_char%05d" % self.numSteps
+            objfname_ix = fname + "%05d" % self.renderSaveSteps
+            charfname_ix = fname + "_char%05d" % self.renderSaveSteps
             self.saveObjState(filename=objfname_ix)
             self.saveCharacterRenderState(filename=charfname_ix)
+            self.renderSaveSteps += 1
 
         #try:
         if self.graphViolation:

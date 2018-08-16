@@ -120,6 +120,9 @@ class RightTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
+        if self.env.recordingActionTrajectory:
+            self.env.actionTrajectoryGripEvents.append((self.env.numSteps, 1))
+
         #self.env.saveState(name="enter_seq_rtuck")
         self.env.fingertip = np.array([0, -0.085, 0])
         #setup cloth handle
@@ -144,6 +147,9 @@ class RightTuckController(Controller):
         self.env.renderRestPose = True
         self.framesContained = 0
 
+        self.env.perturbationNode = 5
+        self.env.perturbationActive = True
+        self.env.curPerDir = 0
         a=0
 
     def update(self):
@@ -151,6 +157,17 @@ class RightTuckController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
+
+        #print(self.env.stepsSinceControlSwitch)
+        if self.env.testingPerturbation:
+            if self.env.stepsSinceControlSwitch < self.env.perturbationSteps and self.env.reset_number > 0:
+                self.env.perturbationActive = True
+                self.env.robot_skeleton.bodynodes[self.env.perturbationNode].add_ext_force(self.env.perturbationDirections[0]*self.env.perturbationMagnitude, self.env.perturbationOffset)
+            else:
+                #print("here")
+                self.env.perturbationActive = False
+        else:
+            self.env.perturbationActive = False
         a=0
 
     def transition(self):
@@ -226,6 +243,9 @@ class LeftTuckController(Controller):
         self.framesContained = 0
 
     def setup(self):
+        if self.env.recordingActionTrajectory:
+            self.env.actionTrajectoryGripEvents.append((self.env.numSteps, 4))
+
         #self.env.saveState(name="enter_seq3_ltuck")
         self.framesContained = 0
         self.env.contactSensorIX = None
@@ -250,6 +270,10 @@ class LeftTuckController(Controller):
         self.env.renderRightTarget = False
         self.env.renderLeftTarget = False
         #self.env.contactSensorIX = 21
+
+        self.env.perturbationNode = 10
+        self.env.perturbationActive = True
+        self.env.curPerDir = 1
         a=0
 
     def update(self):
@@ -257,6 +281,16 @@ class LeftTuckController(Controller):
             if self.env.updateHandleNodeFrom >= 0:
                 self.env.handleNode.setTransform(self.env.robot_skeleton.bodynodes[self.env.updateHandleNodeFrom].T)
             self.env.handleNode.step()
+
+        if self.env.testingPerturbation:
+            if self.env.stepsSinceControlSwitch < self.env.perturbationSteps and self.env.reset_number > 0:
+                self.env.perturbationActive = True
+                self.env.robot_skeleton.bodynodes[self.env.perturbationNode].add_ext_force(self.env.perturbationDirections[1]*self.env.perturbationMagnitude, self.env.perturbationOffset)
+            else:
+                #print("here")
+                self.env.perturbationActive = False
+        else:
+            self.env.perturbationActive = False
         #self.env._reset()
         a=0
 
@@ -434,7 +468,7 @@ class MatchGripTransitionController(Controller):
             elevation = max(elbow_torso[1] - shoulderL_torso[1], elbow_torso[1] - shoulderR_torso[1])
         #print(elevation)
         #print(np.linalg.norm(efR-self.env.rightTarget))
-        if np.linalg.norm(efR-self.env.rightTarget) < 0.04 and elevation < 0.1:
+        if np.linalg.norm(efR-self.env.rightTarget) < 0.05 and elevation < 0.1:
             return True
 
         if self.env.stepsSinceControlSwitch > 125:
@@ -459,6 +493,8 @@ class RightSleeveController(Controller):
         #seq iteration 2
         #policyfilename = "experiment_2018_04_19_rsleeve"
         policyfilename = "experiment_2018_04_19_rsleeve_warm"
+
+        #policyfilename = "experiment_2018_05_25_tshirtR_ablationbaseline_cont" #evaluation sequencing
 
 
         name="Right Sleeve"
@@ -506,6 +542,9 @@ class RightSleeveController(Controller):
         self.env.renderOracle = True
         self.env.renderRightTarget = False
         self.env.renderLeftTarget = False
+
+        self.env.perturbationActive = True
+        self.env.curPerDir = 2
         a=0
 
     def update(self):
@@ -516,6 +555,16 @@ class RightSleeveController(Controller):
         #limb progress
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesR,offset=np.array([0,-0.065,0])), feature=self.env.sleeveRSeamFeature)
         a=0
+
+        if self.env.testingPerturbation:
+            if self.env.stepsSinceControlSwitch < self.env.perturbationSteps and self.env.reset_number > 0:
+                self.env.perturbationActive = True
+                self.env.robot_skeleton.bodynodes[self.env.perturbationNode].add_ext_force(self.env.perturbationDirections[2]*self.env.perturbationMagnitude, self.env.perturbationOffset)
+            else:
+                #print("here")
+                self.env.perturbationActive = False
+        else:
+            self.env.perturbationActive = False
 
     def transition(self):
         if self.env.limbProgress > 0.6:
@@ -590,6 +639,8 @@ class LeftSleeveController(Controller):
         self.env.renderRightTarget = False
         self.env.renderLeftTarget = False
 
+        self.env.perturbationActive = True
+        self.env.curPerDir = 3
         a=0
 
     def update(self):
@@ -600,12 +651,22 @@ class LeftSleeveController(Controller):
             self.env.handleNode.step()
         #limb progress
         self.env.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.env.robot_skeleton, nodes=self.env.limbNodesL,offset=np.array([0,-0.065,0])), feature=self.env.sleeveLSeamFeature)
+
+        if self.env.testingPerturbation:
+            if self.env.stepsSinceControlSwitch < self.env.perturbationSteps and self.env.reset_number > 0:
+                self.env.perturbationActive = True
+                self.env.robot_skeleton.bodynodes[self.env.perturbationNode].add_ext_force(self.env.perturbationDirections[3]*self.env.perturbationMagnitude, self.env.perturbationOffset)
+            else:
+                #print("here")
+                self.env.perturbationActive = False
+        else:
+            self.env.perturbationActive = False
         a=0
 
     def transition(self):
-        if self.env.limbProgress > 0.55:
+        if self.env.limbProgress > 0.5:
             return True
-        if self.env.stepsSinceControlSwitch > 125:
+        if self.env.stepsSinceControlSwitch > 200:
             self.env.successRecord.append((False, self.env.numSteps, 5))
             self.env._reset()
         return False
@@ -620,6 +681,9 @@ class FinalTransitionController(Controller):
         Controller.__init__(self, env, policyfilename, name, obs_subset)
 
     def setup(self):
+        if self.env.recordingActionTrajectory:
+            self.env.actionTrajectoryGripEvents.append((self.env.numSteps, 6))
+
         if self.env.handleNode is not None:
             self.env.handleNode.clearHandles()
         self.env.renderOracle = False
@@ -874,6 +938,18 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.fingertip = np.array([0, -0.085, 0])
         self.previousContainmentTriangle = [np.zeros(3), np.zeros(3), np.zeros(3)]
 
+        #perturbation force
+        self.testingPerturbation = False
+        self.perturbationDirections = []
+        self.perturbationMagnitude = 100.0
+        self.perturbationSteps = 25
+        self.perturbationActive = False
+        self.perturbationNode = 5
+        self.perturbationOffset = np.zeros(3)
+        self.curPerDir = 0
+
+        self.actionTrajectoryTesting = False
+
         # success tracking
         self.successRecord = []  # contains a list of tuples, one for each rollout: (success/failure, steps excecuted, furthest active controller)
         self.successTrackingFile = "tshirt_success_tracking"
@@ -942,7 +1018,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             RightTuckController(self),
             RightSleeveController(self),
             MatchGripTransitionController(self),
-            MatchGripController(self),
+            #MatchGripController(self),
             #SPDController(self),
             #SPDIKController(self),
             #MatchGripController(self),
@@ -1001,23 +1077,41 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
         self.additionalAction = np.zeros(22) #reset control
         #update controller specific variables and produce
-        if self.currentController is not None:
-            self.controllers[self.currentController].update()
-            if self.controllers[self.currentController].transition():
-                changed = self.currentController
-                self.currentController = min(len(self.controllers)-1, self.currentController+1)
-                changed = (changed != self.currentController)
-                if changed:
+        if self.replayingActionTrajectory:
+            #self.additionalAction = self.actionTrajectory[self.numSteps]
+            if len(self.actionTrajectoryGripEvents) > self.nextTrajectoryEvent:
+                if self.actionTrajectoryGripEvents[self.nextTrajectoryEvent][0] == self.numSteps:
+                    self.currentController = self.actionTrajectoryGripEvents[self.nextTrajectoryEvent][1]
                     self.controllers[self.currentController].setup()
                     self.controllers[self.currentController].update()
-                    self.stepsSinceControlSwitch = 0
-            obs = self._get_obs()
-            self.additionalAction = self.controllers[self.currentController].query(obs)
+                    self.nextTrajectoryEvent += 1
+            if self.currentController > 0:
+                self.controllers[self.currentController].update()
+
+        else:
+            if self.currentController is not None:
+                self.controllers[self.currentController].update()
+                if self.controllers[self.currentController].transition():
+                    changed = self.currentController
+                    self.currentController = min(len(self.controllers)-1, self.currentController+1)
+                    changed = (changed != self.currentController)
+                    if changed:
+                        self.controllers[self.currentController].setup()
+                        self.controllers[self.currentController].update()
+                        self.stepsSinceControlSwitch = 0
+                obs = self._get_obs()
+                self.additionalAction = self.controllers[self.currentController].query(obs)
 
         self.stepsSinceControlSwitch += 1
         a=0
 
     def checkTermination(self, tau, s, obs):
+
+        if self.recordForRendering:
+            fname = self.recordForRenderingOutputPrefix
+            perturbationfname_ix = fname + "_perturbation%05d" % self.renderSaveSteps
+            self.savePerturbationDir(perturbationfname_ix)
+
         #check the termination conditions and return: done,reward
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
         bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
@@ -1140,6 +1234,13 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+
+        self.nextTrajectoryEvent = 0
+        if self.actionTrajectoryTesting:
+            self.recordingActionTrajectory = True
+            if self.reset_number > 0:
+                self.recordingActionTrajectory = False
+                self.replayingActionTrajectory = True
         # do any additional resetting here
         self.stepsSinceControlSwitch = 0
         print("Success Record so far: " + str(self.successRecord))
@@ -1167,7 +1268,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.robot_skeleton.joint(11).set_damping_coefficient(0, 1)
         self.robot_skeleton.joint(11).set_damping_coefficient(1, 1)
 
-        count = 0
+        '''count = 0
         recordForRenderingDirectory = "saved_render_states/tshirtseq3" + str(count)
         while(os.path.exists(recordForRenderingDirectory)):
             count += 1
@@ -1175,7 +1276,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.recordForRenderingOutputPrefix = recordForRenderingDirectory+"/tshirtseq"
         if self.recordForRendering:
             if not os.path.exists(recordForRenderingDirectory):
-                os.makedirs(recordForRenderingDirectory)
+                os.makedirs(recordForRenderingDirectory)'''
 
         self.resetTime = time.time()
         #do any additional resetting here
@@ -1218,6 +1319,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 varianceAngle = ((random.random() - 0.5) * 2.0) * 0.3
                 varianceAngle = (((self.reset_number / 25.0) - 0.5) * 2.0) * 0.3
                 varianceAngle = 0.05
+                #varianceAngle += random.random()*0.05
                 # varianceAngle = -0.23856667449388155
                 # varianceAngle = 0.27737702150062965 #chosen for good state
                 # varianceAngle = -0.2620526592974481
@@ -1247,8 +1349,8 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
                 if self.gripFeatureL.plane.normal.dot(np.array([0, 0, -1.0])) < 0:
                     # TODO: trash these and reset again
                     print("INVERSION 1")
-                    repeat = True
-                    continue
+                    #repeat = True
+                    #continue
 
                 # apply random force to the garment to introduce initial state variation
                 if self.initialPerturbationScale > 0:
@@ -1319,7 +1421,7 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
 
                 if self.gripFeatureL.plane.normal.dot(np.array([0, 0, -1.0])) < 0:
                     # TODO: trash these and reset again
-                    print("INVERSION 2")
+                    print("INVERSION 2: " +str(self.gripFeatureL.plane.normal.dot(np.array([0, 0, -1.0]))))
                     repeat = True
                     continue
 
@@ -1328,6 +1430,15 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         self.leftTarget = pyutils.getVertCentroid(verts=self.targetGripVerticesL, clothscene=self.clothScene) + pyutils.getVertAvgNorm(verts=self.targetGripVerticesL, clothscene=self.clothScene)*0.03
         self.leftOrientationTarget = self.gripFeatureL.plane.toWorld(self.localLeftOrientationTarget)
 
+        self.curPerDir = 0
+        self.perturbationDirections = []
+        for k in range(4):
+            self.perturbationDirections.append(np.random.uniform(low=-1, high=1, size=3))
+            #for i in range(self.reset_number): #should make same seed randomness possible
+            self.perturbationDirections[-1] = np.random.uniform(low=-1, high=1, size=3)
+            while np.linalg.norm(self.perturbationDirections[-1]) > 1.0:
+                self.perturbationDirections[-1] = np.random.uniform(low=-1, high=1, size=3)
+            self.perturbationDirections[-1] /= np.linalg.norm(self.perturbationDirections[-1])
 
         #print(self.clothScene.getFriction())
         a=0
@@ -1343,6 +1454,18 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
+
+        #seed display
+        textHeight = 15
+        textLines = 2
+        self.clothScene.drawText(x=15., y=textLines * textHeight, text="Seed = " + str(self.setSeed),
+                                 color=(0., 0, 0))
+        textLines += 1
+
+        if self.perturbationActive:
+            #print("active perturbation")
+            nodePoint = self.robot_skeleton.bodynodes[self.perturbationNode].to_world(self.perturbationOffset)
+            renderUtils.drawArrow(p0=nodePoint, p1=nodePoint+self.perturbationDirections[self.curPerDir]*self.perturbationMagnitude*0.01)
 
         if self.renderDetails:
             renderUtils.setColor(color=[0.0, 0.0, 0])
@@ -1462,3 +1585,21 @@ class DartClothUpperBodyDataDrivenClothTshirtMasterEnv(DartClothUpperBodyDataDri
             self.viewer.renderWorld = False
         self.clothScene.renderCollisionCaps = True
         self.clothScene.renderCollisionSpheres = True
+
+    def savePerturbationDir(self, filename):
+        print("saving perturbation state")
+
+        if filename is None:
+            filename = "perturbationState"
+        print("filename " + str(filename))
+        f = open(filename, 'w')
+        if self.perturbationActive:
+            org = self.robot_skeleton.bodynodes[self.perturbationNode].to_world(self.perturbationOffset)
+            for i in range(3):
+                f.write(str(org[i]))
+                f.write(" ")
+            for i in range(3):
+                if i > 0:
+                    f.write(" ")
+                f.write(str(self.perturbationDirections[self.curPerDir][i]))
+        f.close()

@@ -618,6 +618,8 @@ class DartClothUpperBodyDataDrivenClothJacketMasterEnv(DartClothUpperBodyDataDri
         return obs
 
     def additionalResets(self):
+        if self.reset_number > 6:
+            exit()
         #do any additional resetting here
         print("Success Record so far: " + str(self.successRecord))
         print("numTrials = " + str(len(self.successRecord)))

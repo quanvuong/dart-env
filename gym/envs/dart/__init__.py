@@ -66,6 +66,9 @@ from gym.envs.dart.fullbodydatadriven_lockedFoot_cloth_shortsalign import DartCl
 #multiagent
 from gym.envs.dart.multiagent import DartMultiAgentEnv
 
+#Sawyer Env
+from gym.envs.dart.sawyer_env import DartSawyerEnv
+
 from gym.envs.dart.walker2d import DartWalker2dEnv
 from gym.envs.dart.walker3d import DartWalker3dEnv
 from gym.envs.dart.walker3d_spd import DartWalker3dSPDEnv

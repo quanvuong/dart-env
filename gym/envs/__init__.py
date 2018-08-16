@@ -582,6 +582,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Sawyer Env
+register(
+    id='DartSawyer-v1',
+    entry_point='gym.envs.dart:DartSawyerEnv',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 
