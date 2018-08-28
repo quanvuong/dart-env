@@ -95,7 +95,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
         #output for rendering controls
-        self.recordForRendering = True
+        self.recordForRendering = False
         #self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
         self.recordForRenderingOutputPrefix = "saved_render_states/siggraph_asia_finals/tshirt_failures/"
         self.renderSaveSteps = 0
@@ -188,6 +188,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #create cloth scene
         clothScene = None
 
+        #TODO: change cloth timestep to DART timestep
         if clothMeshStateFile is not None:
             clothScene = pyphysx.ClothScene(step=0.01,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
@@ -762,6 +763,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         a=0
 
     def reset_model(self):
+
         self.rewardsData.reset()
 
         if self.graphingRandomness:
@@ -785,7 +787,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #seeds = [0,0,1,2,3,4,5,6,7,8,9,10] #trajectory replay
         #seeds = [0,1,2,3,4,5,6,7,8,9,10] #control comparison against trajectory replay
         seeds = np.arange(100)
-        seeds = [32, 43, 53]
+        #seeds = [32, 43, 53] #failure example seeds
         #failSeeds = [27, 32, 36, 38, 39, 42, 48, 49, 53, 57, 58, 61, 63, 71, 73, 76, 87, 88, 91, 93, 97]
         #seeds = np.arange(100)
         #seeds = [0,0,1,2,4]
@@ -807,6 +809,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         try:
             seed = seeds[self.reset_number]
         except:
+            print("out of seeds, exiting")
             exit()
             seed = self.reset_number
             #print("all given seeds simulated")

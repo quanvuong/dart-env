@@ -393,7 +393,9 @@ if __name__ == '__main__':
     #env = gym.make('DartClothFullBodyDataDrivenLockedFootClothShortsAlign-v1')
 
     #Sawyer Env
-    env = gym.make('DartSawyer-v1')
+    #env = gym.make('DartSawyer-v2')
+    env = gym.make('DartSawyerRigid-v1')
+    #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
 
     useMeanPolicy = False
 
@@ -405,7 +407,7 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if True and policy is None:
+    if False and policy is None:
         env2 = normalize(GymEnv('DartSawyer-v1', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
@@ -432,7 +434,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
-    for i in range(11):
+    for i in range(110):
         #print("here")
         o = env.reset()
         #envFilename = env.getFile()
@@ -440,7 +442,7 @@ if __name__ == '__main__':
         env.render()
         #time.sleep(0.5)
         rolloutHorizon = 10000
-        rolloutHorizon = 250
+        rolloutHorizon = 400
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

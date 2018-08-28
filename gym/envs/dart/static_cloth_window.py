@@ -42,8 +42,11 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
         self.captureIndex = 0 #increments when captureToFile is called
         self.captureDirectory = "/home/alexander/Documents/frame_capture_output"
-        self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
-        self.capturing = True
+        #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
+        self.capturing = False
+        self.key_down = []
+        for i in range(256):
+            self.key_down.append(False)
 
     def run(self, _width=None, _height=None, _show_window=True ):
         # Init glut
@@ -192,6 +195,24 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #print(tb.trans)
         # print("mouse motion: " + str(dx))
         #print("SHIFT?" + str(modifiers))
+        if(self.key_down[120]): #'x' is down
+            try:
+                self.env.sawyer_root_dofs[0] += dx*0.01
+                print(self.env.sawyer_root_dofs[:3])
+            except:
+                a=0
+        if(self.key_down[121]): #'y' is down
+            try:
+                self.env.sawyer_root_dofs[1] += dx*0.01
+                print(self.env.sawyer_root_dofs[:3])
+            except:
+                a=0
+        if(self.key_down[122]): #'z' is down
+            try:
+                self.env.sawyer_root_dofs[2] += dx*0.01
+                print(self.env.sawyer_root_dofs[:3])
+            except:
+                a=0
         if self.mouseLButton is True and self.mouseRButton is True:
             tb.zoom_to(dx, -dy)
         elif self.mouseRButton is True:
@@ -211,6 +232,8 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
     def mykeyboard(self, key, x, y):
         #regardless of the interactor conext, 'm' always switches contexts
         keycode = ord(key)
+        self.key_down[keycode] = True #set the keydown variable
+        #print(keycode)
         if keycode == 46: #'>'
             try:
                 self.env.currentController = min(len(self.env.controllers)-1, self.env.currentController+1)
@@ -325,6 +348,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
                 self.env.graphJointConstraintViolation()
             except:
                 print("Graph Joint Constraint Violation did not work out. Sorry.")
+
         #if no interactor context, do the following
         if keycode == 13: #ENTER
             if self.inputFunc is not None:
@@ -332,11 +356,13 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.keyPressed(key, x, y)
 
     def keyboardUp(self, key, x, y):
+        keycode = ord(key)
+        self.key_down[keycode] = False  # set the keydown variable
         if self.curInteractorIX is not None:
             self.interactors[self.curInteractorIX].keyboardUp(key, x, y)
             return
 
-        keycode = ord(key)
+
 
     def unproject(self, winp=np.array([0.,0.,0.])):
         #unproject the given input window space cords and return an object space vector

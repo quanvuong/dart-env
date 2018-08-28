@@ -12,6 +12,7 @@ from pydart2.gui.glut.window import *
 class StaticGLUTWindow(GLUTWindow):
     def __init__(self, sim, title):
         self.renderWorld = True
+
         super(StaticGLUTWindow,self).__init__(sim, title)
 
     def close(self):
@@ -32,6 +33,7 @@ class StaticGLUTWindow(GLUTWindow):
         
     def extraRender(self):
         'Place any extra rendering functionality here. This can be used to extend the window class'
+
         a=0
 
     def runSingleStep(self):
@@ -76,6 +78,10 @@ class StaticGLUTWindow(GLUTWindow):
             return
         self.keyPressed(key, x, y)
 
+    def mykeyboardUp(self, key, x, y):
+        keycode = ord(key)
+
+
     def run(self, _width=None, _height=None, _show_window=True):
         # Init glut
         self._show_window = _show_window
@@ -97,6 +103,7 @@ class StaticGLUTWindow(GLUTWindow):
         GLUT.glutDisplayFunc(self.drawGL)
         GLUT.glutReshapeFunc(self.resizeGL)
         GLUT.glutKeyboardFunc(self.mykeyboard)
+        GLUT.glutKeyboardUpFunc(self.mykeyboardUp)
         GLUT.glutMouseFunc(self.mouseFunc)
         GLUT.glutMotionFunc(self.motionFunc)
         self.initGL(*self.window_size)

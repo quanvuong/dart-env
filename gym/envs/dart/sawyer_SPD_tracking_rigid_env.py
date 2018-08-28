@@ -29,14 +29,127 @@ except ImportError as e:
 import pyPhysX.pyutils as pyutils
 import pyPhysX.renderUtils as renderUtils
 
+class Controller(object):
+    def __init__(self, env, policyfilename=None, name=None, obs_subset=[]):
+        self.env = env #needed to set env state variables on setup for use
+        self.name = name
+        prefix = os.path.dirname(os.path.abspath(__file__))
+        prefix = os.path.join(prefix, '../../../../rllab/data/local/experiment/')
+        if name is None:
+            self.name = policyfilename
+        self.policy = None
+        if policyfilename is not None:
+            self.policy = pickle.load(open(prefix+policyfilename + "/policy.pkl", "rb"))
+        self.obs_subset = obs_subset #list of index,length tuples to slice obs for input
 
-class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
+    def query(self, obs):
+        obs_subset = np.array([])
+        for s in self.obs_subset:
+            obs_subset = np.concatenate([obs_subset, obs[s[0]:s[0]+s[1]]]).ravel()
+        a, a_info = self.policy.get_action(obs_subset)
+        a = a_info['mean']
+        return a
+
+    def setup(self):
+        print("base setup ... overwrite this for specific control requirements")
+        #TODO: subclasses for setup requirements
+
+    def update(self):
+        print("default update")
+        #TODO: subclasses update targets, etc...
+
+    def transition(self):
+        #return true when a controller detects task completion to transition to the next controller
+        return False
+
+class SPDController(Controller):
+    def __init__(self, env, target=None):
+        obs_subset = []
+        policyfilename = None
+        name = "SPD"
+        self.target = target
+        Controller.__init__(self, env, policyfilename, name, obs_subset)
+
+        self.h = 0.01
+        self.skel = env.robot_skeleton
+        ndofs = self.skel.ndofs-6
+        self.qhat = self.skel.q
+        self.Kp = np.diagflat([30000.0] * (ndofs))
+        self.Kd = np.diagflat([300.0] * (ndofs))
+
+        #self.Kp[0][0] = 2000.0
+        #self.Kd[0][0] = 100.0
+        #self.Kp[1][1] = 2000.0
+        #self.Kp[2][2] = 2000.0
+        #self.Kd[2][2] = 100.0
+        #self.Kp[3][3] = 2000.0
+        #self.Kp[4][4] = 2000.0
+
+        '''
+        for i in range(ndofs):
+            if i ==9 or i==10 or i==17 or i==18:
+                self.Kd[i][i] *= 0.01
+                self.Kp[i][i] *= 0.01
+        '''
+
+        #print(self.Kp)
+        self.preoffset = 0.0
+
+    def setup(self):
+        #reset the target
+        #cur_q = np.array(self.skel.q)
+        #self.env.loadCharacterState(filename="characterState_regrip")
+        self.target = np.array(self.skel.q[6:])
+        #self.env.restPose = np.array(self.target)
+        #self.target = np.array(self.skel.q)
+        #self.env.robot_skeleton.set_positions(cur_q)
+
+        a=0
+
+    def update(self):
+        #if self.env.handleNode is not None:
+        #    self.env.handleNode.clearHandles();
+        #    self.env.handleNode = None
+        a=0
+
+    def transition(self):
+        return False
+
+    def query(self, obs):
+        #SPD
+        self.qhat = self.target
+        skel = self.skel
+        p = -self.Kp.dot(skel.q[6:] + skel.dq[6:] * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq[6:])
+        b = -skel.c[6:] + p + d + skel.constraint_forces()[6:]
+        A = skel.M[6:, 6:] + self.Kd * self.h
+
+        x = np.linalg.solve(A, b)
+
+        #invM = np.linalg.inv(A)
+        #x = invM.dot(b)
+        #tau = p - self.Kd.dot(skel.dq[6:] + x * self.h)
+        tau = p + d - self.Kd.dot(x) * self.h
+        return tau
+
+class DartSawyerSPDTrackingRigidEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([np.ones(13), -1*np.ones(13)])
         #self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = 200
         obs_dim = 14
         self.param_manager = hopperContactMassManager(self)
+        self.kinematicIK = False #if false, dynamic SPD
+        self.previousIKResult = np.zeros(7)
+        self.viewer = None
+
+        #SPD error graphing per dof
+        self.graphSPDError = True
+        self.SPDErrorGraph = None
+        if self.graphSPDError:
+            self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=7, legend=True)
+            for i in range(len(self.SPDErrorGraph.labels)):
+                self.SPDErrorGraph.labels[i] = str(i)
 
         # setup pybullet for IK
         print("Setting up pybullet")
@@ -60,7 +173,13 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.numSteps = 0
 
+        #initialize the variable
+        self.SPDController = None
+
         dart_env.DartEnv.__init__(self, 'sawyer_description/urdf/sawyer_arm.urdf', 5, obs_dim, self.control_bounds, disableViewer=False)
+
+        #initialize the controller
+        self.SPDController = SPDController(self)
 
         #self.dart_world.set_collision_detector(3) # 3 is ode collision detector
 
@@ -93,7 +212,6 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
             dof.set_damping_coefficient(2.0)
         self.robot_skeleton.joints[0].set_actuator_type(Joint.Joint.LOCKED)
 
-
     def _step(self, a):
 
         #print("-----------------")
@@ -108,7 +226,7 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
         tau = np.zeros(self.robot_skeleton.ndofs)
         tau = clamped_control * self.action_scale
-        self.do_simulation(tau, self.frame_skip)
+        #self.do_simulation(tau, self.frame_skip)
 
         #test IK
         randDir = np.random.random(3)
@@ -120,17 +238,37 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
             randDir -= np.ones(3)
         #self.ikTarget += randDir*0.025
         self.ikTarget = self.ikPath.pos(self.numSteps*self.ikPathTimeScale)
+        #self.ikTarget = np.array(self.ikPath.points[-1].p)
         lowerLimits = (np.ones(7)*-4).tolist()
         upperLimits = (np.ones(7)*4).tolist()
         jointRanges = (np.ones(7)*4).tolist()
         #restPoses = (np.zeros(7)).tolist()
         restPoses = self.robot_skeleton.q[6:].tolist()
         result = p.calculateInverseKinematics(self.pyBulletSawyer, 12, self.ikTarget)
+        self.previousIKResult = np.array(result)
         self.setPosePyBullet(result)
         #print(p.getLinkState(self.pyBulletSawyer, 12, computeForwardKinematics=True)[0])
         #result = p.calculateInverseKinematics(self.pyBulletSawyer, 12, self.ikTarget, lowerLimits=lowerLimits, upperLimits=upperLimits, jointRanges=jointRanges, restPoses=restPoses)
-        self.robot_skeleton.set_positions(np.concatenate([np.zeros(6), result]))
+
+        if(self.kinematicIK):
+            #kinematic
+            self.robot_skeleton.set_positions(np.concatenate([np.zeros(6), result]))
+        else:
+            #SPD (dynamic)
+            if self.SPDController is not None:
+                self.SPDController.target = result
+                tau = np.concatenate([np.zeros(6), self.SPDController.query(obs=None)])
+                self.do_simulation(tau, self.frame_skip)
+                print(self.robot_skeleton.q)
+
         ik_error = np.linalg.norm(p.getLinkState(self.pyBulletSawyer, 12)[0] - self.ikTarget)
+        pose_error = self.robot_skeleton.q[6:]-result
+        pose_error_mag = np.linalg.norm(self.robot_skeleton.q[6:]-result)
+
+        if self.graphSPDError:
+            self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
+
+        print("Errors: IK=" + str(ik_error) + ", SPD=" + str(pose_error_mag))
 
 
         contacts = self.dart_world.collision_result.contacts
@@ -170,22 +308,51 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
 
         #test IK reset
         self.ikPath = pyutils.Spline()
-        self.ikPath.addPoint(0, 0.5)
+        dart_ef = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+        self.ikPath.addPoint(0, 0.0)
         self.ikPath.addPoint(0.5, 0.5)
         self.ikPath.addPoint(1.0, 0.5)
+        self.ikPath.points[0].p = np.array(dart_ef)
         print("checking IK spline...")
         startTest = time.time()
         self.checkIKSplineSmoothness()
         print("... took " + str(time.time()-startTest) + " time.")
 
+        if self.graphSPDError:
+            self.SPDErrorGraph.close()
+            self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=7, legend=True)
+            for i in range(len(self.SPDErrorGraph.labels)):
+                self.SPDErrorGraph.labels[i] = str(i)
         state = self._get_obs()
 
         return state
 
     def envExtraRender(self):
+
         #print("party time")
+        renderUtils.setColor(color=[1.0,0,0])
         renderUtils.drawSphere(self.ikTarget)
+        pybullet_state = p.getLinkState(self.pyBulletSawyer, 12)[0]
+        renderUtils.setColor(color=[0, 1.0, 0])
+        renderUtils.drawSphere(pybullet_state)
+        dart_ef = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
+        renderUtils.setColor(color=[0, 0, 1.0])
+        renderUtils.drawSphere(dart_ef)
+
         self.ikPath.draw()
+        renderUtils.drawText(10, 80, "SPD Gains:")
+        renderUtils.drawText(10, 60, "  P="+str(self.SPDController.Kp[0][0]))
+        renderUtils.drawText(10, 40, "  D="+str(self.SPDController.Kd[0][0]))
+        renderUtils.drawText(10, 20, "      balance="+str(self.SPDController.Kd[0][0])+" > " + str(self.SPDController.Kp[0][0]*self.SPDController.h))
+
+        # render target pose
+        if self.viewer is not None:
+            q = np.array(self.robot_skeleton.q)
+            dq = np.array(self.robot_skeleton.dq)
+            self.robot_skeleton.set_positions(np.concatenate([np.zeros(6), self.previousIKResult]))
+            # self.viewer.scene.render(self.viewer.sim)
+            self.robot_skeleton.render()
+            self.robot_skeleton.set_positions(q)
 
     def viewer_setup(self):
         a=0
@@ -272,3 +439,4 @@ class DartSawyerEnv(dart_env.DartEnv, utils.EzPickle):
         pose_drift_info['avg'] = pose_drift_info['sum']/(samples-1)
         print(" pose_drift_info = " + str(pose_drift_info))
         self.setPosePyBullet(np.zeros(7))  # reset pose to eliminate variation due to previous spline
+

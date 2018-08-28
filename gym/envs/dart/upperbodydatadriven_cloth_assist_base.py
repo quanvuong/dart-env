@@ -97,7 +97,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
         # output for rendering controls
-        self.recordForRendering = True
+        self.recordForRendering = False
         # self.recordForRenderingOutputPrefix = "saved_render_states/jacket/jacket"
         self.recordForRenderingOutputPrefix = "saved_render_states/siggraph_asia_finals/assistive_gown2/"
         self.renderSaveSteps = 0
