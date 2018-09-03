@@ -8,14 +8,33 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         mujoco_env.MujocoEnv.__init__(self, "walker2d.xml", 4)
         utils.EzPickle.__init__(self)
 
-    def step(self, a):
-        posbefore = self.sim.data.qpos[0]
+    def pre_advance(self):
+        self.posbefore = self.sim.data.qpos[0]
+
+    def advance(self, a):
         self.do_simulation(a, self.frame_skip)
+
+    def reward_func(self, a):
         posafter, height, ang = self.sim.data.qpos[0:3]
-        alive_bonus = 1.0
-        reward = ((posafter - posbefore) / self.dt)
+        alive_bonus = 3.0
+        reward = ((posafter - self.posbefore) / self.dt)
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
+        return reward
+
+    def post_advance(self):
+        pass
+
+    def terminated(self):
+        posafter, height, ang = self.sim.data.qpos[0:3]
+        done = not (height > 0.8 and height < 2.0 and
+                    ang > -1.0 and ang < 1.0)
+        return done
+
+    def step(self, a):
+        self.pre_advance()
+        self.advance(a)
+        reward = self.reward_func(a)
 
         # uncomment to enable knee joint limit penalty
         '''joint_limit_penalty = 0
@@ -26,8 +45,7 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
         reward -= 5e-1*joint_limit_penalty'''
 
-        done = not (height > 0.8 and height < 2.0 and
-                    ang > -1.0 and ang < 1.0)
+        done = self.terminated()
         ob = self._get_obs()
         return ob, reward, done, {}
 

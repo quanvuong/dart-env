@@ -47,14 +47,18 @@ class StaticGLUTWindow(GLUTWindow):
 
     def mykeyboard(self, key, x, y):
         keycode = ord(key)
-        key = key.decode('utf-8')
-        # print("key = [%s] = [%d]" % (key, ord(key)))
+        #key = key.decode('utf-8')
+        #print("key down = [%s] = [%d]" % (key, ord(key)))
 
         # n = sim.num_frames()
         if keycode == 27:
             self.close()
             return
         self.keyPressed(key, x, y)
+        self.key_being_pressed = key
+
+    def mykeyboardup(self, key, x, y):
+        self.key_being_pressed = None
 
     def run(self, _width=None, _height=None, _show_window=True):
         # Init glut
@@ -77,6 +81,7 @@ class StaticGLUTWindow(GLUTWindow):
         GLUT.glutDisplayFunc(self.drawGL)
         GLUT.glutReshapeFunc(self.resizeGL)
         GLUT.glutKeyboardFunc(self.mykeyboard)
+        GLUT.glutKeyboardUpFunc(self.mykeyboardup)
         GLUT.glutMouseFunc(self.mouseFunc)
         GLUT.glutMotionFunc(self.motionFunc)
         self.initGL(*self.window_size)

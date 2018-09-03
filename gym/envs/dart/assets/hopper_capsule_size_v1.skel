@@ -142,7 +142,7 @@
                     <transformation>0.065 0.0 0.0 0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.39</height>
+                            <height>0.45</height>
                             <radius>0.06</radius>
                         </capsule>
                     </geometry>
@@ -152,7 +152,7 @@
                     <transformation> 0.065 0.0 0.0 0.0 1.57079632679 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.39</height>
+                            <height>0.45</height>
                             <radius>0.06</radius>
                         </capsule>
                     </geometry>

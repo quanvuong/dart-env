@@ -76,8 +76,6 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(0, len(self.dart_world.skeletons[1].bodynodes)):
             self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(10.0)
 
-        self.sim_dt = self.dt / self.frame_skip
-
         utils.EzPickle.__init__(self)
 
     # only 1d
@@ -150,7 +148,7 @@ class DartHexapodEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
+    def step(self, a):
         if self.smooth_tv_change:
             self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
             self.final_tv - self.init_tv) + self.init_tv

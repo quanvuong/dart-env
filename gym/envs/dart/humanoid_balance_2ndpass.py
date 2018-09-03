@@ -10,11 +10,11 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
         control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
 
         # set observation dimension, humanoid has (23+6)*2
-        observation_dim = 58
+        observation_dim = 56
 
         # initialize dart-env
-        dart_env.DartEnv.__init__(self, 'kima/kima_human_balance.skel', frame_skip=4, observation_size=observation_dim,
-                                  action_bounds=control_bounds)
+        dart_env.DartEnv.__init__(self, 'kima/kima_human_balance.skel', frame_skip=15, observation_size=observation_dim,
+                                  action_bounds=control_bounds, dt=0.002)
 
         # enable self-collision check
         self.robot_skeleton.set_self_collision_check(True)
@@ -30,10 +30,14 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
     # overload the do_simulation function to add perturbation
     def do_simulation(self, tau, n_frames):
+        key_pressed = False
+        if self._get_viewer() is not None:
+            if hasattr(self._get_viewer(), 'key_being_pressed'):
+                if self._get_viewer().key_being_pressed is not None:
+                    key_pressed = True
         for _ in range(n_frames):
-            if self.current_step < 30:
+            if self.current_step < 30 or key_pressed:
                 self.robot_skeleton.bodynode(self.push_target).add_ext_force(self.push_direction * self.push_strength)
-
                 push_center = self.robot_skeleton.bodynode('head').com()
                 self.dart_world.arrows = [[push_center, push_center + self.push_direction * self.push_strength * 0.005]]
             else:
@@ -60,11 +64,22 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
                     np.abs(self.robot_skeleton.q[3]) < 1.0)
 
         # get next observation
-        observation = self.state_vector()
+        observation = np.zeros(56)
+        observation[0] = self.state_vector()[1]
+        observation[1:] = self.state_vector()[3:]
 
         self.current_step += 1
 
         return observation, reward, done, {}
+
+    def _get_obs(self):
+        state = np.concatenate([
+            self.robot_skeleton.q[[1]],
+            self.robot_skeleton.q[3:],
+            self.robot_skeleton.dq,
+        ])
+
+        return state
 
     # reset the rollout
     def reset_model(self):
@@ -82,7 +97,11 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.current_step = 0
 
-        return self.state_vector()
+        observation = np.zeros(56)
+        observation[0] = self.state_vector()[1]
+        observation[1:] = self.state_vector()[3:]
+
+        return observation
 
     def viewer_setup(self):
         if not self.disableViewer:

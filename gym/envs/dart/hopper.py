@@ -42,9 +42,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+
+        self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
         self.current_param = self.param_manager.get_simulator_parameters()
+
         self.curriculum_up = False
         self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
 
@@ -70,13 +73,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
-        self.current_param[0] = 0.0
         self.param_manager.set_simulator_parameters(self.current_param)
 
         print('sim parameters: ', self.param_manager.get_simulator_parameters())
 
         # data structure for actuation modeling
-
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
 
         utils.EzPickle.__init__(self)
@@ -145,13 +146,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
             #and not self.fall_on_ground)
-             and (height > self.height_threshold_low) and (abs(ang) < .4))
+            and (height > self.height_threshold_low) and (abs(ang) < .4))
         return done
 
     def pre_advance(self):
         self.posbefore = self.robot_skeleton.q[0]
 
-    def reward_func(self, a):
+    def reward_func(self, a, step_skip=1):
         posafter = self.robot_skeleton.q[0]
         alive_bonus = 1.0
         joint_limit_penalty = 0
@@ -161,7 +162,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
                 joint_limit_penalty += abs(1.5)
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
-        reward += alive_bonus
+        reward += alive_bonus * step_skip
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
         return reward
@@ -218,6 +219,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.dq,
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
+
         if self.train_UP:
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:

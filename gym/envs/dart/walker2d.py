@@ -11,7 +11,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         #self.control_bounds[1][1] = -0.3
         #self.control_bounds[1][4] = -0.3
-        self.action_scale = 100 #np.array([100, 100, 20, 100, 100, 20])
+        self.action_scale = 100#np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
         self.train_UP = False
         self.noisy_input = False
@@ -71,10 +71,10 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         # data structure for modeling delays in observation and action
         self.observation_buffer = []
         self.action_buffer = []
-        self.obs_delay = 3
-        self.act_delay = 3
+        self.obs_delay = 0
+        self.act_delay = 0
 
-        print('sim parameters: ', self.param_manager.get_simulator_parameters())
+        #print('sim parameters: ', self.param_manager.get_simulator_parameters())
 
         utils.EzPickle.__init__(self)
 
@@ -86,7 +86,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         full_ac[3:] = a
         return full_ac
 
-    def pre_advance(self, a):
+    def pre_advance(self):
         self.posbefore = self.robot_skeleton.q[0]
 
     def terminated(self):
@@ -97,11 +97,14 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
         return done
 
-    def reward_func(self, a):
+    def post_advance(self):
+        pass
+
+    def reward_func(self, a, step_skip=1):
         posafter, ang = self.robot_skeleton.q[0, 2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
-        alive_bonus = 1.0
+        alive_bonus = 1.0 * step_skip
         vel = (posafter - self.posbefore) / self.dt
         reward = vel
         reward += alive_bonus
@@ -139,7 +142,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.do_simulation(tau, self.frame_skip)
 
-    def _step(self, a):
+    def step(self, a):
         self.advance(a)
         reward = self.reward_func(a)
 
@@ -185,6 +188,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        #qpos[3] += 0.5
         self.set_state(qpos, qvel)
 
         if self.resample_MP:

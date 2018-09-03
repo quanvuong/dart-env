@@ -7,8 +7,13 @@ class DartWorld(pydart.World):
         pydart.World.__init__(self, *args, **kwargs)
         self.arrows = [] # [from, to]
 
+        self.key_being_pressed = None
+
     def on_key_press(self, key):
-        pass
+        self.key_being_pressed = key
+
+    def on_key_release(self):
+        self.key_being_pressed = None
 
     def render_with_ri(self, ri):
         for arrow in self.arrows:

@@ -31,7 +31,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 1.2
+        self.final_tv = -1.5
         self.tv_endtime = 1.0
         self.tvel_diff_perc = 1.0
         self.smooth_tv_change = True
@@ -42,7 +42,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_pos = 0
         self.pos_spd = False # Use spd on position in forward direction. Only use when treadmill is used
         self.assist_timeout = 0.0  # do not provide pushing assistance after certain time
-        self.assist_schedule = [[0.0, [150, 150]], [30.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
+        self.assist_schedule = [[0.0, [2000, 2000]], [30.0, [1500, 1500.0]], [6.0, [1125, 1125]]]
 
         self.rand_target_vel = False
         self.init_push = False
@@ -141,8 +141,6 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.skeletons[1].bodynodes[i].set_friction_coeff(20)
 
         # self.dart_world.set_collision_detector(3)
-
-        self.sim_dt = self.dt / self.frame_skip
 
         for bn in self.robot_skeleton.bodynodes:
             if len(bn.shapenodes) > 0:
@@ -270,7 +268,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     clamped_control[i] = self.previous_control[i] - self.constrain_dcontrol
         return clamped_control
 
-    def _step(self, a):
+    def step(self, a):
         if self.use_ref_policy:
             current_obs = self._get_obs()
 

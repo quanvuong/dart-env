@@ -10,7 +10,7 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
         control_bounds = np.array([[1.0] * 23, [-1.0] * 23])
 
         # set observation dimension, humanoid has (23+6)*2
-        observation_dim = 58
+        observation_dim = 56
 
         # initialize dart-env
         dart_env.DartEnv.__init__(self, 'kima/kima_human_balance.skel', frame_skip=4, observation_size=observation_dim,
@@ -40,7 +40,9 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
                     np.abs(self.robot_skeleton.q[3]) < 1.0)
 
         # get next observation
-        observation = self.state_vector()
+        observation = np.zeros(56)
+        observation[0] = self.state_vector()[1]
+        observation[1:] = self.state_vector()[3:]
 
         return observation, reward, done, {}
 
@@ -54,7 +56,11 @@ class DartHumanoidBalanceEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.init_height = self.robot_skeleton.bodynode('head').com()[1]
 
-        return self.state_vector()
+        observation = np.zeros(56)
+        observation[0] = self.state_vector()[1]
+        observation[1:] = self.state_vector()[3:]
+
+        return observation
 
     def viewer_setup(self):
         if not self.disableViewer:

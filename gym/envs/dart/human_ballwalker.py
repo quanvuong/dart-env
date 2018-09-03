@@ -135,7 +135,6 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
 
         #self.dart_world.set_collision_detector(3)
 
-        self.sim_dt = self.dt / self.frame_skip
 
         for bn in self.robot_skeleton.bodynodes:
             if len(bn.shapenodes) > 0:
@@ -263,7 +262,7 @@ class DartHumanBallWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                     clamped_control[i] = self.previous_control[i] - self.constrain_dcontrol
         return clamped_control
 
-    def _step(self, a):
+    def step(self, a):
         if self.use_ref_policy:
             current_obs = self._get_obs()
 

@@ -1,10 +1,19 @@
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+from gym.envs.dart.parameter_managers import *
 
 class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
+        self.train_UP = False
+        self.noisy_input = False
+
+        self.resample_MP = False  # whether to resample the model paraeters
+        self.param_manager = mjHopperManager(self)
+        self.velrew_weight = 1.0
+
         mujoco_env.MujocoEnv.__init__(self, 'hopper.xml', 4)
+
         utils.EzPickle.__init__(self)
 
     def pad_action(self, a):
@@ -28,8 +37,7 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         s = self.state_vector()
         height, ang = self.sim.data.qpos[1:3]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .7) and (abs(ang) < .4))
-
+                    (height > .7) and (abs(ang) < .8))
         return done
 
     def pre_advance(self):
@@ -38,9 +46,13 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def reward_func(self, a):
         posafter, height, ang = self.sim.data.qpos[0:3]
         alive_bonus = 1.0
-        reward = (posafter - self.posbefore) / self.dt
+        reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
+        joint_limit_penalty = 0
+        if np.abs(self.sim.data.qpos[-2]) < 0.05:
+            joint_limit_penalty += 1.5
+        #reward -= 5e-1 * joint_limit_penalty
         return reward
 
     def step(self, a):
@@ -56,15 +68,24 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return ob, reward, done, {}
 
     def _get_obs(self):
-        return np.concatenate([
+        state = np.concatenate([
             self.sim.data.qpos.flat[1:],
             self.sim.data.qvel.flat
         ])
+        if self.train_UP:
+            state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
+        if self.noisy_input:
+            state = state + np.random.normal(0, .01, len(state))
+        return state
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(low=-.005, high=.005, size=self.model.nq)
         qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         self.set_state(qpos, qvel)
+
+        if self.resample_MP:
+            self.param_manager.resample_parameters()
+
         return self._get_obs()
 
     def viewer_setup(self):
