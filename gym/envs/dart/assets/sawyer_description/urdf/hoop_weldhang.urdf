@@ -1,0 +1,130 @@
+<?xml version="1.0" ?>
+
+<robot name="hoop">
+  <material name="cloth_blue">
+    <color rgba="0.65294 0.65294 0.95294 1"/>
+  </material>
+  
+  <link name="right_hoop_proxy1" />
+  
+  <link name="right_hoop_proxy2" />
+  <joint name="right_hoop_dj1" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 0.05"/>
+    <parent link="right_hoop_proxy1"/>
+    <child link="right_hoop_proxy2"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <link name="right_hoop_proxy3" />
+  <joint name="right_hoop_dj2" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="right_hoop_proxy2"/>
+    <child link="right_hoop_proxy3"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  
+  <link name="right_hoop_1">
+    <collision>
+      <origin rpy="0 1.56 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 1.56 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+      <material name="cloth_blue"/>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="1.0E-08 1.0E-08 1.0E-08"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.000335833" ixy="0.0" ixz="0.0" iyy="0.000335833" iyz="0.0" izz="0.000005"/>
+    </inertial>
+  </link>
+  <joint name="right_hoop_dj3" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="right_hoop_proxy3"/>
+    <child link="right_hoop_1"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="right_hoop_2">
+    <collision>
+      <origin rpy="1.56 0 0" xyz="0.1 0.1 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="1.56 0 0" xyz="0.1 0.1 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+      <material name="cloth_blue"/>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.1 0.1 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.000335833" ixy="0.0" ixz="0.0" iyy="0.000335833" iyz="0.0" izz="0.000005"/>
+    </inertial>
+  </link>
+  <joint name="right_hoop_j2" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <parent link="right_hoop_1"/>
+    <child link="right_hoop_2"/>
+  </joint>
+  <link name="right_hoop_3">
+    <collision>
+      <origin rpy="1.56 0 0" xyz="-0.1 0.1 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="1.56 0 0" xyz="-0.1 0.1 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+      <material name="cloth_blue"/>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.1 0.1 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.000335833" ixy="0.0" ixz="0.0" iyy="0.000335833" iyz="0.0" izz="0.000005"/>
+    </inertial>
+  </link>
+  <joint name="right_hoop_j3" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <parent link="right_hoop_1"/>
+    <child link="right_hoop_3"/>
+  </joint>
+  <link name="right_hoop_4">
+    <collision>
+      <origin rpy="0 1.56 0" xyz="0 0.2 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 1.56 0" xyz="0 0.2 0"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.01"/>
+      </geometry>
+      <material name="cloth_blue"/>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0.2 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.000335833" ixy="0.0" ixz="0.0" iyy="0.000335833" iyz="0.0" izz="0.000005"/>
+    </inertial>
+  </link>
+  <joint name="right_hoop_j4" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <parent link="right_hoop_1"/>
+    <child link="right_hoop_4"/>
+  </joint>
+</robot>
