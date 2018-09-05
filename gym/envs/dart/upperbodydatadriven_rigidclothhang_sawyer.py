@@ -69,7 +69,7 @@ class SPDController(Controller):
 
         self.h = timestep
         #self.skel = env.robot_skeleton
-        ndofs = self.skel.ndofs-6
+        ndofs = self.skel.ndofs-9
         self.qhat = self.skel.q
         self.Kp = np.diagflat([30000.0] * (ndofs))
         self.Kd = np.diagflat([100.0] * (ndofs))
@@ -100,7 +100,7 @@ class SPDController(Controller):
         #reset the target
         #cur_q = np.array(self.skel.q)
         #self.env.loadCharacterState(filename="characterState_regrip")
-        self.target = np.array(self.skel.q[6:])
+        self.target = np.array(self.skel.q[6:-3])
         #self.env.restPose = np.array(self.target)
         #self.target = np.array(self.skel.q)
         #self.env.robot_skeleton.set_positions(cur_q)
@@ -119,9 +119,9 @@ class SPDController(Controller):
     def query(self, obs):
         if self.env.adaptiveSPD:
             #test adaptive gains
-            ndofs = self.skel.ndofs - 6
+            ndofs = self.skel.ndofs - 9
             self.Kd = np.diagflat([300.0] * (ndofs))
-            dif = self.skel.q[6:]-self.target
+            dif = self.skel.q[6:-3]-self.target
             for i in range(7):
                 dm = abs(dif[i])
                 if(dm > 0.75):
@@ -135,10 +135,10 @@ class SPDController(Controller):
         #SPD
         self.qhat = self.target
         skel = self.skel
-        p = -self.Kp.dot(skel.q[6:] + skel.dq[6:] * self.h - self.qhat)
-        d = -self.Kd.dot(skel.dq[6:])
-        b = -skel.c[6:] + p + d + skel.constraint_forces()[6:]
-        A = skel.M[6:, 6:] + self.Kd * self.h
+        p = -self.Kp.dot(skel.q[6:-3] + skel.dq[6:-3] * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq[6:-3])
+        b = -skel.c[6:-3] + p + d + skel.constraint_forces()[6:-3]
+        A = skel.M[6:-3, 6:-3] + self.Kd * self.h
 
         #print(np.linalg.cond(A))
         #TODO: near singular matrix check ... remove for speed
@@ -153,7 +153,7 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenRigidClothHangSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
@@ -262,9 +262,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.trackPosePath = False #if true, no IK, track a pose path
         self.kinematicIK = False
         self.root_adjustment = False
-        self.ikOrientation = True
+        self.ikOrientation = False
         self.adaptiveSPD = False
         self.previousIKResult = np.zeros(7)
+        self.freezePose = True
         self.sawyer_root_dofs = np.array([-1.2, -1.2, -1.2, 0, -0.1, -0.9]) #values for the fixed 6 dof root transformation
         self.sawyer_rest = np.array([0, 0, 0, 0, 0, 0, 0])
         self.rigidClothFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
@@ -304,10 +305,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           dt=dt,
-                                                          frameskip=frameskip)
+                                                          frameskip=frameskip,
+                                                          gravity=True)
 
         #initialize the Sawyer robot
-        sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop.urdf')
+        sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
         self.dart_world.add_skeleton(filename=sawyerFilename)
         for s in self.dart_world.skeletons:
             print(s)
@@ -316,6 +318,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         print(" BodyNodes: ")
         for ix,bodynode in enumerate(self.sawyer_skel.bodynodes):
             print("      "+str(ix)+" : " + bodynode.name)
+            #if ix < 16 or ix > 19:
+            #    bodynode.set_gravity_mode(False)
+            #else:
+            #    bodynode.set_gravity_mode(True)
 
         print(" Joints: ")
         for ix,joint in enumerate(self.sawyer_skel.joints):
@@ -327,7 +333,8 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             print("     "+str(ix)+" : " + dof.name)
             print("         llim: " + str(dof.position_lower_limit()) + ", ulim: " + str(dof.position_upper_limit()))
             # print("         damping: " + str(dof.damping_coefficient()))
-            dof.set_damping_coefficient(2.0)
+            if(ix < 13):
+                dof.set_damping_coefficient(2.0)
         #self.sawyer_skel.dofs[-1].set_damping_coefficient(0.5)
         #self.sawyer_skel.dofs[-2].set_damping_coefficient(0.5)
         #self.sawyer_skel.dofs[-3].set_damping_coefficient(1.0)
@@ -335,6 +342,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         #self.sawyer_skel.dofs[-1].set_damping_coefficient(0.1)
         #self.sawyer_skel.dofs[-2].set_damping_coefficient(0.1)
         self.sawyer_skel.joints[0].set_actuator_type(Joint.Joint.LOCKED)
+        #self.sawyer_skel.joints[14].set_actuator_type(Joint.Joint.PASSIVE)
+        self.sawyer_skel.joints[15].set_actuator_type(Joint.Joint.LOCKED)
+        self.sawyer_skel.joints[16].set_actuator_type(Joint.Joint.LOCKED)
+
 
         #compute the joint ranges for null space IK
         self.sawyer_dof_llim = np.zeros(7)
@@ -433,7 +444,9 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
         a=0
 
-        if(self.trackPosePath):
+        if(self.freezePose):
+            a=0
+        elif(self.trackPosePath):
             self.previousIKResult = self.posePath.pos(self.numSteps * self.ikPathTimeScale)
         else:
             #sawyer IK
@@ -462,7 +475,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                       lowerLimits=self.sawyer_dof_llim.tolist(),
                                                       upperLimits=self.sawyer_dof_ulim.tolist(),
                                                       jointRanges=self.sawyer_dof_jr.tolist(),
-                                                      restPoses=self.sawyer_skel.q[6:].tolist()
+                                                      restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                       )
             else:
                 result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletSawyer,
@@ -473,27 +486,31 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                       lowerLimits=self.sawyer_dof_llim.tolist(),
                                                       upperLimits=self.sawyer_dof_ulim.tolist(),
                                                       jointRanges=self.sawyer_dof_jr.tolist(),
-                                                      restPoses=self.sawyer_skel.q[6:].tolist()
+                                                      restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                       )
             #print("computed IK result: " + str(result))
             self.previousIKResult = np.array(result)
             self.setPosePyBullet(result)
         #self.sawyer_skel.set_positions(np.concatenate([np.array([0, 0, 0, 0, 0.25, -0.9]), result]))
         if(self.root_adjustment):
-            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), np.zeros(7)]))
+            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), np.zeros(7), np.zeros(3)]))
         elif (self.kinematicIK):
             # kinematic
-            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result]))
+            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.previousIKResult, self.sawyer_skel.q[-3:]]))
         else:
+            #first frame correction
             # SPD (dynamic)
             if self.SPDController is not None:
+                tau = self.sawyer_skel.forces()
                 self.SPDController.target = self.previousIKResult
-                tau = np.concatenate([np.zeros(6), self.SPDController.query(obs=None)])
+                tau = np.concatenate([np.zeros(6), self.SPDController.query(obs=None), tau[-3:]])
                 #self.do_simulation(tau, self.frame_skip)
                 self.sawyer_skel.set_forces(tau)
 
             #check the Sawyer arm for joint, velocity and torque limits
             tau = self.sawyer_skel.forces()
+            tau[14] = 9.0
+            print(self.sawyer_skel.q[14])
             tau_upper_lim = self.sawyer_skel.force_upper_limits()
             tau_lower_lim = self.sawyer_skel.force_lower_limits()
             vel = self.sawyer_skel.velocities()
@@ -519,6 +536,8 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                     print("invalid IK solution: result["+str(i)+"] under lower limit: " + str(self.previousIKResult[i]) + "|"+ str(pos_lower_lim[i+6]))
 
             self.sawyer_skel.set_forces(tau)
+
+        self.sawyer_skel.bodynodes[19].add_ext_force(np.array([1.0,0,0]))
                         #print(self.robot_skeleton.q)
         #self.maxSawyerReach = max(self.maxSawyerReach, np.linalg.norm(self.sawyer_skel.bodynodes[3].to_world(np.zeros(3)) - self.sawyer_skel.bodynodes[13].to_world(np.zeros(3))))
         #print("maxSawyerReach = " + str(self.maxSawyerReach))
@@ -545,7 +564,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 self.ef_accuracy_info['total'] += ef_accuracy
                 self.ef_accuracy_info['average'] = self.ef_accuracy_info['total']/self.numSteps
 
-        pose_error = self.sawyer_skel.q[6:] - self.previousIKResult
+        pose_error = self.sawyer_skel.q[6:-3] - self.previousIKResult
         if self.graphSPDError:
             self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
 
@@ -869,8 +888,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         #self.sawyer_skel.set_velocities(self.np_random.uniform(low=-3.5, high=3.5, size=self.sawyer_skel.ndofs))
         sawyer_pose = np.array(self.sawyer_skel.q)
         sawyer_pose[:6] = np.array(self.sawyer_root_dofs)
-        sawyer_pose[6:] = np.array(self.sawyer_rest)
+        sawyer_pose[6:-3] = np.array(self.sawyer_rest)
+        sawyer_pose[-3:] = np.zeros(3)
         self.sawyer_skel.set_positions(sawyer_pose)
+        self.sawyer_skel.set_forces(np.zeros(len(self.sawyer_skel.dofs)))
         T = self.sawyer_skel.bodynodes[0].world_transform()
         tempFrame = pyutils.ShapeFrame()
         tempFrame.setTransform(T)
@@ -878,7 +899,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         root_quat = (root_quat.x, root_quat.y, root_quat.z, root_quat.w)
 
         p.resetBasePositionAndOrientation(self.pyBulletSawyer, posObj=np.zeros(3), ornObj=root_quat)
-        self.setPosePyBullet(self.sawyer_skel.q[6:])
+        self.setPosePyBullet(self.sawyer_skel.q[6:-3])
 
 
         if(self.trackPosePath):
@@ -903,7 +924,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             #    print(po.p)
 
             self.sawyer_skel.set_velocities(np.zeros(len(self.sawyer_skel.dq)))
-            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.posePath.points[0].p]))
+            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.posePath.points[0].p, self.sawyer_skel.q[-3:]]))
 
         else: #setup IK path instead
 
@@ -997,7 +1018,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                       lowerLimits=self.sawyer_dof_llim.tolist(),
                                                       upperLimits=self.sawyer_dof_ulim.tolist(),
                                                       jointRanges=self.sawyer_dof_jr.tolist(),
-                                                      restPoses=self.sawyer_skel.q[6:].tolist()
+                                                      restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                       )
             else:
                 result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletSawyer,
@@ -1008,13 +1029,13 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                       lowerLimits=self.sawyer_dof_llim.tolist(),
                                                       upperLimits=self.sawyer_dof_ulim.tolist(),
                                                       jointRanges=self.sawyer_dof_jr.tolist(),
-                                                      restPoses=self.sawyer_skel.q[6:].tolist()
+                                                      restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                       )
 
-
+            self.previousIKResult = np.array(result)
             self.setPosePyBullet(result)
             self.sawyer_skel.set_velocities(np.zeros(len(self.sawyer_skel.dq)))
-            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result]))
+            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result, self.sawyer_skel.q[-3:]]))
 
             hn = self.sawyer_skel.bodynodes[13]  # hoop 1 node
             self.rigidClothFrame.setTransform(hn.world_transform())
@@ -1033,7 +1054,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                           lowerLimits=self.sawyer_dof_llim.tolist(),
                                                           upperLimits=self.sawyer_dof_ulim.tolist(),
                                                           jointRanges=self.sawyer_dof_jr.tolist(),
-                                                          restPoses=self.sawyer_skel.q[6:].tolist()
+                                                          restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                           )
                 else:
                     result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletSawyer,
@@ -1044,11 +1065,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                           lowerLimits=self.sawyer_dof_llim.tolist(),
                                                           upperLimits=self.sawyer_dof_ulim.tolist(),
                                                           jointRanges=self.sawyer_dof_jr.tolist(),
-                                                          restPoses=self.sawyer_skel.q[6:].tolist()
+                                                          restPoses=self.sawyer_skel.q[6:-3].tolist()
                                                           )
 
                 self.setPosePyBullet(result)
-                self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result]))
+                self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result, self.sawyer_skel.q[-3:]]))
                 ef_accuracy = np.linalg.norm(self.sawyer_skel.bodynodes[13].to_world(np.zeros(3)) - self.ikTarget)
             #DONE: IK setup
 
@@ -1266,7 +1287,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         if self.viewer is not None and self.renderIKGhost and not self.trackPosePath:
             q = np.array(self.sawyer_skel.q)
             dq = np.array(self.sawyer_skel.dq)
-            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.previousIKResult]))
+            self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.previousIKResult, self.sawyer_skel.q[-3:]]))
             # self.viewer.scene.render(self.viewer.sim)
             self.sawyer_skel.render()
             self.sawyer_skel.set_positions(q)
@@ -1283,7 +1304,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 t = (self.posePath.points[-1].t-self.posePath.points[0].t)*(i/(samples-1))
                 #print(t)
                 #print(self.posePath.pos(t=t))
-                self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.posePath.pos(t=t)]))
+                self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), self.posePath.pos(t=t), self.sawyer_skel.q[-3:]]))
                 ef_frame = pyutils.BoxFrame(c0=np.array([0.1, 0.2, 0.001]), c1=np.array([-0.1, 0, -0.001]))
                 hn = self.sawyer_skel.bodynodes[13]  # hoop 1 node
                 ef_frame.setTransform(hn.world_transform())

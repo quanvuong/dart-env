@@ -26,6 +26,10 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_09_03_sawyer_rigid_hang" #works well
+    #trial = "experiment_2018_09_01_sawyer_rigid_hang_1" #bug: diagonal initial location
+
+
     #Sawyer Trials
 
 
@@ -394,10 +398,10 @@ if __name__ == '__main__':
 
     #Sawyer Env
     #env = gym.make('DartSawyer-v2')
-    env = gym.make('DartSawyerRigid-v1')
+    env = gym.make('DartSawyerRigid-v3')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
 
-    useMeanPolicy = False
+    useMeanPolicy = True
 
     #print("policy time")
     policy = None
@@ -407,8 +411,8 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if False and policy is None:
-        env2 = normalize(GymEnv('DartSawyer-v1', record_log=False, record_video=False))
+    if True and policy is None:
+        env2 = normalize(GymEnv('DartSawyerRigid-v3', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
@@ -442,7 +446,7 @@ if __name__ == '__main__':
         env.render()
         #time.sleep(0.5)
         rolloutHorizon = 10000
-        rolloutHorizon = 400
+        rolloutHorizon = 600
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

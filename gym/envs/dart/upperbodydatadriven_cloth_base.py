@@ -227,16 +227,18 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     self.action_scale[ix] = 1.0
                     self.control_bounds[0][ix] = dof.position_upper_limit()
                     self.control_bounds[1][ix] = dof.position_lower_limit()
-                    print("ix: " + str(ix) + " | control_bounds["+str(ix)+"]: " + str(self.control_bounds[0][ix]) + ", " + str(str(self.control_bounds[0][ix])))
+                    if rendering:
+                        print("ix: " + str(ix) + " | control_bounds["+str(ix)+"]: " + str(self.control_bounds[0][ix]) + ", " + str(str(self.control_bounds[0][ix])))
                 else:
                     self.action_scale[ix] = 3.14
                     self.control_bounds[0][ix] = 1.0
                     self.control_bounds[1][ix] = -1.0
             self.action_space = spaces.Box(self.control_bounds[1], self.control_bounds[0])
 
-        print("action_space: " + str(self.action_space))
-        print("action_scale: " + str(self.action_scale))
-        print("control_bounds: " + str(self.control_bounds))
+        if rendering:
+            print("action_space: " + str(self.action_space))
+            print("action_scale: " + str(self.action_scale))
+            print("control_bounds: " + str(self.control_bounds))
 
         #setup data-driven joint limits
         if self.dataDrivenJointLimts:
@@ -289,6 +291,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
 
+        #print robot_skeleton issues
+        '''
         for i in range(len(self.robot_skeleton.bodynodes)):
             print(self.robot_skeleton.bodynodes[i])
             
@@ -298,6 +302,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #enable joint limits
         for i in range(len(self.robot_skeleton.joints)):
             print(self.robot_skeleton.joints[i])
+        '''
 
         #DART does not automatically limit joints with any unlimited dofs
         self.robot_skeleton.joints[4].set_position_limit_enforced(True)
@@ -482,6 +487,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         return 0
 
     def _step(self, a):
+        #print("starting step")
         #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
@@ -660,6 +666,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             self.avgtimings["_step"] += time.time() - startTime2
         except:
             self.avgtimings["_step"] = time.time() - startTime2
+
+        #print("ending step")
+        #exit(0)
         return ob, self.reward, done, {}
         #except:
         #    print("step " + str(self.numSteps) + " failed")
@@ -806,20 +815,22 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #seeds = seeds+difficultySeeds
         #seed = self.reset_number
         #print(seeds)
-        try:
-            seed = seeds[self.reset_number]
-        except:
-            print("out of seeds, exiting")
-            exit()
-            seed = self.reset_number
+
+        #try:
+        #    seed = seeds[self.reset_number]
+        #except:
+        #    print("out of seeds, exiting")
+        #    exit()
+        #    seed = self.reset_number
             #print("all given seeds simulated")
+
         #seed = 8
         #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
-        print("Seeding: " + str(seed))
-        random.seed(seed)
-        self.np_random.seed(seed)
-        np.random.seed(seed)
-        self.setSeed = seed
+        #print("Seeding: " + str(seed))
+        #random.seed(seed)
+        #self.np_random.seed(seed)
+        #np.random.seed(seed)
+        #self.setSeed = seed
         #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))

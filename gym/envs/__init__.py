@@ -603,10 +603,24 @@ register(
     #max_episode_steps=250,
 )
 
-#Sawyer SPD to IK Env
+#Sawyer Pure Rigid Env
 register(
     id='DartSawyerRigid-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothSawyerEnv',
+    #max_episode_steps=250,
+)
+
+#Sawyer Hanging Rigid Env
+register(
+    id='DartSawyerRigid-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothHangSawyerEnv',
+    #max_episode_steps=250,
+)
+
+#Sawyer Hanging Rigid Env (constructed)
+register(
+    id='DartSawyerRigid-v3',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv',
     #max_episode_steps=250,
 )
 

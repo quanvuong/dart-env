@@ -9,6 +9,7 @@ import time
 import math
 
 import pydart2.joint as Joint
+import pydart2.collision_result as CollisionResult
 
 import pybullet as p
 import pybullet_data
@@ -153,21 +154,26 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
         clothSimulation = False
         self.renderCloth = False
         dt = 0.002
-        frameskip = 10
+        frameskip = 5
 
         #observation terms
-        self.featureInObs   = True  # if true, feature centroid location and displacement from ef are observed
+        self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = True  # if true, contact ids are in obs
+        self.contactIDInObs = False  # if true, contact ids are in obs
         self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
+        self.robotJointObs  = True #if true, obs includes robot joint locations in world space
+        self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
+        self.humanJointObs  = True #if true, obs includes human joint locations
+
+        #
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
@@ -175,8 +181,8 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
-        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = True
+        self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.deformationPenalty         = False
         self.restPoseReward             = True
 
         self.uprightRewardWeight              = 5  #if true, rewarded for 0 torso angle from vertical
@@ -192,7 +198,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
-        self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
+        self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
 
         #other variables
         self.prevTau = None
@@ -208,6 +214,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.state_save_directory = "saved_control_states/"
         self.fingertip = np.array([0,-0.085,0])
         self.ef_accuracy_info = {'best':0, 'worst':0, 'total':0, 'average':0 }
+        self.collsionResult = None
+        self.haptic_data = {'high':0, 'total':0, 'avg':0, 'var':0, 'instances':[]}
+        self.task_data = {'successes':0, 'trials':0, 'avg_limb_prog':0, 'total_limb_prog':0}
+        self.initialSawyerEfs = []
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -244,6 +254,10 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             observation_size += 3
         if self.contactIDInObs:
             observation_size += 22
+        if self.robotJointObs:
+            observation_size += 48 - len(self.redundantRoboJoints)*3
+        if self.humanJointObs:
+            observation_size += 45
 
         # initialize the Sawyer variables
         self.SPDController = None
@@ -251,12 +265,12 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.maxSawyerReach = 1.0  # omni-directional reach (from 2nd dof)
         #self.ikPath = pyutils.Spline()
         self.ikPath = pyutils.CubicBezier()
-        self.ikPathTimeScale = 0.0025  # relationship between number of steps and spline time
+        self.ikPathTimeScale = 0.0017  # relationship between number of steps and spline time
         self.ikTarget = np.array([0.5, 0, 0])
         self.orientationEndPoints = [pyutils.ShapeFrame(), pyutils.ShapeFrame()]
         self.orientationTarget = pyutils.ShapeFrame() #only used for orientation
         self.robotPathParams = {'p0_depth_range':0.05, 'p0_depth_offset':0.15, 'p0_disk_rad':self.maxSawyerReach*0.8,
-                                'p3_el_dim':np.array([0.2, 0.1, 0.1]), 'p3_el_org':np.array([0.15, 0, 0]),
+                                'p3_el_dim':np.array([0.2, 0.1, 0.1]), 'p3_el_org':np.array([0.15, 0.075, 0]),
                                 'b_tan_dot_cone':0.2, 'b_tan_len':0.5,
                                 'orient_dot_cone':0.8}
         self.trackPosePath = False #if true, no IK, track a pose path
@@ -264,13 +278,18 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.root_adjustment = False
         self.ikOrientation = True
         self.adaptiveSPD = False
+        self.freezeTracking = False #if true, target SPD pose is frozen
         self.previousIKResult = np.zeros(7)
         self.sawyer_root_dofs = np.array([-1.2, -1.2, -1.2, 0, -0.1, -0.9]) #values for the fixed 6 dof root transformation
         self.sawyer_rest = np.array([0, 0, 0, 0, 0, 0, 0])
         self.rigidClothFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
         self.rigidClothTargetFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
-        self.renderIKGhost = True
+        self.renderIKGhost = False
         self.renderSawyerReach = False
+        self.renderSawyerCollidable = False
+        self.renderHapticObs = False
+        self.renderOracle = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
 
 
@@ -283,16 +302,18 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 self.SPDErrorGraph.labels[i] = str(i)
 
         #setup pybullet
-        print("Setting up pybullet")
+        if self.print_skel_details:
+            print("Setting up pybullet")
         self.pyBulletPhysicsClient = p.connect(p.DIRECT)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.pyBulletSawyer = p.loadURDF(dir_path + '/assets/sawyer_description/urdf/sawyer_arm.urdf')
-        print("Sawyer bodyID: " + str(self.pyBulletSawyer))
-        print("Number of pybullet joints: " + str(p.getNumJoints(self.pyBulletSawyer)))
-        for i in range(p.getNumJoints(self.pyBulletSawyer)):
-            jinfo = p.getJointInfo(self.pyBulletSawyer, i)
-            print(" " + str(jinfo[0]) + " " + str(jinfo[1]) + " " + str(jinfo[2]) + " " + str(jinfo[3]) + " " + str(
-                jinfo[12]))
+        if self.print_skel_details:
+            print("Sawyer bodyID: " + str(self.pyBulletSawyer))
+            print("Number of pybullet joints: " + str(p.getNumJoints(self.pyBulletSawyer)))
+            for i in range(p.getNumJoints(self.pyBulletSawyer)):
+                jinfo = p.getJointInfo(self.pyBulletSawyer, i)
+                print(" " + str(jinfo[0]) + " " + str(jinfo[1]) + " " + str(jinfo[2]) + " " + str(jinfo[3]) + " " + str(
+                    jinfo[12]))
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
@@ -304,28 +325,45 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                           obs_size=observation_size,
                                                           simulateCloth=clothSimulation,
                                                           dt=dt,
-                                                          frameskip=frameskip)
+                                                          frameskip=frameskip,
+                                                          gravity=True)
 
         #initialize the Sawyer robot
-        sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop.urdf')
+        sawyerFilename = ""
+        if self.renderSawyerCollidable:
+            sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_reduced_cvis.urdf')
+        else:
+            sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_reduced.urdf')
         self.dart_world.add_skeleton(filename=sawyerFilename)
-        for s in self.dart_world.skeletons:
-            print(s)
+        hoopFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/hoop_weldhang.urdf')
+        self.dart_world.add_skeleton(filename=hoopFilename)
+        self.hoop = self.dart_world.skeletons[3]
+        self.hoopToHandConstraint = None #set in reset on 1st reset
+        if self.print_skel_details:
+            for s in self.dart_world.skeletons:
+                print(s)
         self.sawyer_skel = self.dart_world.skeletons[2]
-        print("Sawyer Robot info:")
-        print(" BodyNodes: ")
+        if self.print_skel_details:
+            print("Sawyer Robot info:")
+            print(" BodyNodes: ")
         for ix,bodynode in enumerate(self.sawyer_skel.bodynodes):
-            print("      "+str(ix)+" : " + bodynode.name)
+            if self.print_skel_details:
+                print("      "+str(ix)+" : " + bodynode.name)
+            bodynode.set_gravity_mode(False)
 
-        print(" Joints: ")
+        if self.print_skel_details:
+            print(" Joints: ")
         for ix,joint in enumerate(self.sawyer_skel.joints):
-            print("     "+str(ix)+" : " + joint.name)
+            if self.print_skel_details:
+                print("     "+str(ix)+" : " + joint.name)
             joint.set_position_limit_enforced()
 
-        print(" Dofs: ")
+        if self.print_skel_details:
+            print(" Dofs: ")
         for ix,dof in enumerate(self.sawyer_skel.dofs):
-            print("     "+str(ix)+" : " + dof.name)
-            print("         llim: " + str(dof.position_lower_limit()) + ", ulim: " + str(dof.position_upper_limit()))
+            if self.print_skel_details:
+                print("     "+str(ix)+" : " + dof.name)
+                print("         llim: " + str(dof.position_lower_limit()) + ", ulim: " + str(dof.position_upper_limit()))
             # print("         damping: " + str(dof.damping_coefficient()))
             dof.set_damping_coefficient(2.0)
         #self.sawyer_skel.dofs[-1].set_damping_coefficient(0.5)
@@ -349,6 +387,52 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
 
         # initialize the controller
         self.SPDController = SPDController(self, self.sawyer_skel, timestep=frameskip*dt)
+
+        #hoop details
+        if self.print_skel_details:
+            print("Hoop info:")
+            #print(self.hoop.)
+            print(" BodyNodes: ")
+        for ix, bodynode in enumerate(self.hoop.bodynodes):
+            if self.print_skel_details:
+                print("      " + str(ix) + " : " + bodynode.name)
+            if(ix<3):
+                bodynode.set_mass(0.001)
+            if self.print_skel_details:
+                print("        mass: " + str(bodynode.mass()))
+
+        if self.print_skel_details:
+            print(" Joints: ")
+            for ix, joint in enumerate(self.hoop.joints):
+                print("     " + str(ix) + " : " + joint.name)
+                print("         " + str(type(joint)))
+            #for ix,d in enumerate(joint.dofs):
+            #    print("         dof "+str(ix)+" limited: " + str(joint.has_position_limit(ix)))
+
+            #print("         " + str(joint.is_dynamic()))
+            #joint.set_position_limit_enforced()
+            #joint.set_spring_stiffnesses(np.array([0.2, 0.2, 0.2, 100.0, 100.0, 100.0]))
+
+        if self.print_skel_details:
+            print(" Dofs: ")
+            for ix, dof in enumerate(self.hoop.dofs):
+                print("     " + str(ix) + " : " + dof.name)
+                print("         llim: " + str(dof.position_lower_limit()) + ", ulim: " + str(dof.position_upper_limit()))
+                print("         spring_stiffness: " + str(dof.spring_stiffness()) )
+                print("         damping: " + str(dof.damping_coefficient()) )
+        self.hoop.dofs[-1].set_damping_coefficient(0.1)
+        self.hoop.dofs[-2].set_damping_coefficient(0.1)
+        self.hoop.dofs[-3].set_damping_coefficient(0.1)
+        self.hoop.dofs[-2].set_spring_stiffness(1.0)
+            #if(ix<3):
+            #dof.set_damping_coefficient(0.05)
+
+        #disable character gravity
+        if self.print_skel_details:
+            print("Disabling character gravity (ie. auto gravity compensation")
+        for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
+            bodynode.set_gravity_mode(False)
+        self.dart_world.skeletons[0].bodynodes[0].set_gravity_mode(False)
 
         #clothing features
         #self.sleeveRVerts = [46, 697, 1196, 696, 830, 812, 811, 717, 716, 718, 968, 785, 1243, 783, 1308, 883, 990, 739, 740, 742, 1318, 902, 903, 919, 737, 1218, 736, 1217]
@@ -385,7 +469,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                        rweight=self.elbowFlairRewardWeight)
 
         if self.limbProgressReward:
-            self.rewardsData.addReward(label="limb progress", rmin=-1.0, rmax=1.0, rval=0,
+            self.rewardsData.addReward(label="limb progress", rmin=-2.0, rmax=1.0, rval=0,
                                        rweight=self.limbProgressRewardWeight)
 
         if self.oracleDisplacementReward:
@@ -433,7 +517,9 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
         a=0
 
-        if(self.trackPosePath):
+        if(self.freezeTracking):
+            a=0
+        elif(self.trackPosePath):
             self.previousIKResult = self.posePath.pos(self.numSteps * self.ikPathTimeScale)
         else:
             #sawyer IK
@@ -512,24 +598,83 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 #if (pos[i] - pos_lower_lim[i] < 0.1):
                 #    print(" pos[" + str(i) + "] close to lower lim: " + str(pos[i]) + "|" + str(pos_lower_lim[i]))
 
-            for i in range(7):
-                if(self.previousIKResult[i] > pos_upper_lim[i+6]):
-                    print("invalid IK solution: result["+str(i)+"] over upper limit: " + str(self.previousIKResult[i]) + "|"+ str(pos_upper_lim[i+6]))
-                if(self.previousIKResult[i] < pos_lower_lim[i+6]):
-                    print("invalid IK solution: result["+str(i)+"] under lower limit: " + str(self.previousIKResult[i]) + "|"+ str(pos_lower_lim[i+6]))
+            #for i in range(7):
+            #    if(self.previousIKResult[i] > pos_upper_lim[i+6]):
+            #        print("invalid IK solution: result["+str(i)+"] over upper limit: " + str(self.previousIKResult[i]) + "|"+ str(pos_upper_lim[i+6]))
+            #    if(self.previousIKResult[i] < pos_lower_lim[i+6]):
+            #        print("invalid IK solution: result["+str(i)+"] under lower limit: " + str(self.previousIKResult[i]) + "|"+ str(pos_lower_lim[i+6]))
 
             self.sawyer_skel.set_forces(tau)
+
+        #for b in self.hoop.bodynodes:
+        #    b.add_ext_force(np.array([0, -9.8, 0]))
+        hn = self.sawyer_skel.bodynodes[13]
+        aaHand = pyutils.getAngleAxis(hn.T[:3, :3])
+        expHand = aaHand[1:] * aaHand[0]
+        #self.hoop.set_positions(np.concatenate([expHand, hn.to_world(np.array([0, 0, 0])), self.hoop.q[-3:]]))
+        #self.hoop.dofs[-3].set_position(self.hoop.q[-3]+0.01)
+
+        #print(self.hoop.q[6:])
+        #self.hoop.set_positions(np.concatenate([expHand, hn.to_world(np.array([0, 0, 0.1]))]))
+        #self.hoop.joints[0].set_rest_positions(np.concatenate([expHand, hn.to_world(np.array([0, 0, 0.1]))]))
+        '''
+        print("Hoop T: " + str(self.hoop.bodynodes[0].T))
+        print("Hand T: " + str(self.sawyer_skel.bodynodes[13].T))
+        print("dofs: " + str(self.hoop.q[:3]))
+        aaHand = pyutils.getAngleAxis(self.sawyer_skel.bodynodes[13].T[:3,:3])
+        expHand = aaHand[1:]*aaHand[1]
+        aaHoop = pyutils.getAngleAxis(self.hoop.bodynodes[0].T[:3,:3])
+        print("hoop aa: " + str(aaHoop))
+        expHoop = aaHoop[1:]*aaHoop[0]
+        print("hoop exp: " + str(expHoop))
+        print("hand exp: " + str(expHand))
+        '''
+
+        #self.hoop.joints[0].set_transform_from_parent_body_node(np.linalg.inv(self.sawyer_skel.bodynodes[13].T))
+        #EulerTar = pyutils.getEulerAngles(self.sawyer_skel.bodynodes[13].T[:3,:3])
+        #EulerCurrent = pyutils.getEulerAngles(self.hoop.bodynodes[0].T[:3,:3])
+        #print("Euler Tar: " + str(EulerTar))
+        #print("Euler Cur: " + str(EulerCurrent))
+        #print("dofs: " + str(self.hoop.q[:3]))
+        #print("Hoop T: " + str(self.hoop.bodynodes[0].T))
+        #print("----------")
+        #aa_hoop = pyutils.getAngleAxis(self.hoop.bodynodes[0].T[:3,:3])
+        #skew_hoop = pyutils.getSkewSymmetric(aa_hoop)
+
+
                         #print(self.robot_skeleton.q)
         #self.maxSawyerReach = max(self.maxSawyerReach, np.linalg.norm(self.sawyer_skel.bodynodes[3].to_world(np.zeros(3)) - self.sawyer_skel.bodynodes[13].to_world(np.zeros(3))))
         #print("maxSawyerReach = " + str(self.maxSawyerReach))
 
     def checkTermination(self, tau, s, obs):
+        '''
+        #record haptic info
+        haptic_forces = self.getCumulativeHapticForcesFromRigidContacts()
+        num_new_entries = 0
+        for i in range(self.clothScene.getNumHapticSensors()):
+            f = haptic_forces[i * 3:i * 3 + 3]
+            f_mag = np.linalg.norm(f)
+            if(f_mag > 0.001):
+                num_new_entries += 1
+                self.haptic_data['instances'].append(f_mag)
+                self.haptic_data['total'] += f_mag
+                if(f_mag > self.haptic_data['high']):
+                    self.haptic_data['high'] = f_mag
+        if(num_new_entries > 0):
+            self.haptic_data['avg'] = self.haptic_data['total'] / len(self.haptic_data['instances'])
+            self.haptic_data['var'] = 0
+            for i in self.haptic_data['instances']:#compute variance
+                dif = i-self.haptic_data['avg']
+                self.haptic_data['var'] += dif*dif
+            self.haptic_data['var'] /= len(self.haptic_data['instances'])
+            print("Haptic_data: high:" + str(self.haptic_data['high']) + " | avg: " + str(self.haptic_data['avg']) + " | var: " + str(self.haptic_data['var']) + " | # samples: " + str(len(self.haptic_data['instances'])))
+        '''
 
         #check joint velocity within limits
-        for vx in range(len(self.sawyer_skel.dq)):
-            #print("vx: " + str(self.sawyer_skel.dq[vx]) + " | " + str(self.sawyer_skel.dofs[vx].velocity_upper_limit()))
-            if(abs(self.sawyer_skel.dq[vx]) > self.sawyer_skel.dofs[vx].velocity_upper_limit()):
-                print("Invalid velocity: " + str(vx) + ": " + str(self.sawyer_skel.dq[vx]) + " | " + str(self.sawyer_skel.dofs[vx].velocity_upper_limit()))
+        #for vx in range(len(self.sawyer_skel.dq)):
+        #    #print("vx: " + str(self.sawyer_skel.dq[vx]) + " | " + str(self.sawyer_skel.dofs[vx].velocity_upper_limit()))
+        #    if(abs(self.sawyer_skel.dq[vx]) > self.sawyer_skel.dofs[vx].velocity_upper_limit()):
+        #        print("Invalid velocity: " + str(vx) + ": " + str(self.sawyer_skel.dq[vx]) + " | " + str(self.sawyer_skel.dofs[vx].velocity_upper_limit()))
         #compute ef_accuracy here (after simulation step)
         #self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
         if(not self.trackPosePath):
@@ -548,13 +693,6 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         pose_error = self.sawyer_skel.q[6:] - self.previousIKResult
         if self.graphSPDError:
             self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
-
-        #set shape frame for rigid cloth
-        hn = self.sawyer_skel.bodynodes[13] # hoop 1 node
-        self.rigidClothFrame.setTransform(hn.world_transform())
-        #self.rigidClothTargetFrame.setFromDirectionandUp(dir=-self.rigidClothFrame.org, up=np.array([0, -1.0, 0]), org=self.rigidClothFrame.org)
-        #R = pyutils.rotateX(1.56)
-        #self.rigidClothTargetFrame.applyRotationMatrix(R)
 
         # save state for rendering
         if self.recordForRendering:
@@ -588,9 +726,13 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                     feature=self.sleeveLSeamFeature)
                 if limbInsertionError > 0:
                     return True, -500
+
+        self.rigidClothFrame.setTransform(self.hoop.bodynodes[3].world_transform())
+
         return False, 0
 
     def computeReward(self, tau):
+
         #compute and return reward at the current state
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
@@ -625,15 +767,15 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
 
         reward_limbprogress = 0
         if self.limbProgressReward:
-            if self.simulateCloth:
+            #if self.simulateCloth:
                 #self.limbProgress = pyutils.limbFeatureProgress(
                 #    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
                 #                                      offset=self.fingertip), feature=self.sleeveLSeamFeature)
 
-                self.limbProgress = pyutils.limbBoxProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), boxFrame=self.rigidClothFrame)
-                reward_limbprogress = self.limbProgress
-                if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
-                    reward_limbprogress = 0
+            self.limbProgress = pyutils.limbBoxProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), boxFrame=self.rigidClothFrame)
+            reward_limbprogress = self.limbProgress
+            #if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
+            #    reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
 
         avgContactGeodesic = None
@@ -741,18 +883,22 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
 
         if self.hapticsInObs:
             f = None
-            if self.simulateCloth and self.hapticsAware:
-                f = self.clothScene.getHapticSensorObs()#get force from simulation
-            else:
-                f = np.zeros(f_size)
+            f = self.getCumulativeHapticForcesFromRigidContacts()
+            #if self.simulateCloth and self.hapticsAware:
+            #    f = self.clothScene.getHapticSensorObs()#get force from simulation
+            #else:
+            #    f = np.zeros(f_size)
             obs = np.concatenate([obs, f]).ravel()
 
-        if self.featureInObs and self.simulateCloth:
-            centroid = self.sleeveLMidFeature.plane.org
+        if self.featureInObs:
+            if self.simulateCloth:
+                centroid = self.sleeveLMidFeature.plane.org
 
-            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-            disp = centroid-efL
-            obs = np.concatenate([obs, centroid, disp]).ravel()
+                efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+                disp = centroid-efL
+                obs = np.concatenate([obs, centroid, disp]).ravel()
+
+
 
         if self.oracleInObs and self.simulateCloth:
             oracle = np.zeros(3)
@@ -784,14 +930,48 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                         oracle = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
             self.prevOracle = np.array(oracle)
             obs = np.concatenate([obs, oracle]).ravel()
+        elif self.oracleInObs: #rigid oracle
+            oracle = np.zeros(3)
+            if(self.limbProgress > 0):
+                oracle = self.rigidClothFrame.toGlobal(np.array([0,0,-1]))-self.rigidClothFrame.toGlobal(np.zeros(3))
+                oracle /= np.linalg.norm(oracle)
+            else:
+                efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+                oracle = self.rigidClothFrame.getCenter() - efL
+                oracle /= np.linalg.norm(oracle)
+            self.prevOracle = np.array(oracle)
+            obs = np.concatenate([obs, oracle]).ravel()
 
         if self.contactIDInObs:
             HSIDs = self.clothScene.getHapticSensorContactIDs()
             obs = np.concatenate([obs, HSIDs]).ravel()
 
+        if self.robotJointObs:  # if true, obs includes robot joint locations in world space
+            locs = np.zeros(0)
+            for jix,j in enumerate(self.sawyer_skel.joints):
+                if(jix in self.redundantRoboJoints):
+                    continue
+                locs = np.concatenate([locs, j.position_in_world_frame()])
+                #print(locs)
+                #print(" " + j.name + ": " + str(j.position_in_world_frame()))
+            obs = np.concatenate([obs, locs]).ravel()
+            #print(obs)
+            #print("robo joint obs size: " + str(len(self.sawyer_skel.joints)))
+
+        if self.humanJointObs:
+            locs = np.zeros(0)
+            for j in self.robot_skeleton.joints:
+                locs = np.concatenate([locs, j.position_in_world_frame()])
+            obs = np.concatenate([obs, locs]).ravel()
+            #print("human joint obs size: " + str(len(self.robot_skeleton.joints)))
+
         return obs
 
     def additionalResets(self):
+        if self.collsionResult is None:
+            self.collsionResult = CollisionResult.CollisionResult(self.dart_world)
+
+
         if(self.reset_number > 0):
             print("ef_accuracy_info: " + str(self.ef_accuracy_info))
         self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
@@ -814,6 +994,14 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=7, legend=True)
             for i in range(len(self.SPDErrorGraph.labels)):
                 self.SPDErrorGraph.labels[i] = str(i)
+
+        if self.reset_number > 0:
+            self.task_data['trials'] += 1
+            if self.limbProgress > 0:
+                self.task_data['successes'] += 1
+            self.task_data['total_limb_prog'] += self.limbProgress
+            self.task_data['avg_limb_prog'] = self.task_data['total_limb_prog']/self.task_data['trials']
+            print("Task Data: " + str(self.task_data))
 
         #if self.reset_number == 10:
         #    exit()
@@ -871,6 +1059,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         sawyer_pose[:6] = np.array(self.sawyer_root_dofs)
         sawyer_pose[6:] = np.array(self.sawyer_rest)
         self.sawyer_skel.set_positions(sawyer_pose)
+        self.hoop.set_positions(np.array([0,0,0,0,2.0,0, 0 ,0 ,0])) #get the hoop out of the way
         T = self.sawyer_skel.bodynodes[0].world_transform()
         tempFrame = pyutils.ShapeFrame()
         tempFrame.setTransform(T)
@@ -933,7 +1122,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             while(np.linalg.norm(diskPoint) > diskRad):
                 diskPoint = np.array([(random.random() * 2 - 1) * diskRad, (random.random() * 2 - 1) * diskRad])
             depth = random.random()*depthRange + self.robotPathParams['p0_depth_offset']
-            p0 = self.sawyer_skel.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[0], depth])
+            p0 = self.sawyer_skel.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[1], depth])
 
             #p3 ellipsoid sampling about the shoulder region
             p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'], org=self.robotPathParams['p3_el_org'])
@@ -975,7 +1164,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                                org=p3)
             self.rigidClothTargetFrame.setQuaternion(self.orientationEndPoints[0].quat) #set initial target
 
-            self.checkIKSplineValidity()
+            #self.checkIKSplineValidity()
 
             #initial IK target is the first spline point
             #self.ikTarget = self.ikPath.points[0].p
@@ -1016,10 +1205,9 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             self.sawyer_skel.set_velocities(np.zeros(len(self.sawyer_skel.dq)))
             self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result]))
 
-            hn = self.sawyer_skel.bodynodes[13]  # hoop 1 node
-            self.rigidClothFrame.setTransform(hn.world_transform())
+            hn = self.sawyer_skel.bodynodes[13]  # hand node
 
-            ef_accuracy = np.linalg.norm(self.sawyer_skel.bodynodes[13].to_world(np.zeros(3)) - self.ikTarget)
+            ef_accuracy = np.linalg.norm(hn.to_world(np.zeros(3)) - self.ikTarget)
             retry_count = 0
             while(ef_accuracy > 0.05 and retry_count < 10):
                 retry_count += 1
@@ -1047,10 +1235,28 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                                                           restPoses=self.sawyer_skel.q[6:].tolist()
                                                           )
 
+                self.previousIKResult = result
                 self.setPosePyBullet(result)
                 self.sawyer_skel.set_positions(np.concatenate([np.array(self.sawyer_root_dofs), result]))
                 ef_accuracy = np.linalg.norm(self.sawyer_skel.bodynodes[13].to_world(np.zeros(3)) - self.ikTarget)
             #DONE: IK setup
+
+            self.rigidClothFrame.setTransform(hn.world_transform())
+
+            #self.initialSawyerEfs.append(np.array(self.rigidClothFrame.org))
+
+            #align the hoop
+            aaHand = pyutils.getAngleAxis(hn.T[:3, :3])
+            expHand = aaHand[1:] * aaHand[0]
+            #self.hoop.set_positions(np.concatenate([expHand, hn.to_world(np.array([0,0,0.1]))]))
+            self.hoop.set_positions(np.concatenate([expHand, hn.to_world(np.array([0,0,0])), np.zeros(3)]))
+            #if(self.reset_number != 0):
+            #    self.ballJointConstraint.remove_from_world(self.dart_world)
+            if(self.hoopToHandConstraint == None):
+                #self.hoopToHandConstraint = pydart.constraints.BallJointConstraint(self.hoop.bodynodes[0], hn, self.hoop.bodynodes[0].to_world(np.zeros(3)))
+                self.hoopToHandConstraint = pydart.constraints.WeldJointConstraint(hn, self.hoop.bodynodes[0])
+                self.hoopToHandConstraint.add_to_world(self.dart_world)
+
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
@@ -1103,6 +1309,45 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         GL.glVertex3d(-1,0,0)
         GL.glEnd()
 
+        #render robot joint locations (as in obs)
+        #for j in self.sawyer_skel.joints:
+        #    renderUtils.drawSphere(pos=j.position_in_world_frame(), rad=0.1)
+
+        #draw initial ef locations
+        renderUtils.setColor(color=[1,0,1])
+        for p in self.initialSawyerEfs:
+            renderUtils.drawSphere(pos=p)
+
+        renderUtils.setColor(color=[0.0, 0.0, 0])
+        if(self.renderOracle):
+            efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+            renderUtils.drawArrow(p0=efL, p1=efL+self.prevOracle)
+
+        if self.renderHapticObs:
+            #render haptic readings
+            self.collsionResult.update()
+            haptic_pos = self.clothScene.getHapticSensorLocations()
+            haptic_radii = self.clothScene.getHapticSensorRadii()
+            haptic_forces = self.getCumulativeHapticForcesFromRigidContacts()
+            for h in range(self.clothScene.getNumHapticSensors()):
+                renderUtils.setColor(color=[1, 1, 0])
+                f = haptic_forces[h*3:h*3+3]
+                f_mag = np.linalg.norm(f)
+                if(f_mag > 0.001):
+                    renderUtils.setColor(color=[0, 1, 0])
+                renderUtils.drawSphere(pos=haptic_pos[h*3:h*3+3], rad=haptic_radii[h]*1.1, solid=False)
+                if (f_mag > 0.001):
+                    renderUtils.drawArrow(p0=haptic_pos[h*3:h*3+3], p1=haptic_pos[h*3:h*3+3]+f)
+
+        #renderUtils.drawSphere(pos=self.sawyer_skel.bodynodes[13].to_world(np.array([0,0,0.3])))
+        '''
+        lines = []
+        lines.append([np.zeros(3),self.hoop.bodynodes[0].to_world(np.zeros(3))])
+        for b in self.hoop.bodynodes:
+            lines.append([np.zeros(3), b.com()])
+        renderUtils.drawLines(lines=lines)
+        '''
+
         if(not self.trackPosePath):#draw IK
             #draw the control point distributions
             #p0 cylindrical distribution
@@ -1127,7 +1372,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 t=i/(4.0)
                 d_frame.setQuaternion(pyutils.qSLERP(q0=self.orientationEndPoints[0].quat, q1=self.orientationEndPoints[1].quat, t=t))
                 d_frame.setOrg(org=self.ikPath.pos(t=t))
-                d_frame.draw()
+                #d_frame.draw()
                 d_frame.drawFrame(size=0.25)
 
         #render sawyer reach
@@ -1143,9 +1388,13 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         #renderUtils.drawArrow(p0=tp0, p1=tp1)
         #if(self.rigidClothFrame.intersects(_p=tp0, _v=tp1)[0]):
         #    self.rigidClothFrame.draw(fill=True)
-        self.rigidClothFrame.draw(fill=False)
+        renderUtils.setColor(color=[0,0,1])
+        if(self.limbProgress > 0):
+            renderUtils.setColor(color=[0, 1, 0])
+        self.rigidClothFrame.draw(fill=True)
         self.rigidClothFrame.drawFrame()
-        self.rigidClothTargetFrame.draw()
+        #renderUtils.drawSphere(self.rigidClothFrame.getCenter(), 0.05)
+        #self.rigidClothTargetFrame.draw()
         self.rigidClothTargetFrame.drawFrame()
         #renderUtils.drawLines(lines=[[self.rigidClothFrame.org, np.zeros(3)]])
         #hn = self.sawyer_skel.bodynodes[13] #hand node
@@ -1172,10 +1421,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[4].to_world(np.array([0.0,-0.3,-0.075]))])
         renderUtils.drawLineStrip(points=[self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,0,-0.075])), self.robot_skeleton.bodynodes[9].to_world(np.array([0.0,-0.3,-0.075]))])
 
-        renderUtils.drawLineStrip(points=[
-                                        self.robot_skeleton.bodynodes[12].to_world(self.fingertip),
-                                        self.prevOracle+self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-                                          ])
+
+        #renderUtils.drawLineStrip(points=[
+        #                                self.robot_skeleton.bodynodes[12].to_world(self.fingertip),
+        #                                self.prevOracle+self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
+        #                                  ])
 
         renderUtils.drawBox(cen=self.sawyer_root_dofs[3:], dim=np.array([0.2, 0.05, 0.2]))
 
@@ -1228,6 +1478,8 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Time = " + str(self.numSteps*self.dt), color=(0., 0, 0))
+            textLines += 1
+            self.clothScene.drawText(x=15., y=textLines*textHeight, text="Path Time = " + str(self.numSteps*self.ikPathTimeScale), color=(0., 0, 0))
             textLines += 1
             self.clothScene.drawText(x=15., y=textLines*textHeight, text="Reward = " + str(self.reward), color=(0., 0, 0))
             textLines += 1
@@ -1389,6 +1641,68 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerEnv(DartClothUpperBodyDataDriv
                 if (abs(vels[-1][d]) > self.sawyer_skel.dofs[d + 6].velocity_upper_limit()):
                     invalid_count += 1
         print("Spline checked with " + str(invalid_count) + " invalid pose velocities.")
+
+    def getCumulativeHapticForcesFromRigidContacts(self, mag_scale=40.0):
+        #force magnitudes are clamped to mag_scale and then normalized by it to [0,1]
+        self.collsionResult.update()
+        sensor_pos = self.clothScene.getHapticSensorLocations()
+        sensor_rad = self.clothScene.getHapticSensorRadii()
+        relevant_contacts = []
+        for ix, c in enumerate(self.collsionResult.contacts):
+            # add a contact if the human skeleton is involved
+            if (c.skel_id1 == self.robot_skeleton.id or c.skel_id2 == self.robot_skeleton.id):
+                relevant_contacts.append(c)
+
+        forces = []
+        for i in range(self.clothScene.getNumHapticSensors()):
+            forces.append(np.zeros(3))
+
+        for ix, c in enumerate(relevant_contacts):
+            if (c.skel_id1 != c.skel_id2):
+                # the contact is between the human skel and another object
+                # find the closest sensor to activate
+                best_hs = self.clothScene.getClosestNHapticSpheres(n=1, pos=c.point)[0]
+                vp = sensor_pos[3 * best_hs: best_hs*3 + 3] - c.point
+                vpn = vp / np.linalg.norm(vp)
+                fn = c.force / np.linalg.norm(c.force)
+                if (vpn.dot(fn) > -vpn.dot(fn)):  # force pointing toward the sensor is correct
+                    forces[best_hs] += c.force
+                else:  # reverse a force pointing away from the sensor
+                    forces[best_hs] += -c.force
+            else:
+                # the contact is between the human and itself
+                # find the two closest sensors to activate
+                best_hs = self.clothScene.getClosestNHapticSpheres(n=2, pos=c.point)
+                for i in range(2):
+                    vp = sensor_pos[3 * best_hs[i]: best_hs[i]*3 + 3] - c.point
+                    vpn = vp / np.linalg.norm(vp)
+                    fn = c.force / np.linalg.norm(c.force)
+                    if (vpn.dot(fn) > -vpn.dot(fn)):  # force pointing toward the sensor is correct
+                        forces[best_hs[i]] += c.force
+                    else:  # reverse a force pointing away from the sensor
+                        forces[best_hs[i]] += -c.force
+
+        result = np.zeros(len(forces)*3)
+        for ix,f in enumerate(forces):
+            f /= mag_scale
+            f_mag = np.linalg.norm(f)
+            if(f_mag > 1.0):
+                f /= f_mag
+            result[ix*3:ix*3+3] = f
+        return result
+
+    def viewer_setup(self):
+        if self._get_viewer().scene is not None:
+            self._get_viewer().scene.tb.trans[2] = -3.5
+            self._get_viewer().scene.tb._set_theta(180)
+            self._get_viewer().scene.tb._set_phi(180)
+            #render side view
+
+        self.track_skeleton_id = 0
+        if not self.renderDARTWorld:
+            self.viewer.renderWorld = False
+        self.clothScene.renderCollisionCaps = True
+        self.clothScene.renderCollisionSpheres = True
 
 
 def LERP(p0, p1, t):

@@ -71,6 +71,8 @@ from gym.envs.dart.sawyer_env import DartSawyerEnv
 from gym.envs.dart.sawyer_SPD_tracking_env import DartSawyerSPDTrackingEnv
 from gym.envs.dart.sawyer_SPD_tracking_rigid_env import DartSawyerSPDTrackingRigidEnv
 from gym.envs.dart.upperbodydatadriven_rigidcloth_sawyer import DartClothUpperBodyDataDrivenRigidClothSawyerEnv
+from gym.envs.dart.upperbodydatadriven_rigidclothhang_sawyer import DartClothUpperBodyDataDrivenRigidClothHangSawyerEnv
+from gym.envs.dart.upperbodydatadriven_rigidclothconstruct_sawyer import DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv
 
 
 from gym.envs.dart.walker2d import DartWalker2dEnv
