@@ -329,6 +329,7 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
                                                           gravity=True)
 
         #initialize the Sawyer robot
+        print("loading URDFs")
         sawyerFilename = ""
         if self.renderSawyerCollidable:
             sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_reduced_cvis.urdf')
