@@ -691,10 +691,6 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
                 self.ef_accuracy_info['total'] += ef_accuracy
                 self.ef_accuracy_info['average'] = self.ef_accuracy_info['total']/self.numSteps
 
-        pose_error = self.sawyer_skel.q[6:] - self.previousIKResult
-        if self.graphSPDError:
-            self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
-
         # save state for rendering
         if self.recordForRendering:
             fname = self.recordForRenderingOutputPrefix
@@ -708,10 +704,16 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -500
+            return True, -5000
         elif not np.isfinite(s).all():
-            print("Infinite value detected..." + str(s))
-            return True, -500
+            print("Infinite value detected in s..." + str(s))
+            return True, -5000
+        elif not np.isfinite(self.sawyer_skel.q).all():
+            print("Infinite value detected in sawyer state..." + str(s))
+            return True, -5000
+        elif not np.isfinite(self.hoop.q).all():
+            print("Infinite value detected in hoop state..." + str(s))
+            return True, -5000
         elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
             limbInsertionError = pyutils.limbFeatureProgress(
                 limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
@@ -727,6 +729,10 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
                     feature=self.sleeveLSeamFeature)
                 if limbInsertionError > 0:
                     return True, -500
+
+        pose_error = self.sawyer_skel.q[6:] - self.previousIKResult
+        if self.graphSPDError:
+            self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
 
         self.rigidClothFrame.setTransform(self.hoop.bodynodes[3].world_transform())
 
