@@ -185,7 +185,7 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
         self.deformationPenalty         = False
         self.restPoseReward             = True
 
-        self.uprightRewardWeight              = 5  #if true, rewarded for 0 torso angle from vertical
+        self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
         self.elbowFlairRewardWeight           = 1
         self.limbProgressRewardWeight         = 10  # if true, the (-inf, 1] plimb progress metric is included in reward
@@ -329,7 +329,7 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
                                                           gravity=True)
 
         #initialize the Sawyer robot
-        print("loading URDFs")
+        #print("loading URDFs")
         sawyerFilename = ""
         if self.renderSawyerCollidable:
             sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_reduced_cvis.urdf')
@@ -973,8 +973,8 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
             self.collsionResult = CollisionResult.CollisionResult(self.dart_world)
 
 
-        if(self.reset_number > 0):
-            print("ef_accuracy_info: " + str(self.ef_accuracy_info))
+        #if(self.reset_number > 0):
+        #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
         self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
 
         if self.limbProgressGraphing:
@@ -996,13 +996,13 @@ class DartClothUpperBodyDataDrivenRigidClothConstructSawyerEnv(DartClothUpperBod
             for i in range(len(self.SPDErrorGraph.labels)):
                 self.SPDErrorGraph.labels[i] = str(i)
 
-        if self.reset_number > 0:
-            self.task_data['trials'] += 1
-            if self.limbProgress > 0:
-                self.task_data['successes'] += 1
-            self.task_data['total_limb_prog'] += self.limbProgress
-            self.task_data['avg_limb_prog'] = self.task_data['total_limb_prog']/self.task_data['trials']
-            print("Task Data: " + str(self.task_data))
+        #if self.reset_number > 0:
+        #    self.task_data['trials'] += 1
+        #    if self.limbProgress > 0:
+        #        self.task_data['successes'] += 1
+        #    self.task_data['total_limb_prog'] += self.limbProgress
+        #    self.task_data['avg_limb_prog'] = self.task_data['total_limb_prog']/self.task_data['trials']
+        #    print("Task Data: " + str(self.task_data))
 
         #if self.reset_number == 10:
         #    exit()

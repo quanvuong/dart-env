@@ -66,8 +66,8 @@ class SPDController():
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
     def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=4, dt=0.002):
         self.prefix = os.path.dirname(__file__)
-        print("---!!!----------------------!!!---")
-        print("cloth prefix: " + self.prefix)
+        #print("---!!!----------------------!!!---")
+        #print("cloth prefix: " + self.prefix)
 
         #rendering variables
         self.useOpenGL = rendering
