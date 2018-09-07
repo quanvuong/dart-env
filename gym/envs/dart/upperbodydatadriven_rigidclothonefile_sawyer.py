@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         clothSimulation = False
         self.renderCloth = False
         dt = 0.002
@@ -293,7 +293,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.renderSawyerCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
 
 
