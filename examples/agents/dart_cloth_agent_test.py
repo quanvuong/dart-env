@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     trial = None
 
+    #trial = "experiment_2018_09_06_sawyer_rigid_hang"
     #trial = "experiment_2018_09_03_sawyer_rigid_hang" #works well
     #trial = "experiment_2018_09_01_sawyer_rigid_hang_1" #bug: diagonal initial location
 
@@ -398,7 +399,7 @@ if __name__ == '__main__':
 
     #Sawyer Env
     #env = gym.make('DartSawyer-v2')
-    env = gym.make('DartSawyerRigid-v3')
+    env = gym.make('DartSawyerRigid-v4')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
 
     useMeanPolicy = True
@@ -412,7 +413,7 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartSawyerRigid-v3', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartSawyerRigid-v4', record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartClothFullBodyDataDrivenClothOneFootStandShorts-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,

@@ -624,6 +624,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Sawyer Hanging Rigid Env (one file)
+register(
+    id='DartSawyerRigid-v4',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 

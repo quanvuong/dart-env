@@ -1089,10 +1089,13 @@ class PoseInteractor(BaseInteractor):
         self.viewer = viewer
         self.label = "Pose DOF Interactor"
         self.boxRanges = [] #list of np array pairs: [[minx, maxx],[miny, maxy]]
+        self.sawyerBoxRanges = [] #list of np array pairs: [[minx, maxx],[miny, maxy]]
         self.skelix = 1  # change this if the skel file changes
         self.selectedBox = None
+        self.selectedSkel = None
         self.boxesDefined = False
         self.topLeft = None
+        self.sawyerTopLeft = None
         self.selectedNode = None
         self.selectedNodeOffset = np.zeros(3)
         self.clickz = 0
@@ -1116,7 +1119,24 @@ class PoseInteractor(BaseInteractor):
             self.boxRanges.append([[self.topLeft[0] + textWidth + numWidth, self.topLeft[0] + textWidth + numWidth + barWidth], [self.topLeft[1] + (barHeight + barSpace) * i + barHeight, self.topLeft[1] + (barHeight + barSpace) * i]])
         #print(self.boxRanges)
 
+        try:
+            sawyer_skel = self.viewer.env.sawyer_skel
+            self.sawyerTopLeft = np.array([75, self.viewer.viewport[3]-450])
+            self.sawyerBoxRanges = []
+            barWidth = 120.
+            barHeight = -16.
+            barSpace = -4.
+            for i in range(len(sawyer_skel.q)-6):
+                self.sawyerBoxRanges.append(
+                    [[self.sawyerTopLeft[0], self.sawyerTopLeft[0] + barWidth],
+                     [self.sawyerTopLeft[1] + (barHeight + barSpace) * i + barHeight,
+                      self.sawyerTopLeft[1] + (barHeight + barSpace) * i]])
+
+        except NameError:
+            a = 0
+
     def boxClickTest(self, point):
+        print(point)
         if not self.boxesDefined:
             self.defineBoxRanges()
             self.boxesDefined = True
@@ -1126,13 +1146,24 @@ class PoseInteractor(BaseInteractor):
             if point[0] < b[0][1] and point[0] > b[0][0]:
                 if point[1] < b[1][1] and point[1] > b[1][0]:
                     #print("clicked box " + str(ix))
+                    self.selectedSkel = self.viewer.env.robot_skeleton
                     return ix
+
+        #if not in a skel box, test the sawyer boxes
+        for ix,b in enumerate(self.sawyerBoxRanges):
+            if point[0] < b[0][1] and point[0] > b[0][0]:
+                if point[1] < b[1][1] and point[1] > b[1][0]:
+                    #print("clicked sawyer box " + str(ix))
+                    self.selectedSkel = self.viewer.env.sawyer_skel
+                    return ix + 6
+
         return None
 
     def incrementSelectedDOF(self, inc):
         #increment a selected dof by inc respecting joint limits
         if self.selectedBox is not None:
-            skel = self.viewer.sim.skeletons[self.skelix]
+            #skel = self.viewer.sim.skeletons[self.skelix]
+            skel = self.selectedSkel
             qpos = skel.q
             qpos[self.selectedBox] += inc
             if not math.isinf(skel.position_lower_limits()[self.selectedBox]) and not math.isinf(skel.position_upper_limits()[self.selectedBox]):
@@ -1229,6 +1260,7 @@ class PoseInteractor(BaseInteractor):
                 self.selectedNode = None
                 self.mouseGlobal = None
                 self.selectedNodeOffset = np.zeros(3)
+
     def drag(self, x, y):
         dx = x - self.viewer.mouseLastPos[0]
         dy = y - self.viewer.mouseLastPos[1]

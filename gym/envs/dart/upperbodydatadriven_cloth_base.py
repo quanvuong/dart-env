@@ -269,28 +269,28 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
-        collision_filter = self.dart_world.create_collision_filter()
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+        self.collision_filter = self.dart_world.create_collision_filter()
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
                                            self.robot_skeleton.bodynodes[12])  # left forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
                                            self.robot_skeleton.bodynodes[7])  # right forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[13])  # torso to neck
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[14])  # torso to head
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[3])  # torso to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[8])  # torso to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
                                            self.robot_skeleton.bodynodes[3])  # neck to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
                                            self.robot_skeleton.bodynodes[8])  # neck to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
                                            self.robot_skeleton.bodynodes[3])  # head to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
                                            self.robot_skeleton.bodynodes[8])  # head to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
 
         #print robot_skeleton issues
@@ -726,6 +726,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                     self.robot_skeleton.set_forces(np.zeros(len(self.robot_skeleton.q)))
                     self.robot_skeleton.set_velocities(np.zeros(len(self.robot_skeleton.q)))
 
+                self.add_external_step_forces() #empty by default
                 self.dart_world.step()
 
                 if self.replayingActionTrajectory:
@@ -764,6 +765,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             #done pyPhysX step
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):
         #    self._reset()
+
+    def add_external_step_forces(self):
+        a=0
+        #overwrite this in children
 
     def _get_obs(self):
         print("base observation")
