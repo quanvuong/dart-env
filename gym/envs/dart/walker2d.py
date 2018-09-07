@@ -16,6 +16,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.train_UP = False
         self.noisy_input = False
         self.resample_MP = False
+        self.UP_noise_level = 0.0
         self.param_manager = walker2dParamManager(self)
 
         self.avg_div = 0
@@ -159,9 +160,6 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.split_task_test:
-            state = np.concatenate([state, self.tasks.get_task_inputs(self.state_index)])
-
         self.observation_buffer.append(np.copy(state))
 
         final_obs = np.array([])
@@ -178,7 +176,14 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                 final_obs = np.concatenate([final_obs, [0.0] * len(self.control_bounds[0])])
 
         if self.train_UP:
-            final_obs = np.concatenate([final_obs, self.param_manager.get_simulator_parameters()])
+            UP_parameters = self.param_manager.get_simulator_parameters()
+            noise_range = 0.5 / (1.0+np.exp(-20.0*self.UP_noise_level+10.0))
+            perturbed_pm = np.copy(UP_parameters)
+            for updim in range(len(perturbed_pm)-1): # noise parameter should always be the last one, so no noise added
+                lb = np.clip(perturbed_pm[updim] - noise_range, 0, 1)
+                ub = np.clip(perturbed_pm[updim] + noise_range, 0, 1)
+                perturbed_pm[updim] += np.random.uniform(lb, ub)
+            final_obs = np.concatenate([final_obs, perturbed_pm])
         if self.noisy_input:
             final_obs = final_obs + np.random.normal(0, .01, len(final_obs))
 

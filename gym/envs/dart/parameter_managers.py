@@ -20,8 +20,8 @@ class hopperContactMassManager:
         self.velrew_weight_range = [-1.0, 1.0]
         self.com_offset_range = [-0.05, 0.05]
 
-        self.activated_param = [0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
-        self.controllable_param = [0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.activated_param = [0,1]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.controllable_param = [0,1]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -137,8 +137,8 @@ class mjHopperManager:
         self.solref_range = [0.001, 0.02]
         self.armature_range = [0.05, 0.98]
 
-        self.activated_param = [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
-        self.controllable_param = [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
+        self.activated_param = [0, 1,2,3,4, 5,6,7, 8, 10, 11, 12, 13]
+        self.controllable_param = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -149,7 +149,7 @@ class mjHopperManager:
         friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
 
         mass_param = []
-        for bid in range(1, 4):
+        for bid in range(1, 5):
             cur_mass = self.simulator.model.body_mass[bid]
             mass_param.append((cur_mass - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0]))
 
@@ -187,47 +187,47 @@ class mjHopperManager:
             friction = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
             self.simulator.model.geom_friction[-1][0] = friction
             cur_id += 1
-        for bid in range(1, 4):
+        for bid in range(1, 5):
             if bid in self.controllable_param:
                 mass = x[cur_id] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0]
                 self.simulator.model.body_mass[bid] = mass
                 cur_id += 1
-        for jid in range(4, 7):
+        for jid in range(5, 8):
             if jid in self.controllable_param:
                 damp = x[cur_id] * (self.damping_range[1] - self.damping_range[0]) + self.damping_range[0]
-                self.simulator.model.dof_damping[jid - 1] = damp
+                self.simulator.model.dof_damping[jid - 2] = damp
                 cur_id += 1
-        if 7 in self.controllable_param:
+        if 8 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
             self.simulator.model.actuator_gear[0][0] = power
             self.simulator.model.actuator_gear[1][0] = power
             self.simulator.model.actuator_gear[2][0] = power
             cur_id += 1
-        if 8 in self.controllable_param:
+        if 9 in self.controllable_param:
             velrew_weight = x[cur_id] * (self.velrew_weight_range[1] - self.velrew_weight_range[0]) + \
                             self.velrew_weight_range[0]
             self.simulator.velrew_weight = velrew_weight
             cur_id += 1
-        if 9 in self.controllable_param:
+        if 10 in self.controllable_param:
             restitution = x[cur_id] * (self.restitution_range[1] - self.restitution_range[0]) + \
                             self.restitution_range[0]
             for bn in range(len(self.simulator.model.geom_solref)):
                 self.simulator.model.geom_solref[bn][1] = restitution
             cur_id += 1
-        if 10 in self.controllable_param:
+        if 11 in self.controllable_param:
             solimp = x[cur_id] * (self.solimp_range[1] - self.solimp_range[0]) + \
                             self.solimp_range[0]
             for bn in range(len(self.simulator.model.geom_solimp)):
                 self.simulator.model.geom_solimp[bn][0] = solimp
                 self.simulator.model.geom_solimp[bn][1] = solimp
             cur_id += 1
-        if 11 in self.controllable_param:
+        if 12 in self.controllable_param:
             solref = x[cur_id] * (self.solref_range[1] - self.solref_range[0]) + \
                             self.solref_range[0]
             for bn in range(len(self.simulator.model.geom_solref)):
                 self.simulator.model.geom_solref[bn][0] = solref
             cur_id += 1
-        if 12 in self.controllable_param:
+        if 13 in self.controllable_param:
             armature = x[cur_id] * (self.armature_range[1] - self.armature_range[0]) + \
                             self.armature_range[0]
             for dof in range(3, 6):
@@ -240,297 +240,6 @@ class mjHopperManager:
             while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
                 x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)
-
-class walker3dManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0, 1000]  # lateral kp
-        self.velkp_range = [0, 1000] # forward kp
-        self.activated_param = [0]
-        self.controllable_param = [0]
-
-        self.param_dim = len(self.activated_param)
-
-    def get_simulator_parameters(self):
-        cur_kp = self.simulator.init_balance_pd
-        kp_param = (cur_kp - self.range[0]) / (self.range[1] - self.range[0])
-
-        cur_vel_kp = self.simulator.init_vel_pd
-        vel_kp_param = (cur_vel_kp - self.velkp_range[0]) / (self.velkp_range[1] - self.velkp_range[0])
-
-        params = np.array([kp_param, vel_kp_param])[self.activated_param]
-        return params
-
-    def set_simulator_parameters(self, x):
-        cur_id = 0
-        if 0 in self.controllable_param:
-            kp = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
-            self.simulator.init_balance_pd = kp
-            self.simulator.end_balance_pd = kp
-            cur_id += 1
-        if 1 in self.controllable_param:
-            kp = x[cur_id] * (self.velkp_range[1] - self.velkp_range[0]) + self.velkp_range[0]
-            self.simulator.init_vel_pd = kp
-            self.simulator.end_vel_pd = kp
-            cur_id += 1
-
-
-class hopperBackPackManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0.0, 60.0] # backpack mass range
-        self.slope = [-0.5, 0.5]
-        self.activated_param = [0]
-        self.controllable_param = [0]
-
-        self.param_dim = len(self.activated_param)
-        self.sampling_selector = None
-        self.selector_target = -1
-
-    def get_simulator_parameters(self):
-        cur_bpmass = self.simulator.robot_skeleton.bodynodes[3].m
-        bpmass_param = (cur_bpmass - self.range[0]) / (self.range[1] - self.range[0])
-
-        transform = self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[0].relative_transform()
-        cur_angle = np.arcsin(transform[1, 0])
-        angle_param = (cur_angle - self.slope[0]) / (self.slope[1] - self.slope[0])
-
-        return np.array([bpmass_param, angle_param])[self.activated_param]
-
-    def set_simulator_parameters(self, x):
-        cur_id = 0
-        if 0 in self.controllable_param:
-            bpmass = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
-            self.simulator.robot_skeleton.bodynodes[3].set_mass(bpmass)
-            cur_id += 1
-        if 1 in self.controllable_param:
-            angle = x[cur_id] * (self.slope[1] - self.slope[0]) + self.slope[0]
-            rot = np.identity(4)
-            rot[0, 0] = np.cos(angle)
-            rot[0, 1] = -np.sin(angle)
-            rot[1, 0] = np.sin(angle)
-            rot[1, 1] = np.cos(angle)
-            self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[0].set_relative_transform(rot)
-            self.simulator.dart_world.skeletons[0].bodynodes[0].shapenodes[1].set_relative_transform(rot)
-            cur_id += 1
-            # rotate the ankle so that it doesn't collide with the ground
-            cq = self.simulator.robot_skeleton.q
-            cq[5] += angle
-            self.simulator.robot_skeleton.set_positions(cq)
-
-
-    def resample_parameters(self):
-        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        #if self.sampling_selector is not None:
-        #    while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
-        #        x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
-
-        self.set_simulator_parameters(x)
-
-class hopperContactMassRoughnessManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0.3, 1.0] # friction range
-        self.torso_mass_range = [3.0, 6.0]
-        self.roughness_range = [-0.05, -0.02] # height of the obstacles
-        self.param_dim = 3
-
-
-    def get_simulator_parameters(self):
-        cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
-        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
-
-        cur_mass = self.simulator.robot_skeleton.bodynodes[2].m
-        mass_param = (cur_mass - self.torso_mass_range[0]) / (self.torso_mass_range[1] - self.torso_mass_range[0])
-
-        cq = self.simulator.dart_world.skeletons[0].q
-        cur_height = cq[10]
-        roughness_param = (cur_height - self.roughness_range[0]) / (self.roughness_range[1] - self.roughness_range[0])
-
-        return np.array([friction_param, mass_param, roughness_param])
-
-    def set_simulator_parameters(self, x):
-        friction = x[0] * (self.range[1] - self.range[0]) + self.range[0]
-        for i in range(len(self.simulator.dart_world.skeletons[0].bodynodes)):
-            self.simulator.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(friction)
-
-        mass = x[1] * (self.torso_mass_range[1] - self.torso_mass_range[0]) + self.torso_mass_range[0]
-        self.simulator.robot_skeleton.bodynodes[2].set_mass(mass)
-
-        obs_height = x[2] * (self.roughness_range[1] - self.roughness_range[0]) + self.roughness_range[0]
-        cq = self.simulator.dart_world.skeletons[0].q
-        cq[10] = obs_height
-        cq[16] = obs_height
-        cq[22] = obs_height
-        cq[28] = obs_height
-        cq[34] = obs_height
-        cq[40] = obs_height
-        self.simulator.dart_world.skeletons[0].q = cq
-
-    def resample_parameters(self):
-        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        #x = np.random.normal(0, 0.2, self.param_dim) % 1
-        x[2] = np.max([x[2]*1.5,1.0])
-        self.set_simulator_parameters(x)
-
-        if len(self.simulator.dart_world.skeletons[0].bodynodes) >= 7:
-            cq = self.simulator.dart_world.skeletons[0].q
-            pos = []
-            pos.append(np.random.random()-0.5)
-            for i in range(5):
-                pos.append((pos[i] + 1.0/6.0)%1)
-            np.random.shuffle(pos)
-            cq[9] = pos[0]
-            cq[15] = pos[1]
-            cq[21] = pos[2]
-            cq[27] = pos[3]
-            cq[33] = pos[4]
-            cq[39] = pos[5]
-            self.simulator.dart_world.skeletons[0].q = cq
-
-class hopperContactAllMassManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0.3, 1.0] # friction range
-        self.mass_range = [-1.0, 1.0]
-        self.param_dim = 2
-        self.initial_mass = []
-        for i in range(4):
-            self.initial_mass.append(simulator.robot_skeleton.bodynodes[2+i].m)
-
-    def get_simulator_parameters(self):
-        cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
-        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
-
-        cur_mass1 = self.simulator.robot_skeleton.bodynodes[2].m - self.initial_mass[0]
-        mass_param1 = (cur_mass1 - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0])
-        cur_mass2 = self.simulator.robot_skeleton.bodynodes[3].m - self.initial_mass[1]
-        mass_param2 = (cur_mass2 - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0])
-        cur_mass3 = self.simulator.robot_skeleton.bodynodes[4].m - self.initial_mass[2]
-        mass_param3 = (cur_mass3 - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0])
-        cur_mass4 = self.simulator.robot_skeleton.bodynodes[5].m - self.initial_mass[3]
-        mass_param4 = (cur_mass4 - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0])
-
-        return np.array([friction_param, mass_param1])#, mass_param2, mass_param3, mass_param4])
-
-    def set_simulator_parameters(self, x):
-        friction = x[0] * (self.range[1] - self.range[0]) + self.range[0]
-        self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(friction)
-
-        mass = x[1] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0] + self.initial_mass[0]
-        self.simulator.robot_skeleton.bodynodes[2].set_mass(mass)
-
-        '''mass = x[2] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0] + self.initial_mass[1]
-        self.simulator.robot_skeleton.bodynodes[3].set_mass(mass)
-
-        mass = x[3] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0] + self.initial_mass[2]
-        self.simulator.robot_skeleton.bodynodes[4].set_mass(mass)
-
-        mass = x[4] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0] + self.initial_mass[3]
-        self.simulator.robot_skeleton.bodynodes[5].set_mass(mass)'''
-
-    def resample_parameters(self):
-        #x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
-        x = np.random.normal(0, 0.2, 2) % 1
-        self.set_simulator_parameters(x)
-
-class hopperContactMassFootUpperLimitManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0.3, 1.0] # friction range
-        self.torso_mass_range = [3.0, 6.0]
-        self.limit_range = [-0.2, 0.2]
-        self.param_dim = 2+1
-        self.initial_up_limit = self.simulator.robot_skeleton.joints[-3].position_upper_limit(0)
-
-    def get_simulator_parameters(self):
-        cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
-        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
-
-        cur_mass = self.simulator.robot_skeleton.bodynodes[2].m
-        mass_param = (cur_mass - self.torso_mass_range[0]) / (self.torso_mass_range[1] - self.torso_mass_range[0])
-
-        # use upper limit of
-        limit_diff1 = self.simulator.robot_skeleton.joints[-3].position_upper_limit(0) - self.initial_up_limits
-        limit_diff1 = (limit_diff1 - self.limit_range[0]) / (self.limit_range[1] - self.limit_range[0])
-
-        return np.array([friction_param, mass_param, limit_diff1])
-
-    def set_simulator_parameters(self, x):
-        friction = x[0] * (self.range[1] - self.range[0]) + self.range[0]
-        self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(friction)
-
-        mass = x[1] * (self.torso_mass_range[1] - self.torso_mass_range[0]) + self.torso_mass_range[0]
-        self.simulator.robot_skeleton.bodynodes[2].set_mass(mass)
-
-        limit_diff1 = x[2] * (self.limit_range[1] - self.limit_range[0]) + self.limit_range[0] + self.initial_up_limits
-
-        self.simulator.robot_skeleton.joints[-3].set_position_upper_limit(0, limit_diff1)
-
-    def resample_parameters(self):
-        #x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
-        x = np.random.normal(0, 0.2, 2) % 1
-        self.set_simulator_parameters(x)
-
-class hopperContactMassAllLimitManager:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.range = [0.3, 1.0] # friction range
-        self.torso_mass_range = [3.0, 6.0]
-        self.limit_range = [-0.3, 0.3]
-        self.param_dim = 2+4
-        self.initial_up_limits = []
-        self.initial_low_limits = []
-        for i in range(3):
-            self.initial_up_limits.append(simulator.robot_skeleton.joints[-3+i].position_upper_limit(0))
-            self.initial_low_limits.append(simulator.robot_skeleton.joints[-3+i].position_lower_limit(0))
-
-    def get_simulator_parameters(self):
-        cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
-        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
-
-        cur_mass = self.simulator.robot_skeleton.bodynodes[2].m
-        mass_param = (cur_mass - self.torso_mass_range[0]) / (self.torso_mass_range[1] - self.torso_mass_range[0])
-
-        # use upper limit of
-        limit_diff1 = self.simulator.robot_skeleton.joints[-3].position_upper_limit(0) - self.initial_up_limits[0]
-        limit_diff2 = self.simulator.robot_skeleton.joints[-2].position_upper_limit(0) - self.initial_up_limits[1]
-        limit_diff3 = self.simulator.robot_skeleton.joints[-1].position_upper_limit(0) - self.initial_up_limits[2]
-        limit_diff4 = self.simulator.robot_skeleton.joints[-1].position_lower_limit(0) - self.initial_low_limits[2]
-        limit_diff1 = (limit_diff1 - self.limit_range[0]) / (self.limit_range[1] - self.limit_range[0])
-        limit_diff2 = (limit_diff2 - self.limit_range[0]) / (self.limit_range[1] - self.limit_range[0])
-        limit_diff3 = (limit_diff3 - self.limit_range[0]) / (self.limit_range[1] - self.limit_range[0])
-        limit_diff4 = (limit_diff4 - self.limit_range[0]) / (self.limit_range[1] - self.limit_range[0])
-
-        return np.array([friction_param, mass_param, limit_diff1, limit_diff2, limit_diff3, limit_diff4])
-
-    def set_simulator_parameters(self, x):
-        friction = x[0] * (self.range[1] - self.range[0]) + self.range[0]
-        for i in range(len(self.simulator.dart_world.skeletons[0].bodynodes)):
-            self.simulator.dart_world.skeletons[0].bodynodes[i].set_friction_coeff(friction)
-
-        mass = x[1] * (self.torso_mass_range[1] - self.torso_mass_range[0]) + self.torso_mass_range[0]
-        self.simulator.robot_skeleton.bodynodes[2].set_mass(mass)
-
-        limit_diff1 = x[2] * (self.limit_range[1] - self.limit_range[0]) + self.limit_range[0] + self.initial_up_limits[0]
-        limit_diff2 = x[3] * (self.limit_range[1] - self.limit_range[0]) + self.limit_range[0] + self.initial_up_limits[1]
-        limit_diff3 = x[4] * (self.limit_range[1] - self.limit_range[0]) + self.limit_range[0] + self.initial_up_limits[2]
-        limit_diff4 = x[5] * (self.limit_range[1] - self.limit_range[0]) + self.limit_range[0] + self.initial_low_limits[2]
-
-        self.simulator.robot_skeleton.joints[-3].set_position_upper_limit(0, limit_diff1)
-        self.simulator.robot_skeleton.joints[-2].set_position_upper_limit(0, limit_diff2)
-        self.simulator.robot_skeleton.joints[-1].set_position_upper_limit(0, limit_diff3)
-        self.simulator.robot_skeleton.joints[-1].set_position_lower_limit(0, limit_diff4)
-
-    def resample_parameters(self):
-        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        #x = np.random.normal(0, 0.2, 2) % 1
-        self.set_simulator_parameters(x)
-
-##############################################################################################################
-##############################################################################################################
-
-
 
 
 ##############################################################################################################
@@ -622,11 +331,12 @@ class walker2dParamManager:
         self.friction_range = [0.2, 1.0] # friction range
         self.restitution_range = [0.0, 0.3]
         self.power_range = [150, 250]
+        self.up_noise_range = [0.0, 1.0]
 
         #self.obs_delay = [0.0, 2.5]
         #self.act_delay = [0.0, 2.5]
-        self.activated_param = [0, 15] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
-        self.controllable_param = [0, 15] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
+        self.activated_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
+        self.controllable_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -652,7 +362,10 @@ class walker2dParamManager:
         cur_power = self.simulator.action_scale
         power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
 
-        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param])[self.activated_param]
+        cur_up_noise = self.simulator.UP_noise_level
+        up_noise_param = (cur_up_noise - self.up_noise_range[0]) / (self.up_noise_range[1] - self.up_noise_range[0])
+
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, up_noise_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -680,6 +393,10 @@ class walker2dParamManager:
         if 15 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
             self.simulator.action_scale = power
+            cur_id += 1
+        if 16 in self.controllable_param:
+            up_noise = x[cur_id] * (self.up_noise_range[1] - self.up_noise_range[0]) + self.up_noise_range[0]
+            self.simulator.UP_noise_level = up_noise
             cur_id += 1
 
 

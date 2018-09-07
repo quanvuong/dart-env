@@ -7,32 +7,21 @@ from gym.envs.dart.sub_tasks import *
 import copy
 
 import joblib, os
-from pydart2.utils.transformations import quaternion_from_matrix, euler_from_matrix, euler_from_quaternion
 
-class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
+class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
-        self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
+        self.control_bounds = np.array([[1.0]*8,[-1.0]*8])
+        self.action_scale = 150.0
         self.train_UP = False
         self.noisy_input = False
-        obs_dim = 11
+        obs_dim = 27
 
         self.velrew_weight = 1.0
-        self.UP_noise_level = 0.0
         self.resample_MP = False  # whether to resample the model paraeters
         self.param_manager = hopperContactMassManager(self)
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
-
-        self.dyn_models = [None]
-        self.dyn_model_id = 0
-        self.base_path = None
-        self.transition_locator = None
-        self.baseline = None
-
-        self.external_dynamic_model = None
-        self.external_dynamic_model_mode = 0 # 0: use external model only   1: input dart result into external model
 
         self.t = 0
 
@@ -43,30 +32,16 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, ['ant.skel'], 5, obs_dim, self.control_bounds, disableViewer=True, dt=0.01)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
-        self.current_param = self.param_manager.get_simulator_parameters()
-
-        self.curriculum_up = False
-        self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
+        #self.current_param = self.param_manager.get_simulator_parameters()
 
         self.dart_worlds[0].set_collision_detector(3)
-        self.dart_worlds[1].set_collision_detector(0)
-        self.dart_worlds[2].set_collision_detector(1)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
-
-        # info for building gnn for dynamics
-        self.ignore_joint_list = []
-        self.ignore_body_list = [0, 1]
-        self.joint_property = ['limit'] # what to include in the joint property part
-        self.bodynode_property = ['mass']
-        self.root_type = 'None'
-        self.root_id = 0
-        #self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
         # data structure for modeling delays in observation and action
         self.observation_buffer = []
@@ -74,9 +49,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
-        self.param_manager.set_simulator_parameters(self.current_param)
+        #self.param_manager.set_simulator_parameters(self.current_param)
 
-        print('sim parameters: ', self.param_manager.get_simulator_parameters())
+        #print('sim parameters: ', self.param_manager.get_simulator_parameters())
 
         # data structure for actuation modeling
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
@@ -106,28 +81,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
 
-        if self.external_dynamic_model is None:
-            tau = np.zeros(self.robot_skeleton.ndofs)
-            tau[3:] = clamped_control * self.action_scale
-            self.do_simulation(tau, self.frame_skip)
-        else:
-            if self.external_dynamic_model_mode == 0:
-                current_state = self.state_vector()
-                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
-                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
-            elif self.external_dynamic_model_mode == 1:
-                tau = np.zeros(self.robot_skeleton.ndofs)
-                tau[3:] = clamped_control * self.action_scale
-                self.do_simulation(tau, self.frame_skip)
-                current_state = self.state_vector()
-                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
-                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
-
-        #state = self.state_vector()
-        #self.set_state_vector(state / self.dt * self.dof_timesteps)
-
-    def about_to_contact(self):
-        return False
+        tau = np.zeros(self.robot_skeleton.ndofs)
+        tau[3:] = clamped_control * self.action_scale
+        self.do_simulation(tau, self.frame_skip)
 
     def post_advance(self):
         self.dart_world.check_collision()
@@ -168,36 +124,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward -= 5e-1 * joint_limit_penalty
         return reward
 
-    def reward_func_forward(self, a):
-        posafter = self.robot_skeleton.q[0]
-        alive_bonus = 0.01
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
-        reward = (posafter - self.posbefore) / self.dt
-        reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
-        return reward
-
-    def reward_func_balance(self, a):
-        posafter = self.robot_skeleton.q[0]
-        alive_bonus = 1.0
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
-        reward = 0.01 * (posafter - self.posbefore) / self.dt
-        reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
-        return reward
-
     def step(self, a):
         self.t += self.dt
         self.pre_advance()
@@ -221,12 +147,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.train_UP:
-            UP = self.param_manager.get_simulator_parameters()
-            if self.UP_noise_level > 0:
-                UP += np.random.uniform(-self.UP_noise_level, self.UP_noise_level, len(UP))
-                UP = np.clip(UP, -0.05, 1.05)
-            state = np.concatenate([state, UP])
+        #if self.train_UP:
+        #    state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
 
