@@ -696,7 +696,11 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         if self.graphSPDError:
             self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
 
-        self.rigidClothFrame.setTransform(self.sawyer_skel.bodynodes[19].world_transform())
+        try:
+            self.rigidClothFrame.setTransform(self.sawyer_skel.bodynodes[19].world_transform())
+        except:
+            print("inf or nan in rigid frame rotation matrix...")
+            return True, -5000
 
         return False, 0
 
