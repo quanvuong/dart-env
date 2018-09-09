@@ -11,7 +11,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         #self.control_bounds[1][1] = -0.3
         #self.control_bounds[1][4] = -0.3
-        self.action_scale = 100#np.array([100, 100, 20, 100, 100, 20])
+        self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
         self.train_UP = False
         self.noisy_input = False
@@ -28,18 +28,21 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.task_expand_flag = False
         self.state_index = 0
 
-        if self.split_task_test:
-            obs_dim += self.tasks.task_input_dim()
-        if self.avg_div > 1:
-            obs_dim += self.avg_div
 
         self.include_obs_history = 1
         self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
+        self.obs_perm = np.array(
+            [0.0001, 1, 5, 6, 7, 2, 3, 4, 8, 9, 10, 14, 15, 16, 11, 12, 13] * self.include_obs_history
+            + [3, 4, 5, 0.0001, 1, 2] * self.include_act_history)
+        self.act_perm = np.array([3, 4, 5, 0.0001, 1, 2])
+
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
+            self.obs_perm = np.concatenate([self.obs_perm, np.arange(int(len(self.obs_perm)),
+                                                int(len(self.obs_perm)+len(self.param_manager.activated_param)))])
 
         dart_env.DartEnv.__init__(self, ['walker2d.skel', 'walker2d_variation1.skel'\
                                          , 'walker2d_variation2.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)

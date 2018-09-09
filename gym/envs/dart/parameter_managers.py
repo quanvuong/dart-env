@@ -19,9 +19,11 @@ class hopperContactMassManager:
         self.ankle_range = [60, 300]
         self.velrew_weight_range = [-1.0, 1.0]
         self.com_offset_range = [-0.05, 0.05]
+        self.frame_skip_range = [4, 10]
+        self.actuator_nonlin_range = [0.75, 1.5]
 
-        self.activated_param = [0,1]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
-        self.controllable_param = [0,1]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.activated_param = [2,5,7,8,9]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.controllable_param = [2,5,7,8,9]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -63,8 +65,14 @@ class hopperContactMassManager:
                 cur_com = self.simulator.robot_skeleton.bodynodes[bid].local_com()[0] - self.simulator.initial_local_coms[bid][0]
             com_param.append((cur_com - self.com_offset_range[0]) / (self.com_offset_range[1] - self.com_offset_range[0]))
 
+        cur_frameskip = self.simulator.frame_skip
+        frameskip_param = (cur_frameskip - self.frame_skip_range[0]) / (self.frame_skip_range[1] - self.frame_skip_range[0])
+
+        cur_act_nonlin = self.simulator.actuator_nonlin_coef
+        act_nonlin_param = (cur_act_nonlin - self.actuator_nonlin_range[0]) / (self.actuator_nonlin_range[1] - self.actuator_nonlin_range[0])
+
         params = np.array([friction_param, restitution_param]+ mass_param + damp_param +
-                          [power_param, ank_power_param, velrew_param] + com_param)[self.activated_param]
+                          [power_param, ank_power_param, velrew_param] + com_param + [frameskip_param, act_nonlin_param])[self.activated_param]
         if self.binned_param > 0:
             for i in range(len(params)):
                 params[i] = int(params[i] / (1.0 / self.binned_param)) * (1.0/self.binned_param) + 0.5 / self.binned_param
@@ -114,6 +122,16 @@ class hopperContactMassManager:
                     init_com[0] += com
                 self.simulator.robot_skeleton.bodynodes[bid].set_local_com(init_com)
                 cur_id += 1
+
+        if 16 in self.controllable_param:
+            frame_skip = x[cur_id] * (self.frame_skip_range[1] - self.frame_skip_range[0]) + self.frame_skip_range[0]
+            self.simulator.frame_skip = int(frame_skip)
+            cur_id += 1
+
+        if 17 in self.controllable_param:
+            act_nonlin = x[cur_id] * (self.actuator_nonlin_range[1] - self.actuator_nonlin_range[0]) + self.actuator_nonlin_range[0]
+            self.simulator.actuator_nonlin_coef = act_nonlin
+            cur_id += 1
 
 
     def resample_parameters(self):
@@ -330,11 +348,10 @@ class walker2dParamManager:
         self.damping_range = [0.5, 3.0]
         self.friction_range = [0.2, 1.0] # friction range
         self.restitution_range = [0.0, 0.3]
-        self.power_range = [150, 250]
+        self.power_range = [50, 150]
+        self.ankle_power_range = [10, 50]
         self.up_noise_range = [0.0, 1.0]
 
-        #self.obs_delay = [0.0, 2.5]
-        #self.act_delay = [0.0, 2.5]
         self.activated_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
         self.controllable_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
 
@@ -359,13 +376,16 @@ class walker2dParamManager:
         cur_rest = self.simulator.dart_world.skeletons[0].bodynodes[0].restitution_coeff()
         restitution_param = (cur_rest - self.restitution_range[0]) / (self.restitution_range[1] - self.restitution_range[0])
 
-        cur_power = self.simulator.action_scale
+        cur_power = self.simulator.action_scale[0]
         power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
+
+        cur_ankl_power = self.simulator.action_scale[2]
+        ank_power_param = (cur_ankl_power - self.ankle_power_range[0]) / (self.ankle_power_range[1] - self.ankle_power_range[0])
 
         cur_up_noise = self.simulator.UP_noise_level
         up_noise_param = (cur_up_noise - self.up_noise_range[0]) / (self.up_noise_range[1] - self.up_noise_range[0])
 
-        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, up_noise_param])[self.activated_param]
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, ank_power_param, up_noise_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -392,9 +412,13 @@ class walker2dParamManager:
             cur_id += 1
         if 15 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
-            self.simulator.action_scale = power
+            self.simulator.action_scale[[0,1,3,4]] = power
             cur_id += 1
         if 16 in self.controllable_param:
+            ank_power = x[cur_id] * (self.ankle_power_range[1] - self.ankle_power_range[0]) + self.ankle_power_range[0]
+            self.simulator.action_scale[[2,5]] = ank_power
+            cur_id += 1
+        if 17 in self.controllable_param:
             up_noise = x[cur_id] * (self.up_noise_range[1] - self.up_noise_range[0]) + self.up_noise_range[0]
             self.simulator.UP_noise_level = up_noise
             cur_id += 1

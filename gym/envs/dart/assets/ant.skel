@@ -647,7 +647,7 @@
             <joint type="weld" name="j_front_right1">
                 <transformation>0.0 0.0 0.0 0.0 0.0 0.0</transformation>
                 <parent>h_torso</parent>
-                <child>front_left_leg</child>
+                <child>front_right_leg</child>
             </joint>
 
             <joint type="revolute" name="j_front_right2">

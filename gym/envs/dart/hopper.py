@@ -20,6 +20,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
         self.resample_MP = False  # whether to resample the model paraeters
+
+        self.actuator_nonlinearity = True
+        self.actuator_nonlin_coef = 1.0
+
         self.param_manager = hopperContactMassManager(self)
 
         if self.train_UP:
@@ -43,7 +47,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 8, obs_dim, self.control_bounds, disableViewer=True)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
@@ -77,6 +81,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.param_manager.set_simulator_parameters(self.current_param)
 
         print('sim parameters: ', self.param_manager.get_simulator_parameters())
+        self.current_param = self.param_manager.get_simulator_parameters()
+        self.active_param = self.param_manager.activated_param
 
         # data structure for actuation modeling
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
@@ -92,6 +98,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         return a[3:]
 
     def advance(self, a):
+        if self.actuator_nonlinearity:
+            a = np.tanh(self.actuator_nonlin_coef * a)
         self.action_buffer.append(np.copy(a))
         if len(self.action_buffer) < self.act_delay + 1:
             a *= 0
@@ -164,36 +172,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus * step_skip
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
-        return reward
-
-    def reward_func_forward(self, a):
-        posafter = self.robot_skeleton.q[0]
-        alive_bonus = 0.01
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
-        reward = (posafter - self.posbefore) / self.dt
-        reward += alive_bonus
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
-        return reward
-
-    def reward_func_balance(self, a):
-        posafter = self.robot_skeleton.q[0]
-        alive_bonus = 1.0
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
-        reward = 0.01 * (posafter - self.posbefore) / self.dt
-        reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
         return reward
