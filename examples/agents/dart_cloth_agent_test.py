@@ -25,6 +25,7 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    trial = "experiment_2018_09_08_sawyer_rigid_hang"
 
     #trial = "experiment_2018_09_06_sawyer_rigid_hang"
     #trial = "experiment_2018_09_03_sawyer_rigid_hang" #works well

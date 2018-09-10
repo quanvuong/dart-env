@@ -841,6 +841,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                       + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
                       + reward_restPose * self.restPoseRewardWeight
+        if(not math.isfinite(self.reward) ):
+            print("Not finite reward...")
+            return -500
         return self.reward
 
     def _get_obs(self):
@@ -909,7 +912,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         elif self.oracleInObs: #rigid oracle
             oracle = np.zeros(3)
             if(self.limbProgress > 0):
-                oracle = self.rigidClothFrame.toGlobal(np.array([0,0,-1]))-self.rigidClothFrame.toGlobal(np.zeros(3))
+                oracle = self.rigidClothFrame.toGlobal(np.array([0,0,1]))-self.rigidClothFrame.toGlobal(np.zeros(3))
                 oracle /= np.linalg.norm(oracle)
             else:
                 efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
