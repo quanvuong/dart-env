@@ -192,16 +192,19 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         clothScene = None
 
         #TODO: change cloth timestep to DART timestep
-        if clothMeshStateFile is not None:
-            clothScene = pyphysx.ClothScene(step=0.01,
-                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                            state_path=self.prefix + "/../../../../" + clothMeshStateFile,
-                                            scale=clothScale)
-        else:
-            clothScene = pyphysx.ClothScene(step=0.01,
-                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                            scale=clothScale)
-
+        try:
+            if clothMeshStateFile is not None:
+                clothScene = pyphysx.ClothScene(step=0.01,
+                                                mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                                state_path=self.prefix + "/../../../../" + clothMeshStateFile,
+                                                scale=clothScale)
+            else:
+                clothScene = pyphysx.ClothScene(step=0.01,
+                                                mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                                scale=clothScale)
+        except:
+            print("Failed to make cloth scene, BUT CAUGHT IT!!!")
+            exit(0)
         clothScene.togglePinned(0, 0)  # turn off auto-pin
 
         self.separatedMesh = None
