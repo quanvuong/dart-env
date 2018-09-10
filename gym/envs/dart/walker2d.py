@@ -13,9 +13,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.control_bounds[1][4] = -0.3
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
-        self.train_UP = False
-        self.noisy_input = False
-        self.resample_MP = False
+        self.train_UP = True
+        self.noisy_input = True
+        self.resample_MP = True
         self.UP_noise_level = 0.0
         self.param_manager = walker2dParamManager(self)
 
@@ -196,7 +196,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.reset()
         qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        #qpos[3] += 0.5
+        qpos[3] += 0.5
         self.set_state(qpos, qvel)
 
         if self.resample_MP:

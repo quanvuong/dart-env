@@ -352,8 +352,8 @@ class walker2dParamManager:
         self.ankle_power_range = [10, 50]
         self.up_noise_range = [0.0, 1.0]
 
-        self.activated_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
-        self.controllable_param = [0, 15, 16] #[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15]
+        self.activated_param = [13,14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
+        self.controllable_param = [13,14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
