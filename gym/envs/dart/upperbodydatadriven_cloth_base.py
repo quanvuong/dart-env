@@ -203,6 +203,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                                                 mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                                 scale=clothScale)
             print("Cloth scene created...")
+            time.sleep(2)
+            print("done sleeping")
         except:
             print("Failed to make cloth scene, BUT CAUGHT IT!!!")
             exit(0)
