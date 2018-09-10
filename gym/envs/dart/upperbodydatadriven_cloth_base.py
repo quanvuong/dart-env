@@ -197,7 +197,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 clothScene = pyphysx.ClothScene(step=0.01,
                                                 #mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                                 #state_path=self.prefix + "/../../../../" + clothMeshStateFile,
-                                                sheet=True,
+                                                tube=True,
                                                 scale=clothScale)
             else:
                 clothScene = pyphysx.ClothScene(step=0.01,
