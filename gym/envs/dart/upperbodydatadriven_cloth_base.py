@@ -202,6 +202,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                 clothScene = pyphysx.ClothScene(step=0.01,
                                                 mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                                 scale=clothScale)
+            print("Cloth scene created...")
         except:
             print("Failed to make cloth scene, BUT CAUGHT IT!!!")
             exit(0)
