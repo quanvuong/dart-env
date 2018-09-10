@@ -173,7 +173,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
         self.humanJointObs  = True #if true, obs includes human joint locations
         self.hoopNormalObs  = True #if true, obs includes the normal vector of the hoop
-        #
+        self.jointLimVarObs = True #if true, constraints are varied in reset and given as NN input
+        self.actionScaleVarObs = True #if true, action scales are varied in reset and given as NN input
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
@@ -218,6 +219,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.haptic_data = {'high':0, 'total':0, 'avg':0, 'var':0, 'instances':[]}
         self.task_data = {'successes':0, 'trials':0, 'avg_limb_prog':0, 'total_limb_prog':0}
         self.initialSawyerEfs = []
+        self.initialJointConstraints = None #set on init
+        self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -261,6 +264,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             observation_size += 45
         if self.hoopNormalObs:
             observation_size += 3
+        if self.actionScaleVarObs:
+            observation_size += len(self.actuatedDofs)
+        if self.jointLimVarObs:
+            observation_size += len(self.actuatedDofs)
 
         # initialize the Sawyer variables
         self.SPDController = None
@@ -426,6 +433,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
             bodynode.set_gravity_mode(False)
         self.dart_world.skeletons[0].bodynodes[0].set_gravity_mode(False)
+
+        #initialize initial joint and torque limits
+        self.initialJointConstraints = [np.array(self.robot_skeleton.position_lower_limits()),np.array(self.robot_skeleton.position_upper_limits())]
 
         #clothing features
         #self.sleeveRVerts = [46, 697, 1196, 696, 830, 812, 811, 717, 716, 718, 968, 785, 1243, 783, 1308, 883, 990, 739, 740, 742, 1318, 902, 903, 919, 737, 1218, 736, 1217]
@@ -949,12 +959,34 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             hoop_norm /= np.linalg.norm(hoop_norm)
             obs = np.concatenate([obs, hoop_norm]).ravel()
 
+        if self.actionScaleVarObs:
+            obs = np.concatenate([obs, self.actionScaleVariation]).ravel()
+
+        if self.jointLimVarObs:
+            obs = np.concatenate([obs, self.jointConstraintVariation]).ravel()
+
         return obs
 
     def additionalResets(self):
         if self.collisionResult is None:
             self.collisionResult = CollisionResult.CollisionResult(self.dart_world)
 
+        #vary the "weakness" of the character
+        if self.actionScaleVarObs:
+            self.actionScaleVariation = self.np_random.uniform(low=0.4, high=1.0, size=len(self.action_scale))
+            #print("action scale variation: " + str(self.actionScaleVariation))
+
+        if self.jointLimVarObs:
+            self.jointConstraintVariation = self.np_random.uniform(low=0.5, high=1.0, size=self.robot_skeleton.ndofs)
+            llim = np.multiply(np.array(self.initialJointConstraints[0]), self.jointConstraintVariation)
+            ulim = np.multiply(np.array(self.initialJointConstraints[1]), self.jointConstraintVariation)
+            #print("lower limits: " + str(llim))
+            #print("upper limits: " + str(ulim))
+            for dix,d in enumerate(self.robot_skeleton.dofs):
+                if(math.isfinite(llim[dix])):
+                    d.set_position_lower_limit(llim[dix])
+                if(math.isfinite(ulim[dix])):
+                    d.set_position_upper_limit(ulim[dix])
 
 
         #if(self.reset_number > 0):
@@ -1503,6 +1535,14 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
             if self.numSteps > 0:
                 renderUtils.renderDofs(robot=self.robot_skeleton, restPose=None, renderRestPose=False)
+
+            #render the constraint and action_scale variations
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3]-13, text="J_var", color=(0., 0, 0))
+            self.clothScene.drawText(x=410., y=self.viewer.viewport[3]-13, text="A_scale", color=(0., 0, 0))
+
+            for d in range(self.robot_skeleton.ndofs):
+                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - d*20 - 23, text="%0.2f" % self.jointConstraintVariation[d], color=(0., 0, 0))
+                self.clothScene.drawText(x=410., y=self.viewer.viewport[3] - d*20 - 23, text="%0.2f" % self.actionScaleVariation[d], color=(0., 0, 0))
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

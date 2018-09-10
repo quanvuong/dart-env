@@ -172,6 +172,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #22 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
+        self.actionScaleVariation = np.ones(len(self.action_scale))
         if not SPDActionSpace:
             self.action_scale *= 12
             if 0 in self.actuatedDofs:
@@ -590,6 +591,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         tau = np.array(clamped_control)
         if not self.SPDTorqueLimits:
             tau = np.multiply(clamped_control, self.action_scale)
+            tau = np.multiply(tau, self.actionScaleVariation) #defaults to ones
 
         #apply action and simulate
         if len(tau) < len(self.robot_skeleton.q):
