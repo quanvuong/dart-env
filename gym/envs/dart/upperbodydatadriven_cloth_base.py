@@ -207,6 +207,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print("Failed to make cloth scene, BUT CAUGHT IT!!!")
             exit(0)
         clothScene.togglePinned(0, 0)  # turn off auto-pin
+        print("toggle pinned.......")
 
         self.separatedMesh = None
         if simulateCloth:
