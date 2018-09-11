@@ -196,16 +196,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             if clothMeshStateFile is not None:
                 clothScene = pyphysx.ClothScene(step=0.01,
                                                 mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                                #state_path=self.prefix + "/../../../../" + clothMeshStateFile,
+                                                state_path=self.prefix + "/../../../../" + clothMeshStateFile,
                                                 #tube=True,
                                                 scale=clothScale)
             else:
                 clothScene = pyphysx.ClothScene(step=0.01,
                                                 mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                                 scale=clothScale)
-            print("Cloth scene created...")
-            time.sleep(2)
-            print("done sleeping")
         except:
             print("Failed to make cloth scene, BUT CAUGHT IT!!!")
             exit(0)
