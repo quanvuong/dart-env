@@ -20,9 +20,6 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = True  # whether to resample the model paraeters
         self.param_manager = antParamManager(self)
 
-        if self.train_UP:
-            obs_dim += len(self.param_manager.activated_param)
-
         self.t = 0
 
         self.total_dist = []
