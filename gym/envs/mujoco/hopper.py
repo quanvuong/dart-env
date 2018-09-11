@@ -12,6 +12,15 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.param_manager = mjHopperManager(self)
         self.velrew_weight = 1.0
 
+        self.include_obs_history = 1
+        self.include_act_history = 0
+
+        # data structure for modeling delays in observation and action
+        self.observation_buffer = []
+        self.action_buffer = []
+        self.obs_delay = 0
+        self.act_delay = 0
+
         mujoco_env.MujocoEnv.__init__(self, 'hopper.xml', 4)
 
         utils.EzPickle.__init__(self)
@@ -25,6 +34,12 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return a[3:]
 
     def advance(self, a):
+        self.action_buffer.append(np.copy(a))
+        if len(self.action_buffer) < self.act_delay + 1:
+            a *= 0
+        else:
+            a = self.action_buffer[-self.act_delay - 1]
+
         self.do_simulation(a, self.frame_skip)
 
     def about_to_contact(self):
@@ -67,7 +82,7 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         return ob, reward, done, {}
 
-    def _get_obs(self):
+    def _get_obs(self, update_buffer = True):
         state = np.concatenate([
             self.sim.data.qpos.flat[1:],
             self.sim.data.qvel.flat
@@ -76,12 +91,32 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
-        return state
+
+        if update_buffer:
+            self.observation_buffer.append(np.copy(state))
+
+        final_obs = np.array([])
+        for i in range(self.include_obs_history):
+            if self.obs_delay + i < len(self.observation_buffer):
+                final_obs = np.concatenate([final_obs, self.observation_buffer[-self.obs_delay - 1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, self.observation_buffer[0] * 0.0])
+
+        for i in range(self.include_act_history):
+            if i < len(self.action_buffer):
+                final_obs = np.concatenate([final_obs, self.action_buffer[-1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, [0.0] * 3])
+
+        return final_obs
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(low=-.005, high=.005, size=self.model.nq)
         qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         self.set_state(qpos, qvel)
+
+        self.observation_buffer = []
+        self.action_buffer = []
 
         if self.resample_MP:
             self.param_manager.resample_parameters()

@@ -11,13 +11,13 @@ import joblib, os
 class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*8,[-1.0]*8])
-        self.action_scale = 200.0
-        self.train_UP = False
-        self.noisy_input = False
+        self.action_scale = 100.0
+        self.train_UP = True
+        self.noisy_input = True
         obs_dim = 27
 
-        self.velrew_weight = 1.0
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.velrew_weight = 5.0
+        self.resample_MP = True  # whether to resample the model paraeters
         self.param_manager = antParamManager(self)
 
         if self.train_UP:
@@ -42,7 +42,7 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
             self.obs_perm = np.concatenate([self.obs_perm, np.arange(int(len(self.obs_perm)),
                                                 int(len(self.obs_perm)+len(self.param_manager.activated_param)))])
 
-        dart_env.DartEnv.__init__(self, ['ant.skel'], 3, obs_dim, self.control_bounds, disableViewer=True, dt=0.002)
+        dart_env.DartEnv.__init__(self, ['ant.skel'], 4, obs_dim, self.control_bounds, disableViewer=True, dt=0.002)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
@@ -58,6 +58,9 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_buffer = []
         self.obs_delay = 0
         self.act_delay = 0
+
+        self.tilt_x = 0
+        self.tilt_z = 0
 
         #self.param_manager.set_simulator_parameters(self.current_param)
 
@@ -99,18 +102,9 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.check_collision()
 
     def terminated(self):
-        self.fall_on_ground = False
-        contacts = self.dart_world.collision_result.contacts
-        total_force_mag = 0
-        permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2]]
-        for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
-            if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
-                self.fall_on_ground = True
-
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
-        done = not (np.isfinite(s).all() and (np.abs(s) < 1000).all()\
+        done = not (np.isfinite(s).all() and (np.abs(s) < 200).all()\
             and (height > 0.3) and height < 1.0)
         return done
 
@@ -119,10 +113,15 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reward_func(self, a, step_skip=1):
         posafter = self.robot_skeleton.q[0]
-        alive_bonus = 1.0
+        alive_bonus = 0.2
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus * step_skip
         reward -= 0.05 * np.square(a).sum()
+
+        s = self.state_vector()
+        if not(np.isfinite(s).all() and (np.abs(s) < 200).all()):
+            reward = 0
+
         return reward
 
     def step(self, a):

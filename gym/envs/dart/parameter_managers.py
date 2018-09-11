@@ -443,15 +443,16 @@ class walker2dParamManager:
 class antParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.mass_range = [2.0, 10.0]
-        self.damping_range = [0.5, 3.0]
+        self.mass_range = [0.1, 5.0]
+        self.damping_range = [0.2, 2.0]
         self.friction_range = [0.2, 1.0] # friction range
-        self.restitution_range = [0.0, 0.8]
-        self.power_range = [100, 200]
-        self.frame_skip_range = [4, 10]
+        self.restitution_range = [0.0, 0.5]
+        self.power_range = [50, 200]
+        self.tilt_z_range = [-0.78, 0.78]
+        self.tilt_x_range = [-0.78, 0.78]
 
-        self.activated_param = [14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
-        self.controllable_param = [14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
+        self.activated_param = [0, 3, 6, 9, 12, 21,22,23]
+        self.controllable_param = np.arange(24).tolist()
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -459,12 +460,12 @@ class antParamManager:
 
     def get_simulator_parameters(self):
         mass_param = []
-        for bid in range(2, 9):
+        for bid in range(1, 14):
             cur_mass = self.simulator.robot_skeleton.bodynodes[bid].m
             mass_param.append((cur_mass - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0]))
 
         damp_param = []
-        for jid in range(3, 9):
+        for jid in [3,4, 6,7, 9,10, 12,13]:
             cur_damp = self.simulator.robot_skeleton.joints[jid].damping_coefficient(0)
             damp_param.append((cur_damp - self.damping_range[0]) / (self.damping_range[1] - self.damping_range[0]))\
 
@@ -474,52 +475,54 @@ class antParamManager:
         cur_rest = self.simulator.dart_world.skeletons[0].bodynodes[0].restitution_coeff()
         restitution_param = (cur_rest - self.restitution_range[0]) / (self.restitution_range[1] - self.restitution_range[0])
 
-        cur_power = self.simulator.action_scale[0]
+        cur_power = self.simulator.action_scale
         power_param = (cur_power - self.power_range[0]) / (self.power_range[1] - self.power_range[0])
 
-        cur_ankl_power = self.simulator.action_scale[2]
-        ank_power_param = (cur_ankl_power - self.ankle_power_range[0]) / (self.ankle_power_range[1] - self.ankle_power_range[0])
+        cur_tiltx = self.simulator.tilt_x
+        tiltx_param = (cur_tiltx - self.tilt_x_range[0]) / (self.tilt_x_range[1] - self.tilt_x_range[0])
 
-        cur_frameskip = self.simulator.frame_skip
-        frameskip_param = (cur_frameskip - self.frame_skip_range[0]) / (
-                self.frame_skip_range[1] - self.frame_skip_range[0])
+        cur_tiltz = self.simulator.tilt_z
+        tiltz_param = (cur_tiltz - self.tilt_z_range[0]) / (self.tilt_z_range[1] - self.tilt_z_range[0])
 
-        cur_up_noise = self.simulator.UP_noise_level
-        up_noise_param = (cur_up_noise - self.up_noise_range[0]) / (self.up_noise_range[1] - self.up_noise_range[0])
-
-        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, ank_power_param,
-                                               frameskip_param,  up_noise_param])[self.activated_param]
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, tiltx_param, tiltz_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
 
-        for bid in range(0, 7):
+        for bid in range(0, 13):
             if bid in self.controllable_param:
                 mass = x[cur_id] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0]
-                self.simulator.robot_skeleton.bodynodes[bid+2].set_mass(mass)
+                self.simulator.robot_skeleton.bodynodes[bid+1].set_mass(mass)
                 cur_id += 1
-        for jid in range(7, 13):
-            if jid in self.controllable_param:
+        for id, jid in enumerate([14,15, 17,18, 20,21, 23,24]):
+            if id+13 in self.controllable_param:
                 damp = x[cur_id] * (self.damping_range[1] - self.damping_range[0]) + self.damping_range[0]
-                self.simulator.robot_skeleton.joints[jid - 5].set_damping_coefficient(0, damp)
+                self.simulator.robot_skeleton.joints[jid - 11].set_damping_coefficient(0, damp)
                 cur_id += 1
 
-        if 13 in self.controllable_param:
+        if 21 in self.controllable_param:
             friction = x[cur_id] * (self.friction_range[1] - self.friction_range[0]) + self.friction_range[0]
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(friction)
             cur_id += 1
-        if 14 in self.controllable_param:
+        if 22 in self.controllable_param:
             restitution = x[cur_id] * (self.restitution_range[1] - self.restitution_range[0]) + self.restitution_range[0]
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_restitution_coeff(restitution)
             self.simulator.dart_world.skeletons[1].bodynodes[-1].set_restitution_coeff(1.0)
             cur_id += 1
-        if 15 in self.controllable_param:
+        if 23 in self.controllable_param:
             power = x[cur_id] * (self.power_range[1] - self.power_range[0]) + self.power_range[0]
-            self.simulator.action_scale[[0,1,3,4]] = power
+            self.simulator.action_scale = power
             cur_id += 1
-        if 17 in self.controllable_param:
-            frame_skip = x[cur_id] * (self.frame_skip_range[1] - self.frame_skip_range[0]) + self.frame_skip_range[0]
-            self.simulator.frame_skip = int(frame_skip)
+
+        if 24 in self.controllable_param:
+            tiltx = x[cur_id] * (self.tilt_x_range[1] - self.tilt_x_range[0]) + self.tilt_x_range[0]
+            self.simulator.tilt_x = tiltx
+            self.simulator.dart_world.set_gravity([0.0, -9.81 * np.cos(tiltx), 9.81*np.sin(tiltx)])
+            cur_id += 1
+        if 25 in self.controllable_param:
+            tiltz = x[cur_id] * (self.tilt_z_range[1] - self.tilt_z_range[0]) + self.tilt_z_range[0]
+            self.simulator.tilt_z = tiltz
+            self.simulator.dart_world.set_gravity([9.81 * np.sin(tiltz), -9.81 * np.cos(tiltz), 0.0])
             cur_id += 1
 
 

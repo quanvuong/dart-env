@@ -10,13 +10,15 @@ import pydart2.pydart2_api as papi
 import random 
 from random import randrange
 import pickle
-import copy 
+import copy
+import time
+
 class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         
         
-        obs_dim = 40
-        
+        obs_dim = 48
+
         self.control_bounds = np.array([np.ones(20,), np.ones(20,)])
         # LOWER CONTROL BOUNDS
         #LEFT HANDS
@@ -71,43 +73,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds[1,18] = (2389-2048)*(np.pi/180)*0.088 +0.050 #0.833700#
         self.control_bounds[1,19] = (2057-2048)*(np.pi/180)*0.088 + 0.050 #0.280800#
         self.ndofs = 26
-        '''
-        self.control_bounds = np.array([np.ones(20,)*-0.1,np.ones(20,)*0.1])
-        #LEFT HANDS
-        self.control_bounds[0,0] = -0.1#(2518 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,1] = -0.1#(2248 - 2048)*0.088*np.pi/180# - np.pi/2
-        self.control_bounds[0,2] = -0.1#(1712 - 2048)*0.088*np.pi/180# - np.pi/4
-        #RIGHT HAND
-        self.control_bounds[0,3] = -0.1#1498 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,4] = -0.1#1845 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,5] = -0.1#2381 - 2048)*0.088*np.pi/180# - np.pi/4
-        #head
-        self.control_bounds[0,6] = -0.1
-        self.control_bounds[0,7] = -0.1
 
-
-        #LEFT HANDS
-        self.control_bounds[1,0] = 0.1#(2518 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[1,1] = 0.1#(2248 - 2048)*0.088*np.pi/180# - np.pi/2
-        self.control_bounds[1,2] = 0.1#(1712 - 2048)*0.088*np.pi/180# - np.pi/4
-        #RIGHT HANDS
-        self.control_bounds[1,3] = 0.1#1498 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[1,4] = 0.1#1845 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[1,5] = 0.1#2381 - 2048)*0.088*np.pi/180# - np.pi/4
-        #head
-        self.control_bounds[1,6] = 0.1
-        self.control_bounds[1,7] = 0.1
-
-        self.control_bounds[0,8] = -0.5#-np.pi/25
-        self.control_bounds[0,9] = -0.5#(2052-2048)*(np.pi/180)*0.088 - np.pi/25
-        self.control_bounds[0,14] = -0.5#-np.pi/25
-        self.control_bounds[0,15] = -0.5#(2044-2048)*(np.pi/180)*0.088 - np.pi/100
-
-        self.control_bounds[1,8] = 0.5#-np.pi/25
-        self.control_bounds[1,9] = 0.5#(2052-2048)*(np.pi/180)*0.088 - np.pi/25
-        self.control_bounds[1,14] = 0.5#-np.pi/25
-        self.control_bounds[1,15] = 0.5#(2044-2048)*(np.pi/180)*0.088 - np.pi/100
-        '''
         self.t = 0
         self.preverror = np.zeros(self.ndofs,)
         self.edot = np.zeros(self.ndofs,)
@@ -118,48 +84,55 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.count = 0
         self.dumpTorques = False
         self.dumpActions = False
-        
-        self.ref_traj = np.zeros((1000,self.ndofs))
-        
-        '''
-        test = 0
-        if test == 1:
-            path = "../Darwin/"
-        else:
 
-            path = "../../Darwin/"##"./"#
-        
-        with open(path+"States.txt","rb") as fp:
-            self.ref_traj = np.loadtxt(fp)
+        self.target_vel = 0.0
+        self.init_tv = 0.0
+        self.final_tv = 0.2
+        self.tv_endtime = 1.0
+        self.smooth_tv_change = True
+        self.avg_rew_weighting = []
+        self.vel_cache = []
+        self.target_vel_cache = []
 
-        with open(path + "lfoot.txt","rb") as fp:
-            self.lfoot = np.loadtxt(fp)
+        self.alive_bonus = 3.0
+        self.energy_weight = 0.1
+        self.vel_reward_weight = 5.0
 
-        with open(path + "rfoot.txt","rb") as fp:
-            self.rfoot = np.loadtxt(fp)
+        self.assist_timeout = 10.0
+        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
+        self.init_balance_pd = 2000.0
+        self.init_vel_pd = 2000.0
 
-        with open(path + "lhand.txt","rb") as fp:
-            self.lhand = np.loadtxt(fp)
+        self.cur_step = 0
 
-        with open(path + "rhand.txt","rb") as fp:
-            self.rhand = np.loadtxt(fp)
-
-        '''
-
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf','darwinmodel/robotis_op2.urdf'], 16, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf','darwinmodel/robotis_op2.urdf'], 15, obs_dim, self.control_bounds, disableViewer=True)
 
         self.dart_world.set_gravity([0,0,-9.81])
+
+        self.dart_world.set_collision_detector(0)
 
         self.robot_skeleton.set_self_collision_check(False)
 
         utils.EzPickle.__init__(self)
 
+    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
+        self.Kp = kp
+        self.Kd = kp * self.sim_dt
+        if target_vel is not None:
+            self.Kd = self.Kp
+            self.Kp *= 0
+        invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        if target_vel is None:
+            target_vel = 0.0
+        d = -self.Kd * (bn.dC[dof] - target_vel)
+        qddot = invM * (-bn.C[dof] + p + d)
+        tau = p + d - self.Kd * (qddot) * self.sim_dt
+        return tau
+
     def advance(self,a):
-
         clamped_control = np.array(a)
-        
 
-        
         for i in range(len(clamped_control)):
             clamped_control[i] = ((self.control_bounds[0][i] - self.control_bounds[1][i])/(3))*(clamped_control[i] +1)  + self.control_bounds[1][i]
             if clamped_control[i] > self.control_bounds[1][i]:
@@ -167,10 +140,6 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
 
-        
-        
-
-          
         self.target[6:]= clamped_control# + #*self.action_scale# + self.ref_trajectory_right[self.count_right,6:]# + 
 
         actions = np.zeros(26,)
@@ -180,21 +149,17 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(15):
             self.tau[6:] = self.PID()
             
-            q = self.robot_skeleton.q
-            dq = self.robot_skeleton.dq
+            if self.t < self.assist_timeout:
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('MP_NECK'), self.current_pd, 1)
+                self.robot_skeleton.bodynode('MP_NECK').add_ext_force(np.array([0, force, 0]))
 
-            if self.dumpTorques:
-                with open("torques.txt","ab") as fp:
-                    np.savetxt(fp,np.array([self.tau]),fmt='%1.5f')
-
-            if self.dumpActions:
-                with open("targets_from_net.txt",'ab') as fp:
-                    np.savetxt(fp,np.array([[self.target[6],self.robot_skeleton.q[6]]]),fmt='%1.5f')
-            
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('MP_NECK'), self.vel_enforce_kp, 0, self.target_vel)
+                self.robot_skeleton.bodynode('MP_NECK').add_ext_force(np.array([force, 0, 0]))
 
             self.robot_skeleton.set_forces(self.tau)
-            #print("torques",self.tau[22])
+
             self.dart_world.step()
+
 
         #self.do_simulation(self.tau, self.frame_skip)
     def PID(self):
@@ -239,20 +204,38 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def step(self, a):
+
+
+        if self.smooth_tv_change:
+            self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (self.final_tv - self.init_tv) + self.init_tv
+
+        self.current_pd = self.init_balance_pd
+        self.vel_enforce_kp = self.init_vel_pd
+
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
+
+
+        posbefore = self.robot_skeleton.bodynode('MP_NECK').C[0]
         self.advance(a)
-        
-        Joint_weights = np.ones(20,)
-        Joint_weights[[0,3,10,11,12,13,16,17,18,19]] = 1
-        Weight_matrix = np.diag(Joint_weights)
-        joint_diff = self.ref_traj[self.count,6:] - self.robot_skeleton.q[6:]#+ (self.init[6:])
-        joint_pen = np.sum(joint_diff.T*Weight_matrix*joint_diff)
-        joint_term = 10*np.asarray(np.exp(-joint_pen))
-        root_vel_term = 10/(1 + 0.01*abs(np.sum(self.robot_skeleton.dq[:6])))
-        root_pos_term = np.exp(-5*np.sum((self.ref_traj[self.count,[3,4,5]] - self.robot_skeleton.q[[3,4,5]])**2)**0.5)
+        posafter = self.robot_skeleton.bodynode('MP_NECK').C[0]
 
-        reward =  -1e-3*np.sum(a)**2 + joint_term + root_pos_term # + root_pos_term + root_vel_term
+        vel = (posafter - posbefore) / self.dt
+        self.vel_cache.append(vel)
+        self.target_vel_cache.append(self.target_vel)
 
+        if len(self.vel_cache) > int(2.0 / self.dt):
+            self.vel_cache.pop(0)
+            self.target_vel_cache.pop(0)
 
+        vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.5
+
+        reward =  -self.energy_weight*np.sum(a)**2 + vel_rew + self.alive_bonus
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
@@ -261,27 +244,26 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         if done:
             reward =0
 
-        
-
-        self.count+=1
-        if self.count >= self.ref_traj.shape[0]-1:
-            done = True
+        self.t += self.dt
+        self.cur_step += 1
     
         ob = self._get_obs()
 
-        self.t+=1
-        #done = False
-
-        
-
-        return ob, reward, done, {}  #{'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done}
+        return ob, reward, done, {'avg_vel':np.mean(self.vel_cache)}  #{'pre_state':pre_state, 'vel_rew':vel_rew, 'action_pen':action_pen, 'joint_pen':joint_pen, 'deviation_pen':deviation_pen, 'aux_pred':np.hstack([com_foot_offset1, com_foot_offset2, [reward]]), 'done_return':done}
 
     def _get_obs(self):
         
         state =  np.concatenate([self.robot_skeleton.q[6:],self.robot_skeleton.dq[6:]])
 
-        state[:20] +=  np.random.uniform(low=-0.01,high=0.01,size=20)
-        state[20:] +=  np.random.uniform(low=-0.05,high=0.05,size=1)
+        state += np.random.uniform(-0.01, 0.01, len(state))
+
+        #state = np.concatenate([self.robot_skeleton.q[6:], self.robot_skeleton.dq[6:]])
+        #state[:20] +=  np.random.uniform(low=-0.01,high=0.01,size=20)
+        #state[20:] +=  np.random.uniform(low=-0.05,high=0.05,size=1)
+
+        body_com = self.robot_skeleton.bodynode('MP_NECK').C
+        bodyvel = np.dot(self.robot_skeleton.bodynode('MP_NECK').world_jacobian(offset=self.robot_skeleton.bodynode('MP_NECK').local_com()), self.robot_skeleton.dq)
+        state = np.concatenate([body_com[1:], bodyvel, state])
 
         return state
 
@@ -337,14 +319,16 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             j = self.robot_skeleton.dof(i)
             j.set_damping_coefficient(1.256)
             #j.set_spring_stiffness(np.random.uniform(low=1.0,high=2.0,size=1)[0])
-        
-
-
-
 
         self.count=0
         self.set_state(qpos, qvel)
         self.t = 0
+        self.cur_step = 0
+        self.vel_cache = []
+        self.target_vel_cache = []
+
+        self.avg_rew_weighting = []
+
         return self._get_obs()
 
     def viewer_setup(self):

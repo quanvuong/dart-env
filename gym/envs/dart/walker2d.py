@@ -29,8 +29,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = 0
         self.use_sparse_reward = False
 
-        self.include_obs_history = 10
-        self.include_act_history = 10
+        self.include_obs_history = 1
+        self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 

@@ -10,7 +10,7 @@ import time
 
 import pydart2 as pydart
 from pydart2.utils.transformations import quaternion_from_matrix
-
+import time
 
 class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
@@ -233,7 +233,9 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
             #self.total_ass_force += np.abs(force)
 
             self.robot_skeleton.set_forces(tau)
+
             self.dart_world.step()
+
             s = self.state_vector()
             if not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all()):
                 break
@@ -254,6 +256,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
                 self.robot_skeleton.dq = current_dq
         self.do_simulation(tau, self.frame_skip)
 
+
     def clamp_act(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -269,6 +272,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         return clamped_control
 
     def step(self, a):
+
         if self.use_ref_policy:
             current_obs = self._get_obs()
 
@@ -488,6 +492,7 @@ class DartHumanWalkerEnv(dart_env.DartEnv, utils.EzPickle):
         self.total_work += work
         cot = self.total_work / (self.robot_skeleton.mass() * 9.81 * self.robot_skeleton.C[0])
         print(cot)'''
+
 
         return ob, reward, done, {'broke_sim': broke_sim, 'vel_rew': vel_rew, 'action_pen': action_pen,
                                   'deviation_pen': deviation_pen, 'curriculum_id': self.curriculum_id,
