@@ -11,14 +11,14 @@ import joblib, os
 class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*8,[-1.0]*8])
-        self.action_scale = 150.0
+        self.action_scale = 200.0
         self.train_UP = False
         self.noisy_input = False
         obs_dim = 27
 
         self.velrew_weight = 1.0
         self.resample_MP = False  # whether to resample the model paraeters
-        self.param_manager = hopperContactMassManager(self)
+        self.param_manager = antParamManager(self)
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
@@ -32,7 +32,17 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['ant.skel'], 5, obs_dim, self.control_bounds, disableViewer=True, dt=0.01)
+        self.obs_perm = np.array(
+            [0.0001, -1, 2, -3, -4,   -7,8, -5,6, -11,12, -9,10, 13,14,-15,16,-17,-18, -21,22, -19,20, -25,26, -23,24] * self.include_obs_history
+            + [-2,3, -0.0001,1, -6,7, -4,5] * self.include_act_history)
+        self.act_perm = np.array([-2,3, -0.0001,1, -6,7, -4,5])
+
+        if self.train_UP:
+            obs_dim += len(self.param_manager.activated_param)
+            self.obs_perm = np.concatenate([self.obs_perm, np.arange(int(len(self.obs_perm)),
+                                                int(len(self.obs_perm)+len(self.param_manager.activated_param)))])
+
+        dart_env.DartEnv.__init__(self, ['ant.skel'], 3, obs_dim, self.control_bounds, disableViewer=True, dt=0.002)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
@@ -60,11 +70,11 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
 
     def pad_action(self, a):
         full_ac = np.zeros(len(self.robot_skeleton.q))
-        full_ac[3:] = a
+        full_ac[6:] = a
         return full_ac
 
     def unpad_action(self, a):
-        return a[3:]
+        return a[6:]
 
     def advance(self, a):
         self.action_buffer.append(np.copy(a))
@@ -82,7 +92,7 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
                 clamped_control[i] = self.control_bounds[1][i]
 
         tau = np.zeros(self.robot_skeleton.ndofs)
-        tau[3:] = clamped_control * self.action_scale
+        tau[6:] = clamped_control * self.action_scale
         self.do_simulation(tau, self.frame_skip)
 
     def post_advance(self):
@@ -100,10 +110,8 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
 
         s = self.state_vector()
         height = self.robot_skeleton.bodynodes[2].com()[1]
-        ang = self.robot_skeleton.q[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            #and not self.fall_on_ground)
-            and (height > self.height_threshold_low) and (abs(ang) < .4))
+        done = not (np.isfinite(s).all() and (np.abs(s) < 1000).all()\
+            and (height > 0.3) and height < 1.0)
         return done
 
     def pre_advance(self):
@@ -112,16 +120,9 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def reward_func(self, a, step_skip=1):
         posafter = self.robot_skeleton.q[0]
         alive_bonus = 1.0
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus * step_skip
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
+        reward -= 0.05 * np.square(a).sum()
         return reward
 
     def step(self, a):
@@ -174,16 +175,13 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         for world in self.dart_worlds:
             world.reset()
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        init_q = np.array([0, -0.2, 0, 0,0,0, 0,-1, 0,-1, 0,1, 0,1])
+        qpos = init_q + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.1, high=.1, size=self.robot_skeleton.ndofs)
 
         self.set_state(qpos, qvel)
         if self.resample_MP:
-            if not self.curriculum_up:
-                self.param_manager.resample_parameters()
-            else:
-                pm = np.random.uniform(-0.05, self.curriculum_step[0][1], len(self.param_manager.activated_param))
-                self.param_manager.set_simulator_parameters(pm)
+            self.param_manager.resample_parameters()
             self.current_param = self.param_manager.get_simulator_parameters()
 
         self.observation_buffer = []

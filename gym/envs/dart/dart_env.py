@@ -57,9 +57,11 @@ class DartEnv(gym.Env):
                 self.dart_worlds.append(DartWorld(dt, full_paths[i]))
             self.dart_world = self.dart_worlds[0]
         else:
+            self.dart_worlds = []
             self.dart_world = DartWorld(dt)
             for fullpath in full_paths:
                 self.dart_world.add_skeleton(fullpath)
+            self.dart_worlds.append(self.dart_world)
 
 
         self.robot_skeleton = self.dart_world.skeletons[-1] # assume that the skeleton of interest is always the last one

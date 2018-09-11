@@ -13,9 +13,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.control_bounds[1][4] = -0.3
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
-        self.train_UP = True
-        self.noisy_input = True
-        self.resample_MP = True
+        self.train_UP = False
+        self.noisy_input = False
+        self.resample_MP = False
         self.UP_noise_level = 0.0
         self.param_manager = walker2dParamManager(self)
 
@@ -27,10 +27,10 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.learn_forwardbackward = False
         self.task_expand_flag = False
         self.state_index = 0
+        self.use_sparse_reward = False
 
-
-        self.include_obs_history = 1
-        self.include_act_history = 0
+        self.include_obs_history = 10
+        self.include_act_history = 10
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
@@ -63,6 +63,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.bodynode_property = ['mass']
         self.root_type = 'None'
         self.root_id = 0
+
+        self.cur_step = 0
 
         # no joint limit
         '''for world in self.dart_worlds:
@@ -99,12 +101,14 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                    (height > .8) and (height < 2.0) and (abs(ang) < 1.0))
+        if self.cur_step >= 1000:
+            done = True
         return done
 
     def post_advance(self):
         pass
 
-    def reward_func(self, a, step_skip=1):
+    def reward_func(self, a, step_skip=1, sparse=False):
         posafter, ang = self.robot_skeleton.q[0, 2]
         height = self.robot_skeleton.bodynodes[2].com()[1]
 
@@ -121,6 +125,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
                 joint_limit_penalty += abs(1.5)
 
         reward -= 5e-1 * joint_limit_penalty
+
+        if sparse:
+            reward = 0.0
+            if self.terminated():
+                reward = self.robot_skeleton.q[0]
 
         return reward
 
@@ -147,8 +156,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def step(self, a):
+        self.cur_step += 1
         self.advance(a)
-        reward = self.reward_func(a)
+        reward = self.reward_func(a, sparse=self.use_sparse_reward)
 
         done = self.terminated()
 
@@ -225,6 +235,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.observation_buffer = []
         self.action_buffer = []
+        self.cur_step = 0
 
         return self._get_obs()
 
