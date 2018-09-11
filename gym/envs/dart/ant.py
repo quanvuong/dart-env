@@ -147,8 +147,8 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        #if self.train_UP:
-        #    state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
+        if self.train_UP:
+            state = np.concatenate([state, self.param_manager.get_simulator_parameters()])
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
 
