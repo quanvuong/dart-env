@@ -87,19 +87,19 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.2
-        self.tv_endtime = 1.0
+        self.final_tv = 0.1
+        self.tv_endtime = 0.01
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.alive_bonus = 3.0
-        self.energy_weight = 0.1
-        self.vel_reward_weight = 5.0
+        self.alive_bonus = 4.0
+        self.energy_weight = 0.01
+        self.vel_reward_weight = 40.0
 
         self.assist_timeout = 10.0
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
+        self.assist_schedule = [[0.0, [20000, 2000]], [3.0, [15000, 1500]], [6.0, [11250.0, 1125.0]]]
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
 
@@ -185,7 +185,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                 self.kd[i - 6] *qdot[i]
             self.preverror[i] = (q[i] - self.target[i])
         
-        torqs = self.ClampTorques(tau)
+        torqs = tau#self.ClampTorques(tau)
         
         return torqs[6:]
         

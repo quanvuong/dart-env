@@ -29,15 +29,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
 
-        self.dyn_models = [None]
-        self.dyn_model_id = 0
-        self.base_path = None
-        self.transition_locator = None
-        self.baseline = None
-
-        self.external_dynamic_model = None
-        self.external_dynamic_model_mode = 0 # 0: use external model only   1: input dart result into external model
-
         self.t = 0
 
         self.total_dist = []
@@ -47,13 +38,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 8, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
         self.current_param = self.param_manager.get_simulator_parameters()
 
-        self.curriculum_up = False
         self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
 
         self.dart_worlds[0].set_collision_detector(3)
@@ -62,15 +52,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
-
-        # info for building gnn for dynamics
-        self.ignore_joint_list = []
-        self.ignore_body_list = [0, 1]
-        self.joint_property = ['limit'] # what to include in the joint property part
-        self.bodynode_property = ['mass']
-        self.root_type = 'None'
-        self.root_id = 0
-        #self.root_offset = self.robot_skeleton.bodynodes[self.root_id].C
 
         # data structure for modeling delays in observation and action
         self.observation_buffer = []
@@ -114,25 +95,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
 
-        if self.external_dynamic_model is None:
-            tau = np.zeros(self.robot_skeleton.ndofs)
-            tau[3:] = clamped_control * self.action_scale
-            self.do_simulation(tau, self.frame_skip)
-        else:
-            if self.external_dynamic_model_mode == 0:
-                current_state = self.state_vector()
-                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
-                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
-            elif self.external_dynamic_model_mode == 1:
-                tau = np.zeros(self.robot_skeleton.ndofs)
-                tau[3:] = clamped_control * self.action_scale
-                self.do_simulation(tau, self.frame_skip)
-                current_state = self.state_vector()
-                pred_ds = self.external_dynamic_model.predict(np.concatenate([current_state, clamped_control]))
-                self.set_state_vector(np.reshape(current_state + pred_ds, (pred_ds.shape[1],)))
+        tau = np.zeros(self.robot_skeleton.ndofs)
+        tau[3:] = clamped_control * self.action_scale
+        self.do_simulation(tau, self.frame_skip)
 
-        #state = self.state_vector()
-        #self.set_state_vector(state / self.dt * self.dof_timesteps)
 
     def about_to_contact(self):
         return False
@@ -235,11 +201,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.set_state(qpos, qvel)
         if self.resample_MP:
-            if not self.curriculum_up:
-                self.param_manager.resample_parameters()
-            else:
-                pm = np.random.uniform(-0.05, self.curriculum_step[0][1], len(self.param_manager.activated_param))
-                self.param_manager.set_simulator_parameters(pm)
+            self.param_manager.resample_parameters()
             self.current_param = self.param_manager.get_simulator_parameters()
 
         self.observation_buffer = []

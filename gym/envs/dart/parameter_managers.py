@@ -529,3 +529,77 @@ class antParamManager:
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)
+
+
+class cheetahParamManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.mass_range = [1.0, 10.0]
+        self.damping_range = [0.5, 8.0]
+        self.friction_range = [0.2, 1.0] # friction range
+        self.restitution_range = [0.0, 0.5]
+        self.gact_scale_range = [0.5, 1.5]
+
+        self.activated_param = [0,1, 2,3,4, 5,6,7, 8,9,10, 11,12,13, 14,15,16]
+        self.controllable_param = [0,1, 2,3,4, 5,6,7, 8,9,10, 11,12,13, 14,15, 16]
+
+        self.param_dim = len(self.activated_param)
+        self.sampling_selector = None
+        self.selector_target = -1
+
+    def get_simulator_parameters(self):
+        mass_param = []
+        for bid in range(2, 10):
+            cur_mass = self.simulator.robot_skeleton.bodynodes[bid].m
+            mass_param.append((cur_mass - self.mass_range[0]) / (self.mass_range[1] - self.mass_range[0]))
+
+        damp_param = []
+        for jid in [4,5,6,7,8,9]:
+            cur_damp = self.simulator.robot_skeleton.joints[jid].damping_coefficient(0)
+            damp_param.append((cur_damp - self.damping_range[0]) / (self.damping_range[1] - self.damping_range[0]))\
+
+        cur_friction = self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff()
+        friction_param = (cur_friction - self.friction_range[0]) / (self.friction_range[1] - self.friction_range[0])
+
+        cur_rest = self.simulator.dart_world.skeletons[0].bodynodes[0].restitution_coeff()
+        restitution_param = (cur_rest - self.restitution_range[0]) / (self.restitution_range[1] - self.restitution_range[0])
+
+        cur_power = self.simulator.g_action_scaler
+        power_param = (cur_power - self.gact_scale_range[0]) / (self.gact_scale_range[1] - self.gact_scale_range[0])
+
+
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param])[self.activated_param]
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+
+        for bid in range(0, 8):
+            if bid in self.controllable_param:
+                mass = x[cur_id] * (self.mass_range[1] - self.mass_range[0]) + self.mass_range[0]
+                self.simulator.robot_skeleton.bodynodes[bid+2].set_mass(mass)
+                cur_id += 1
+        for id, jid in enumerate([4,5,6,7,8,9]):
+            if id+8 in self.controllable_param:
+                damp = x[cur_id] * (self.damping_range[1] - self.damping_range[0]) + self.damping_range[0]
+                self.simulator.robot_skeleton.joints[jid].set_damping_coefficient(0, damp)
+                cur_id += 1
+
+        if 14 in self.controllable_param:
+            friction = x[cur_id] * (self.friction_range[1] - self.friction_range[0]) + self.friction_range[0]
+            self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(friction)
+            cur_id += 1
+        if 15 in self.controllable_param:
+            restitution = x[cur_id] * (self.restitution_range[1] - self.restitution_range[0]) + self.restitution_range[0]
+            self.simulator.dart_world.skeletons[0].bodynodes[0].set_restitution_coeff(restitution)
+            self.simulator.dart_world.skeletons[1].bodynodes[-1].set_restitution_coeff(1.0)
+            cur_id += 1
+        if 16 in self.controllable_param:
+            power = x[cur_id] * (self.gact_scale_range[1] - self.gact_scale_range[0]) + self.gact_scale_range[0]
+            self.simulator.g_action_scaler = power
+            cur_id += 1
+
+
+
+    def resample_parameters(self):
+        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
