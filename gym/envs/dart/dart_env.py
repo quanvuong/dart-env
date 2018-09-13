@@ -29,7 +29,7 @@ class DartEnv(gym.Env):
                  screen_width=80, screen_height=45):
         assert obs_type in ('parameter', 'image')
         assert action_type in ("continuous", "discrete")
-        print('pydart initialization OK')
+        #print('pydart initialization OK')
 
         self.viewer = None
         self.setSeed = None
@@ -39,6 +39,8 @@ class DartEnv(gym.Env):
 
         if isinstance(model_paths, str):
             model_paths = [model_paths]
+
+        #print('checkpoint1')
 
         # convert everything to fullpath
         full_paths = []
@@ -51,16 +53,24 @@ class DartEnv(gym.Env):
                 raise IOError("File %s does not exist"%fullpath)
             full_paths.append(fullpath)
 
+        #print('checkpoint2')
+        #print(full_paths)
+
         if full_paths[0][-5:] == '.skel':
+            #print('pydart2 initializing')
             self.dart_world = pydart.World(dt, full_paths[0])
+            #print('pydart2 initialized')
         else:
             self.dart_world = pydart.World(dt)
             
             for fullpath in full_paths:
                 self.dart_world.add_skeleton(fullpath)
 
+        #print('checkpoint3')
+
 
         self.robot_skeleton = self.dart_world.skeletons[-1] # assume that the skeleton of interest is always the last one
+        #print("robot skeleton set...")
 
         for jt in range(0, len(self.robot_skeleton.joints)):
             if self.robot_skeleton.joints[jt].has_position_limit(0):
@@ -90,6 +100,7 @@ class DartEnv(gym.Env):
         # initialize the viewer, get the window size
         # initial here instead of in _render
         # in image learning
+        #print("setting up viewer")
         self.screen_width = screen_width
         self.screen_height = screen_height
         self._get_viewer()
@@ -104,6 +115,7 @@ class DartEnv(gym.Env):
         else:
             raise error.Error('Unrecognized observation type: {}'.format(self._obs_type))
 
+        #print("seedingt...")
         self._seed()
 
         #self.viewer = None
@@ -112,6 +124,7 @@ class DartEnv(gym.Env):
             'render.modes': ['human', 'rgb_array'],
             'video.frames_per_second' : int(np.round(1.0 / self.dt))
         }
+        #print("done...")
 
 
     def _seed(self, seed=None):

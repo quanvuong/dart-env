@@ -64,6 +64,6 @@ class DartReacher2dEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -1.0
-        self._get_viewer().scene.tb._set_theta(-45)
+        #self._get_viewer().scene.tb.trans[2] = -1.0
+        #self._get_viewer().scene.tb._set_theta(-45)
         self.track_skeleton_id = 0

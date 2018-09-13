@@ -362,8 +362,6 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             self.interactors[self.curInteractorIX].keyboardUp(key, x, y)
             return
 
-
-
     def unproject(self, winp=np.array([0.,0.,0.])):
         #unproject the given input window space cords and return an object space vector
         obj = GLU.gluUnProject(winp[0], winp[1], winp[2], self.modelviewM, self.projectionM, self.viewport)

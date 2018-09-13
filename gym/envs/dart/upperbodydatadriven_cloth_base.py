@@ -207,7 +207,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print("Failed to make cloth scene, BUT CAUGHT IT!!!")
             exit(0)
         clothScene.togglePinned(0, 0)  # turn off auto-pin
-        print("toggle pinned.......")
+        #print("toggle pinned.......")
 
         self.separatedMesh = None
         if simulateCloth:
@@ -221,12 +221,15 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         skelFile = 'UpperBodyCapsules_datadriven.skel'
 
         #intialize the parent env
+        #print("initialzing DartEnv...")
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
                                   observation_size=obs_size, action_bounds=self.control_bounds, screen_width=self.screenSize[0], screen_height=self.screenSize[1])
         else:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
                                   observation_size=obs_size, action_bounds=self.control_bounds , disableViewer = True, visualize = False)
+
+        print("DartEnv initialized...")
 
         #rescaling actions for SPD
         if SPDActionSpace:
@@ -266,6 +269,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         self.collisionCapsuleInfo = None #set in updateClothCollisionStructures(capsules=True)
         self.collisionSphereInfo = None #set in updateClothCollisionStructures()
+
+        #self.clothScene.translateCloth(cid=0, T=np.ones(3) * 5)
         self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
         
         self.simulateCloth = simulateCloth

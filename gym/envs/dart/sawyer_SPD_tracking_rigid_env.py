@@ -176,7 +176,7 @@ class DartSawyerSPDTrackingRigidEnv(dart_env.DartEnv, utils.EzPickle):
         #initialize the variable
         self.SPDController = None
 
-        dart_env.DartEnv.__init__(self, 'sawyer_description/urdf/sawyer_arm.urdf', 5, obs_dim, self.control_bounds, disableViewer=False)
+        dart_env.DartEnv.__init__(self, 'sawyer_description/urdf/sawyer_arm.urdf', 5, obs_dim, self.control_bounds, disableViewer=True)
 
         #initialize the controller
         self.SPDController = SPDController(self)

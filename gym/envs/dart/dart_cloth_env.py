@@ -46,7 +46,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
 
         self.supplementalTau = np.zeros(self.robot_skeleton.ndofs)  # added to control tau in simulation
 
-        utils.EzPickle.__init__(self)
+        #utils.EzPickle.__init__(self)
 
     def _reset(self):
         'Overwrite of DartEnv._reset to add cloth reset'

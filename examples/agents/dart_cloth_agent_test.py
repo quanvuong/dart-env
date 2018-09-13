@@ -25,6 +25,7 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_09_010_sawyer_rigid_hang"
     #trial = "experiment_2018_09_08_sawyer_rigid_hang"
 
     #trial = "experiment_2018_09_06_sawyer_rigid_hang"
@@ -402,6 +403,43 @@ if __name__ == '__main__':
     #env = gym.make('DartSawyer-v2')
     env = gym.make('DartSawyerRigid-v4')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
+
+    reloaderTest = False
+
+    if reloaderTest:
+        print("reloader test")
+        #env.close()
+        trials = 0
+        failures = 0
+        failureRate = 0
+        numReloaderSamples = 500
+        for i in range(numReloaderSamples):
+            trials += 1
+            try:
+                print("entering try")
+                envc = gym.make('DartSawyerRigid-v4')
+                #envc = gym.make('DartSawyer-v3')
+                #envc = gym.make('DartClothUpperBodyDataDrivenDropGrip-v1')
+                #print("reseting")
+                #envc.reset()
+                #print("stepping")
+                #envc.step(action=np.zeros(envc.act_dim))
+                #envc.close()
+                print("exiting try")
+            except:
+                failures += 1
+            print("----------------------------------------------")
+            print("----------------------------------------------")
+            print("Number of failures detected: " + str(failures))
+            print("Failure rate detected: " + str(failures/trials))
+            print("----------------------------------------------")
+            print("----------------------------------------------")
+        print("done reloader test:")
+        print("Number of trials run: " + str(trials))
+        print("Number of failures detected: " + str(failures))
+        print("Failure rate detected: " + str(failures / trials))
+        exit(0)
+
 
     useMeanPolicy = True
 
