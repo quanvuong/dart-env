@@ -22,8 +22,8 @@ class hopperContactMassManager:
         self.frame_skip_range = [4, 10]
         self.actuator_nonlin_range = [0.75, 1.5]
 
-        self.activated_param = [2,5,7,8,9]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
-        self.controllable_param = [2,5,7,8,9]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.activated_param = [1,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.controllable_param = [1,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
         
         self.binned_param = 0 # don't bin if = 0
 

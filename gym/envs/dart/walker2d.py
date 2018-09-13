@@ -34,9 +34,17 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        self.obs_perm = np.array(
-            [0.0001, 1, 5, 6, 7, 2, 3, 4, 8, 9, 10, 14, 15, 16, 11, 12, 13] * self.include_obs_history
-            + [3, 4, 5, 0.0001, 1, 2] * self.include_act_history)
+        obs_perm_base = np.array(
+            [0.0001, 1, 5, 6, 7, 2, 3, 4, 8, 9, 10, 14, 15, 16, 11, 12, 13])
+        act_perm_base = np.array([3, 4, 5, 0.0001, 1, 2])
+        self.obs_perm = np.copy(obs_perm_base)
+
+        for i in range(self.include_obs_history - 1):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(obs_perm_base) * (np.abs(obs_perm_base) + len(self.obs_perm))])
+        for i in range(self.include_act_history):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
         self.act_perm = np.array([3, 4, 5, 0.0001, 1, 2])
 
         if self.train_UP:

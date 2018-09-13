@@ -204,8 +204,6 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
 
     def step(self, a):
-
-
         if self.smooth_tv_change:
             self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (self.final_tv - self.init_tv) + self.init_tv
 

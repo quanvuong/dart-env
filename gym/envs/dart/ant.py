@@ -12,7 +12,7 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*8,[-1.0]*8])
         self.action_scale = 100.0
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         obs_dim = 27
 
@@ -29,9 +29,16 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        self.obs_perm = np.array(
-            [0.0001, -1, 2, -3, -4,   -7,8, -5,6, -11,12, -9,10, 13,14,-15,16,-17,-18, -21,22, -19,20, -25,26, -23,24] * self.include_obs_history
-            + [-2,3, -0.0001,1, -6,7, -4,5] * self.include_act_history)
+        obs_perm_base = np.array(
+            [0.0001, -1, 2, -3, -4,   -7,8, -5,6, -11,12, -9,10, 13,14,-15,16,-17,-18, -21,22, -19,20, -25,26, -23,24])
+        act_perm_base = np.array([-2,3, -0.0001,1, -6,7, -4,5])
+        self.obs_perm = np.copy(obs_perm_base)
+
+        for i in range(self.include_obs_history-1):
+            self.obs_perm = np.concatenate([self.obs_perm, np.sign(obs_perm_base) * (np.abs(obs_perm_base) + len(self.obs_perm))])
+        for i in range(self.include_act_history):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
         self.act_perm = np.array([-2,3, -0.0001,1, -6,7, -4,5])
 
         if self.train_UP:
@@ -110,10 +117,12 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reward_func(self, a, step_skip=1):
         posafter = self.robot_skeleton.q[0]
+        deviation = self.robot_skeleton.q[2]
         alive_bonus = 0.2
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus * step_skip
-        reward -= 0.05 * np.square(a).sum()
+        reward -= 0.25 * np.square(a).sum()
+        reward -= np.abs(deviation) * 3
 
         s = self.state_vector()
         if not(np.isfinite(s).all() and (np.abs(s) < 200).all()):
