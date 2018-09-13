@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         clothSimulation = False
         self.renderCloth = False
         dt = 0.002
@@ -175,6 +175,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.hoopNormalObs  = True #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
+        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
@@ -221,6 +222,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.initialSawyerEfs = []
         self.initialJointConstraints = None #set on init
         self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
+        self.initialActionScale = None #set after initialization
+        self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -268,6 +271,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             observation_size += len(self.actuatedDofs)
         if self.jointLimVarObs:
             observation_size += len(self.actuatedDofs)
+        if self.weaknessScaleVarObs:
+            observation_size += 1
 
         # initialize the Sawyer variables
         self.SPDController = None
@@ -342,6 +347,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         #initialize the Sawyer robot
         #print("loading URDFs")
+        self.initialActionScale = np.array(self.action_scale)
         sawyerFilename = ""
         if self.renderSawyerCollidable:
             sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
@@ -431,8 +437,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         #disable character gravity
         if self.print_skel_details:
             print("!!Disabling character gravity (ie. auto gravity compensation")
-        for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
-            bodynode.set_gravity_mode(False)
+        if(not self.weaknessScaleVarObs):
+            for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
+                bodynode.set_gravity_mode(False)
         self.dart_world.skeletons[0].bodynodes[0].set_gravity_mode(False)
 
         #initialize initial joint and torque limits
@@ -500,12 +507,12 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
     def updateBeforeSimulation(self):
         #any pre-sim updates should happen here
         #update features
-        if self.sleeveLSeamFeature is not None:
-            self.sleeveLSeamFeature.fitPlane()
-        if self.sleeveLEndFeature is not None:
-            self.sleeveLEndFeature.fitPlane()
-        if self.sleeveLMidFeature is not None:
-            self.sleeveLMidFeature.fitPlane()
+        #if self.sleeveLSeamFeature is not None:
+        #    self.sleeveLSeamFeature.fitPlane()
+        #if self.sleeveLEndFeature is not None:
+        #    self.sleeveLEndFeature.fitPlane()
+        #if self.sleeveLMidFeature is not None:
+        #    self.sleeveLMidFeature.fitPlane()
 
         #update handle nodes
         if self.handleNode is not None:
@@ -519,7 +526,27 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         wRFingertip1 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
-        a=0
+
+        #compute gravity compenstation and set action scale for the state
+        if self.weaknessScaleVarObs:
+            grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
+            #self.additionalAction = np.array(grav_comp)
+            self.supplementalTau = np.array(grav_comp)
+            arm_tau = self.supplementalTau[11:19] #human's left arm
+            #arm_tau = self.supplementalTau[3:11] #human's right arm
+            #print("gravity comp(arm): " + str(arm_tau))
+            #max_abs = max(arm_tau.max(), arm_tau.min(), key=abs)
+            #print("     max: " + str(max_abs))
+            for i in range(len(arm_tau)):
+                self.action_scale[i+11] = self.weaknessScale*self.initialActionScale[i+11]-abs((1.0-self.weaknessScale)*arm_tau[i])
+                if(self.action_scale[i+11] < 0):
+                    if(arm_tau[i] > 0):
+                        arm_tau[i] += self.action_scale[i + 11]
+                    else:
+                        arm_tau[i] -= self.action_scale[i + 11]
+                    self.action_scale[i + 11] = 0
+            self.supplementalTau[11:19] = arm_tau
+            #print(self.action_scale)
 
         if(self.freezeTracking):
             a=0
@@ -966,6 +993,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         if self.jointLimVarObs:
             obs = np.concatenate([obs, self.jointConstraintVariation]).ravel()
 
+        if self.weaknessScaleVarObs:
+            obs = np.concatenate([obs, np.array([self.weaknessScale])]).ravel()
+
         return obs
 
     def additionalResets(self):
@@ -988,6 +1018,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                     d.set_position_lower_limit(llim[dix])
                 if(math.isfinite(ulim[dix])):
                     d.set_position_upper_limit(ulim[dix])
+
+        if self.weaknessScaleVarObs:
+            self.weaknessScale = random.random()
+            #print("weaknessScale = " + str(self.weaknessScale))
 
 
         #if(self.reset_number > 0):

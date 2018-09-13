@@ -305,17 +305,17 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
 
         #print robot_skeleton issues
-        '''
-        for i in range(len(self.robot_skeleton.bodynodes)):
-            print(self.robot_skeleton.bodynodes[i])
-            
-        for i in range(len(self.robot_skeleton.dofs)):
-            print(self.robot_skeleton.dofs[i])
+        if False:
+            for i in range(len(self.robot_skeleton.bodynodes)):
+                print(self.robot_skeleton.bodynodes[i])
 
-        #enable joint limits
-        for i in range(len(self.robot_skeleton.joints)):
-            print(self.robot_skeleton.joints[i])
-        '''
+            for i in range(len(self.robot_skeleton.dofs)):
+                print(self.robot_skeleton.dofs[i])
+
+            #enable joint limits
+            for i in range(len(self.robot_skeleton.joints)):
+                print(self.robot_skeleton.joints[i])
+
 
         #DART does not automatically limit joints with any unlimited dofs
         self.robot_skeleton.joints[4].set_position_limit_enforced(True)
@@ -732,6 +732,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                                 clamped_control[c] = self.SPDTorqueBounds[1]
                     combinedTau = clamped_control
 
+                #print(combinedTau)
                 self.robot_skeleton.set_forces(combinedTau)
 
                 if self.replayingActionTrajectory:
