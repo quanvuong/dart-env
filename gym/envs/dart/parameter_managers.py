@@ -534,14 +534,15 @@ class antParamManager:
 class cheetahParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.mass_range = [1.0, 10.0]
-        self.damping_range = [0.5, 8.0]
+        self.mass_range = [0.5, 15.0]
+        self.damping_range = [0.5, 10.0]
         self.friction_range = [0.2, 1.0] # friction range
         self.restitution_range = [0.0, 0.5]
-        self.gact_scale_range = [0.5, 1.5]
+        self.gact_scale_range = [0.3, 2.0]
+        self.tilt_z_range = [-0.78, 0.78]
 
-        self.activated_param = [0,1, 2,3,4, 5,6,7, 8,9,10, 11,12,13, 14,15,16]
-        self.controllable_param = [0,1, 2,3,4, 5,6,7, 8,9,10, 11,12,13, 14,15, 16]
+        self.activated_param = [0,1, 2,3,4, 5,6,7, 14,15,16]
+        self.controllable_param = [0,1, 2,3,4, 5,6,7, 14,15, 16]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -567,8 +568,11 @@ class cheetahParamManager:
         cur_power = self.simulator.g_action_scaler
         power_param = (cur_power - self.gact_scale_range[0]) / (self.gact_scale_range[1] - self.gact_scale_range[0])
 
+        cur_tiltz = self.simulator.tilt_z
+        tiltz_param = (cur_tiltz - self.tilt_z_range[0]) / (self.tilt_z_range[1] - self.tilt_z_range[0])
 
-        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param])[self.activated_param]
+
+        return np.array(mass_param+damp_param+[friction_param, restitution_param, power_param, tiltz_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -598,8 +602,99 @@ class cheetahParamManager:
             self.simulator.g_action_scaler = power
             cur_id += 1
 
+        if 17 in self.controllable_param:
+            tiltz = x[cur_id] * (self.tilt_z_range[1] - self.tilt_z_range[0]) + self.tilt_z_range[0]
+            self.simulator.tilt_z = tiltz
+            self.simulator.dart_world.set_gravity([9.81 * np.sin(tiltz), -9.81 * np.cos(tiltz), 0.0])
+            cur_id += 1
+
 
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
+
+
+class mjcheetahParamManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.range = [0.2, 1.0]  # friction range
+        self.velrew_weight_range = [-1.0, 1.0]
+        self.restitution_range = [0.5, 1.0]
+        self.solimp_range = [0.8, 0.99]
+        self.solref_range = [0.001, 0.02]
+        self.armature_range = [0.05, 0.98]
+
+        self.activated_param = [0, 1,2,3,4, 5]
+        self.controllable_param = [0, 1, 2, 3, 4, 5]
+
+        self.param_dim = len(self.activated_param)
+        self.sampling_selector = None
+        self.selector_target = -1
+
+    def get_simulator_parameters(self):
+        cur_friction = self.simulator.model.geom_friction[-1][0]
+        friction_param = (cur_friction - self.range[0]) / (self.range[1] - self.range[0])
+
+        cur_velrew_weight = self.simulator.velrew_weight
+        velrew_param = (cur_velrew_weight - self.velrew_weight_range[0]) / (
+                self.velrew_weight_range[1] - self.velrew_weight_range[0])
+
+        cur_restitution = self.simulator.model.geom_solref[-1][1]
+        rest_param = (cur_restitution - self.restitution_range[0]) / (self.restitution_range[1] - self.restitution_range[0])
+
+        cur_solimp = self.simulator.model.geom_solimp[-1][0]
+        solimp_param = (cur_solimp - self.solimp_range[0]) / (self.solimp_range[1] - self.solimp_range[0])
+
+        cur_solref = self.simulator.model.geom_solref[-1][0]
+        solref_param = (cur_solref - self.solref_range[0]) / (self.solref_range[1] - self.solref_range[0])
+
+        cur_armature = self.simulator.model.dof_armature[-1]
+        armature_param = (cur_armature - self.armature_range[0]) / (self.armature_range[1] - self.armature_range[0])
+
+        params = np.array([friction_param, velrew_param, rest_param ,solimp_param, solref_param, armature_param])[self.activated_param]
+        return params
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+        if 0 in self.controllable_param:
+            friction = x[cur_id] * (self.range[1] - self.range[0]) + self.range[0]
+            self.simulator.model.geom_friction[-1][0] = friction
+            cur_id += 1
+        if 1 in self.controllable_param:
+            velrew_weight = x[cur_id] * (self.velrew_weight_range[1] - self.velrew_weight_range[0]) + \
+                            self.velrew_weight_range[0]
+            self.simulator.velrew_weight = velrew_weight
+            cur_id += 1
+        if 2 in self.controllable_param:
+            restitution = x[cur_id] * (self.restitution_range[1] - self.restitution_range[0]) + \
+                            self.restitution_range[0]
+            for bn in range(len(self.simulator.model.geom_solref)):
+                self.simulator.model.geom_solref[bn][1] = restitution
+            cur_id += 1
+        if 3 in self.controllable_param:
+            solimp = x[cur_id] * (self.solimp_range[1] - self.solimp_range[0]) + \
+                            self.solimp_range[0]
+            for bn in range(len(self.simulator.model.geom_solimp)):
+                self.simulator.model.geom_solimp[bn][0] = solimp
+                self.simulator.model.geom_solimp[bn][1] = solimp
+            cur_id += 1
+        if 4 in self.controllable_param:
+            solref = x[cur_id] * (self.solref_range[1] - self.solref_range[0]) + \
+                            self.solref_range[0]
+            for bn in range(len(self.simulator.model.geom_solref)):
+                self.simulator.model.geom_solref[bn][0] = solref
+            cur_id += 1
+        if 5 in self.controllable_param:
+            armature = x[cur_id] * (self.armature_range[1] - self.armature_range[0]) + \
+                            self.armature_range[0]
+            for dof in range(3, 6):
+                self.simulator.model.dof_armature[dof] = armature
+            cur_id += 1
+
+    def resample_parameters(self):
+        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+        if self.sampling_selector is not None:
+            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
+                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)

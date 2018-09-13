@@ -17,6 +17,7 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         self.train_UP = False
         self.noisy_input = False
         obs_dim = 17
+        self.tilt_z = 0.0
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
@@ -34,8 +35,8 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        self.include_obs_history = 1
-        self.include_act_history = 0
+        self.include_obs_history = 10
+        self.include_act_history = 10
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 

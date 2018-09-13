@@ -12,7 +12,7 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0]*8,[-1.0]*8])
         self.action_scale = 100.0
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
         obs_dim = 27
 

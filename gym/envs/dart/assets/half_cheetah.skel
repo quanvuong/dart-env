@@ -310,7 +310,7 @@
                 <parent>h_pelvis</parent>
                 <child>b_thigh</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		     <limit>
                     	<lower>-0.52</lower>
                     	<upper>1.05</upper>
@@ -329,7 +329,7 @@
                 <parent>b_thigh</parent>
                 <child>b_shin</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		     <limit>
                     	<lower>-0.785</lower>
                     	<upper>0.785</upper>
@@ -348,7 +348,7 @@
                 <parent>b_shin</parent>
                 <child>b_foot</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		            <limit>
                     	<lower>-0.4</lower>
                     	<upper>0.785</upper>
@@ -369,7 +369,7 @@
                 <parent>h_pelvis</parent>
                 <child>f_thigh</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		     <limit>
                     	<lower>-1</lower>
                     	<upper>0.7</upper>
@@ -388,7 +388,7 @@
                 <parent>f_thigh</parent>
                 <child>f_shin</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		     <limit>
                     	<lower>-1.2</lower>
                     	<upper>0.87</upper>
@@ -407,7 +407,7 @@
                 <parent>f_shin</parent>
                 <child>f_foot</child>
                 <axis>
-                    <xyz>0.0 0.0 1.0</xyz>
+                    <xyz>0.0 0.0 -1.0</xyz>
 		            <limit>
                     	<lower>-0.5</lower>
                     	<upper>0.5</upper>
