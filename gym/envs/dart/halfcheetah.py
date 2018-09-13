@@ -105,21 +105,8 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.check_collision()
 
     def terminated(self):
-        self.fall_on_ground = False
-        contacts = self.dart_world.collision_result.contacts
-        total_force_mag = 0
-        permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2]]
-        for contact in contacts:
-            total_force_mag += np.square(contact.force).sum()
-            if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
-                self.fall_on_ground = True
-
         s = self.state_vector()
-        height = self.robot_skeleton.bodynodes[2].com()[1]
-        ang = self.robot_skeleton.q[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
-            #and not self.fall_on_ground)
-            and (height > self.height_threshold_low) and (abs(ang) < .4))
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())
         return done
 
     def pre_advance(self):
