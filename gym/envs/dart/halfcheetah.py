@@ -35,12 +35,12 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.total_dist = []
 
-        self.include_obs_history = 10
-        self.include_act_history = 10
+        self.include_obs_history = 1
+        self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['half_cheetah.skel'], 5, obs_dim, self.control_bounds, disableViewer=True, dt=0.01)
+        dart_env.DartEnv.__init__(self, ['half_cheetah.skel'], 10, obs_dim, self.control_bounds, disableViewer=True, dt=0.005)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
@@ -125,6 +125,13 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         reward += alive_bonus * step_skip
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
+
+        s = self.state_vector()
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())
+
+        if done:
+            reward = 0
+
         return reward
 
     def step(self, a):

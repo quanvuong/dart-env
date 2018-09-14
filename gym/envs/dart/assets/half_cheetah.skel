@@ -256,10 +256,10 @@
                     <color>1.0 0.5 0.0</color>
                 </visualization_shape>
                 <collision_shape>
-                    <transformation>0.045 -0.07 0.0 0.0 0.0 -0.6</transformation>
+                    <transformation>0.045 -0.07 0.0 1.5707963267948966 0.6 0.0</transformation>
                     <geometry>
                         <capsule>
-                            <height>0.07</height>
+                            <height>0.14</height>
                             <radius>0.046</radius>
                         </capsule>
                     </geometry>

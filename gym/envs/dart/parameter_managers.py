@@ -451,8 +451,8 @@ class antParamManager:
         self.tilt_z_range = [-0.78, 0.78]
         self.tilt_x_range = [-0.78, 0.78]
 
-        self.activated_param = [0, 3, 6, 9, 12, 21,22,23]
-        self.controllable_param = [0, 3, 6, 9, 12, 21,22,23]
+        self.activated_param = [0, 23]
+        self.controllable_param = [0, 23]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
