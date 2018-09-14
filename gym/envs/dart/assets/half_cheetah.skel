@@ -317,7 +317,7 @@
                     </limit>
                     <dynamics>
                         <damping>6.0</damping>
-                        <stiffness>240.0</stiffness>
+                        <spring_stiffness>240.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0</init_pos>
@@ -336,7 +336,7 @@
                     </limit>
                     <dynamics>
                         <damping>4.5</damping>
-                        <stiffness>180.0</stiffness>
+                        <spring_stiffness>180.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -355,7 +355,7 @@
                     </limit>
                     <dynamics>
                         <damping>3.0</damping>
-                        <stiffness>120.0</stiffness>
+                        <spring_stiffness>120.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -376,7 +376,7 @@
                     </limit>
                     <dynamics>
                         <damping>4.5</damping>
-                        <stiffness>180.0</stiffness>
+                        <spring_stiffness>180.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0</init_pos>
@@ -395,7 +395,7 @@
                     </limit>
                     <dynamics>
                         <damping>3.0</damping>
-                        <stiffness>120.0</stiffness>
+                        <spring_stiffness>120.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>
@@ -414,7 +414,7 @@
                     </limit>
                     <dynamics>
                         <damping>1.5</damping>
-                        <stiffness>60.0</stiffness>
+                        <spring_stiffness>60.0</spring_stiffness>
                     </dynamics>
                 </axis>
                 <init_pos>0.0</init_pos>

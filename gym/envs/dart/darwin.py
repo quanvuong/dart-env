@@ -82,7 +82,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf','darwinmodel/robotis_op2.urdf'], 15, obs_dim, self.control_bounds, disableViewer=True)
 
-        self.dart_world.set_gravity([0,0,0.0])
+        self.dart_world.set_gravity([0,0,-9.81])
 
         self.dart_world.set_collision_detector(0)
 
