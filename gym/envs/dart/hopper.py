@@ -46,7 +46,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
 
-        self.dart_worlds[0].set_collision_detector(1)
+        self.dart_worlds[0].set_collision_detector(3)
         self.dart_worlds[1].set_collision_detector(0)
         self.dart_worlds[2].set_collision_detector(1)
 

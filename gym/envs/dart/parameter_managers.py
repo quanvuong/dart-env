@@ -353,8 +353,8 @@ class walker2dParamManager:
         self.frame_skip_range = [4, 10]
         self.up_noise_range = [0.0, 1.0]
 
-        self.activated_param = [14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
-        self.controllable_param = [14]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
+        self.activated_param = [13,14,15,16]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
+        self.controllable_param = [13,14,15,16]#[0,1,2,3,4,5,6,  7,8,9,10,11,12,  13, 14, 15, 16]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -443,16 +443,16 @@ class walker2dParamManager:
 class antParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
-        self.mass_range = [0.1, 5.0]
+        self.mass_range = [1.0, 5.0]
         self.damping_range = [0.2, 2.0]
-        self.friction_range = [0.2, 1.0] # friction range
+        self.friction_range = [0.2, 1.0]  # friction range
         self.restitution_range = [0.0, 0.5]
         self.power_range = [50, 200]
         self.tilt_z_range = [-0.78, 0.78]
         self.tilt_x_range = [-0.78, 0.78]
 
-        self.activated_param = [0, 23]
-        self.controllable_param = [0, 23]
+        self.activated_param = [0,3,6,9,12,21,22,23]
+        self.controllable_param = [0,3,6,9,12,21,22,23]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None

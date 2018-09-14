@@ -21,58 +21,14 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.control_bounds = np.array([np.ones(20,), np.ones(20,)])
         # LOWER CONTROL BOUNDS
-        #LEFT HANDS
-        self.control_bounds[0,0] = (2518 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,1] = (2248 - 2048)*0.088*np.pi/180# - np.pi/2
-        self.control_bounds[0,2] = (1712 - 2048)*0.088*np.pi/180# - np.pi/4
-        #RIGHT HANDS
-        self.control_bounds[0,3] = (1498 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,4] = (1845 - 2048)*0.088*np.pi/180# - np.pi/8
-        self.control_bounds[0,5] = (2381 - 2048)*0.088*np.pi/180# - np.pi/4
-        #head
-        self.control_bounds[0,6] = -0.01
-        self.control_bounds[0,7] = -0.01
-        #LEFT LEG
-        self.control_bounds[0,8] = 0#-np.pi/25
-        self.control_bounds[0,9] = -0.159600#(2052-2048)*(np.pi/180)*0.088 - np.pi/25
-        self.control_bounds[0,10] = 0.529600#0.68 - 0.076
-        self.control_bounds[0,11] = -1.417000#-0.93 - 0.076
-        self.control_bounds[0,12] = -0.822900#(1707-2048)*(np.pi/180)*0.088 - 0.50
-        self.control_bounds[0,13] = -0.310000#(2039-2048)*(np.pi/180)*0.088 - 0.50
+        self.control_bounds[0] = [-1.0]*20
+        self.control_bounds[1] = [1.0]*20
 
-        self.control_bounds[0,14] = 0#-np.pi/25
-        self.control_bounds[0,15] = -0.089000#(2044-2048)*(np.pi/180)*0.088 - np.pi/100
-        self.control_bounds[0,16] = -0.936200#-0.68 - 0.076
-        self.control_bounds[0,17] = 0.565500#0.93 - 0.076
-        self.control_bounds[0,18] = (2389-2048)*(np.pi/180)*0.088 - 0.050#0.365700#
-        self.control_bounds[0,19] = (2057-2048)*(np.pi/180)*0.088 - 0.050#-0.248600#
+        self.control_limits_low = np.array([-np.pi/2, -np.pi/4,0,-np.pi/2,0,-np.pi/2,0.0,0.0,-np.pi/5,-np.pi/3,-np.pi/6,-np.pi/2,-np.pi/4,-np.pi/4,-np.pi/2,0,-np.pi/2,0,-np.pi/4,-np.pi/4])
+        self.control_limits_high = np.array([np.pi/2,0,np.pi/2,np.pi/2,np.pi/4,0,0.0,0.0,np.pi/20,0,np.pi/2,0,np.pi/4,np.pi/4,np.pi/5,np.pi/3,np.pi/6,np.pi/2,np.pi/4,np.pi/4])
 
-        ### UPPER BOUNDS
-        self.control_bounds[1,0] = (2518 - 2048)*0.088*np.pi/180# + np.pi/8
-        self.control_bounds[1,1] = (2248 - 2048)*0.088*np.pi/180# + np.pi/8
-        self.control_bounds[1,2] = (1712 - 2048)*0.088*np.pi/180# + np.pi/4
-        #RIGHT HANDS
-        self.control_bounds[1,3] = (1498 - 2048)*0.088*np.pi/180# + np.pi/8
-        self.control_bounds[1,4] = (1845 - 2048)*0.088*np.pi/180# + np.pi/2
-        self.control_bounds[1,5] = (2381 - 2048)*0.088*np.pi/180# + np.pi/4
-        #head
-        self.control_bounds[1,6] = 0.01
-        self.control_bounds[1,7] = 0.01
-        #LEFT LEG
-        self.control_bounds[1,8] = 0#np.pi/25
-        self.control_bounds[1,9] = 0.11200#(2052-2048)*(np.pi/180)*0.088 + np.pi/100
-        self.control_bounds[1,10] = 0.936200#0.68 + 0.076
-        self.control_bounds[1,11] = -0.562400#-0.93 + 0.076
-        self.control_bounds[1,12] = -0.339600#(1707-2048)*(np.pi/180)*0.088 + 0.050
-        self.control_bounds[1,13] = 0.236300#(2039-2048)*(np.pi/180)*0.088 + 0.050
-
-        self.control_bounds[1,14] = 0#np.pi/25
-        self.control_bounds[1,15] = 0.138100#(2044-2048)*(np.pi/180)*0.088 + np.pi/25
-        self.control_bounds[1,16] = -0.529600#-0.68 + 0.076
-        self.control_bounds[1,17] = 1.415500#0.93 + 0.076
-        self.control_bounds[1,18] = (2389-2048)*(np.pi/180)*0.088 +0.050 #0.833700#
-        self.control_bounds[1,19] = (2057-2048)*(np.pi/180)*0.088 + 0.050 #0.280800#
         self.ndofs = 26
+
 
         self.t = 0
         self.preverror = np.zeros(self.ndofs,)
@@ -87,7 +43,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.1
+        self.final_tv = 0.2
         self.tv_endtime = 0.01
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
@@ -96,7 +52,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.alive_bonus = 4.0
         self.energy_weight = 0.01
-        self.vel_reward_weight = 40.0
+        self.vel_reward_weight = 10.0
 
         self.assist_timeout = 10.0
         self.assist_schedule = [[0.0, [20000, 2000]], [3.0, [15000, 1500]], [6.0, [11250.0, 1125.0]]]
@@ -105,9 +61,28 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step = 0
 
+        self.include_obs_history = 1
+        self.include_act_history = 0
+        obs_dim *= self.include_obs_history
+        obs_dim += len(self.control_bounds[0]) * self.include_act_history
+        obs_perm_base = np.array(
+            [-3,-4,-5  ,-0.0001,-1,-2,  6,7,  -14,-15,-16,-17,-18,-19,   -8,-9,-10,-11,-12,-13,
+             -23,-24,-25,  -20,-21,-22,  26,27,  -34,-35,-36,-37,-38,-39,  -28,-29,-30,-31,-32,-33,
+             -40,41,   42,-43,44,-45,46,-47])
+        act_perm_base = np.array([-3,-4,-5  ,-0.0001,-1,-2,  6,7,  -14,-15,-16,-17,-18,-19,   -8,-9,-10,-11,-12,-13])
+        self.obs_perm = np.copy(obs_perm_base)
+
+        for i in range(self.include_obs_history - 1):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(obs_perm_base) * (np.abs(obs_perm_base) + len(self.obs_perm))])
+        for i in range(self.include_act_history):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
+        self.act_perm = np.copy(act_perm_base)
+
         dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf','darwinmodel/robotis_op2.urdf'], 15, obs_dim, self.control_bounds, disableViewer=True)
 
-        self.dart_world.set_gravity([0,0,-9.81])
+        self.dart_world.set_gravity([0,0,0.0])
 
         self.dart_world.set_collision_detector(0)
 
@@ -134,11 +109,12 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         clamped_control = np.array(a)
 
         for i in range(len(clamped_control)):
-            clamped_control[i] = ((self.control_bounds[0][i] - self.control_bounds[1][i])/(3))*(clamped_control[i] +1)  + self.control_bounds[1][i]
             if clamped_control[i] > self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
+
+        clamped_control = (clamped_control + 1.0 ) * 0.5 * (self.control_limits_high - self.control_limits_low) + self.control_limits_low
 
         self.target[6:]= clamped_control# + #*self.action_scale# + self.ref_trajectory_right[self.count_right,6:]# + 
 
@@ -185,13 +161,13 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                 self.kd[i - 6] *qdot[i]
             self.preverror[i] = (q[i] - self.target[i])
         
-        torqs = tau#self.ClampTorques(tau)
+        torqs = self.ClampTorques(tau)
         
         return torqs[6:]
         
 
     def ClampTorques(self,torques):
-        torqueLimits = 4.5
+        torqueLimits = 9.0
         
         for i in range(6,26):
             if torques[i] > torqueLimits:#
@@ -297,6 +273,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         qpos[23] = 0.88 + np.random.uniform(low=-0.01,high=0.01,size=1)
         qpos[24] = (2389-2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
         qpos[25] = (2057 - 2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
+
+        self.init_q = qpos
 
         # set the mass
         '''

@@ -368,7 +368,7 @@
             <body name="back_right_leg_seg3">
                 <transformation>0.4 0.75 -0.4 0.0 0.0 0.0</transformation>
                 <inertia>
-                    <mass>0.6491138</mass>
+                    <mass>0.06491138</mass>
                     <offset>0.2 0.0 -0.2</offset>
                 </inertia>
                 <visualization_shape>
@@ -426,7 +426,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -445,7 +445,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -472,7 +472,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -491,7 +491,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -517,7 +517,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -536,7 +536,7 @@
                     	<upper>1.22173</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -563,7 +563,7 @@
                     	<upper>0.523599</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>
@@ -582,7 +582,7 @@
                     	<upper>1.22173</upper>
                     </limit>
                     <dynamics>
-                        <damping>1.0</damping>
+                        <damping>10.0</damping>
                         <friction>0.0</friction>
                     </dynamics>
                 </axis>

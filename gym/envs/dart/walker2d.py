@@ -13,7 +13,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.control_bounds[1][4] = -0.3
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = False
         self.resample_MP = False
         self.UP_noise_level = 0.0
@@ -89,6 +89,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.act_delay = 0
 
         #print('sim parameters: ', self.param_manager.get_simulator_parameters())
+        self.current_param = self.param_manager.get_simulator_parameters()
 
         utils.EzPickle.__init__(self)
 

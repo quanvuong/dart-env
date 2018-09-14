@@ -28,4 +28,72 @@
         <parent link="world" />
         <child link="ground_link" />
     </joint>
+
+    <link name="pillar1">
+        <inertial>
+            <mass value="1.0" />
+            <origin xyz="0 0 -0.368" rpy="0 0 0"/>
+            <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0" />
+        </inertial>
+        <visual>
+            <origin xyz="-1 1 -0.368" rpy="0 0 0" />
+            <geometry>
+                <box size="0.1 0.1 10.0" />
+            </geometry>
+            <material name="Grey">
+                <color rgba ="1.0 1.0 0.55 1.0"/>
+            </material>
+        </visual>
+    </link>
+    <joint name="pillar1joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="ground_link" />
+        <child link="pillar1" />
+    </joint>
+
+    <link name="pillar2">
+        <inertial>
+            <mass value="1.0" />
+            <origin xyz="0 0 -0.368" rpy="0 0 0"/>
+            <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0" />
+        </inertial>
+        <visual>
+            <origin xyz="0 1 -0.368" rpy="0 0 0" />
+            <geometry>
+                <box size="0.1 0.1 10.0" />
+            </geometry>
+            <material name="Grey">
+                <color rgba ="1.0 1.0 0.55 1.0"/>
+            </material>
+        </visual>
+    </link>
+    <joint name="pillar2joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="ground_link" />
+        <child link="pillar2" />
+    </joint>
+
+
+    <link name="pillar3">
+        <inertial>
+            <mass value="1.0" />
+            <origin xyz="0 0 -0.368" rpy="0 0 0"/>
+            <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0" />
+        </inertial>
+        <visual>
+            <origin xyz="1 1 -0.368" rpy="0 0 0" />
+            <geometry>
+                <box size="0.1 0.1 10.0" />
+            </geometry>
+            <material name="Grey">
+                <color rgba ="1.0 1.0 0.55 1.0"/>
+            </material>
+        </visual>
+    </link>
+    <joint name="pillar3joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="ground_link" />
+        <child link="pillar3" />
+    </joint>
+
 </robot>

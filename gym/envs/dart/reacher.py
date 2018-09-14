@@ -14,7 +14,7 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         dart_env.DartEnv.__init__(self, 'reacher.skel', 4, 21, self.control_bounds, disableViewer=True)
         utils.EzPickle.__init__(self)
 
-    def _step(self, a):
+    def step(self, a):
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
@@ -42,10 +42,6 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         if done:
             reward += 10.0
 
-        if done or self.num_steps > 100:
-            self.target_sets.append(self.robot_skeleton.bodynodes[2].to_world(fingertip))
-            while len(self.target_sets) > 500:
-                self.target_sets.pop(0)
 
         return ob, reward, done, {}
 
@@ -63,10 +59,8 @@ class DartReacherEnv(dart_env.DartEnv, utils.EzPickle):
         while True:
             self.target = self.np_random.uniform(low=-1, high=1, size=3)
             if np.linalg.norm(self.target) < 1.5: break
-        if len(self.target_sets) > 0:
-            #print(self.target_sets)
-            if np.random.random() < 0.5:
-                self.target = self.target_sets[np.random.randint(len(self.target_sets))]
+
+        self.target[1] = np.abs(self.target[1])
         self.dart_world.skeletons[0].q = [0, 0, 0, self.target[0], self.target[1], self.target[2]]
 
         self.num_steps = 0

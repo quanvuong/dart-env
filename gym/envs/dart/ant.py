@@ -65,6 +65,7 @@ class DartAntEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.tilt_x = 0
         self.tilt_z = 0
+        self.current_param = self.param_manager.get_simulator_parameters()
 
         #self.param_manager.set_simulator_parameters(self.current_param)
 
