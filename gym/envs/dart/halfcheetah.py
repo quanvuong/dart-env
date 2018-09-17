@@ -14,8 +14,8 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         self.g_action_scaler = 1.0
         self.action_scale = np.array([120, 90, 60, 120, 60, 30]) * 1.0
-        self.train_UP = True
-        self.noisy_input = True
+        self.train_UP = False
+        self.noisy_input = False
         obs_dim = 17
         self.tilt_z = 0.0
 
@@ -115,16 +115,9 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
     def reward_func(self, a, step_skip=1):
         posafter = self.robot_skeleton.q[0]
         alive_bonus = 1.0
-        joint_limit_penalty = 0
-        for j in [-2]:
-            if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
-                joint_limit_penalty += abs(1.5)
-            if (self.robot_skeleton.q_upper[j] - self.robot_skeleton.q[j]) < 0.05:
-                joint_limit_penalty += abs(1.5)
         reward = (posafter - self.posbefore) / self.dt * self.velrew_weight
         reward += alive_bonus * step_skip
-        reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
+        reward -= 1e-1 * np.square(a).sum()
 
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())

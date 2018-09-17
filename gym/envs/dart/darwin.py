@@ -43,26 +43,26 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.2
+        self.final_tv = 0.0
         self.tv_endtime = 0.01
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.alive_bonus = 4.0
+        self.alive_bonus = 8.0
         self.energy_weight = 0.01
         self.vel_reward_weight = 10.0
         self.pose_weight = 0.2
 
-        self.assist_timeout = 0.0
-        self.assist_schedule = [[0.0, [20000, 2000]], [3.0, [15000, 1500]], [6.0, [11250.0, 1125.0]]]
+        self.assist_timeout = 10.0
+        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
 
         self.cur_step = 0
 
-        self.torqueLimits = 12.0
+        self.torqueLimits = 6.0
         self.target_torque_limit = 2.0
 
         self.include_obs_history = 1
@@ -224,6 +224,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward =  -self.energy_weight*np.sum(self.pid_tau)**2 + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
         #print(self.energy_weight*np.sum(self.pid_tau)**2, vel_rew, pose_math_rew * self.pose_weight)
+
+        reward += 10.0 * (self.robot_skeleton.bodynodes[-1].com()[2] + 0.4)
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
