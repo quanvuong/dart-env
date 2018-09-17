@@ -13,7 +13,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         #self.control_bounds[1][4] = -0.3
         self.action_scale = np.array([100, 100, 20, 100, 100, 20])
         obs_dim = 17
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = False
         self.resample_MP = False
         self.UP_noise_level = 0.0
@@ -33,6 +33,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
+
 
         obs_perm_base = np.array(
             [0.0001, 1, 5, 6, 7, 2, 3, 4, 8, 9, 10, 14, 15, 16, 11, 12, 13])
@@ -85,6 +86,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         # data structure for modeling delays in observation and action
         self.observation_buffer = []
         self.action_buffer = []
+        self.state_buffer = []
+
         self.obs_delay = 0
         self.act_delay = 0
 
@@ -201,10 +204,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             UP_parameters = self.param_manager.get_simulator_parameters()
             noise_range = 0.5 / (1.0+np.exp(-20.0*self.UP_noise_level+10.0))
             perturbed_pm = np.copy(UP_parameters)
-            for updim in range(len(perturbed_pm)-1): # noise parameter should always be the last one, so no noise added
-                lb = np.clip(perturbed_pm[updim] - noise_range, 0, 1)
-                ub = np.clip(perturbed_pm[updim] + noise_range, 0, 1)
-                perturbed_pm[updim] += np.random.uniform(lb, ub)
+            if self.UP_noise_level > 0.0:
+                for updim in range(len(perturbed_pm)-1): # noise parameter should always be the last one, so no noise added
+                    lb = np.clip(perturbed_pm[updim] - noise_range, 0, 1)
+                    ub = np.clip(perturbed_pm[updim] + noise_range, 0, 1)
+                    perturbed_pm[updim] = np.random.uniform(lb, ub)
             final_obs = np.concatenate([final_obs, perturbed_pm])
         if self.noisy_input:
             final_obs = final_obs + np.random.normal(0, .01, len(final_obs))

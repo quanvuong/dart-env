@@ -24,8 +24,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds[0] = [-1.0]*20
         self.control_bounds[1] = [1.0]*20
 
-        self.control_limits_low = np.array([-np.pi/2, -np.pi/4,0,-np.pi/2,0,-np.pi/2,0.0,0.0,-np.pi/5,-np.pi/3,-np.pi/6,-np.pi/2,-np.pi/4,-np.pi/4,-np.pi/2,0,-np.pi/2,0,-np.pi/4,-np.pi/4])
-        self.control_limits_high = np.array([np.pi/2,0,np.pi/2,np.pi/2,np.pi/4,0,0.0,0.0,np.pi/20,0,np.pi/2,0,np.pi/4,np.pi/4,np.pi/5,np.pi/3,np.pi/6,np.pi/2,np.pi/4,np.pi/4])
+        self.control_limits_low = np.array([-np.pi/2, -np.pi/4, 0,    -np.pi/2, 0, -np.pi/2,       0.0,0.0,  -np.pi/10, -np.pi/10, -np.pi/6, -np.pi/2, -np.pi/4, -np.pi/4,                         -np.pi/10, 0,          -np.pi/2,  0,       -np.pi/4, -np.pi/40])
+        self.control_limits_high = np.array([np.pi/2, 0, np.pi/2,      np.pi/2, np.pi/4,0.0,       0.0,0.0,  np.pi/10,  0,         np.pi/2,  0,        np.pi/4,  np.pi/4,                          np.pi/10,  np.pi/10,   np.pi/6,   np.pi/2, np.pi/4, np.pi/40])
 
         self.ndofs = 26
 
@@ -53,13 +53,17 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.alive_bonus = 4.0
         self.energy_weight = 0.01
         self.vel_reward_weight = 10.0
+        self.pose_weight = 0.2
 
-        self.assist_timeout = 10.0
+        self.assist_timeout = 0.0
         self.assist_schedule = [[0.0, [20000, 2000]], [3.0, [15000, 1500]], [6.0, [11250.0, 1125.0]]]
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
 
         self.cur_step = 0
+
+        self.torqueLimits = 12.0
+        self.target_torque_limit = 2.0
 
         self.include_obs_history = 1
         self.include_act_history = 0
@@ -87,6 +91,10 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.set_collision_detector(0)
 
         self.robot_skeleton.set_self_collision_check(False)
+
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(10.0)
+        for bn in self.robot_skeleton.bodynodes:
+            bn.set_friction_coeff(10.0)
 
         utils.EzPickle.__init__(self)
 
@@ -124,6 +132,10 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(15):
             self.tau[6:] = self.PID()
+
+            #f2 = self._bodynode_spd(self.robot_skeleton.bodynode('MP_BODY'), 5000, 1)
+            #f3 = self._bodynode_spd(self.robot_skeleton.bodynode('MP_BODY'), 5000, 2)
+            #self.robot_skeleton.bodynode('MP_BODY').add_ext_force(np.array([0,f2,f3]))
             
             if self.t < self.assist_timeout:
                 force = self._bodynode_spd(self.robot_skeleton.bodynode('MP_NECK'), self.current_pd, 1)
@@ -160,20 +172,19 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                 (q[i] - self.target[i]) - \
                 self.kd[i - 6] *qdot[i]
             self.preverror[i] = (q[i] - self.target[i])
-        
+
+        self.pid_tau = np.copy(np.clip(tau, -12, 12))
         torqs = self.ClampTorques(tau)
         
         return torqs[6:]
         
 
     def ClampTorques(self,torques):
-        torqueLimits = 9.0
-        
         for i in range(6,26):
-            if torques[i] > torqueLimits:#
-                torques[i] = torqueLimits 
-            if torques[i] < -torqueLimits:
-                torques[i] = -torqueLimits
+            if torques[i] > self.torqueLimits:#
+                torques[i] = self.torqueLimits
+            if torques[i] < -self.torqueLimits:
+                torques[i] = -self.torqueLimits
 
         return torques
 
@@ -209,12 +220,27 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         if self.t < self.tv_endtime:
             vel_rew *= 0.5
 
-        reward =  -self.energy_weight*np.sum(a)**2 + vel_rew + self.alive_bonus
+        pose_math_rew = np.sum(np.abs(np.array(self.init_q - self.robot_skeleton.q)[[7, 10, 14,15,19, 20,21,25]])**2)
+
+        reward =  -self.energy_weight*np.sum(self.pid_tau)**2 + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
+        #print(self.energy_weight*np.sum(self.pid_tau)**2, vel_rew, pose_math_rew * self.pose_weight)
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all() and (com_height > -0.60) and (self.robot_skeleton.q[0] > -0.6) and (self.robot_skeleton.q[0]<0.6) and (abs(self.robot_skeleton.q[1]) < 0.50) and (abs(self.robot_skeleton.q[2]) < 0.50))
-        
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all() and (com_height > -0.45) and (self.robot_skeleton.q[0] > -0.6) and (self.robot_skeleton.q[0]<0.6) and (abs(self.robot_skeleton.q[1]) < 0.50) and (abs(self.robot_skeleton.q[2]) < 0.50))
+
+        self.fall_on_ground = False
+        contacts = self.dart_world.collision_result.contacts
+        total_force_mag = 0
+        permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2],
+                                    self.robot_skeleton.bodynodes[-7], self.robot_skeleton.bodynodes[-8]]
+        for contact in contacts:
+            total_force_mag += np.square(contact.force).sum()
+            if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
+                self.fall_on_ground = True
+        if self.fall_on_ground:
+            done = True
+
         if done:
             reward =0
 

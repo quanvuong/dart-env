@@ -14,9 +14,22 @@ class PointReachEnv(gym.Env):
     }
 
     def __init__(self):
+        self.action_space = spaces.Box(low = np.array([-1, -1]), high = np.array([1, 1]))
+        self.dt = 0.3
 
-        self.action_space = spaces.Box(low = np.array([-0.5,-0.5]), high = np.array([0.5,0.5]))
-        self.observation_space = spaces.Box(np.array([-10, -10]), np.array([10,10]))
+        self.mass = 1.5
+        self.mass_range = [0.2, 10.0]
+
+        self.wind = np.array([0.15, 0.15])
+
+        self.train_UP = False
+        self.resample_MP = False
+
+        if not self.train_UP:
+            self.observation_space = spaces.Box(np.array([-10, -10, -np.inf, -np.inf]), np.array([10, 10, np.inf, np.inf]))
+        else:
+            self.observation_space = spaces.Box(np.array([-10, -10, -np.inf, -np.inf, -np.inf]),
+                                                np.array([10, 10, np.inf, np.inf, np.inf]))
 
         self._seed()
         self.viewer = None
@@ -26,30 +39,48 @@ class PointReachEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def _step(self, action):
-        action = action.clip(-0.5, 0.5)
+    def step(self, action):
+        action = action.clip(-1, 1)
 
-        self.state += action
+        self.state[2:] += action * self.dt / self.mass + self.wind
+        self.state[0:2] += self.state[2:] * self.dt
         self.state = self.state.clip(-10, 10)
 
-        reward = -0.05 - np.min([np.linalg.norm(self.state - self.targets[0]), np.linalg.norm(self.state - self.targets[1])])
-        if np.linalg.norm(self.state - self.targets[0]) < 0.8:
+        reward = -0.05 - np.linalg.norm(self.state[0:2] - self.targets[0]) - np.sum(np.abs(action)) * 5.0
+        if np.linalg.norm(self.state[0:2] - self.targets[0]) < 0.8:
             reward += 25
 
         done = False
 
         self.current_action = np.copy(action)
 
-        return np.array(self.state), reward, done, {}
+        obs = np.array(self.state)
 
-    def _reset(self):
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(2,))
+        if self.train_UP:
+            obs = np.concatenate([obs, [0.0]])
 
-        self.targets = [np.array([9.5, 1.0]), np.array([-7.0, 1.0])]
+        return obs, reward, done, {}
+
+    def reset(self):
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
+        self.state[0] = self.np_random.uniform(-8.0, 8.0)
+        self.state[1] = self.np_random.uniform(-8.0, 8.0)
+
+        self.targets = [np.array([0.0, 0.0])]
         self.current_action = np.ones(2)
-        return np.array(self.state)
 
-    def _render(self, mode='human', close=False):
+        if self.resample_MP:
+            self.mass = np.random.uniform(self.mass_range[0], self.mass_range[1])
+
+        if self.train_UP:
+            #obs = np.concatenate([self.state, [self.mass]])
+            obs = np.concatenate([self.state, [1.5]])
+        else:
+            obs = np.copy(self.state)
+
+        return obs
+
+    def render(self, mode='human', close=False):
         if close:
             if self.viewer is not None:
                 self.viewer.close()
@@ -68,7 +99,7 @@ class PointReachEnv(gym.Env):
             self.viewer = rendering.Viewer(screen_width, screen_height)
 
             agent = rendering.make_circle(radius=0.2*scale)
-            self.agent_transform = rendering.Transform(self.state * scale + offset)
+            self.agent_transform = rendering.Transform(self.state[0:2] * scale + offset)
             agent.add_attr(self.agent_transform)
             agent.set_color(0.5, 0.5, 1.0)
             self.viewer.add_geom(agent)
@@ -76,19 +107,12 @@ class PointReachEnv(gym.Env):
             target1 = rendering.make_circle(radius=0.2*scale)
             target1.add_attr(rendering.Transform(self.targets[0] * scale + offset))
             target1.set_color(0.5, 1.0, 0.5)
-            target2 = rendering.make_circle(radius=0.2*scale)
-            target2.add_attr(rendering.Transform(self.targets[1] * scale + offset))
-            target2.set_color(0.5, 1.0, 0.5)
             self.viewer.add_geom(target1)
-            self.viewer.add_geom(target2)
 
         if self.state is None: return None
 
-        new_pos = self.state * scale + offset
+        new_pos = self.state[0:2] * scale + offset
         self.agent_transform.set_translation(new_pos[0], new_pos[1])
-        self.actline = self.viewer.draw_line(start=self.state * scale + offset, end=(
-                                                                                    self.state + self.current_action / np.linalg.norm(
-                                                                                        self.current_action) * 0.5) * scale + offset)
-        self.actline.set_color(1.0, 0.5, 0.5)
+
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')

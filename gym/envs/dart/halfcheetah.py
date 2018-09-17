@@ -14,14 +14,14 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         self.control_bounds = np.array([[1.0]*6,[-1.0]*6])
         self.g_action_scaler = 1.0
         self.action_scale = np.array([120, 90, 60, 120, 60, 30]) * 1.0
-        self.train_UP = False
-        self.noisy_input = False
+        self.train_UP = True
+        self.noisy_input = True
         obs_dim = 17
         self.tilt_z = 0.0
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
 
         self.actuator_nonlinearity = False
         self.actuator_nonlin_coef = 1.0
@@ -40,7 +40,7 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['half_cheetah.skel'], 10, obs_dim, self.control_bounds, disableViewer=True, dt=0.005)
+        dart_env.DartEnv.__init__(self, ['half_cheetah.skel'], 5, obs_dim, self.control_bounds, disableViewer=True, dt=0.01)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
@@ -106,7 +106,7 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
     def terminated(self):
         s = self.state_vector()
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all())
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and np.abs(s[2]) < 1.3)
         return done
 
     def pre_advance(self):
@@ -155,7 +155,6 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.q[1:],
             self.robot_skeleton.dq,
         ])
-        state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
@@ -215,12 +214,10 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
     def state_vector(self):
         s = np.copy(np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]))
-        s[1] += self.zeroed_height
         return s
 
     def set_state_vector(self, s):
         snew = np.copy(s)
-        snew[1] -= self.zeroed_height
         self.robot_skeleton.q = snew[0:len(self.robot_skeleton.q)]
         self.robot_skeleton.dq = snew[len(self.robot_skeleton.q):]
 

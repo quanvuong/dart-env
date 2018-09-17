@@ -20,6 +20,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.action_buffer = []
         self.obs_delay = 0
         self.act_delay = 0
+        self.tilt_z = 0
 
         mujoco_env.MujocoEnv.__init__(self, 'half_cheetah.xml', 5)
         utils.EzPickle.__init__(self)

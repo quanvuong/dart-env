@@ -5,7 +5,32 @@ from gym.envs.mujoco import mujoco_env
 class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def __init__(self):
+        self.include_obs_history = 1
+        self.include_act_history = 0
+
+        obs_perm_base = np.array(
+            [0.0001, 1, 5, 6, 7, 2, 3, 4, 8, 9, 10, 14, 15, 16, 11, 12, 13])
+        act_perm_base = np.array([3, 4, 5, 0.0001, 1, 2])
+        self.obs_perm = np.copy(obs_perm_base)
+
+        for i in range(self.include_obs_history - 1):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(obs_perm_base) * (np.abs(obs_perm_base) + len(self.obs_perm))])
+        for i in range(self.include_act_history):
+            self.obs_perm = np.concatenate(
+                [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
+        self.act_perm = np.array([3, 4, 5, 0.0001, 1, 2])
+
+        # data structure for modeling delays in observation and action
+        self.observation_buffer = []
+        self.action_buffer = []
+        self.state_buffer = []
+
+        self.obs_delay = 1
+        self.act_delay = 1
+
         mujoco_env.MujocoEnv.__init__(self, "walker2d.xml", 4)
+
         utils.EzPickle.__init__(self)
 
     def pre_advance(self):
@@ -49,16 +74,41 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         return ob, reward, done, {}
 
-    def _get_obs(self):
-        qpos = self.sim.data.qpos
-        qvel = self.sim.data.qvel
-        return np.concatenate([qpos[1:], qvel]).ravel()
+    def _get_obs(self, update_buffer=True):
+        state = np.concatenate([
+            self.sim.data.qpos.flat[1:],
+            self.sim.data.qvel.flat
+        ])
+
+        if update_buffer:
+            self.observation_buffer.append(np.copy(state))
+
+        final_obs = np.array([])
+        for i in range(self.include_obs_history):
+            if self.obs_delay + i < len(self.observation_buffer):
+                final_obs = np.concatenate([final_obs, self.observation_buffer[-self.obs_delay - 1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, self.observation_buffer[0] * 0.0])
+
+        for i in range(self.include_act_history):
+            if i < len(self.action_buffer):
+                final_obs = np.concatenate([final_obs, self.action_buffer[-1 - i]])
+            else:
+                final_obs = np.concatenate([final_obs, [0.0] * 6])
+
+        return final_obs
 
     def reset_model(self):
+        qpos = self.init_qpos + self.np_random.uniform(low=-.005, high=.005, size=self.model.nq)
+        qpos[3] += 0.5
         self.set_state(
-            self.init_qpos + self.np_random.uniform(low=-.005, high=.005, size=self.model.nq),
+            qpos,
             self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         )
+
+        self.observation_buffer = []
+        self.action_buffer = []
+
         return self._get_obs()
 
     def viewer_setup(self):
