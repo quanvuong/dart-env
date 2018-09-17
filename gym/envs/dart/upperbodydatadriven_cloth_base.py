@@ -192,6 +192,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         clothScene = None
 
         #TODO: change cloth timestep to DART timestep
+        time.sleep(1)
         try:
             if clothMeshStateFile is not None:
                 clothScene = pyphysx.ClothScene(step=0.01,
@@ -816,6 +817,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #seeds = [0,0,1,2,3,4,5,6,7,8,9,10] #trajectory replay
         #seeds = [0,1,2,3,4,5,6,7,8,9,10] #control comparison against trajectory replay
         seeds = np.arange(100)
+
+        seeds = [] #4 variations  seeding
+        for i in range(10): #number of seed trials
+            seeds.append(i)
+            #for j in range(4): #number of variations
+            #    seeds.append(i)
+        #print(seeds)
         #seeds = [32, 43, 53] #failure example seeds
         #failSeeds = [27, 32, 36, 38, 39, 42, 48, 49, 53, 57, 58, 61, 63, 71, 73, 76, 87, 88, 91, 93, 97]
         #seeds = np.arange(100)
@@ -836,22 +844,24 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #seed = self.reset_number
         #print(seeds)
 
-        #try:
-        #    seed = seeds[self.reset_number]
-        #except:
-        #    print("out of seeds, exiting")
-        #    exit()
-        #    seed = self.reset_number
-            #print("all given seeds simulated")
+        #Seeding for determinism:
+        if False:
+            try:
+                seed = seeds[self.reset_number]
+            except:
+                print("out of seeds, exiting")
+                exit()
+                seed = self.reset_number
+                #print("all given seeds simulated")
 
-        #seed = 8
-        #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
-        #print("Seeding: " + str(seed))
-        #random.seed(seed)
-        #self.np_random.seed(seed)
-        #np.random.seed(seed)
-        #self.setSeed = seed
-        #self.clothScene.seedRandom(seed) #unecessary
+            #seed = 8
+            #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
+            print("Seeding: " + str(seed))
+            random.seed(seed)
+            self.np_random.seed(seed)
+            np.random.seed(seed)
+            self.setSeed = seed
+            #self.clothScene.seedRandom(seed) #unecessary
 
         #print("random.random(): " + str(random.random()))
         #print("np.random.random: " + str(np.random.random()))

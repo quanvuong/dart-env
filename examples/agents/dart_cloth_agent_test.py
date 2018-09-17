@@ -25,6 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_09_14_weakVar"
+    #trial = "experiment_2018_09_13_weakVar" #interpolated behavior, average dominant
     #trial = "experiment_2018_09_010_sawyer_rigid_hang"
     #trial = "experiment_2018_09_08_sawyer_rigid_hang"
 
@@ -440,8 +442,7 @@ if __name__ == '__main__':
         print("Failure rate detected: " + str(failures / trials))
         exit(0)
 
-
-    useMeanPolicy = True
+    useMeanPolicy = False
 
     #print("policy time")
     policy = None
@@ -458,10 +459,12 @@ if __name__ == '__main__':
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
-            init_std=0.5
+            #init_std=0.5 #exploration scaling
+            init_std=0.1
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        all_param_values[4] *= 0.01
+        #all_param_values[4] *= 0.01
+        all_param_values[4] *= 0.001 #bias output scaling
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization
@@ -478,6 +481,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
+
     for i in range(110):
         #print("here")
         o = env.reset()

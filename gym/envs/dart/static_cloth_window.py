@@ -42,6 +42,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
         self.captureIndex = 0 #increments when captureToFile is called
         self.captureDirectory = "/home/alexander/Documents/frame_capture_output"
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/4"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
         self.capturing = False
         self.key_down = []
@@ -335,8 +336,10 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         if keycode == 112: #'p'
             print("Camera data:")
             print("trans: " + str(self.scene.tb.trans))
-            print("orientation: " + str(self.scene.tb._get_orientation()))
+            print("orientation(deg): " + str(self.scene.tb._get_orientation()))
+            #print("orientation(deg): " + str(self.scene.tb._get_orientation()[0]*180/math.pi) + ", " + str(self.scene.tb._get_orientation()[1]*180/math.pi))
             print("rotation: " + str(self.scene.tb._rotation))
+            print("matrix: " + str(self.scene.tb._matrix))
             print("zoom: " + str(self.scene.tb.zoom))
             print("distance: " + str(self.scene.tb.distance))
             #print("trans: " + str(self.scene.tb.trans))

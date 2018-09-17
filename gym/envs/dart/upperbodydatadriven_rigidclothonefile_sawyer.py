@@ -158,6 +158,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
     def __init__(self):
         #feature flags
         rendering = False
+        self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = False
         self.renderCloth = False
         dt = 0.002
@@ -186,6 +187,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = False
         self.restPoseReward             = True
+        self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -195,6 +197,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.contactGeoRewardWeight           = 2  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenaltyWeight         = 5
         self.restPoseRewardWeight             = 1
+        self.variationEntropyRewardWeight     = 1
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -224,6 +227,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
         self.initialActionScale = None #set after initialization
         self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
+        self.variationTesting = False
+        self.variations = [0.25, 0.5, 0.75, 1.0] #if variationTesting then cycle through these fixed variations
+        self.variations = [1.0]
+        self.simpleWeakness = True #if true, 10x torque limits, no gravity comp
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -331,9 +338,12 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                 print(" " + str(jinfo[0]) + " " + str(jinfo[1]) + " " + str(jinfo[2]) + " " + str(jinfo[3]) + " " + str(
                     jinfo[12]))
 
+        screensize = (1280,720)
+        if self.variationTesting:
+            screensize = (720,720)
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
-                                                          screensize=(1280,720),
+                                                          screensize=screensize,
                                                           #clothMeshFile="fullgown1.obj",
                                                           clothMeshFile="tshirt_m.obj",
                                                           #clothMeshStateFile = "hanginggown.obj",
@@ -427,8 +437,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[18]) #hoop self-collision
         self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[19]) #hoop self-collision
         self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[18],self.sawyer_skel.bodynodes[19]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[4],self.sawyer_skel.bodynodes[5]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[2],self.sawyer_skel.bodynodes[4]) #hoop self-collision
+        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[4],self.sawyer_skel.bodynodes[5]) #robot self-collision
+        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[2],self.sawyer_skel.bodynodes[4]) #robot self-collision
+        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[13])  # hoop to hand collision
 
 
         # initialize the controller
@@ -499,7 +510,17 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             self.rewardsData.addReward(label="rest pose", rmin=-51.0, rmax=0, rval=0,
                                        rweight=self.restPoseRewardWeight)
 
+        if self.variationEntropyReward:
+            self.rewardsData.addReward(label="variation entropy", rmin=0, rmax=1.0, rval=0,
+                                       rweight=self.variationEntropyRewardWeight)
+
         #self.loadCharacterState(filename="characterState_1starmin")
+
+        if self.simpleWeakness:
+            print("simple weakness active...")
+            self.initialActionScale *= 10
+            print("initialActionScale: " + str(self.initialActionScale))
+
 
     def _getFile(self):
         return __file__
@@ -529,24 +550,29 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         #compute gravity compenstation and set action scale for the state
         if self.weaknessScaleVarObs:
-            grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
-            #self.additionalAction = np.array(grav_comp)
-            self.supplementalTau = np.array(grav_comp)
-            arm_tau = self.supplementalTau[11:19] #human's left arm
-            #arm_tau = self.supplementalTau[3:11] #human's right arm
-            #print("gravity comp(arm): " + str(arm_tau))
-            #max_abs = max(arm_tau.max(), arm_tau.min(), key=abs)
-            #print("     max: " + str(max_abs))
-            for i in range(len(arm_tau)):
-                self.action_scale[i+11] = self.weaknessScale*self.initialActionScale[i+11]-abs((1.0-self.weaknessScale)*arm_tau[i])
-                if(self.action_scale[i+11] < 0):
-                    if(arm_tau[i] > 0):
-                        arm_tau[i] += self.action_scale[i + 11]
-                    else:
-                        arm_tau[i] -= self.action_scale[i + 11]
-                    self.action_scale[i + 11] = 0
-            self.supplementalTau[11:19] = arm_tau
-            #print(self.action_scale)
+            if self.simpleWeakness:
+                self.action_scale = np.array(self.initialActionScale)
+                for i in range(11,19):
+                    self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+            else:
+                grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
+                #self.additionalAction = np.array(grav_comp)
+                self.supplementalTau = np.array(grav_comp)
+                arm_tau = self.supplementalTau[11:19] #human's left arm
+                #arm_tau = self.supplementalTau[3:11] #human's right arm
+                #print("gravity comp(arm): " + str(arm_tau))
+                #max_abs = max(arm_tau.max(), arm_tau.min(), key=abs)
+                #print("     max: " + str(max_abs))
+                for i in range(len(arm_tau)):
+                    self.action_scale[i+11] = self.weaknessScale*self.initialActionScale[i+11]-abs((1.0-self.weaknessScale)*arm_tau[i])
+                    if(self.action_scale[i+11] < 0):
+                        if(arm_tau[i] > 0):
+                            arm_tau[i] += self.action_scale[i + 11]
+                        else:
+                            arm_tau[i] -= self.action_scale[i + 11]
+                        self.action_scale[i + 11] = 0
+                self.supplementalTau[11:19] = arm_tau
+                #print(self.action_scale)
 
         if(self.freezeTracking):
             a=0
@@ -853,6 +879,11 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             # print("distance: " + str(dist) + " -> " + str(reward_restPose))
             reward_record.append(reward_restPose)
 
+        #TODO
+        if self.variationEntropyReward:
+            a = 0
+            reward_record.append(0)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -1020,8 +1051,13 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                     d.set_position_upper_limit(ulim[dix])
 
         if self.weaknessScaleVarObs:
-            self.weaknessScale = random.random()
+            #self.weaknessScale = random.random()
+            self.weaknessScale = random.uniform(0.2,1.0)
             #print("weaknessScale = " + str(self.weaknessScale))
+
+            if self.variationTesting:
+                self.weaknessScale = self.variations[self.reset_number % len(self.variations)]
+                #print(self.weaknessScale)
 
 
         #if(self.reset_number > 0):
@@ -1387,7 +1423,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         renderUtils.setColor(color=[0.0, 0.0, 0])
         if(self.renderOracle):
             efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-            renderUtils.drawArrow(p0=efL, p1=efL+self.prevOracle)
+            renderUtils.drawArrow(p0=efL, p1=efL+self.prevOracle*0.2)
 
         #self.collisionResult.update()
         #for c in self.collisionResult.contacts:
@@ -1427,17 +1463,23 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             depthRange = self.robotPathParams['p0_depth_range']
             org = self.sawyer_skel.bodynodes[3].to_world(np.zeros(3))
             renderUtils.setColor(color=[0.0, 0.0, 0])
-            renderUtils.drawCylinder(p0=org+np.array([0,0,self.robotPathParams['p0_depth_offset']]), p1=org+np.array([0,0,depthRange+self.robotPathParams['p0_depth_offset']]), rad=diskRad)
+            if not self.demoRendering:
+                renderUtils.drawCylinder(p0=org+np.array([0,0,self.robotPathParams['p0_depth_offset']]), p1=org+np.array([0,0,depthRange+self.robotPathParams['p0_depth_offset']]), rad=diskRad)
 
             #p3 spherical distribution
             p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'], org=self.robotPathParams['p3_el_org'])
-            p3_distribution.draw()
+            if not self.demoRendering:
+                p3_distribution.draw()
 
-            self.ikPath.draw()
+            if self.demoRendering:
+                self.ikPath.draw(controlPoints=False)
+            else:
+                self.ikPath.draw()
+
             renderUtils.setColor(color=[1.0, 0, 0])
             renderUtils.drawSphere(self.ikTarget)
             renderUtils.setColor(color=[0, 1.0, 0])
-            renderUtils.drawLines(lines=[[np.zeros(3), self.sawyer_skel.bodynodes[3].to_world(np.zeros(3))]])
+            #renderUtils.drawLines(lines=[[np.zeros(3), self.sawyer_skel.bodynodes[3].to_world(np.zeros(3))]])
             renderUtils.drawSphere(self.sawyer_skel.bodynodes[13].to_world(np.zeros(3)))
 
             d_frame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
@@ -1446,10 +1488,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                 d_frame.setQuaternion(pyutils.qSLERP(q0=self.orientationEndPoints[0].quat, q1=self.orientationEndPoints[1].quat, t=t))
                 d_frame.setOrg(org=self.ikPath.pos(t=t))
                 #d_frame.draw()
-                d_frame.drawFrame(size=0.25)
+                d_frame.drawFrame(size=0.1)
 
         #render sawyer reach
-        if self.renderSawyerReach:
+        if self.renderSawyerReach and not self.demoRendering:
             renderUtils.setColor(color=[0.75, 0.75, 0.75])
             renderUtils.drawSphere(pos=self.sawyer_skel.bodynodes[3].to_world(np.zeros(3)), rad=self.maxSawyerReach, solid=False)
 
@@ -1465,7 +1507,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         if(self.limbProgress > 0):
             renderUtils.setColor(color=[0, 1, 0])
         self.rigidClothFrame.draw(fill=True)
-        self.rigidClothFrame.drawFrame()
+        self.rigidClothFrame.drawFrame(size=0.25)
         if(self.hoopNormalObs):
             renderUtils.setColor(color=[0,0,0])
             hoop_norm = self.rigidClothFrame.toGlobal(np.array([0,0,-1])) - self.rigidClothFrame.toGlobal(np.zeros(3))
@@ -1473,7 +1515,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             renderUtils.drawArrow(p0=self.rigidClothFrame.getCenter(), p1=self.rigidClothFrame.getCenter()+hoop_norm*0.2)
         #renderUtils.drawSphere(self.rigidClothFrame.getCenter(), 0.05)
         #self.rigidClothTargetFrame.draw()
-        self.rigidClothTargetFrame.drawFrame()
+        self.rigidClothTargetFrame.drawFrame(size=0.25)
         #renderUtils.drawLines(lines=[[self.rigidClothFrame.org, np.zeros(3)]])
         #hn = self.sawyer_skel.bodynodes[13] #hand node
         #p0 = hn.to_world(np.zeros(3))
@@ -1507,6 +1549,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         renderUtils.drawBox(cen=self.sawyer_root_dofs[3:], dim=np.array([0.2, 0.05, 0.2]))
 
+        '''
         if(self.renderCloth):
             if self.sleeveLSeamFeature is not None:
                 self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
@@ -1514,6 +1557,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
                 self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
             if self.sleeveLMidFeature is not None:
                 self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
+        '''
 
         #draw the linear track initial and end boxes
         if self.linearTrackActive:
@@ -1542,7 +1586,12 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         m_viewport = self.viewer.viewport
         # print(m_viewport)
 
-        if self.renderUI:
+        if self.variationTesting:
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
+            self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+            self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
+
+        if self.renderUI and not self.demoRendering:
             if self.renderRewardsData:
                 self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
                                         dimensions=[400, -m_viewport[3] + 30])
@@ -1574,12 +1623,17 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             #render the constraint and action_scale variations
             if self.jointLimVarObs:
                 self.clothScene.drawText(x=360., y=self.viewer.viewport[3]-13, text="J_var", color=(0., 0, 0))
-            self.clothScene.drawText(x=410., y=self.viewer.viewport[3]-13, text="A_scale", color=(0., 0, 0))
+            if self.actionScaleVarObs:
+                self.clothScene.drawText(x=410., y=self.viewer.viewport[3]-13, text="A_scale", color=(0., 0, 0))
 
             for d in range(self.robot_skeleton.ndofs):
                 if self.jointLimVarObs:
                     self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - d*20 - 23, text="%0.2f" % self.jointConstraintVariation[d], color=(0., 0, 0))
-                self.clothScene.drawText(x=410., y=self.viewer.viewport[3] - d*20 - 23, text="%0.2f" % self.actionScaleVariation[d], color=(0., 0, 0))
+                if self.actionScaleVarObs:
+                    self.clothScene.drawText(x=410., y=self.viewer.viewport[3] - d*20 - 23, text="%0.2f" % self.actionScaleVariation[d], color=(0., 0, 0))
+
+            #render unilateral weakness variation
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="Weakness Scale Value = %0.2f" % self.weaknessScale, color=(0., 0, 0))
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
@@ -1781,9 +1835,18 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
+            #default setup (in front of person)
             self._get_viewer().scene.tb.trans[2] = -3.5
-            self._get_viewer().scene.tb._set_theta(180)
-            self._get_viewer().scene.tb._set_phi(180)
+            #self._get_viewer().scene.tb._set_theta(180)
+            #self._get_viewer().scene.tb._set_phi(180)
+            self._get_viewer().scene.tb._set_orientation(180,180)
+
+            #recording angle rigid frame (side)
+            self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
+            rot = [-0.078705687066204968, 0.5423547110155762, 0.067527388204703831, 0.83372467524051252]
+            pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
+
+            #self._get_viewer().scene.tb._set_orientation(-8.274256683701712,2.4687256068775723)
             #render side view
 
         self.track_skeleton_id = 0
@@ -1797,6 +1860,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         #    self.sawyer_skel.bodynodes[d].add_ext_force(_force=np.array([0, -9.8, 0]))
         a=0
 
+    def set_param_values(self, params):
+        print("setting param values: " + str(params))
 
 def LERP(p0, p1, t):
     return p0 + (p1 - p0) * t
