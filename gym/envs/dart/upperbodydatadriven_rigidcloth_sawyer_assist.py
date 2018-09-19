@@ -3,7 +3,7 @@
 import numpy as np
 from gym import utils
 from gym.envs.dart.dart_cloth_env import *
-from gym.envs.dart.upperbodydatadriven_cloth_base import *
+from gym.envs.dart.upperbodydatadriven_cloth_assist_base import *
 import random
 import time
 import math
@@ -154,10 +154,10 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = False
         self.renderCloth = False
@@ -190,13 +190,13 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
-        self.stableHeadRewardWeight           = 2
+        self.stableHeadRewardWeight           = 1
         self.elbowFlairRewardWeight           = 1
         self.limbProgressRewardWeight         = 10  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementRewardWeight   = 50  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoRewardWeight           = 2  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenaltyWeight         = 5
-        self.restPoseRewardWeight             = 2
+        self.restPoseRewardWeight             = 1
         self.variationEntropyRewardWeight     = 1
 
         #other flags
@@ -520,8 +520,9 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         if self.simpleWeakness:
             print("simple weakness active...")
-            self.initialActionScale *= 5
+            self.initialActionScale *= 10
             print("initialActionScale: " + str(self.initialActionScale))
+
 
     def _getFile(self):
         return __file__
@@ -1053,7 +1054,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            self.weaknessScale = random.uniform(0.05,1.0)
+            self.weaknessScale = random.uniform(0.2,1.0)
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:

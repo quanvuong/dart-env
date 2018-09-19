@@ -164,6 +164,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
 
         #22 dof upper body
         self.action_scale = np.ones(len(self.actuatedDofs))
+        self.actionScaleVariation = np.ones(len(self.action_scale))
         if not SPDActionSpace:
             self.action_scale *= 12
             if 0 in self.actuatedDofs:
@@ -552,6 +553,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
                 human_clamped_control[i] = self.control_bounds[1][i]
         human_tau = np.array(human_clamped_control)
         human_tau = np.multiply(human_clamped_control, self.action_scale)
+        human_tau = np.multiply(human_clamped_control, self.actionScaleVariation)
 
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation

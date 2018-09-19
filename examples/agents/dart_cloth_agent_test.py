@@ -25,6 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_09_18_rhang_weakvar_simple"
+    #trial = "experiment_2018_09_17_rhang_weakvar_simple"
     #trial = "experiment_2018_09_14_weakVar"
     #trial = "experiment_2018_09_13_weakVar" #interpolated behavior, average dominant
     #trial = "experiment_2018_09_010_sawyer_rigid_hang"
@@ -404,6 +406,7 @@ if __name__ == '__main__':
     #Sawyer Env
     #env = gym.make('DartSawyer-v2')
     env = gym.make('DartSawyerRigid-v4')
+    #env = gym.make('DartSawyerRigidAssist-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
 
     reloaderTest = False
@@ -458,13 +461,14 @@ if __name__ == '__main__':
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
-            hidden_sizes=(64, 64),
+            #hidden_sizes=(64, 64),
+            hidden_sizes=(128, 64),
             #init_std=0.5 #exploration scaling
-            init_std=0.1
+            init_std=0.2
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         #all_param_values[4] *= 0.01
-        all_param_values[4] *= 0.001 #bias output scaling
+        all_param_values[4] *= 0.002 #bias output scaling
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

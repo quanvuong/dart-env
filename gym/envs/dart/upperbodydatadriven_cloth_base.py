@@ -12,6 +12,7 @@ import pyPhysX.pyutils as pyutils
 from pyPhysX.pyutils import LERP
 import pyPhysX.renderUtils
 import pyPhysX.meshgraph as meshgraph
+import pyPhysX.meshLoader as meshLoader
 from pyPhysX.clothfeature import *
 
 import OpenGL.GL as GL
@@ -193,20 +194,25 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #TODO: change cloth timestep to DART timestep
         time.sleep(1)
-        try:
-            if clothMeshStateFile is not None:
-                clothScene = pyphysx.ClothScene(step=0.01,
-                                                mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                                state_path=self.prefix + "/../../../../" + clothMeshStateFile,
-                                                #tube=True,
-                                                scale=clothScale)
-            else:
-                clothScene = pyphysx.ClothScene(step=0.01,
-                                                mesh_path=self.prefix + "/assets/" + clothMeshFile,
-                                                scale=clothScale)
-        except:
-            print("Failed to make cloth scene, BUT CAUGHT IT!!!")
-            exit(0)
+
+        #print("try loading mesh in python")
+        #meshHolder = meshLoader.MeshHolder(filename=self.prefix + "/assets/" + clothMeshFile)
+
+        #try:
+        if clothMeshStateFile is not None:
+            clothScene = pyphysx.ClothScene(step=0.01,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            state_path=self.prefix + "/../../../../" + clothMeshStateFile,
+                                            #tube=True,
+                                            scale=clothScale)
+        else:
+            clothScene = pyphysx.ClothScene(step=0.01,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            scale=clothScale)
+        #except:
+        #    print("Failed to make cloth scene, BUT CAUGHT IT!!!")
+        #    exit(0)
+        #print("about to toggle pinned")
         clothScene.togglePinned(0, 0)  # turn off auto-pin
         #print("toggle pinned.......")
 
@@ -820,7 +826,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         seeds = [] #4 variations  seeding
         for i in range(10): #number of seed trials
-            seeds.append(i)
+            seeds.append(i+10)
             #for j in range(4): #number of variations
             #    seeds.append(i)
         #print(seeds)
@@ -845,7 +851,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print(seeds)
 
         #Seeding for determinism:
-        if False:
+        if True:
             try:
                 seed = seeds[self.reset_number]
             except:
