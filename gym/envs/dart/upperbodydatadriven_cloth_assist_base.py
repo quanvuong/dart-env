@@ -265,28 +265,28 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         self.robot_skeleton.set_adjacent_body_check(False)
 
         #setup collision filtering
-        collision_filter = self.dart_world.create_collision_filter()
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+        self.collision_filter = self.dart_world.create_collision_filter()
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
                                            self.robot_skeleton.bodynodes[12])  # left forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
                                            self.robot_skeleton.bodynodes[7])  # right forearm to fingers
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[13])  # torso to neck
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[14])  # torso to head
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[3])  # torso to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
                                            self.robot_skeleton.bodynodes[8])  # torso to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
                                            self.robot_skeleton.bodynodes[3])  # neck to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
                                            self.robot_skeleton.bodynodes[8])  # neck to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
                                            self.robot_skeleton.bodynodes[3])  # head to right shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
                                            self.robot_skeleton.bodynodes[8])  # head to left shoulder
-        collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
 
         for i in range(len(self.robot_skeleton.bodynodes)):
@@ -296,7 +296,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
             print(self.robot_skeleton.dofs[i])
 
         for i in range(len(self.dart_world.skeletons[0].dofs)):
-            print(self.dart_world.skeletons[0].dofs[i])
+            #print(self.dart_world.skeletons[0].dofs[i])
             self.dart_world.skeletons[0].dofs[i].set_damping_coefficient(1.0)
 
         #enable joint limits
