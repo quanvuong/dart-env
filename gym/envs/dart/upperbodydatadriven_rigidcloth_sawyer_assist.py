@@ -323,7 +323,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.renderSawyerCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
         self.hoopTorques = None
 
@@ -1018,6 +1018,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.ikTarget = efpos+robo_action_scaled[:3]
         targetDir = efdir + robo_action_scaled[3:]
         targetDir /= np.linalg.norm(targetDir)
+
         if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
             print("INVALID TARGET SETTING STATE:")
             print("targetDir: " + str(targetDir))
