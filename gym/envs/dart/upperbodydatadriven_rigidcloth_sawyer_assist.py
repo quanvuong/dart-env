@@ -1018,6 +1018,12 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.ikTarget = efpos+robo_action_scaled[:3]
         targetDir = efdir + robo_action_scaled[3:]
         targetDir /= np.linalg.norm(targetDir)
+        if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
+            print("INVALID TARGET SETTING STATE:")
+            print("targetDir: " + str(targetDir))
+            print("self.ikTarget: " + str(self.ikTarget))
+            return np.zeros(self.obs_size), -10000, True
+
         self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
                                                            up=targetDir,
                                                            org=self.ikTarget)
@@ -1491,6 +1497,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         #self.rigidClothTargetFrame.setFromDirectionandUp(dir=-self.ikTarget, up=np.array([0, -1.0, 0]),
         #                                                 org=self.ikTarget)
         tar_quat = self.rigidClothTargetFrame.quat
+        self.orientationTarget = pyutils.ShapeFrame()
         self.orientationTarget.setQuaternion(tar_quat)
         tar_quat = (tar_quat.x, tar_quat.y, tar_quat.z, tar_quat.w)
         tar_dir = -self.ikTarget / np.linalg.norm(self.ikTarget)
