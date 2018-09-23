@@ -223,6 +223,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.ef_accuracy_info = {'best':0, 'worst':0, 'total':0, 'average':0 }
         self.collisionResult = None
         self.haptic_data = {'high':0, 'total':0, 'avg':0, 'var':0, 'instances':[]}
+        self.hoop_FT_data = {'max':np.zeros(6), 'total':np.zeros(6), 'avg':np.zeros(6), 'instances':0}
         self.task_data = {'successes':0, 'trials':0, 'avg_limb_prog':0, 'total_limb_prog':0}
         self.initialSawyerEfs = []
         self.initialJointConstraints = None #set on init
@@ -289,7 +290,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         bot_observation_size = (16-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
         bot_observation_size += 6 #human end effectors
-        bot_observation_size += 3 #hoop joint torques
+        bot_observation_size += 6 #hoop joint resultant forces/torques
         bot_observation_size += 6 #end effector position and orientation
 
         # initialize the Sawyer variables
@@ -322,8 +323,9 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.renderSawyerCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = False
+        self.print_skel_details = True
         self.posePath = pyutils.Spline()
+        self.hoopTorques = None
 
 
         # SPD error graphing per dof
@@ -712,6 +714,8 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
             print("Haptic_data: high:" + str(self.haptic_data['high']) + " | avg: " + str(self.haptic_data['avg']) + " | var: " + str(self.haptic_data['var']) + " | # samples: " + str(len(self.haptic_data['instances'])))
         '''
 
+
+
         #check joint velocity within limits
         #for vx in range(len(self.sawyer_skel.dq)):
         #    #print("vx: " + str(self.sawyer_skel.dq[vx]) + " | " + str(self.sawyer_skel.dofs[vx].velocity_upper_limit()))
@@ -824,8 +828,9 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
                 #self.limbProgress = pyutils.limbFeatureProgress(
                 #    limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
                 #                                      offset=self.fingertip), feature=self.sleeveLSeamFeature)
-
-            self.limbProgress = max(-2.0, pyutils.limbBoxProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), boxFrame=self.rigidClothFrame))
+            hoop_norm = self.rigidClothFrame.toGlobal(np.array([0, 0, -1])) - self.rigidClothFrame.toGlobal(np.zeros(3))
+            hoop_norm /= np.linalg.norm(hoop_norm)
+            self.limbProgress = max(-2.0, pyutils.limbBoxProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), boxFrame=self.rigidClothFrame, norm=hoop_norm))
             if(math.isnan(self.limbProgress)): #catch nan before it gets into the reward computation
                 print("!!! NaN limb progress detected !!!")
                 self.limbProgress = -2.0
@@ -1272,13 +1277,34 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
             # print(" " + j.name + ": " + str(j.position_in_world_frame()))
         obs = np.concatenate([obs, locs]).ravel()
 
-        #hoop torques
+        #hoop force torques
         try:
-            t = self.sawyer_skel.get_forces()
-            print("hoop torques: " + str(t[-3:]))
-            obs = np.concatenate([obs, t[-3:]]).ravel()
+            #t = self.sawyer_skel.get_forces()
+            j_loc = self.sawyer_skel.joints[14].position_in_world_frame()
+            fs, ps = self.getHoopForcesFromRigidContacts()
+            resultantFT = pyutils.resultantForceTorque(p=j_loc, forces=fs, points=ps)
+            '''
+                print("hoop FT: " + str(resultantFT))
+                contact = False
+                for i in range(6):
+                    if abs(resultantFT[i]) > 0.0001:
+                        contact = True
+                    if abs(resultantFT[i]) > self.hoop_FT_data['max'][i]:
+                        self.hoop_FT_data['max'][i] = abs(resultantFT[i])
+                if(contact is True):
+                    self.hoop_FT_data['instances'] += 1
+                    self.hoop_FT_data['total'] += np.absolute(resultantFT)
+                    self.hoop_FT_data['avg'] = self.hoop_FT_data['total']/self.hoop_FT_data['instances']
+    
+                print("hoop FT max: " + str(self.hoop_FT_data['max']))
+                print("hoop FT avg: " + str(self.hoop_FT_data['avg']))
+            '''
+            normalizedResultantFT = np.multiply(resultantFT, np.array([0.05, 0.05, 0.05, 0.5, 0.5, 0.5]))
+            normalizedResultantFT = np.clip(normalizedResultantFT, -1, 1)
+            #print(normalizedResultantFT)
+            obs = np.concatenate([obs, normalizedResultantFT]).ravel()
         except:
-            obs = np.concatenate([obs, np.zeros(3)]).ravel()
+            obs = np.concatenate([obs, np.zeros(6)]).ravel()
 
         #robot end effector info
         efpos = self.sawyer_skel.bodynodes[13].to_world(np.zeros(3))
@@ -1600,6 +1626,16 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
                     continue
                 loc = j.position_in_world_frame()
                 renderUtils.drawSphere(pos=loc, rad=0.065)
+
+        #render hoop joint origin
+        #if True:
+        #    renderUtils.drawSphere(pos=self.sawyer_skel.joints[14].position_in_world_frame(), rad=0.015)
+
+        #render hoop contact forces
+        if False:
+            fs, ps = self.getHoopForcesFromRigidContacts()
+            for i in range(len(fs)):
+                renderUtils.drawArrow(p0=ps[i], p1=ps[i]+fs[i])
 
         #render robot joint locations (as in obs)
         #for j in self.sawyer_skel.joints:
@@ -1976,6 +2012,27 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
                 f /= f_mag
             result[ix*3:ix*3+3] = f
         return result
+
+    def getHoopForcesFromRigidContacts(self):
+        #force magnitudes are clamped to mag_scale and then normalized by it to [0,1]
+        self.collisionResult.update()
+        relevant_forces = []
+        relevant_points = []
+        hoop_bodynodes = [16, 17, 18, 19]
+        for ix, c in enumerate(self.collisionResult.contacts):
+            # add a contact if the human skeleton is involved
+            if(c.skel_id2 == self.sawyer_skel.id and c.skel_id1 == self.sawyer_skel.id):
+                a=0 #don't coutn self-collision forces
+            if (c.skel_id2 == self.sawyer_skel.id ):
+                if(hoop_bodynodes.__contains__(c.bodynode_id2)):
+                    relevant_forces.append(-c.force)
+                    relevant_points.append(c.point)
+            elif (c.skel_id1 == self.sawyer_skel.id ):
+                if(hoop_bodynodes.__contains__(c.bodynode_id1)):
+                    relevant_forces.append(c.force)
+                    relevant_points.append(c.point)
+
+        return relevant_forces, relevant_points
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
