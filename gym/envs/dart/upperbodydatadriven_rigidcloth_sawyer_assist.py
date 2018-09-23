@@ -1019,11 +1019,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         targetDir = efdir + robo_action_scaled[3:]
         targetDir /= np.linalg.norm(targetDir)
 
-        if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
-            print("INVALID TARGET SETTING STATE:")
-            print("targetDir: " + str(targetDir))
-            print("self.ikTarget: " + str(self.ikTarget))
-            return np.zeros(self.obs_size), -10000, True
+        #if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
+        #    print("INVALID TARGET SETTING STATE:")
+        #    print("targetDir: " + str(targetDir))
+        #    print("self.ikTarget: " + str(self.ikTarget))
+        #    return np.zeros(self.obs_size), -10000, True
 
         self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
                                                            up=targetDir,
