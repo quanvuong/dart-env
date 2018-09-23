@@ -1025,10 +1025,15 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         #    print("self.ikTarget: " + str(self.ikTarget))
         #    return np.zeros(self.obs_size), -10000, True
 
-        self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
+        try:
+            self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
                                                            up=targetDir,
                                                            org=self.ikTarget)
-
+        except:
+            print("INVALID TARGET SETTING STATE")
+            print("targetDir: " + str(targetDir))
+            print("self.ikTarget: " + str(self.ikTarget))
+            return np.zeros(self.obs_size), -10000, True, {}
 
         #self.additionalAction should be set in updateBeforeSimulation
         self.updateBeforeSimulation()  # any env specific updates before simulation
