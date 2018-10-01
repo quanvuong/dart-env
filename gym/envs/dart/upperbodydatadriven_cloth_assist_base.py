@@ -739,12 +739,31 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         #difficultySeeds = [37, 39, 42]
         #seeds = seeds+difficultySeeds
         #seed = self.reset_number
+        seeds = []  # 4 variations  seeding
+        for j in range(4):
+            for i in range(10):  # number of seed trials
+                seeds.append(i + 40)
+        seeds = [40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50]
         #print(seeds)
-        try:
-            seed = seeds[self.reset_number]
-        except:
-            seed = self.reset_number
-            #print("all given seeds simulated")
+        if True:
+            try:
+                seed = seeds[self.reset_number]
+            except:
+                print("out of seeds, exiting")
+                exit()
+                seed = self.reset_number
+                #print("all given seeds simulated")
+
+            #seed = 8
+            #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
+            print("Seeding: " + str(seed))
+            random.seed(seed)
+            self.np_random.seed(seed)
+            np.random.seed(seed)
+            self.setSeed = seed
         #seed = 8
         #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
         #random.seed(seed)

@@ -25,6 +25,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    trial = "experiment_2018_09_27_robo__20rhang_weak_simple_lowvar" #trained weakness = [0.05, 0.15]
+    #trial = "experiment_2018_09_25_robo__20rhang_weakvar_simple"
+    #trial = "experiment_2018_09_23_robo__20rhang_weakvar_simple"
     #trial = "experiment_2018_09_21_robo__20rhang_weakvar_simple"
     #trial = "experiment_2018_09_20_rhang_weakvar_simple" #could be improved
     #trial = "experiment_2018_09_18_rhang_weakvar_simple"
@@ -337,7 +340,7 @@ if __name__ == '__main__':
     #trial = "experiment_2017_09_11_mode7_nooraclebaseline"
     #trial = "experiment_2017_09_11_mode7_nohapticsbaseline"
 
-    loadSave = False
+    loadSave = True
 
     if loadSave is True:
         import tensorflow as tf

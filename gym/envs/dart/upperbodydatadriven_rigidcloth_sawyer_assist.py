@@ -158,7 +158,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = False
         self.renderCloth = False
         dt = 0.002
@@ -230,9 +230,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
         self.initialActionScale = None #set after initialization
         self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
-        self.variationTesting = False
+        self.variationTesting = True
+        self.numSeeds = 10
         self.variations = [0.25, 0.5, 0.75, 1.0] #if variationTesting then cycle through these fixed variations
-        self.variations = [1.0]
+        self.variations = [0.1, 0.4, 0.7, 1.0] #if variationTesting then cycle through these fixed variations
+        #self.variations = [0.4]
         self.simpleWeakness = True #if true, 10x torque limits, no gravity comp
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = False #if true, robot policy operates on the target, not the current pose
@@ -937,6 +939,13 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         return self.reward
 
     def _step(self, a):
+        if False:
+            try:
+                print("------------------------------------")
+                self.print_sawyer_bodynode_transforms()
+            except:
+                print("can't")
+
         #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
@@ -1354,8 +1363,14 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
-                self.weaknessScale = self.variations[self.reset_number % len(self.variations)]
-                #print(self.weaknessScale)
+                #self.weaknessScale = self.variations[self.reset_number % len(self.variations)]
+                self.weaknessScale = self.variations[int(self.reset_number / self.numSeeds)]
+                if self.reset_number%self.numSeeds == 0:
+                    self.viewer.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/" + str(int(self.reset_number/self.numSeeds)+1)
+                    self.viewer.captureIndex = 0
+                    #self.weaknessScale = self.variations[int(self.reset_number/self.numSeeds)]
+                    print("reset capture directory to " + self.viewer.captureDirectory)
+                    #print(self.weaknessScale)
 
 
         #if(self.reset_number > 0):
@@ -2076,6 +2091,11 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
 
     def set_param_values(self, params):
         print("setting param values: " + str(params))
+
+    def print_sawyer_bodynode_transforms(self):
+        for b in self.sawyer_skel.bodynodes:
+            print(b.name)
+            print(b.world_transform())
 
 def LERP(p0, p1, t):
     return p0 + (p1 - p0) * t

@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = False
         self.renderCloth = False
@@ -520,7 +520,7 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         if self.simpleWeakness:
             print("simple weakness active...")
-            self.initialActionScale *= 5
+            self.initialActionScale *= 2.5
             print("initialActionScale: " + str(self.initialActionScale))
 
     def _getFile(self):
