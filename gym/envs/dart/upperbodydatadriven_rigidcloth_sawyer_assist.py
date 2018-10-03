@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = False
         self.renderCloth = False
@@ -291,6 +291,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
 
         bot_observation_size = (16-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
+        #TODO: try adding robot joint positions also...
         bot_observation_size += 6 #human end effectors
         bot_observation_size += 6 #hoop joint resultant forces/torques
         bot_observation_size += 6 #end effector position and orientation

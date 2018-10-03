@@ -25,7 +25,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_09_27_robo__20rhang_weak_simple_lowvar" #trained weakness = [0.05, 0.15]
+    #trial = "experiment_2018_10_02_weak" #action scale x2.5 with strong torso
+    #trial = "experiment_2018_10_01_weak_x2d5" #action scale x2.5
+    #trial = "experiment_2018_09_27_robo__20rhang_weak_simple_lowvar" #trained weakness = [0.05, 0.15]
     #trial = "experiment_2018_09_25_robo__20rhang_weakvar_simple"
     #trial = "experiment_2018_09_23_robo__20rhang_weakvar_simple"
     #trial = "experiment_2018_09_21_robo__20rhang_weakvar_simple"
@@ -340,7 +342,7 @@ if __name__ == '__main__':
     #trial = "experiment_2017_09_11_mode7_nooraclebaseline"
     #trial = "experiment_2017_09_11_mode7_nohapticsbaseline"
 
-    loadSave = True
+    loadSave = False
 
     if loadSave is True:
         import tensorflow as tf
@@ -410,8 +412,8 @@ if __name__ == '__main__':
 
     #Sawyer Env
     #env = gym.make('DartSawyer-v2')
-    #env = gym.make('DartSawyerRigid-v4')
-    env = gym.make('DartSawyerRigidAssist-v1')
+    env = gym.make('DartSawyerRigid-v4')
+    #env = gym.make('DartSawyerRigidAssist-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
 
     reloaderTest = False
@@ -461,19 +463,19 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        #env2 = normalize(GymEnv('DartSawyerRigid-v4', record_log=False, record_video=False))
-        env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
+        env2 = normalize(GymEnv('DartSawyerRigid-v4', record_log=False, record_video=False))
+        #env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
-            #hidden_sizes=(64, 64),
-            hidden_sizes=(128, 64),
-            #init_std=0.5 #exploration scaling
-            init_std=0.2
+            hidden_sizes=(64, 64),
+            #hidden_sizes=(128, 64),
+            init_std=0.5 #exploration scaling
+            #init_std=0.2
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        #all_param_values[4] *= 0.01
-        all_param_values[4] *= 0.002 #bias output scaling
+        all_param_values[4] *= 0.01
+        #all_param_values[4] *= 0.002 #bias output scaling
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

@@ -228,8 +228,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.initialActionScale = None #set after initialization
         self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
         self.variationTesting = False
+        self.numSeeds = 10
         self.variations = [0.25, 0.5, 0.75, 1.0] #if variationTesting then cycle through these fixed variations
-        self.variations = [1.0]
+        #self.variations = [0.1]
+        self.variations = [0.1, 0.4, 0.7, 1.0]  # if variationTesting then cycle through these fixed variations
         self.simpleWeakness = True #if true, 10x torque limits, no gravity comp
 
         #linear track variables
@@ -521,6 +523,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         if self.simpleWeakness:
             print("simple weakness active...")
             self.initialActionScale *= 2.5
+            self.initialActionScale[0] *= 2
+            self.initialActionScale[1] *= 2
+            self.initialActionScale[2] *= 2
+            #self.action_scale[self.actuatedDofs.tolist().index(1)] *= 2
             print("initialActionScale: " + str(self.initialActionScale))
 
     def _getFile(self):
@@ -1057,7 +1063,15 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
-                self.weaknessScale = self.variations[self.reset_number % len(self.variations)]
+                self.weaknessScale = self.variations[int(self.reset_number / self.numSeeds)]
+                if self.reset_number % self.numSeeds == 0:
+                    self.viewer.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/" + str(
+                        int(self.reset_number / self.numSeeds) + 1)
+                    self.viewer.captureIndex = 0
+                    # self.weaknessScale = self.variations[int(self.reset_number/self.numSeeds)]
+                    print("reset capture directory to " + self.viewer.captureDirectory)
+                    # print(self.weaknessScale)
+                #self.weaknessScale = self.variations[self.reset_number % len(self.variations)]
                 #print(self.weaknessScale)
 
 

@@ -825,10 +825,19 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         seeds = np.arange(100)
 
         seeds = [] #4 variations  seeding
-        for i in range(10): #number of seed trials
-            seeds.append(i+10)
-            #for j in range(4): #number of variations
-            #    seeds.append(i)
+        #for i in range(10): #number of seed trials
+        #    seeds.append(i+10)
+        #    #for j in range(4): #number of variations
+        #    #    seeds.append(i)
+
+        for j in range(4):
+            for i in range(10):  # number of seed trials
+                seeds.append(i + 40)
+        seeds = [40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+
         #print(seeds)
         #seeds = [32, 43, 53] #failure example seeds
         #failSeeds = [27, 32, 36, 38, 39, 42, 48, 49, 53, 57, 58, 61, 63, 71, 73, 76, 87, 88, 91, 93, 97]
