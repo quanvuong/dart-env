@@ -88,7 +88,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_buffer = []
         self.state_buffer = []
 
-        self.obs_delay = 0
+        self.obs_delay = 3
         self.act_delay = 0
 
         #print('sim parameters: ', self.param_manager.get_simulator_parameters())
@@ -128,7 +128,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         vel = (posafter - self.posbefore) / self.dt
         reward = vel
         reward += alive_bonus
-        reward -= 1e-1 * np.square(a).sum()
+        reward -= 1e-3 * np.square(a).sum()
         joint_limit_penalty = 0
         for j in [-2, -5]:
             if (self.robot_skeleton.q_lower[j] - self.robot_skeleton.q[j]) > -0.05:
@@ -217,8 +217,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
 
     def reset_model(self):
         self.dart_world.reset()
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.00015, high=.00015, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.00015, high=.00015, size=self.robot_skeleton.ndofs)
         qpos[3] += 0.5
         self.set_state(qpos, qvel)
 
@@ -235,8 +235,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             if self.dart_world != self.dart_worlds[world_choice]:
                 self.dart_world = self.dart_worlds[world_choice]
                 self.robot_skeleton = self.dart_world.skeletons[-1]
-                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+                qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.00015, high=.00015, size=self.robot_skeleton.ndofs)
+                qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.00015, high=.00015, size=self.robot_skeleton.ndofs)
                 self.set_state(qpos, qvel)
                 if not self.disableViewer:
                     self._get_viewer().sim = self.dart_world
@@ -253,4 +253,4 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -5.5
+        self._get_viewer().scene.tb.trans[2] = -4

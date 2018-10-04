@@ -43,7 +43,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.0
+        self.final_tv = 0.1
         self.tv_endtime = 0.01
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
@@ -56,13 +56,13 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.pose_weight = 0.2
 
         self.assist_timeout = 10.0
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
+        self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
         self.init_balance_pd = 2000.0
         self.init_vel_pd = 2000.0
 
         self.cur_step = 0
 
-        self.torqueLimits = 6.0
+        self.torqueLimits = 10.0
         self.target_torque_limit = 2.0
 
         self.include_obs_history = 1
@@ -153,10 +153,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
     def PID(self):
         #print("#########################################################################3")
 
-        self.kp = [2.1,1,79,4.93,2.0,2.02,1.98,2.2,2.06,148,152,150,136,153,147,151,151.4,150.45,151.36,154,150.2]
-        self.kd = [0.21,0.23,0.22,0.25,0.21,0.26,0.28,0.213,0.192,0.198,0.22,0.199,0.2,0.5,0.53,0.27,0.21,0.205,0.52,0.56]
-
-        
+        self.kp = [2.1, 2.0, 2.0, 2.1, 2.0, 2.0, 1.98, 2.2,  148, 152, 150, 136, 153, 147, 148, 152, 150, 136, 153, 147]
+        self.kd = [0.21,0.23,0.22, 0.21,0.23,0.22, 0.28,0.213, 0.53,0.27,0.21,0.205,0.52,0.56, 0.53,0.27,0.21,0.205,0.52,0.56]
         
         #self.kp = [item  for item in self.kp]
         #self.kd = [item  for item in self.kd]
@@ -175,7 +173,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.pid_tau = np.copy(np.clip(tau, -12, 12))
         torqs = self.ClampTorques(tau)
-        
+
         return torqs[6:]
         
 
@@ -203,10 +201,9 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                     self.current_pd = sch[1][0]
                     self.vel_enforce_kp = sch[1][1]
 
-
-        posbefore = self.robot_skeleton.bodynode('MP_NECK').C[0]
+        posbefore = self.robot_skeleton.bodynode('MP_BODY').C[0]
         self.advance(a)
-        posafter = self.robot_skeleton.bodynode('MP_NECK').C[0]
+        posafter = self.robot_skeleton.bodynode('MP_BODY').C[0]
 
         vel = (posafter - posbefore) / self.dt
         self.vel_cache.append(vel)
@@ -225,7 +222,13 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         reward =  -self.energy_weight*np.sum(self.pid_tau)**2 + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
         #print(self.energy_weight*np.sum(self.pid_tau)**2, vel_rew, pose_math_rew * self.pose_weight)
 
-        reward += 10.0 * (self.robot_skeleton.bodynodes[-1].com()[2] + 0.4)
+        foot_down_l = self.robot_skeleton.bodynodes[20].to_world([-1, 0, 0]) - self.robot_skeleton.bodynodes[
+            20].to_world([0, 0, 0])
+        foot_down_r = self.robot_skeleton.bodynodes[26].to_world([1, 0, 0]) - self.robot_skeleton.bodynodes[
+            26].to_world([0, 0, 0])
+        foot_ang_l = np.arccos(np.dot(foot_down_l.T, [0,0,-1]))
+        foot_ang_r = np.arccos(np.dot(foot_down_r.T, [0,0,-1]))
+        reward -= (foot_ang_l ** 2 + foot_ang_r ** 2) * 0.25
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
@@ -244,7 +247,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             done = True
 
         if done:
-            reward =0
+            reward = 0
 
         self.t += self.dt
         self.cur_step += 1
@@ -257,50 +260,54 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         
         state =  np.concatenate([self.robot_skeleton.q[6:],self.robot_skeleton.dq[6:]])
 
-        state += np.random.uniform(-0.01, 0.01, len(state))
+        state += np.random.uniform(-0.001, 0.001, len(state))
 
         #state = np.concatenate([self.robot_skeleton.q[6:], self.robot_skeleton.dq[6:]])
         #state[:20] +=  np.random.uniform(low=-0.01,high=0.01,size=20)
         #state[20:] +=  np.random.uniform(low=-0.05,high=0.05,size=1)
 
-        body_com = self.robot_skeleton.bodynode('MP_NECK').C
-        bodyvel = np.dot(self.robot_skeleton.bodynode('MP_NECK').world_jacobian(offset=self.robot_skeleton.bodynode('MP_NECK').local_com()), self.robot_skeleton.dq)
-        state = np.concatenate([body_com[1:], bodyvel, state])
+        body_com = self.robot_skeleton.bodynode('MP_BODY').C
+
+        bodyvel = np.dot(self.robot_skeleton.bodynode('MP_BODY').world_jacobian(offset=self.robot_skeleton.bodynode('MP_BODY').local_com()), self.robot_skeleton.dq)
+        state = np.concatenate([state, body_com[1:], bodyvel])
 
         return state
 
     def reset_model(self):
         self.dart_world.reset()
-        qpos = np.zeros(self.robot_skeleton.ndofs) #self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+
+        qpos = np.zeros(self.robot_skeleton.ndofs)
         qvel = np.zeros(self.robot_skeleton.ndofs) +  self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs) #self.robot_skeleton.dq +
         
         qpos[1] = 0.25
         qpos[5] = -0.37
         #LEFT HAND
-        qpos[6] = (2518-2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[7]  = (2248-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[8] = (1712-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
+        qpos[6] = (2518-2048)*(np.pi/180)*0.088
+        qpos[7]  = (2248-2048)*(np.pi/180)*0.088
+        qpos[8] = (1712-2048)*(np.pi/180)*0.088
 
         #RIGHT HAND 
-        qpos[9] = (1498-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[10] = (1845-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[11]= (2381-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
+        qpos[9] = -(2518-2048)*(np.pi/180)*0.088
+        qpos[10] = -(2248-2048)*(np.pi/180)*0.088
+        qpos[11]= -(1712-2048)*(np.pi/180)*0.088
 
         #LEFT LEG
         qpos[14] = 0 # yaw
-        qpos[15] = (2052-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[16] = 0.68 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[17] = -0.88 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[18] = (1707-2048)*(np.pi/180)*0.088+ np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[19] = (2039 - 2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
+        qpos[15] = (2052-2048)*(np.pi/180)*0.088
+        qpos[16] = 0.68
+        qpos[17] = -0.88
+        qpos[18] = (1707-2048)*(np.pi/180)*0.088
+        qpos[19] = (2039 - 2048)*(np.pi/180)*0.088
 
         #RIGHT LEG               
         qpos[20] = 0
-        qpos[21] = (2044-2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[22] = -0.68 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[23] = 0.88 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[24] = (2389-2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
-        qpos[25] = (2057 - 2048)*(np.pi/180)*0.088 + np.random.uniform(low=-0.01,high=0.01,size=1)
+        qpos[21] = (2044-2048)*(np.pi/180)*0.088
+        qpos[22] = -0.68
+        qpos[23] = 0.88
+        qpos[24] = (2389-2048)*(np.pi/180)*0.088
+        qpos[25] = (2057 - 2048)*(np.pi/180)*0.088
+
+        qpos[6:] += np.random.uniform(low=-0.01,high=0.01,size=len(qpos[6:]))
 
         self.init_q = qpos
 

@@ -113,6 +113,8 @@ class DartEnv(gym.Env):
 
         self._seed()
 
+        self.paused = False
+
         #self.viewer = None
 
         self.metadata = {
@@ -170,6 +172,15 @@ class DartEnv(gym.Env):
         return self.dart_world.dt
 
     def do_simulation(self, tau, n_frames):
+        if self._get_viewer() is not None:
+            if hasattr(self._get_viewer(), 'key_being_pressed'):
+                if self._get_viewer().key_being_pressed is not None:
+                    if self._get_viewer().key_being_pressed == b'p':
+                        self.paused = not self.paused
+
+        if self.paused:
+            return
+
         if self.add_perturbation:
             if self.perturbation_duration == 0:
                 self.perturb_force *= 0

@@ -21,6 +21,13 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
+        self.cur_step = 0
+
+        self.use_sparse_reward = False
+        self.horizon = 999
+
+        self.total_reward = 0
+
         mujoco_env.MujocoEnv.__init__(self, 'hopper.xml', 4)
 
         utils.EzPickle.__init__(self)
@@ -53,6 +60,8 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         height, ang = self.sim.data.qpos[1:3]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
                     (height > .7) and (abs(ang) < .8))
+        if self.cur_step >= self.horizon:
+            done = True
         return done
 
     def pre_advance(self):
@@ -68,9 +77,16 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if np.abs(self.sim.data.qpos[-2]) < 0.05:
             joint_limit_penalty += 1.5
         #reward -= 5e-1 * joint_limit_penalty
+        if self.use_sparse_reward:
+            self.total_reward += reward
+            reward = 0.0
+            if self.terminated():
+                reward = self.total_reward
+
         return reward
 
     def step(self, a):
+        self.cur_step += 1
         self.pre_advance()
         self.advance(a)
         self.post_advance()
@@ -117,6 +133,9 @@ class HopperEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         self.observation_buffer = []
         self.action_buffer = []
+
+        self.cur_step = 0
+        self.total_reward = 0
 
         if self.resample_MP:
             self.param_manager.resample_parameters()

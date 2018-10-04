@@ -21,7 +21,7 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
-        self.resample_MP = True  # whether to resample the model paraeters
+        self.resample_MP = False  # whether to resample the model paraeters
 
         self.actuator_nonlinearity = False
         self.actuator_nonlin_coef = 1.0
@@ -203,7 +203,7 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
         return state
 
     def viewer_setup(self):
-        self._get_viewer().scene.tb.trans[2] = -5.5
+        self._get_viewer().scene.tb.trans[2] = -4
 
     def state_vector(self):
         s = np.copy(np.concatenate([self.robot_skeleton.q, self.robot_skeleton.dq]))

@@ -27,8 +27,13 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.action_buffer = []
         self.state_buffer = []
 
-        self.obs_delay = 1
-        self.act_delay = 1
+        self.obs_delay = 0
+        self.act_delay = 0
+
+        self.cur_step = 0
+        self.use_sparse_reward = False
+        self.horizon = 999
+        self.total_reward = 0
 
         self.param_manager = mjWalkerParamManager(self)
 
@@ -40,14 +45,27 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.posbefore = self.sim.data.qpos[0]
 
     def advance(self, a):
+        self.action_buffer.append(np.copy(a))
+        if len(self.action_buffer) < self.act_delay + 1:
+            a *= 0
+        else:
+            a = self.action_buffer[-self.act_delay - 1]
+
         self.do_simulation(a, self.frame_skip)
 
     def reward_func(self, a):
         posafter, height, ang = self.sim.data.qpos[0:3]
-        alive_bonus = 3.0
+        alive_bonus = 1.0
         reward = ((posafter - self.posbefore) / self.dt)
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
+
+        if self.use_sparse_reward:
+            self.total_reward += reward
+            reward = 0.0
+            if self.terminated():
+                reward = self.total_reward
+
         return reward
 
     def post_advance(self):
@@ -57,9 +75,12 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         posafter, height, ang = self.sim.data.qpos[0:3]
         done = not (height > 0.8 and height < 2.0 and
                     ang > -1.0 and ang < 1.0)
+        if self.cur_step >= self.horizon:
+            done = True
         return done
 
     def step(self, a):
+        self.cur_step += 1
         self.pre_advance()
         self.advance(a)
         reward = self.reward_func(a)
@@ -108,6 +129,9 @@ class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             qpos,
             self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         )
+
+        self.cur_step = 0
+        self.total_reward = 0
 
         self.observation_buffer = []
         self.action_buffer = []

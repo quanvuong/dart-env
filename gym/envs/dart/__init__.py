@@ -86,3 +86,5 @@ from gym.envs.dart.ant import DartAntEnv
 from gym.envs.dart.darwin import DartDarwinTrajEnv
 
 from gym.envs.dart.halfcheetah import DartHalfCheetahEnv
+
+from gym.envs.dart.hopper_soft import DartHopperSoftEnv

@@ -22,6 +22,9 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.act_delay = 0
         self.tilt_z = 0
 
+        self.current_step = 0
+        self.max_step = 1000
+
         mujoco_env.MujocoEnv.__init__(self, 'half_cheetah.xml', 5)
         utils.EzPickle.__init__(self)
 
@@ -49,6 +52,8 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         pass
 
     def terminated(self):
+        if self.current_step > self.max_step:
+            return True
         return False
 
     def pre_advance(self):
@@ -71,6 +76,8 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward = self.reward_func(a)
 
         done = self.terminated()
+
+        self.current_step += 1
 
         ob = self._get_obs()
         return ob, reward, done, {}
@@ -99,7 +106,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             if i < len(self.action_buffer):
                 final_obs = np.concatenate([final_obs, self.action_buffer[-1 - i]])
             else:
-                final_obs = np.concatenate([final_obs, [0.0] * 3])
+                final_obs = np.concatenate([final_obs, [0.0] * 6])
 
         return final_obs
 
@@ -110,6 +117,8 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         self.observation_buffer = []
         self.action_buffer = []
+
+        self.current_step = 0
 
         if self.resample_MP:
             self.param_manager.resample_parameters()

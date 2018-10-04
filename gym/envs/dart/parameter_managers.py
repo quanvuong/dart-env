@@ -154,6 +154,7 @@ class mjHopperManager:
         self.solimp_range = [0.8, 0.99]
         self.solref_range = [0.001, 0.02]
         self.armature_range = [0.05, 0.98]
+        self.ankle_jnt_range = [0.5, 1.0]
 
         self.activated_param = [0, 1,2,3,4, 5,6,7, 8, 10, 11, 12, 13]
         self.controllable_param = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
@@ -195,8 +196,12 @@ class mjHopperManager:
         cur_armature = self.simulator.model.dof_armature[-1]
         armature_param = (cur_armature - self.armature_range[0]) / (self.armature_range[1] - self.armature_range[0])
 
+        cur_jntlimit = self.simulator.model.jnt_range[-1][0]
+        jntlimit_param = (cur_jntlimit - self.ankle_jnt_range[0]) / (self.ankle_jnt_range[1] - self.ankle_jnt_range[0])
+
         params = np.array([friction_param] + mass_param + damp_param + [power_param, velrew_param, rest_param
-                                                                        ,solimp_param, solref_param, armature_param])[self.activated_param]
+                                                                        ,solimp_param, solref_param, armature_param,
+                                                                        jntlimit_param])[self.activated_param]
         return params
 
     def set_simulator_parameters(self, x):
@@ -250,6 +255,12 @@ class mjHopperManager:
                             self.armature_range[0]
             for dof in range(3, 6):
                 self.simulator.model.dof_armature[dof] = armature
+            cur_id += 1
+        if 14 in self.controllable_param:
+            jntlimit = x[cur_id] * (self.ankle_jnt_range[1] - self.ankle_jnt_range[0]) + \
+                            self.ankle_jnt_range[0]
+            self.simulator.model.jnt_range[-1][0] = -jntlimit
+            self.simulator.model.jnt_range[-1][1] = jntlimit
             cur_id += 1
 
     def resample_parameters(self):

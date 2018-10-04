@@ -13,7 +13,7 @@
   <link name="base_link"/>
   <link name="MP_BODY">
     <inertial>
-      <origin xyz="-0.003053 -0.038651 -0.019268"/>
+      <origin xyz="-0.003053 -0.0 -0.019268"/>
       <mass value="0.97559947"/>
       <inertia ixx="0.001879411079" ixy="0.0" ixz="0.0" iyy="0.00175933104423" iyz="0.0" izz="0.00181176951575"/>
     </inertial>
@@ -39,12 +39,12 @@
   
   <link name="MP_BACK_L">
     <inertial>
-      <origin xyz="-0.0031158909 0.020443695 -0.019663084"/>
+      <origin xyz="0 0 0"/>
       <mass value="0.01"/>
       <inertia ixx="1.66666666667e-07" ixy="0.0" ixz="0.0" iyy="1.66666666667e-07" iyz="0.0" izz="1.66666666667e-07"/>
     </inertial>
     <collision>
-      <origin xyz="-0.0031158909 0.020443695 -0.019663084"/>
+      <origin xyz="0 0 0"/>
       <geometry>
         <box scale="1 1 1" size="0.001 0.001 0.001"/>
       </geometry>
@@ -140,6 +140,7 @@
       <origin xyz="-0.05 -0.08 0.0" rpy="0 0 1.57" />
       <geometry>
         <box size="0.10 0.032 0.015" />
+        <!-- <mesh filename="./meshes/forearm_l.STL"  scale="0.001 0.001 0.001"/> -->
       </geometry>
     </collision>
   </link>
@@ -147,7 +148,7 @@
 
   <link name="MP_BACK_R">
     <inertial>
-      <origin xyz="0.0 0.0 -0.0"/>
+      <origin xyz="0 0 0"/>
       <mass value="0.01"/>
       <inertia ixx="1.66666666667e-07" ixy="0.0" ixz="0.0" iyy="1.66666666667e-07" iyz="0.0" izz="1.66666666667e-07"/>
     </inertial>
@@ -243,7 +244,8 @@
     <collision>
       <origin xyz="-0.05 -0.08 -0.0" rpy="0 0 1.57" />
       <geometry>
-       <box size="0.10 0.032 0.015" />
+        <box size="0.10 0.032 0.015" />
+        <!--<mesh filename="./meshes/forearm_r.STL"  scale="0.001 0.001 0.001"/> -->
       </geometry>
     </collision>
   </link>
@@ -315,10 +317,10 @@
     <child link="r_hand"/>
     <origin xyz="0.048 -0.016 0" rpy="1.5707963 0 0" />
   </joint>
-  
+
   <link name="MP_NECK">
     <inertial>
-      <origin xyz="0.001424 -0.016567 -0.007128"/>
+      <origin xyz="0.0 -0.016567 -0.007128"/>
       <mass value="0.024357719"/>
       <inertia ixx="3.12641472415e-06" ixy="0.0" ixz="0.0" iyy="6.25435180573e-06" iyz="0.0" izz="5.09279308092e-06"/>
     </inertial>
@@ -338,7 +340,7 @@
   </link>
   <link name="MP_HEAD">
     <inertial>
-      <origin xyz="0.000064 -0.018565 -0.007667"/>
+      <origin xyz="0.000064 -0.018565 -0.0"/>
       <mass value="0.15804192"/>
       <inertia ixx="0.000122387662848" ixy="0.0" ixz="0.0" iyy="0.000122387662848" iyz="0.0" izz="0.000122387662848"/>
     </inertial>
@@ -379,10 +381,10 @@
     <axis xyz="0 0 1"/>
     <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
   </joint>
-  
+
   <link name="MP_PELVIS_L">
     <inertial>
-      <origin xyz="0.000000 0.000480 0.018437"/>
+      <origin xyz="0.000000 -0.000480 0.018437"/>
       <mass value="0.197"/>
       <inertia ixx="5.00544166667e-05" ixy="0.0" ixz="0.0" iyy="2.70710833333e-05" iyz="0.0" izz="4.35041666667e-05"/>
     </inertial>
@@ -462,7 +464,7 @@
   </link>
   <link name="MP_ANKLE1_L">
     <inertial>
-      <origin xyz="-0.000214 -0.018536 0.013873"/>
+      <origin xyz="-0.000214 -0.018536 -0.013873"/>
       <mass value="0.16710792"/>
       <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
     </inertial>
@@ -582,7 +584,7 @@
   </link>
   <link name="MP_ANKLE1_R">
     <inertial>
-      <origin xyz="-0.000214 -0.018536 -0.013873"/>
+      <origin xyz="0.000214 -0.018536 -0.013873"/>
       <mass value="0.16710792"/>
       <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
     </inertial>

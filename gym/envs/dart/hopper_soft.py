@@ -9,7 +9,7 @@ import copy
 import joblib, os
 from pydart2.utils.transformations import quaternion_from_matrix, euler_from_matrix, euler_from_quaternion
 
-class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
+class DartHopperSoftEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
@@ -29,6 +29,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
 
+        self.use_sparse_reward = False
+
         self.t = 0
 
         self.total_dist = []
@@ -38,17 +40,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
-        dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
+        dart_env.DartEnv.__init__(self, ['hopper_softfoot.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
-        self.current_param = self.param_manager.get_simulator_parameters()
-
-        self.curriculum_step = [[2, 0.05], [5, 0.1], [7, 0.15]]
-
-        self.dart_worlds[0].set_collision_detector(3)
-        self.dart_worlds[1].set_collision_detector(0)
-        self.dart_worlds[2].set_collision_detector(1)
+        self.dart_worlds[0].set_collision_detector(1)
 
         self.dart_world=self.dart_worlds[0]
         self.robot_skeleton=self.dart_world.skeletons[-1]
@@ -59,14 +55,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.obs_delay = 0
         self.act_delay = 0
 
-        self.param_manager.set_simulator_parameters(self.current_param)
-
-        print('sim parameters: ', self.param_manager.get_simulator_parameters())
-        self.current_param = self.param_manager.get_simulator_parameters()
-        self.active_param = self.param_manager.activated_param
-
         # data structure for actuation modeling
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
+
+        self.horizon = 10000
 
         utils.EzPickle.__init__(self)
 
@@ -122,6 +114,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
             #and not self.fall_on_ground)
             and (height > self.height_threshold_low) and (abs(ang) < .4))
+        if self.cur_step >= self.horizon:
+            done = True
         return done
 
     def pre_advance(self):
@@ -140,6 +134,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward += alive_bonus * step_skip
         reward -= 1e-3 * np.square(a).sum()
         reward -= 5e-1 * joint_limit_penalty
+
+        if self.use_sparse_reward:
+            reward = 0.0
+            if self.terminated():
+                reward = self.robot_skeleton.q[0]
+
         return reward
 
     def step(self, a):
@@ -196,8 +196,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         for world in self.dart_worlds:
             world.reset()
         self.zeroed_height = self.robot_skeleton.bodynodes[2].com()[1]
-        qpos = self.robot_skeleton.q + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
-        qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        qpos = self.robot_skeleton.q# + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
+        qvel = self.robot_skeleton.dq# + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs)
 
         self.set_state(qpos, qvel)
         if self.resample_MP:
