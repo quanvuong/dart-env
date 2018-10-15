@@ -25,12 +25,13 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    #trial = "experiment_2018_10_02_weak" #action scale x2.5 with strong torso
+    #trial = "experiment_2018_10_02_weak" #action scale x2.5 with strong torso (kinda unstable)
     #trial = "experiment_2018_10_01_weak_x2d5" #action scale x2.5
     #trial = "experiment_2018_09_27_robo__20rhang_weak_simple_lowvar" #trained weakness = [0.05, 0.15]
-    #trial = "experiment_2018_09_25_robo__20rhang_weakvar_simple"
-    #trial = "experiment_2018_09_23_robo__20rhang_weakvar_simple"
+    #trial = "experiment_2018_09_25_robo__20rhang_weakvar_simple" #(100k samples (not so good))
+    #trial = "experiment_2018_09_23_robo__20rhang_weakvar_simple" #better
     #trial = "experiment_2018_09_21_robo__20rhang_weakvar_simple"
+    #trial = "experiment_2018_10_03_weak" #x2.5 with strong torso
     #trial = "experiment_2018_09_20_rhang_weakvar_simple" #could be improved
     #trial = "experiment_2018_09_18_rhang_weakvar_simple"
     #trial = "experiment_2018_09_17_rhang_weakvar_simple"
@@ -412,9 +413,15 @@ if __name__ == '__main__':
 
     #Sawyer Env
     #env = gym.make('DartSawyer-v2')
-    env = gym.make('DartSawyerRigid-v4')
+    #env = gym.make('DartSawyerRigid-v4')
+    #env = gym.make('DartIiwaRigid-v1')
     #env = gym.make('DartSawyerRigidAssist-v1')
     #env = gym.make('DartClothUpperBodyDataDrivenLinearTrack-v1')
+
+    #envName = 'DartSawyerRigid-v4'
+    #envName = 'DartIiwaRigid-v1'
+    envName = 'DartIiwaGown-v1'
+    env = gym.make(envName)
 
     reloaderTest = False
 
@@ -452,7 +459,7 @@ if __name__ == '__main__':
         print("Failure rate detected: " + str(failures / trials))
         exit(0)
 
-    useMeanPolicy = False
+    useMeanPolicy = True
 
     #print("policy time")
     policy = None
@@ -463,14 +470,14 @@ if __name__ == '__main__':
 
     #initialize an empty test policy
     if True and policy is None:
-        env2 = normalize(GymEnv('DartSawyerRigid-v4', record_log=False, record_video=False))
+        env2 = normalize(GymEnv(envName, record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(
             env_spec=env2.spec,
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
             #hidden_sizes=(128, 64),
-            init_std=0.5 #exploration scaling
+            init_std=0.2 #exploration scaling
             #init_std=0.2
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)

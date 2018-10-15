@@ -154,26 +154,26 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothSawyerGownEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = True
         self.demoRendering = False #when true, reduce the debugging display significantly
-        clothSimulation = False
-        self.renderCloth = False
+        clothSimulation = True
+        self.renderCloth = True
         dt = 0.002
         frameskip = 5
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
-        self.contactIDInObs = False  # if true, contact ids are in obs
+        self.contactIDInObs = True  # if true, contact ids are in obs
         self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
         self.robotJointObs  = True #if true, obs includes robot joint locations in world space
         self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
         self.humanJointObs  = True #if true, obs includes human joint locations
-        self.hoopNormalObs  = True #if true, obs includes the normal vector of the hoop
+        self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
         self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
@@ -184,8 +184,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
-        self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = False
+        self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
+        self.deformationPenalty         = True
         self.restPoseReward             = True
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
 
@@ -202,8 +202,8 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
-        self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
-        self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
+        self.sleeveEndTerm      = True  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
+        self.elbowFirstTerm     = True #if true, terminate when any limb enters the feature before the hand
 
         #other variables
         self.prevTau = None
@@ -347,10 +347,10 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=screensize,
-                                                          #clothMeshFile="fullgown1.obj",
+                                                          clothMeshFile="fullgown1.obj",
                                                           #clothMeshFile="tshirt_m.obj",
-                                                          clothMeshFile="shorts_med.obj",
-                                                          #clothMeshStateFile = "hanginggown.obj",
+                                                          #clothMeshFile="shorts_med.obj",
+                                                          clothMeshStateFile = "hanginggown.obj",
                                                           #clothMeshStateFile = "objFile_1starmin.obj",
                                                           clothScale=np.array([1.3, 1.3, 1.3]),
                                                           obs_size=observation_size,
@@ -362,11 +362,11 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
         #initialize the Sawyer robot
         #print("loading URDFs")
         self.initialActionScale = np.array(self.action_scale)
-        sawyerFilename = ""
-        if self.renderSawyerCollidable:
-            sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
-        else:
-            sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
+        sawyerFilename = dir_path + '/assets/sawyer_description/urdf/sawyer_arm.urdf'
+        #if self.renderSawyerCollidable:
+        #    sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
+        #else:
+        #    sawyerFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/sawyer_arm_hoop_hang.urdf')
         self.dart_world.add_skeleton(filename=sawyerFilename)
         #hoopFilename = os.path.join(os.path.dirname(__file__), "assets", 'sawyer_description/urdf/hoop_weldhang.urdf')
         #self.dart_world.add_skeleton(filename=hoopFilename)
@@ -380,17 +380,17 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
             print("Sawyer Robot info:")
             print(" BodyNodes: ")
 
-        self.sawyer_skel.bodynodes[14].set_mass(0.01)
-        self.sawyer_skel.bodynodes[15].set_mass(0.01)
+        #self.sawyer_skel.bodynodes[14].set_mass(0.01)
+        #self.sawyer_skel.bodynodes[15].set_mass(0.01)
         for ix,bodynode in enumerate(self.sawyer_skel.bodynodes):
             if self.print_skel_details:
                 print("      "+str(ix)+" : " + bodynode.name)
                 print("         mass: " + str(bodynode.mass()))
 
             bodynode.set_gravity_mode(False)
-        self.sawyer_skel.bodynodes[19].set_gravity_mode(True)
-        self.sawyer_skel.bodynodes[18].set_gravity_mode(True)
-        self.sawyer_skel.bodynodes[17].set_gravity_mode(True)
+        #self.sawyer_skel.bodynodes[19].set_gravity_mode(True)
+        #self.sawyer_skel.bodynodes[18].set_gravity_mode(True)
+        #self.sawyer_skel.bodynodes[17].set_gravity_mode(True)
 
         if self.print_skel_details:
             print(" Joints: ")
@@ -435,15 +435,15 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         # setup collision filtering
         #collision_filter = self.dart_world.create_collision_filter()
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[17]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[18]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[19]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[18]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[19]) #hoop self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[18],self.sawyer_skel.bodynodes[19]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[17]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[18]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[19]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[18]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[17],self.sawyer_skel.bodynodes[19]) #hoop self-collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[18],self.sawyer_skel.bodynodes[19]) #hoop self-collision
         self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[4],self.sawyer_skel.bodynodes[5]) #robot self-collision
         self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[2],self.sawyer_skel.bodynodes[4]) #robot self-collision
-        self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[13])  # hoop to hand collision
+        #self.collision_filter.add_to_black_list(self.sawyer_skel.bodynodes[16],self.sawyer_skel.bodynodes[13])  # hoop to hand collision
 
 
         # initialize the controller
@@ -522,11 +522,11 @@ class DartClothUpperBodyDataDrivenRigidClothOneFileSawyerEnv(DartClothUpperBodyD
 
         if self.simpleWeakness:
             print("simple weakness active...")
-            #self.initialActionScale *= 5
-            self.initialActionScale *= 2.5
-            self.initialActionScale[0] *= 2
-            self.initialActionScale[1] *= 2
-            self.initialActionScale[2] *= 2
+            self.initialActionScale *= 5
+            #self.initialActionScale *= 2.5
+            #self.initialActionScale[0] *= 2
+            #self.initialActionScale[1] *= 2
+            #self.initialActionScale[2] *= 2
             print("initialActionScale: " + str(self.initialActionScale))
 
     def _getFile(self):

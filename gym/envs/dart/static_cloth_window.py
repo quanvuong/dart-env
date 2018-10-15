@@ -1122,6 +1122,7 @@ class PoseInteractor(BaseInteractor):
 
         try:
             sawyer_skel = self.viewer.env.sawyer_skel
+
             self.sawyerTopLeft = np.array([75, self.viewer.viewport[3]-450])
             self.sawyerBoxRanges = []
             barWidth = 120.
@@ -1133,8 +1134,25 @@ class PoseInteractor(BaseInteractor):
                      [self.sawyerTopLeft[1] + (barHeight + barSpace) * i + barHeight,
                       self.sawyerTopLeft[1] + (barHeight + barSpace) * i]])
 
-        except NameError:
+        except:
             a = 0
+            try:
+                iiwa_skel = self.viewer.env.iiwa_skel
+
+                self.sawyerTopLeft = np.array([75, self.viewer.viewport[3] - 450])
+                self.sawyerBoxRanges = []
+                barWidth = 120.
+                barHeight = -16.
+                barSpace = -4.
+                for i in range(len(iiwa_skel.q) - 6):
+                    self.sawyerBoxRanges.append(
+                        [[self.sawyerTopLeft[0], self.sawyerTopLeft[0] + barWidth],
+                         [self.sawyerTopLeft[1] + (barHeight + barSpace) * i + barHeight,
+                          self.sawyerTopLeft[1] + (barHeight + barSpace) * i]])
+
+            except:
+                a = 0
+
 
     def boxClickTest(self, point):
         print(point)
@@ -1155,7 +1173,10 @@ class PoseInteractor(BaseInteractor):
             if point[0] < b[0][1] and point[0] > b[0][0]:
                 if point[1] < b[1][1] and point[1] > b[1][0]:
                     #print("clicked sawyer box " + str(ix))
-                    self.selectedSkel = self.viewer.env.sawyer_skel
+                    try:
+                        self.selectedSkel = self.viewer.env.sawyer_skel
+                    except:
+                        self.selectedSkel = self.viewer.env.iiwa_skel
                     return ix + 6
 
         return None

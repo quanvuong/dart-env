@@ -249,7 +249,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = False
+        self.limbProgressGraphing = True
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
@@ -915,7 +915,7 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         if self.limbProgressGraphing and self.reset_number > 0:
             # print(self.reset_number-1)
             # print(len(self.limbProgressGraph.yData))
-            self.limbProgressGraph.yData[self.reset_number - 1][self.numSteps] = self.limbProgress
+            self.limbProgressGraph.yData[-1][self.numSteps] = self.limbProgress
             if self.numSteps % 5 == 0:
                 self.limbProgressGraph.update()
 
@@ -1379,10 +1379,19 @@ class DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv(DartClothUpperBodyDa
         self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
 
         if self.limbProgressGraphing:
-            #print("here!")
-            self.limbProgressGraph.save("limbProgressGraph", "limbProgressGraphData")
-            self.limbProgressGraph.xdata = np.arange(250)
-            self.limbProgressGraph.plotData(ydata=np.zeros(250))
+            prefix = ""
+            if self.variationTesting:
+                prefix = self.viewer.captureDirectory + "/"
+
+            self.limbProgressGraph.save(prefix + "limbProgressGraph", prefix + "limbProgressGraphData")
+
+            if self.variationTesting:
+                if self.reset_number % self.numSeeds == 0:
+                    self.limbProgressGraph.close()
+                    self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
+
+            self.limbProgressGraph.xdata = np.arange(600)
+            self.limbProgressGraph.plotData(ydata=np.zeros(600))
             self.limbProgressGraph.update()
 
         if self.restPoseErrorGraphing:

@@ -631,10 +631,24 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Rigid Env (one file)
+register(
+    id='DartIiwaRigid-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothOneFileIiwaEnv',
+    #max_episode_steps=250,
+)
+
 #Sawyer Hanging Rigid Env (one file)
 register(
     id='DartSawyerRigidAssist-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenRigidClothSawyerAssistEnv',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Env (one file)
+register(
+    id='DartIiwaGown-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnv',
     #max_episode_steps=250,
 )
 
