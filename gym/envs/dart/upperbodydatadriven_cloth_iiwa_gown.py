@@ -243,7 +243,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = True
+        self.limbProgressGraphing = False
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
