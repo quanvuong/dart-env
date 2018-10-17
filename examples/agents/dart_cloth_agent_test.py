@@ -25,6 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    trial = "experiment_2018_10_15_weakgown" #action scale x5: first iiwa cloth gown
+
     #trial = "experiment_2018_10_02_weak" #action scale x2.5 with strong torso (kinda unstable)
     #trial = "experiment_2018_10_01_weak_x2d5" #action scale x2.5
     #trial = "experiment_2018_09_27_robo__20rhang_weak_simple_lowvar" #trained weakness = [0.05, 0.15]

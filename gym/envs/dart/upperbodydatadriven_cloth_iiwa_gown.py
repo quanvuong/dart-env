@@ -243,7 +243,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = False
+        self.limbProgressGraphing = True
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
@@ -936,6 +936,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                                                                                      clothscene=self.clothScene,
                                                                                      meshgraph=self.separatedMesh,
                                                                                      returnOnlyGeo=False)
+                if minGeoVix is not None:
+                    vixSide = 0
+                    if _side:
+                        vixSide = 1
+                    if minGeoVix >= 0:
+                        oracle = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+
+                    if minContactGeodesic == 0:
+                        minGeoVix = None
+                        #print("re-directing to centroid")
+
                 if minGeoVix is None:
                     #oracle points to the garment when ef not in contact
                     efL = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
@@ -947,12 +958,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                     target = np.array(centroid)
                     vec = target - efL
                     oracle = vec/np.linalg.norm(vec)
-                else:
-                    vixSide = 0
-                    if _side:
-                        vixSide = 1
-                    if minGeoVix >= 0:
-                        oracle = self.separatedMesh.geoVectorAt(minGeoVix, side=vixSide)
+
             self.prevOracle = np.array(oracle)
             obs = np.concatenate([obs, oracle]).ravel()
         elif self.oracleInObs: #rigid oracle
@@ -1054,6 +1060,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
             if self.variationTesting:
                 prefix = self.viewer.captureDirectory+"/"
 
+            self.limbProgressGraph.update()
             self.limbProgressGraph.save(prefix+"limbProgressGraph", prefix+"limbProgressGraphData")
 
             if self.variationTesting:
@@ -1506,7 +1513,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
             renderUtils.drawArrow(p0=self.rigidClothFrame.getCenter(), p1=self.rigidClothFrame.getCenter()+hoop_norm*0.2)
         #renderUtils.drawSphere(self.rigidClothFrame.getCenter(), 0.05)
         #self.rigidClothTargetFrame.draw()
-        self.rigidClothTargetFrame.drawFrame(size=0.25)
+        #self.rigidClothTargetFrame.drawFrame(size=0.25)
         #renderUtils.drawLines(lines=[[self.rigidClothFrame.org, np.zeros(3)]])
         #hn = self.sawyer_skel.bodynodes[13] #hand node
         #p0 = hn.to_world(np.zeros(3))
@@ -1540,7 +1547,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
 
         renderUtils.drawBox(cen=self.iiwa_root_dofs[3:], dim=np.array([0.2, 0.05, 0.2]))
 
-        '''
+
         if(self.renderCloth):
             if self.sleeveLSeamFeature is not None:
                 self.sleeveLSeamFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
@@ -1548,7 +1555,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                 self.sleeveLEndFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
             if self.sleeveLMidFeature is not None:
                 self.sleeveLMidFeature.drawProjectionPoly(renderNormal=True, renderBasis=False)
-        '''
+
 
         #draw the linear track initial and end boxes
         if self.linearTrackActive:
