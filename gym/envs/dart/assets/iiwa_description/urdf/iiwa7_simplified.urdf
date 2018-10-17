@@ -49,12 +49,6 @@
       </geometry>
       <material name="Grey"/>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <capsule length="0.25" radius="0.15"/>
-      </geometry>
-    </collision>
   </link>
   <!-- joint between link_0 and link_1 -->
   <joint name="iiwa_joint_1" type="revolute">
