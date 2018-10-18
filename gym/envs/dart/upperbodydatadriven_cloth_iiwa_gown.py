@@ -1357,7 +1357,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
 
             self.clothScene.rotateCloth(cid=0, R=pyutils.rotateX(-math.pi/2.0))
             self.clothScene.rotateCloth(cid=0, R=hn.T[:3, :3])
-            #TODO: rotate cloth to align with robot direction
+            #rotate cloth to align with robot direction
             self.clothScene.translateCloth(0, hn.to_world(np.array([0, 0, 0.05])))
             self.handleNode.setOrgToCentroid()
 
@@ -1368,6 +1368,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         if self.simulateCloth:
             if self.sleeveLSeamFeature is not None:
                 #the normal should always point toward the origin in this task
+                self.sleeveLSeamFeature.fitPlane()
                 toward_origin = self.sleeveLSeamFeature.plane.org
                 toward_origin = toward_origin/np.linalg.norm(toward_origin)
                 self.sleeveLSeamFeature.fitPlane(normhint=toward_origin)
