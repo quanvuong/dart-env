@@ -84,7 +84,12 @@ from gym.envs.dart.reacher_7link import DartReacher7LinkEnv
 from gym.envs.dart.ant import DartAntEnv
 
 from gym.envs.dart.darwin import DartDarwinTrajEnv
+from gym.envs.dart.darwin_squat import DartDarwinSquatEnv
 
 from gym.envs.dart.halfcheetah import DartHalfCheetahEnv
 
 from gym.envs.dart.hopper_soft import DartHopperSoftEnv
+
+from gym.envs.dart.ddp_env import DDPEnv
+
+from gym.envs.dart.cross_puzzle import DartCrossPuzzle

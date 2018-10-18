@@ -591,6 +591,12 @@ register(
 register(
     id='DartDarwin-v1',
     entry_point='gym.envs.dart:DartDarwinTrajEnv',
+    max_episode_steps=1500,
+)
+
+register(
+    id='DartDarwinSquat-v1',
+    entry_point='gym.envs.dart:DartDarwinSquatEnv',
     max_episode_steps=500,
 )
 
@@ -660,11 +666,11 @@ register(
     max_episode_steps=400,
 )
 
-'''register(
+register(
     id='DDPEnv-v1',
     entry_point='gym.envs.dart:DDPEnv',
-    max_episode_steps=50,
-)'''
+    max_episode_steps=100,
+)
 
 '''register(
     id='DartSwing-v0',
@@ -672,6 +678,12 @@ register(
     reward_threshold=950.0,
     max_episode_steps=2000,
 )'''
+
+register(
+    id='DartCrossPuzzle-v1',
+    entry_point='gym.envs.dart:DartCrossPuzzle',
+    max_episode_steps = 100,
+)
 
 
 

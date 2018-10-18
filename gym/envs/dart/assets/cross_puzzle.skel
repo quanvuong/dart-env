@@ -1,0 +1,312 @@
+<?xml version="1.0" ?>
+<skel version="1.0">
+    <world name="world 1">
+        <physics>
+            <time_step>0.002</time_step>
+            <gravity>0 -9.81 0</gravity>
+            <collision_detector>dart</collision_detector>
+        </physics>
+
+        <skeleton name="ground skeleton">
+            <mobile>false</mobile>
+            <body name="ground">
+                <transformation>0 -0.25 0 0 0 0</transformation>
+                <visualization_shape>
+                    <transformation>0 -1.75 0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 4.0 12.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0 -1.75 0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 4.0 12.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+                <!-- Walls -->
+                <visualization_shape>
+                    <transformation>-4.0 1.0 -4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>-4.0 1.0 -4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+                <visualization_shape>
+                    <transformation>4.0 1.0 -4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>4.0 1.0 -4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+                <visualization_shape>
+                    <transformation>4.0 1.0 4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>4.0 1.0 4.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>4.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+
+
+
+
+                <visualization_shape>
+                    <transformation>0.0 1.0 -7.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 2.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.5 0.5 0.5 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 1.0 -7.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 2.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+                <visualization_shape>
+                    <transformation>0.0 1.0 15.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 2.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.5 0.5 0.5 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 1.0 15.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 2.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+
+                <visualization_shape>
+                    <transformation>7.0 1.0 0.0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>2.0 12.0 30.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.5 0.5 0.5 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>7.0 1.0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>2.0 12.0 30.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+                <visualization_shape>
+                    <transformation>-7.0 1.0 0.0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>2.0 12.0 30.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.5 0.5 0.5 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>-7.0 1.0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>2.0 12.0 30.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+
+
+                <visualization_shape>
+                    <transformation>0.0 -3.0 8.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 -3.0 8.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+
+                <visualization_shape>
+                    <transformation>0.0 -1.0 12.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                    <color>0.7 0.7 0.7 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 -1.0 12.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>12.0 2.0 4.0</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+
+            </body>
+            <joint type="free" name="joint 1">
+                <parent>world</parent>
+                <child>ground</child>
+            </joint>
+        </skeleton>
+
+
+        <skeleton name="block">
+            <body name="block">
+                <transformation>0 1.0  0 0 0</transformation>
+                <inertia>
+                    <mass>5.89254870769</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>3.8 2.0 3.8</size>
+                        </box>
+                    </geometry>
+                    <color>1.0 0.5 0.5 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 0.0 0.0 0 0 0</transformation>
+                    <geometry>
+                        <box>
+                            <size>3.8 2.0 3.8</size>
+                        </box>
+                    </geometry>
+                </collision_shape>
+            </body>
+            <joint type="free" name="joint 1">
+                <parent>world</parent>
+                <child>block</child>
+            </joint>
+        </skeleton>
+
+        <skeleton name="bot_viz">
+            <mobile>false</mobile>
+            <transformation>0 0.0 0 0 0 0</transformation>
+            <body name="root">
+                <transformation> 0.0 0.3 0 0 0 0</transformation>
+                <inertia>
+                    <mass>4.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 0 0.0 0.0 0.0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.6 0.6 0.6</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>0.1 0.1 0.8 1.0 </color>
+                </visualization_shape>
+            </body>
+
+
+
+            <!-- JOINT: Pelvis -->
+            <joint type="translational" name="rootj">
+                <parent>world</parent>
+                <child>root</child>
+            </joint>
+        </skeleton>
+
+        <skeleton name="bot">
+            <transformation>0 0.0 4 0 0 0</transformation>
+            <body name="root">
+                <transformation> 0.0 0.3 0 0 0 0</transformation>
+                <inertia>
+                    <mass>4.0</mass>
+                    <offset>0.0 0 0.0</offset>
+                </inertia>
+                <visualization_shape>
+                    <transformation>0.0 0 0.0 0.0 0.0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.6 0.6 0.6</size>
+                        </ellipsoid>
+                    </geometry>
+                    <color>0.5 0.5 1.0 1.0 </color>
+                </visualization_shape>
+                <collision_shape>
+                    <transformation>0.0 0 0.0 0.0 0.0 0</transformation>
+                    <geometry>
+                        <ellipsoid>
+                            <size>0.6 0.6 0.6</size>
+                        </ellipsoid>
+                    </geometry>
+                </collision_shape>
+            </body>
+
+
+
+            <!-- JOINT: Pelvis -->
+            <joint type="translational" name="rootj">
+                <parent>world</parent>
+                <child>root</child>
+            </joint>
+
+
+
+        </skeleton>
+
+    </world>
+</skel>
+

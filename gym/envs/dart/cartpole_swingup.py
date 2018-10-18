@@ -125,7 +125,8 @@ class DartCartPoleSwingUpEnv(dart_env.DartEnv):
             reward += np.max([5 - (ang_proc) * 4, 0]) + np.max([3 - np.abs(self.robot_skeleton.dq[1]), 0])
         return reward
 
-    def _step(self, a):
+    def step(self, a):
+
         self.advance(a)
 
         ob = self._get_obs()
