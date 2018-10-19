@@ -59,7 +59,7 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
         reward = reward_dist + reward_ctrl
 
         if self.robot_skeleton.bodynodes[-1].com()[1] < 0.0:
-            reward -= 5
+            reward -= 50
 
         s = self.state_vector()
         #done = not (np.isfinite(s).all() and (-reward_dist > 0.02))

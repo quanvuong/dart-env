@@ -30,7 +30,7 @@
                 </collision_shape>
 
                 <!-- Walls -->
-                <visualization_shape>
+                <!--<visualization_shape>
                     <transformation>-4.0 1.0 -4.0 0 0 0</transformation>
                     <geometry>
                         <box>
@@ -82,7 +82,7 @@
                             <size>4.0 2.0 4.0</size>
                         </box>
                     </geometry>
-                </collision_shape>
+                </collision_shape>-->
 
 
 

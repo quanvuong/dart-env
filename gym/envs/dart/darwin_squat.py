@@ -34,10 +34,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.interp_sch = [[0.0, self.pose_squat], [1.0, self.pose_stand]]
 
-        self.delta_angle_scale = 0.1
+        self.delta_angle_scale = 0.5
 
         self.alive_bonus = 5.0
-        self.energy_weight = 0.005
+        self.energy_weight = 0.1
         self.work_weight = 0.01
         self.pose_weight = 0.2
 
@@ -125,6 +125,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.ref_target = self.interp_sch[-1][1]
 
         self.target[6:] = self.ref_target + clamped_control * self.delta_angle_scale
+        self.target[6:] = np.clip(self.target[6:], JOINT_LOW_BOUND, JOINT_UP_BOUND)
 
 
         self.dupSkel.set_positions(self.target)
@@ -198,7 +199,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             np.abs(np.array(self.ref_target - self.robot_skeleton.q[6:])) ** 2)
 
         reward = -self.energy_weight * np.sum(
-            self.tau) ** 2 + self.alive_bonus - pose_math_rew * self.pose_weight
+            a) ** 2 + self.alive_bonus - pose_math_rew * self.pose_weight
         reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
 
         s = self.state_vector()
