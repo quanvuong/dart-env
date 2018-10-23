@@ -192,7 +192,6 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target[6:] = self.init_q[
                           6:] + clamped_control  # self.ref_traj[self.count,:] + (self.init[6:])# + #*self.action_scale# + self.ref_trajectory_right[self.count_right,6:]# +
-
         self.dupSkel.set_positions(self.target)
         self.dupSkel.set_velocities(self.target*0)
 

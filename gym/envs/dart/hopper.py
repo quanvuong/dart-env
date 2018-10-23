@@ -15,6 +15,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
         self.train_UP = False
         self.noisy_input = False
+        self.input_time = True
         obs_dim = 11
 
         self.velrew_weight = 1.0
@@ -37,6 +38,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.include_act_history = 0
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
+
+        if self.input_time:
+            obs_dim += 1
 
         dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -171,6 +175,10 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 UP += np.random.uniform(-self.UP_noise_level, self.UP_noise_level, len(UP))
                 UP = np.clip(UP, -0.05, 1.05)
             state = np.concatenate([state, UP])
+
+        if self.input_time:
+            state = np.concatenate([state, [self.t]])
+
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
 

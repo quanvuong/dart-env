@@ -726,8 +726,6 @@ class cheetahParamManager:
             self.simulator.dart_world.set_gravity([9.81 * np.sin(tiltz), -9.81 * np.cos(tiltz), 0.0])
             cur_id += 1
 
-
-
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)
@@ -825,4 +823,73 @@ class mjcheetahParamManager:
         if self.sampling_selector is not None:
             while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
                 x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
+
+class darwinSquatParamManager:
+    def __init__(self, simulator):
+        self.simulator = simulator
+        self.mass_rat_range = [0.8, 1.2]
+        self.imu_offset = [-0.02, 0.02] # in cm
+        self.kp_rat_range = [0.8, 1.2]
+        self.kd_rat_range = [0.8, 1.2]
+
+        self.activated_param = [0,1,2,3,4,5]
+        self.controllable_param = [0,1,2,3,4,5]
+
+        self.param_dim = len(self.activated_param)
+        self.sampling_selector = None
+        self.selector_target = -1
+
+    def get_simulator_parameters(self):
+        cur_mass_rat = self.simulator.mass_ratio
+        mass_param = (cur_mass_rat - self.mass_rat_range[0]) / (self.mass_rat_range[1] - self.mass_rat_range[0])
+
+        cur_imu_x = self.simulator.imu_offset_deviation[0]
+        imu_x_param = (cur_imu_x - self.imu_offset[0]) / (self.imu_offset[1] - self.imu_offset[0])
+
+        cur_imu_y = self.simulator.imu_offset_deviation[1]
+        imu_y_param = (cur_imu_y - self.imu_offset[0]) / (self.imu_offset[1] - self.imu_offset[0])
+
+        cur_imu_z = self.simulator.imu_offset_deviation[2]
+        imu_z_param = (cur_imu_z - self.imu_offset[0]) / (self.imu_offset[1] - self.imu_offset[0])
+
+        cur_kp_rat = self.simulator.kp_ratio
+        kp_param = (cur_kp_rat - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
+
+        cur_kd_rat = self.simulator.kd_ratio
+        kd_param = (cur_kd_rat - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
+
+
+        return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_param, kd_param])[self.activated_param]
+
+    def set_simulator_parameters(self, x):
+        cur_id = 0
+
+        if 0 in self.controllable_param:
+            mass_rat = x[cur_id] * (self.mass_rat_range[1] - self.mass_rat_range[0]) + self.mass_rat_range[0]
+            self.simulator.mass_ratio = mass_rat
+            cur_id += 1
+        if 1 in self.controllable_param:
+            imu_x = x[cur_id] * (self.imu_offset[1] - self.imu_offset[0]) + self.imu_offset[0]
+            self.simulator.imu_offset_deviation[0] = imu_x
+            cur_id += 1
+        if 2 in self.controllable_param:
+            imu_y = x[cur_id] * (self.imu_offset[1] - self.imu_offset[0]) + self.imu_offset[0]
+            self.simulator.imu_offset_deviation[1] = imu_y
+            cur_id += 1
+        if 3 in self.controllable_param:
+            imu_z = x[cur_id] * (self.imu_offset[1] - self.imu_offset[0]) + self.imu_offset[0]
+            self.simulator.imu_offset_deviation[2] = imu_z
+            cur_id += 1
+        if 4 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.kp_ratio = kp_rat
+            cur_id += 1
+        if 5 in self.controllable_param:
+            kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0]
+            self.simulator.kd_ratio = kd_rat
+            cur_id += 1
+
+    def resample_parameters(self):
+        x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
         self.set_simulator_parameters(x)

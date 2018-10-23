@@ -8,16 +8,16 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = 300
 
         self.hierarchical = True
-        self.h_horizon = 50
-        self.action_scale = 2.0
-        self.num_way_point = 2
+        self.h_horizon = 25
+        self.action_scale = 1.0
+        self.num_way_point = 1
 
         self.control_bounds = np.array([[1.0, 1.0], [-1.0, -1.0]])
 
         if self.hierarchical:
             self.control_bounds = np.array([[1.0] * (2*self.num_way_point), [-1.0] * (2*self.num_way_point)])
 
-        dart_env.DartEnv.__init__(self, 'cross_puzzle.skel', 2, 4, self.control_bounds, dt=0.01, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'cross_puzzle.skel', 2, 6, self.control_bounds, dt=0.01, disableViewer=True)
 
         utils.EzPickle.__init__(self)
 
@@ -58,8 +58,8 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
         reward_ctrl = - np.square(a).sum()*0.1
         reward = reward_dist + reward_ctrl
 
-        if self.robot_skeleton.bodynodes[-1].com()[1] < 0.0:
-            reward -= 50
+        #if self.robot_skeleton.bodynodes[-1].com()[1] < 0.0:
+        #    reward -= 15
 
         s = self.state_vector()
         #done = not (np.isfinite(s).all() and (-reward_dist > 0.02))
@@ -69,8 +69,8 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
 
     def _get_obs(self):
         pos = self.robot_skeleton.bodynodes[-1].C
-        vel  =self.robot_skeleton.bodynodes[-1].dC
-        return np.array([pos[0], pos[2], vel[0], vel[2]])
+        vel = self.robot_skeleton.bodynodes[-1].dC
+        return np.array([pos[0], pos[2], vel[0], vel[2], self.dart_world.skeletons[-2].C[0], self.dart_world.skeletons[-2].C[2]])
 
     def reset_model(self):
         self.dart_world.reset()

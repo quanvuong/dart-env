@@ -210,7 +210,7 @@
 
         <skeleton name="block">
             <body name="block">
-                <transformation>0 1.0  0 0 0</transformation>
+                <transformation>-4.0 1.0  4 0 0</transformation>
                 <inertia>
                     <mass>5.89254870769</mass>
                     <offset>0.0 0 0.0</offset>
@@ -269,7 +269,7 @@
         </skeleton>
 
         <skeleton name="bot">
-            <transformation>0 0.0 4 0 0 0</transformation>
+            <transformation>0 0.0 0 0 0 0</transformation>
             <body name="root">
                 <transformation> 0.0 0.3 0 0 0 0</transformation>
                 <inertia>
