@@ -344,7 +344,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataD
         self.renderIiwaCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
         self.hoopTorques = None
 
