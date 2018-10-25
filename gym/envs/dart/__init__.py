@@ -79,6 +79,7 @@ from gym.envs.dart.upperbodydatadriven_rigidcloth_sawyer_assist import DartCloth
 #iiwa envs
 from gym.envs.dart.upperbodydatadriven_rigidclothonefile_iiwa import DartClothUpperBodyDataDrivenRigidClothOneFileIiwaEnv
 from gym.envs.dart.upperbodydatadriven_cloth_iiwa_gown import DartClothUpperBodyDataDrivenClothIiwaGownEnv
+from gym.envs.dart.upperbodydatadriven_cloth_iiwa_gown_assist import DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv
 
 
 from gym.envs.dart.walker2d import DartWalker2dEnv

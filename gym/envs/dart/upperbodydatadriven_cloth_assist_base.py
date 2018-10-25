@@ -189,12 +189,12 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
 
 
         if clothMeshStateFile is not None:
-            clothScene = pyphysx.ClothScene(step=0.01,
+            clothScene = pyphysx.ClothScene(step=0.002,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             state_path=self.prefix + "/../../../../" + clothMeshStateFile,
                                             scale=clothScale)
         else:
-            clothScene = pyphysx.ClothScene(step=0.01,
+            clothScene = pyphysx.ClothScene(step=0.002,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             scale=clothScale)
 
@@ -220,6 +220,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
                                   observation_size=obs_size, action_bounds=self.robot_control_bounds , disableViewer = True, visualize = False)
 
+        self.setSeed = -1  # default to no seed
         #rescaling actions for SPD
         if SPDActionSpace:
             for ix, dof in enumerate(self.robot_skeleton.dofs):
@@ -748,7 +749,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
                  40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
                  40, 42, 43, 44, 45, 46, 47, 48, 49, 50]
         #print(seeds)
-        if True:
+        if False:
             try:
                 seed = seeds[self.reset_number]
             except:

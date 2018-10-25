@@ -8,13 +8,14 @@
         </physics>
         
         <skeleton name="target">
-           <mobile>true</mobile>
+           <mobile>false</mobile>
            <body name="gripper">
                 <transformation>0.0 0.0 0.0 0 0 0</transformation>
                 <inertia>
                     <mass>1</mass>
                     <offset>0 0 0</offset>
                 </inertia>
+                
                 <visualization_shape>
                     <geometry>
                         <box>

@@ -20,6 +20,7 @@ class StaticGLUTWindow(GLUTWindow):
         GLUT.glutMainLoopEvent()
 
     def drawGL(self, ):
+
         if self.renderWorld:
             self.scene.render(self.sim)
         else:

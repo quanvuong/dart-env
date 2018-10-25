@@ -645,10 +645,17 @@ register(
     #max_episode_steps=250,
 )
 
-#Iiwa Hanging Gown Env (one file)
+#Iiwa Hanging Gown Env
 register(
     id='DartIiwaGown-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnv',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Assist Env
+register(
+    id='DartIiwaGownAssist-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv',
     #max_episode_steps=250,
 )
 

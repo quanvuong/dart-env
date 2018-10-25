@@ -12,8 +12,8 @@ class NoRenderWindow(object):
     def runSingleStep(self):
         if self.sim is None:
             return
-        if self.is_simulating:
-            self.sim.step()
+        #if self.is_simulating:
+        #    self.sim.step()
 
     def run(self, _width=None, _height=None, _show_window=False):
         #initialization should happen here

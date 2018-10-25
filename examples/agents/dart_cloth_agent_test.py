@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_10_17_weakgown_warm" #warm start of 'experiment_2018_10_15_weakgown' with oracle correction
+    #trial = "experiment_2018_10_18_weakgown" #fixed oracle normal after limb progress > 0 (took ~2500 iterations)
+    #trial = "experiment_2018_10_17_weakgown_warm" #warm start of 'experiment_2018_10_15_weakgown' with oracle correction
     #trial = "experiment_2018_10_15_weakgown" #action scale x5: first iiwa cloth gown
 
     #trial = "experiment_2018_10_02_weak" #action scale x2.5 with strong torso (kinda unstable)
@@ -423,7 +424,8 @@ if __name__ == '__main__':
 
     #envName = 'DartSawyerRigid-v4'
     #envName = 'DartIiwaRigid-v1'
-    envName = 'DartIiwaGown-v1'
+    #envName = 'DartIiwaGown-v1'
+    envName = 'DartIiwaGownAssist-v1'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -480,12 +482,12 @@ if __name__ == '__main__':
             # The neural network policy should have two hidden layers, each with 32 hidden units.
             hidden_sizes=(64, 64),
             #hidden_sizes=(128, 64),
-            init_std=0.2 #exploration scaling
-            #init_std=0.2
+            #init_std=0.2 #exploration scaling
+            init_std=0.1
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        all_param_values[4] *= 0.01
-        #all_param_values[4] *= 0.002 #bias output scaling
+        #all_param_values[4] *= 0.01
+        all_param_values[4] *= 0.002 #bias output scaling
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

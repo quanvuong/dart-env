@@ -200,13 +200,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #try:
         if clothMeshStateFile is not None:
-            clothScene = pyphysx.ClothScene(step=0.01,
+            clothScene = pyphysx.ClothScene(step=0.002,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             state_path=self.prefix + "/../../../../" + clothMeshStateFile,
                                             #tube=True,
                                             scale=clothScale)
         else:
-            clothScene = pyphysx.ClothScene(step=0.01,
+            clothScene = pyphysx.ClothScene(step=0.002,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             scale=clothScale)
         #except:
@@ -643,8 +643,8 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
 
         #set position and 0 velocity of locked dofs
-        qpos = self.robot_skeleton.q
-        qvel = self.robot_skeleton.dq
+        qpos = np.array(self.robot_skeleton.q)
+        qvel = np.array(self.robot_skeleton.dq)
         for dof in self.lockedDofs:
             qpos[dof] = 0
             qvel[dof] = 0
@@ -860,7 +860,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print(seeds)
 
         #Seeding for determinism:
-        if False:
+        if True:
             try:
                 seed = seeds[self.reset_number]
             except:
