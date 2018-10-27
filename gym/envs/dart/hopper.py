@@ -15,8 +15,17 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
         self.train_UP = False
         self.noisy_input = False
-        self.input_time = True
+        self.input_time = False
+
+        self.action_filtering = 0  # window size of filtering, 0 means no filtering
+        self.action_filter_cache = []
+
+        self.imaginary_states = 0
+
         obs_dim = 11
+
+        if self.imaginary_states > 0:
+            obs_dim += obs_dim * self.imaginary_states
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
@@ -91,6 +100,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             a = self.action_buffer[-self.act_delay-1]
 
+
         self.posbefore = self.robot_skeleton.q[0]
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
@@ -147,6 +157,12 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         return reward
 
     def step(self, a):
+        self.action_filter_cache.append(a)
+        if len(self.action_filter_cache) > self.action_filtering:
+            self.action_filter_cache.pop(0)
+        if self.action_filtering > 0:
+            a = np.mean(self.action_filter_cache, axis=0)
+            
         self.t += self.dt
         self.pre_advance()
         self.advance(a)
@@ -168,6 +184,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.dq,
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
+
+        if self.imaginary_states > 0:
+            cur_state = np.copy(self.state_vector())
+
+            for i in range(self.imaginary_states):
+                self.advance([0.0]*3)
+                s = np.concatenate([
+                    self.robot_skeleton.q[1:],
+                    self.robot_skeleton.dq,
+                ])
+                s[0] = self.robot_skeleton.bodynodes[2].com()[1]
+                state = np.concatenate([state, s])
+            self.set_state_vector(cur_state)
 
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
@@ -197,6 +226,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 final_obs = np.concatenate([final_obs, self.action_buffer[-1-i]])
             else:
                 final_obs = np.concatenate([final_obs, [0.0]*len(self.control_bounds[0])])
+
 
         return final_obs
 

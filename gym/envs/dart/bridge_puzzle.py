@@ -2,15 +2,15 @@ import numpy as np
 from gym import utils
 from gym.envs.dart import dart_env
 
-class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
+class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
-        self.target = np.array([0.0, 0.3, 13.5])
-        self.action_scale = 300
+        self.target = np.array([15.0, 0.3, 0.0])
+        self.action_scale = 100
 
-        self.action_filtering = 0  # window size of filtering, 0 means no filtering
+        self.action_filtering = 5  # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
 
-        self.hierarchical = True
+        self.hierarchical = False
         if self.hierarchical:
             self.h_horizon = 20
             self.action_scale = 2.0
@@ -21,30 +21,29 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
         if self.hierarchical:
             self.control_bounds = np.array([[1.0] * (2*self.num_way_point), [-1.0] * (2*self.num_way_point)])
 
-        dart_env.DartEnv.__init__(self, 'cross_puzzle.skel', 2, 6, self.control_bounds, dt=0.01, disableViewer=True)
+        dart_env.DartEnv.__init__(self, 'bridge_puzzle.skel', 2, 6, self.control_bounds, dt=0.01, disableViewer=True)
 
         #self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(5.0)
         for bn in self.dart_world.skeletons[1].bodynodes:
             bn.set_friction_coeff(0.2)
-        for bn in self.dart_world.skeletons[3].bodynodes:
+        for bn in self.dart_world.skeletons[-1].bodynodes:
             bn.set_friction_coeff(0.2)
 
         utils.EzPickle.__init__(self)
 
     def step(self, a):
-
-        self.action_filter_cache.append(a)
-        if len(self.action_filter_cache) > self.action_filtering:
-            self.action_filter_cache.pop(0)
-        if self.action_filtering > 0:
-            a = np.mean(self.action_filter_cache, axis=0)
-
         clamped_control = np.array(a)
         for i in range(len(clamped_control)):
             if clamped_control[i] > self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
             if clamped_control[i] < self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
+
+        self.action_filter_cache.append(clamped_control)
+        if len(self.action_filter_cache) > self.action_filtering:
+            self.action_filter_cache.pop(0)
+        if self.action_filtering > 0:
+            clamped_control = np.mean(self.action_filter_cache, axis=0)
 
         if not self.hierarchical:
             tau = np.zeros(3)
@@ -73,14 +72,16 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
 
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.square(a).sum()*0.1
-        reward = reward_dist + reward_ctrl
+        reward = reward_dist + reward_ctrl + 15
 
-        #if self.robot_skeleton.bodynodes[-1].com()[1] < 0.0:
         #    reward -= 15
 
         s = self.state_vector()
         #done = not (np.isfinite(s).all() and (-reward_dist > 0.02))
         done = False
+
+        if self.robot_skeleton.bodynodes[-1].com()[1] < -0.0 or self.robot_skeleton.bodynodes[-1].com()[1] > 0.5:
+            done = True
 
         return ob, reward, done, {'done_return':done}
 
@@ -96,6 +97,9 @@ class DartCrossPuzzle(dart_env.DartEnv, utils.EzPickle):
         qpos[1] = 0.0
         qvel[1] = 0.0
         self.set_state(qpos, qvel)
+
+        if not self.hierarchical:
+            self.dart_world.skeletons[-2].q = np.array([1000, 10, 10])
 
         return self._get_obs()
 

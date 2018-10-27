@@ -12,75 +12,46 @@ from random import randrange
 import pickle
 import copy
 
+from gym.envs.dart.darwin_utils import *
+from gym.envs.dart.parameter_managers import *
 
 class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
 
         obs_dim = 48
 
-        self.control_bounds = np.array([np.ones(20, ), np.ones(20, )])
-        # LOWER CONTROL BOUNDS
-        # LEFT HANDS
+        self.imu_input_step = 0  # number of imu steps as input
+        self.imu_cache = []
 
-        self.control_bounds[0, 0] = (2518 - 2048) * 0.088 * np.pi / 180  # - np.pi/8
-        self.control_bounds[0, 1] = (2248 - 2048) * 0.088 * np.pi / 180  # - np.pi/2
-        self.control_bounds[0, 2] = (1712 - 2048) * 0.088 * np.pi / 180  # - np.pi/4
-        # RIGHT HANDS
-        self.control_bounds[0, 3] = (1498 - 2048) * 0.088 * np.pi / 180  # - np.pi/8
-        self.control_bounds[0, 4] = (1845 - 2048) * 0.088 * np.pi / 180  # - np.pi/8
-        self.control_bounds[0, 5] = (2381 - 2048) * 0.088 * np.pi / 180  # - np.pi/4
-        # head
-        self.control_bounds[0, 6] = -0.01
-        self.control_bounds[0, 7] = -0.01
-        # LEFT LEG
-        self.control_bounds[0, 8] = -np.pi / 10
-        self.control_bounds[0, 9] = -0.20
-        self.control_bounds[0, 10] = -0.25
-        self.control_bounds[0, 11] = -0.60
-        self.control_bounds[0, 12] = -0.40
-        self.control_bounds[0, 13] = -0.40
+        self.action_filtering = 0  # window size of filtering, 0 means no filtering
+        self.action_filter_cache = []
 
-        self.control_bounds[0, 14] = -np.pi / 10
-        self.control_bounds[0, 15] = -0.15
-        self.control_bounds[0, 16] = -0.40
-        self.control_bounds[0, 17] = -0.40
-        self.control_bounds[0, 18] = -0.25  # (2389-2048)*(np.pi/180)*0.088 - 0.050
-        self.control_bounds[0, 19] = -0.30  # (2057-2048)*(np.pi/180)*0.088 - 0.050
+        self.imu_offset = np.array([0, 0, -0.06])  # offset in the MP_BODY node for imu measurements
+        self.mass_ratio = 1.0
+        self.kp_ratio = 1.0
+        self.kd_ratio = 1.0
+        self.imu_offset_deviation = np.array([0, 0, 0])
 
-        ### UPPER BOUNDS
-        self.control_bounds[1, 0] = (2518 - 2048) * 0.088 * np.pi / 180  # + np.pi/8
-        self.control_bounds[1, 1] = (2248 - 2048) * 0.088 * np.pi / 180  # + np.pi/8
-        self.control_bounds[1, 2] = (1712 - 2048) * 0.088 * np.pi / 180  # + np.pi/4
-        # RIGHT HANDS
-        self.control_bounds[1, 3] = (1498 - 2048) * 0.088 * np.pi / 180  # + np.pi/8
-        self.control_bounds[1, 4] = (1845 - 2048) * 0.088 * np.pi / 180  # + np.pi/2
-        self.control_bounds[1, 5] = (2381 - 2048) * 0.088 * np.pi / 180  # + np.pi/4
-        # head
-        self.control_bounds[1, 6] = 0.01
-        self.control_bounds[1, 7] = 0.01
-        # LEFT LEG
-        self.control_bounds[1, 8] = np.pi / 10
-        self.control_bounds[1, 9] = 0.15  # (2052-2048)*(np.pi/180)*0.088 + np.pi/100
-        self.control_bounds[1, 10] = 0.40  # 0.68 + 0.076
-        self.control_bounds[1, 11] = 0.40  # -0.93 + 0.076
-        self.control_bounds[1, 12] = 0.25  # (1707-2048)*(np.pi/180)*0.088 + 0.050
-        self.control_bounds[1, 13] = 0.30  # (2039-2048)*(np.pi/180)*0.088 + 0.050
+        self.use_discrete_action = True
 
-        self.control_bounds[1, 14] = np.pi / 10
-        self.control_bounds[1, 15] = 0.20  # (2044-2048)*(np.pi/180)*0.088 + np.pi/25
-        self.control_bounds[1, 16] = 0.25  # -0.68 + 0.076
-        self.control_bounds[1, 17] = 0.60  # 0.93 + 0.076
-        self.control_bounds[1, 18] = 0.40  # (2389-2048)*(np.pi/180)*0.088 +0.050
-        self.control_bounds[1, 19] = 0.40  # (2057-2048)*(np.pi/180)*0.088 + 0.050
+        self.param_manager = darwinSquatParamManager(self)
 
-        self.control_limits_low = np.copy(self.control_bounds[0, :])
-        self.control_limits_high = np.copy(self.control_bounds[1, :])
-        self.control_bounds[0] = [-1.0] * 20
-        self.control_bounds[1] = [1.0] * 20
+        self.train_UP = False
+        self.noisy_input = True
+        self.resample_MP = True
+
+        obs_dim += self.imu_input_step * 6
+
+        if self.train_UP:
+            obs_dim += len(self.param_manager.activated_param)
+
+        self.control_bounds = np.array([-np.ones(20, ), np.ones(20, )])
+
+        self.angle_scale = 0.5 # can reach half of the work space
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.45
+        self.final_tv = 0.2
         self.tv_endtime = 0.001
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
@@ -93,7 +64,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_reward_weight = 10.0
         self.pose_weight = 0.2
 
-        self.assist_timeout = 10.0
+        self.assist_timeout = 0.0
         self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
         self.init_balance_pd = 20000.0
         self.init_vel_pd = 20000.0
@@ -144,8 +115,12 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                 [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
         self.act_perm = np.copy(act_perm_base)
 
+        if self.use_discrete_action:
+            from gym import spaces
+            self.action_space = spaces.MultiDiscrete([15] * 20)
+
         dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/robotis_op2.urdf'], 15, obs_dim,
-                                  self.control_bounds, disableViewer=True)
+                                  self.control_bounds, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.dart_world.set_gravity([0, 0, -9.81])
 
@@ -177,6 +152,30 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         tau = p + d - self.Kd * (qddot) * self.sim_dt
         return tau
 
+    def get_imu_data(self):
+        acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
+                offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True),
+                         self.robot_skeleton.dq) + np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian(
+                offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True), self.robot_skeleton.ddq)
+
+        acc -= self.dart_world.gravity()
+        angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
+
+        tinv = np.linalg.inv(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3])
+
+        lacc = np.dot(tinv, acc)
+        langvel = np.dot(tinv, angvel)
+
+        # Correction for Darwin hardware
+        lacc = np.array([lacc[1], lacc[0], -lacc[2]])
+        langvel = np.array([langvel[0], -langvel[1], langvel[2]])
+
+        imu_data = np.concatenate([lacc, langvel])
+
+        imu_data += np.random.normal(0, 0.001, len(imu_data))
+
+        return imu_data
+
     def advance(self, a):
         clamped_control = np.array(a)
 
@@ -187,11 +186,11 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
 
-        clamped_control = (clamped_control + 1.0) * 0.5 * (
-                self.control_limits_high - self.control_limits_low) + self.control_limits_low
+        clamped_control = (clamped_control + 1.0) * 0.5 * self.angle_scale
 
         self.target[6:] = self.init_q[
                           6:] + clamped_control  # self.ref_traj[self.count,:] + (self.init[6:])# + #*self.action_scale# + self.ref_trajectory_right[self.count_right,6:]# +
+        self.target[6:] = np.clip(self.target[6:], JOINT_LOW_BOUND, JOINT_UP_BOUND)
         self.dupSkel.set_positions(self.target)
         self.dupSkel.set_velocities(self.target*0)
 
@@ -222,16 +221,16 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
     def PID(self):
         # print("#########################################################################3")
 
-        self.kp = [2.1, 1.79, 4.93,
-                   2.0, 2.02, 1.98,
-                   2.2, 2.06,
-                   148, 152, 150, 136, 153, 102,
-                   151, 151.4, 150.45, 151.36, 154, 105.2]
-        self.kd = [0.21, 0.23, 0.22,
-                   0.25, 0.21, 0.26,
-                   0.28, 0.213
-            , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                   0.53, 0.27, 0.21, 0.205, 0.022, 0.056]
+        self.kp = np.array([2.1, 1.79, 4.93,
+                            2.0, 2.02, 1.98,
+                            2.2, 2.06,
+                            148, 152, 150, 136, 153, 102,
+                            151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio
+        self.kd = np.array([0.21, 0.23, 0.22,
+                            0.25, 0.21, 0.26,
+                            0.28, 0.213
+                               , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
+                            0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
 
         self.kp = [item for item in self.kp]
         self.kd = [item for item in self.kd]
@@ -265,6 +264,16 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         return torques
 
     def step(self, a):
+        if self.use_discrete_action:
+            a = a * 1.0/ np.floor(self.action_space.nvec/2.0) - 1.0
+
+        self.action_filter_cache.append(a)
+        if len(self.action_filter_cache) > self.action_filtering:
+            self.action_filter_cache.pop(0)
+        if self.action_filtering > 0:
+            a = np.mean(self.action_filter_cache, axis=0)
+
+
         if self.smooth_tv_change:
             self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
                     self.final_tv - self.init_tv) + self.init_tv
@@ -309,8 +318,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         foot_ang_r = np.arccos(np.dot(foot_down_r.T, [0, 0, -1]))
         reward -= (foot_ang_l ** 2 + foot_ang_r ** 2) * 0.15
 
-        foot_height = np.max([self.robot_skeleton.bodynodes[26].C[2], self.robot_skeleton.bodynodes[20].C[2]])
-        reward += np.min([(foot_height - self.init_footheight), 0.05]) * 20
+        #foot_height = np.max([self.robot_skeleton.bodynodes[26].C[2], self.robot_skeleton.bodynodes[20].C[2]])
+        #reward += np.min([(foot_height - self.init_footheight), 0.05]) * 20
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
@@ -336,6 +345,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.t += self.dt * 1.0
         self.cur_step += 1
 
+        self.imu_cache.append(self.get_imu_data())
+
         ob = self._get_obs()
 
         return ob, reward, done, {'avg_vel': np.mean(self.vel_cache), 'avg_vel2': (posafter - self.init_position_x) / self.t}
@@ -345,11 +356,15 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         # print(ContactList.shape)
         state = np.concatenate([self.robot_skeleton.q[6:], self.robot_skeleton.dq[6:]])
 
-        body_com = self.robot_skeleton.bodynode('MP_BODY').C
+        for i in range(self.imu_input_step):
+            state = np.concatenate([state, self.imu_cache[-i]])
 
-        bodyvel = np.dot(self.robot_skeleton.bodynode('MP_BODY').world_jacobian(
-            offset=self.robot_skeleton.bodynode('MP_BODY').local_com()), self.robot_skeleton.dq)
-        state = np.concatenate([state, body_com[1:], bodyvel])
+        if self.train_UP:
+            UP = self.param_manager.get_simulator_parameters()
+            state = np.concatenate([state, UP])
+
+        if self.noisy_input:
+            state = state + np.random.normal(0, .01, len(state))
 
         return state
 
@@ -409,8 +424,9 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             j.set_spring_stiffness(np.random.uniform(low=1.0,high=2.0,size=1)[0])
 
         '''
-        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
         self.init_q = np.copy(qpos)
+        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
+
         # self.target = qpos
         self.count = 0
         self.set_state(qpos, qvel)

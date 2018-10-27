@@ -20,8 +20,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         obs_dim = 40
 
-        self.imu_input_step = 5   # number of imu steps as input
+        self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
+
+        self.action_filtering = 0 # window size of filtering, 0 means no filtering
+        self.action_filter_cache = []
 
         self.imu_offset = np.array([0,0,-0.06]) # offset in the MP_BODY node for imu measurements
         self.mass_ratio = 1.0
@@ -29,11 +32,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.kd_ratio = 1.0
         self.imu_offset_deviation = np.array([0,0,0])
 
+        self.use_discrete_action = True
+
         self.param_manager = darwinSquatParamManager(self)
 
         self.train_UP = False
-        self.noisy_input = True
-        self.resample_MP = True
+        self.noisy_input = False
+        self.resample_MP = False
 
         obs_dim += self.imu_input_step * 6
 
@@ -123,8 +128,12 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 [self.obs_perm, np.sign(act_perm_base) * (np.abs(act_perm_base) + len(self.obs_perm))])
         self.act_perm = np.copy(act_perm_base)
 
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], 15, obs_dim,
-                                  self.control_bounds, disableViewer=True)
+        if self.use_discrete_action:
+            from gym import spaces
+            self.action_space = spaces.MultiDiscrete([11] * 20)
+
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], 25, obs_dim,
+                                  self.control_bounds, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.orig_bodynode_masses = [bn.mass() for bn in self.robot_skeleton.bodynodes]
 
@@ -254,6 +263,15 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         return torques
 
     def step(self, a):
+        if self.use_discrete_action:
+            a = a * 1.0/ np.floor(self.action_space.nvec/2.0) - 1.0
+
+        self.action_filter_cache.append(a)
+        if len(self.action_filter_cache) > self.action_filtering:
+            self.action_filter_cache.pop(0)
+        if self.action_filtering > 0:
+            a = np.mean(self.action_filter_cache, axis=0)
+
         self.advance(a)
 
         pose_math_rew = np.sum(

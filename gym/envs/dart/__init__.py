@@ -93,3 +93,4 @@ from gym.envs.dart.hopper_soft import DartHopperSoftEnv
 from gym.envs.dart.ddp_env import DDPEnv
 
 from gym.envs.dart.cross_puzzle import DartCrossPuzzle
+from gym.envs.dart.bridge_puzzle import DartBridgePuzzle
