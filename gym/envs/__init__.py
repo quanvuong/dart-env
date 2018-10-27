@@ -210,6 +210,13 @@ register(
 )
 
 register(
+    id='DartHalfCheetah-v1',
+    entry_point='gym.envs.dart:DartHalfCheetahEnv',
+    reward_threshold=4800.0,
+    max_episode_steps=1000,
+)
+
+register(
     id='DartCartPole-v1',
     entry_point='gym.envs.dart:DartCartPoleEnv',
     reward_threshold=950.0,
