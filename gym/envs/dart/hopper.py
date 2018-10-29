@@ -53,10 +53,13 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         reward = (posafter - posbefore) / self.dt
         reward += alive_bonus
         reward -= 1e-3 * np.square(a).sum()
-        reward -= 5e-1 * joint_limit_penalty
+
+        # uncomment the line below to enable joint limit penalty, which helps learning
+        #reward -= 5e-1 * joint_limit_penalty
+
         s = self.state_vector()
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and
-                    (height > .7) and (height < 1.8) and (abs(ang) < .4))
+                    (height > .7) and (height < 1.8) and (abs(ang) < .2))
         ob = self._get_obs()
 
         return ob, reward, done, {}
