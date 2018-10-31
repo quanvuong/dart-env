@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    #trial = "experiment_2018_10_18_weakgown" #fixed oracle normal after limb progress > 0 (took ~2500 iterations)
+    #trial = "experiment_2018_10_25_robo_weakgown18" #robot iiwa policy for 18_weakgown human
+    trial = "experiment_2018_10_18_weakgown" #fixed oracle normal after limb progress > 0 (took ~2500 iterations)
     #trial = "experiment_2018_10_17_weakgown_warm" #warm start of 'experiment_2018_10_15_weakgown' with oracle correction
     #trial = "experiment_2018_10_15_weakgown" #action scale x5: first iiwa cloth gown
 
@@ -424,8 +425,8 @@ if __name__ == '__main__':
 
     #envName = 'DartSawyerRigid-v4'
     #envName = 'DartIiwaRigid-v1'
-    #envName = 'DartIiwaGown-v1'
-    envName = 'DartIiwaGownAssist-v1'
+    envName = 'DartIiwaGown-v1'
+    #envName = 'DartIiwaGownAssist-v1'
     env = gym.make(envName)
 
     reloaderTest = False

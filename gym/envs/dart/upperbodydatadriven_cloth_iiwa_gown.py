@@ -158,7 +158,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = True #when true, reduce the debugging display significantly
+        self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.002
@@ -227,12 +227,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
         self.initialActionScale = None #set after initialization
         self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
-        self.variationTesting = True
+        self.variationTesting = False
         self.numSeeds = 10
         self.variations = [0.25, 0.5, 0.75, 1.0] #if variationTesting then cycle through these fixed variations
         #self.variations = [0.1]
         self.variations = [0.1, 0.4, 0.7, 1.0]  # if variationTesting then cycle through these fixed variations
         self.simpleWeakness = True #if true, 10x torque limits, no gravity comp
+        self.rigid_f_history = []
+        self.rigid_f_history_avg = np.zeros(66)
+        self.cloth_f_history = []
+        self.cloth_f_history_avg = np.zeros(66)
+        self.consecutiveInstabilities = 0
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -243,13 +248,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = True
+        self.limbProgressGraphing = False
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
 
         # deformation tracking
-        self.deformationGraphing = True
+        self.deformationGraphing = False
         self.deformationGraph = None
         if(self.deformationGraphing):
             self.deformationGraph = pyutils.LineGrapher(title="Deformation")
@@ -330,7 +335,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.renderIKGhost = False
         self.renderIiwaReach = False
         self.renderIiwaCollidable = False
-        self.renderHapticObs = False
+        self.renderHapticObs = True
         self.renderOracle = True
         self.print_skel_details = False
         self.posePath = pyutils.Spline()
@@ -775,13 +780,30 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                 if(i ==0):
                     self.handleNode.prev_avg_force = np.array(self.handleNode.prev_force)
                     self.handleNode.prev_avg_torque = np.array(self.handleNode.prev_torque)
+                    if len(self.rigid_f_history) > 5:
+                        del self.rigid_f_history[0]
+                    if len(self.cloth_f_history) > 5:
+                        del self.cloth_f_history[0]
+                    self.rigid_f_history.append(self.getCumulativeHapticForcesFromRigidContacts())
+                    self.cloth_f_history.append(self.clothScene.getHapticSensorObs())
                 else:
                     self.handleNode.prev_avg_force += np.array(self.handleNode.prev_force)
                     self.handleNode.prev_avg_torque += np.array(self.handleNode.prev_torque)
-
+                    self.rigid_f_history[-1] += self.getCumulativeHapticForcesFromRigidContacts()
+                    self.cloth_f_history[-1] += self.clothScene.getHapticSensorObs()
                 if(i == (n_frames-1)):
                     self.handleNode.prev_avg_force /= n_frames
                     self.handleNode.prev_avg_torque /= n_frames
+                    self.rigid_f_history[-1] /= n_frames
+                    self.cloth_f_history[-1] /= n_frames
+                    self.rigid_f_history_avg = np.array(self.rigid_f_history[0])
+                    self.cloth_f_history_avg = np.array(self.cloth_f_history[0])
+                    for fix in range(len(self.rigid_f_history)):
+                        self.rigid_f_history_avg += self.rigid_f_history[fix]
+                    for fix in range(len(self.cloth_f_history)):
+                        self.cloth_f_history_avg += self.cloth_f_history[fix]
+                    self.rigid_f_history_avg /= len(self.rigid_f_history)
+                    self.cloth_f_history_avg /= len(self.cloth_f_history)
                 clothStepsTaken += 1
 
 
@@ -834,6 +856,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
 
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
+                    self.consecutiveInstabilities += 1
                     print("Invalid dynamics detected at step " + str(i)+"/"+str(n_frames))
                     self.set_state(pre_q, pre_dq)
                     return
@@ -853,6 +876,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
             #done pyPhysX step
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):
         #    self._reset()
+        self.consecutiveInstabilities = 0
 
     def checkTermination(self, tau, s, obs):
 
@@ -879,6 +903,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
         bottomHead = self.robot_skeleton.bodynodes[14].to_world(np.zeros(3))
         bottomNeck = self.robot_skeleton.bodynodes[13].to_world(np.zeros(3))
+
+        if self.consecutiveInstabilities > 5:
+            print("too many consecutive instabilities: " + str(self.consecutiveInstabilities) + "/5")
+            return True, -5000
+
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
@@ -1083,11 +1112,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
 
         if self.hapticsInObs:
             f = None
-            #TODO: robot and human contact? f = self.getCumulativeHapticForcesFromRigidContacts()
+            #robot and human contact
+            #rigid_f = self.getCumulativeHapticForcesFromRigidContacts()
+            rigid_f = np.array(self.rigid_f_history_avg)
             if self.simulateCloth and self.hapticsAware:
-                f = self.clothScene.getHapticSensorObs()#get force from simulation
+                #f = self.clothScene.getHapticSensorObs()#get force from simulation
+                f = np.array(self.cloth_f_history_avg)
             else:
                 f = np.zeros(f_size)
+            f += rigid_f
             obs = np.concatenate([obs, f]).ravel()
 
         if self.featureInObs:
@@ -1688,20 +1721,24 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         #            str(c.bodynode_id2)))
 
         if self.renderHapticObs:
-            self.collisionResult.update()
+            #self.collisionResult.update()
             #render haptic readings
-            haptic_forces = self.getCumulativeHapticForcesFromRigidContacts()
+            #cloth_haptic_forces = self.clothScene.getHapticSensorObs()
+            #rigid_haptic_forces = self.getCumulativeHapticForcesFromRigidContacts()
+            cloth_haptic_forces = np.array(self.cloth_f_history_avg)
+            rigid_haptic_forces = np.array(self.rigid_f_history_avg)
             haptic_pos = self.clothScene.getHapticSensorLocations()
             haptic_radii = self.clothScene.getHapticSensorRadii()
             for h in range(self.clothScene.getNumHapticSensors()):
                 renderUtils.setColor(color=[1, 1, 0])
-                f = haptic_forces[h*3:h*3+3]
+                f = rigid_haptic_forces[h*3:h*3+3] + cloth_haptic_forces[h*3:h*3+3]
                 f_mag = np.linalg.norm(f)
+                f_unit = f/f_mag
                 if(f_mag > 0.001):
                     renderUtils.setColor(color=[0, 1, 0])
                 renderUtils.drawSphere(pos=haptic_pos[h*3:h*3+3], rad=haptic_radii[h]*1.1, solid=False)
                 if (f_mag > 0.001):
-                    renderUtils.drawArrow(p0=haptic_pos[h*3:h*3+3], p1=haptic_pos[h*3:h*3+3]+f)
+                    renderUtils.drawArrow(p0=haptic_pos[h*3:h*3+3]+(f_unit*haptic_radii[h]*1.1), p1=haptic_pos[h*3:h*3+3]+f+(f_unit*haptic_radii[h]*1.1))
 
         if(not self.trackPosePath):#draw IK
             #draw the control point distributions
@@ -2056,9 +2093,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                 vpn = vp / np.linalg.norm(vp)
                 fn = c.force / np.linalg.norm(c.force)
                 if (vpn.dot(fn) > -vpn.dot(fn)):  # force pointing toward the sensor is correct
-                    forces[best_hs] += c.force
-                else:  # reverse a force pointing away from the sensor
                     forces[best_hs] += -c.force
+                else:  # reverse a force pointing away from the sensor
+                    forces[best_hs] += c.force
             else:
                 # the contact is between the human and itself
                 # find the two closest sensors to activate
@@ -2068,9 +2105,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                     vpn = vp / np.linalg.norm(vp)
                     fn = c.force / np.linalg.norm(c.force)
                     if (vpn.dot(fn) > -vpn.dot(fn)):  # force pointing toward the sensor is correct
-                        forces[best_hs[i]] += c.force
-                    else:  # reverse a force pointing away from the sensor
                         forces[best_hs[i]] += -c.force
+                    else:  # reverse a force pointing away from the sensor
+                        forces[best_hs[i]] += c.force
 
         result = np.zeros(len(forces)*3)
         for ix,f in enumerate(forces):

@@ -157,8 +157,8 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        rendering = True
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.002
@@ -231,7 +231,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataD
         self.jointConstraintVariation = None #set in reset if "jointLimVarObs" is true. [0,1] symmetric scale of joint ranges
         self.initialActionScale = None #set after initialization
         self.weaknessScale = 1.0 #amount of gravity compenstation which is "taxed" from control torques
-        self.variationTesting = False
+        self.variationTesting = True
         self.numSeeds = 10
         self.variations = [0.25, 0.5, 0.75, 1.0] #if variationTesting then cycle through these fixed variations
         self.variations = [0.1, 0.4, 0.7, 1.0] #if variationTesting then cycle through these fixed variations
@@ -250,13 +250,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataD
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = False
+        self.limbProgressGraphing = True
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
 
         # deformation tracking
-        self.deformationGraphing = False
+        self.deformationGraphing = True
         self.deformationGraph = None
         if (self.deformationGraphing):
             self.deformationGraph = pyutils.LineGrapher(title="Deformation")
@@ -1257,12 +1257,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataD
 
         if self.hapticsInObs:
             f = None
-            # TODO: robot and human contact? f = self.getCumulativeHapticForcesFromRigidContacts()
-            #f = self.getCumulativeHapticForcesFromRigidContacts()
+            # robot and human contact
+            rigid_f = self.getCumulativeHapticForcesFromRigidContacts()
             if self.simulateCloth and self.hapticsAware:
                 f = self.clothScene.getHapticSensorObs()#get force from simulation
             else:
                 f = np.zeros(f_size)
+            f += rigid_f
             obs = np.concatenate([obs, f]).ravel()
 
         if self.featureInObs:
@@ -2011,8 +2012,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnv(DartClothUpperBodyDataD
         # print(m_viewport)
 
         if self.variationTesting:
-            print(self.setSeed)
-            print(self.weaknessScale)
+            #print(self.setSeed)
+            #print(self.weaknessScale)
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
