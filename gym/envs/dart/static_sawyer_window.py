@@ -13,6 +13,7 @@ from gym.envs.dart.static_window import *
 class StaticSawyerWindow(StaticGLUTWindow):
     def __init__(self, sim, title, env, extraRenderFunc=None):
         self.env = env
+        self.viewport = None
         self.extraRenderFunc = extraRenderFunc
         self.d_down = False #if down, mouse drag changes SPD controller 'd' gain
         self.p_down = False #if down, mouse drag changes SPD controller 'p' gain
@@ -31,6 +32,7 @@ class StaticSawyerWindow(StaticGLUTWindow):
         self.drawSphere(p=self.env.robot_skeleton.bodynodes[0].com(), r=0.01)
         self.drawCube(p=np.zeros(3), r=0.1)
 
+        self.viewport = GL.glGetInteger(GL.GL_VIEWPORT)
         if self.extraRenderFunc is not None:
             self.extraRenderFunc()
 

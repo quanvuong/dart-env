@@ -154,7 +154,7 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
         rendering = False
@@ -162,13 +162,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         clothSimulation = True
         self.renderCloth = True
 
-        dt = 0.002
-        cloth_dt = 0.002
-        frameskip = 5
+        #dt = 0.002
+        #cloth_dt = 0.002
+        #frameskip = 5
 
-        #dt = 0.0025
-        #cloth_dt = 0.005
-        #frameskip = 4
+        dt = 0.0025
+        cloth_dt = 0.005
+        frameskip = 4
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
@@ -398,9 +398,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.initialActionScale = np.array(self.action_scale)
         iiwaFilename = ""
         if self.renderIiwaCollidable:
-            iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision.urdf')
+            iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision_complete.urdf')
         else:
-            iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision.urdf')
+            iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision_complete.urdf')
         self.dart_world.add_skeleton(filename=iiwaFilename)
         #hoopFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/hoop_weldhang.urdf')
         #self.dart_world.add_skeleton(filename=hoopFilename)
@@ -782,79 +782,79 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                     return
 
                 #TODO new handle updates testing
-                #if(i%2 == 1):#every other step
-                #print(i)
-                hn = self.iiwa_skel.bodynodes[8]  # hand node
-                self.handleNode.updatePrevConstraintPositions()
-                self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
-                self.handleNode.setOrientation(R=hn.T[:3, :3])
-
-                #gripper_q = self.dart_world.skeletons[0].q
-                #gripper_q[3:] = self.handleNode.org
-                #self.dart_world.skeletons[0].set_positions(gripper_q)
-
-                self.updateClothCollisionStructures(hapticSensors=True)
-                self.clothScene.step()
-                self.updateHandleContactForceTorques()
-                self.handleNode.step()
-                if(i ==0):
-                    self.handleNode.prev_avg_force = np.array(self.handleNode.prev_force)
-                    self.handleNode.prev_avg_torque = np.array(self.handleNode.prev_torque)
-                    if len(self.rigid_f_history) > 5:
-                        del self.rigid_f_history[0]
-                    if len(self.cloth_f_history) > 5:
-                        del self.cloth_f_history[0]
-                    self.rigid_f_history.append(self.getCumulativeHapticForcesFromRigidContacts())
-                    self.cloth_f_history.append(self.clothScene.getHapticSensorObs())
-                else:
-                    self.handleNode.prev_avg_force += np.array(self.handleNode.prev_force)
-                    self.handleNode.prev_avg_torque += np.array(self.handleNode.prev_torque)
-                    self.rigid_f_history[-1] += self.getCumulativeHapticForcesFromRigidContacts()
-                    self.cloth_f_history[-1] += self.clothScene.getHapticSensorObs()
-                if(i == (n_frames-1)):
-                    self.handleNode.prev_avg_force /= n_frames #TODO: edit
-                    self.handleNode.prev_avg_torque /= n_frames
-                    self.rigid_f_history[-1] /= n_frames
-                    self.cloth_f_history[-1] /= n_frames
-                    self.rigid_f_history_avg = np.array(self.rigid_f_history[0])
-                    self.cloth_f_history_avg = np.array(self.cloth_f_history[0])
-                    for fix in range(len(self.rigid_f_history)):
-                        self.rigid_f_history_avg += self.rigid_f_history[fix]
-                    for fix in range(len(self.cloth_f_history)):
-                        self.cloth_f_history_avg += self.cloth_f_history[fix]
-                    self.rigid_f_history_avg /= len(self.rigid_f_history)
-                    self.cloth_f_history_avg /= len(self.cloth_f_history)
-                clothStepsTaken += 1
-
-
-
-                if self.FTGraphing and self.reset_number > 0:
-                    print("S:"+str(self.numSteps)+"|I:"+str(i))
-                    print(self.handleNode.prev_force[1])
-                    self.FTGraph.yData[-1][self.numSteps*5+i] = self.handleNode.prev_force[0]
-                    self.FTGraph.yData[-2][self.numSteps*5+i] = self.handleNode.prev_force[1]
-                    self.FTGraph.yData[-3][self.numSteps*5+i] = self.handleNode.prev_force[2]
-                    self.FTGraph.yData[-4][self.numSteps*5+i] = self.handleNode.prev_torque[0]
-                    self.FTGraph.yData[-5][self.numSteps*5+i] = self.handleNode.prev_torque[1]
-                    self.FTGraph.yData[-6][self.numSteps*5+i] = self.handleNode.prev_torque[2]
-                    #print(self.numSteps)
+                if(i%2 == 1):#every other step
                     #print(i)
-                    #print(n_frames)
+                    hn = self.iiwa_skel.bodynodes[8]  # hand node
+                    self.handleNode.updatePrevConstraintPositions()
+                    self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
+                    self.handleNode.setOrientation(R=hn.T[:3, :3])
 
-                    if self.numSteps % 5 == 0 and i==(n_frames-1):
-                        #print("here")
-                        self.FTGraph.update()
+                    #gripper_q = self.dart_world.skeletons[0].q
+                    #gripper_q[3:] = self.handleNode.org
+                    #self.dart_world.skeletons[0].set_positions(gripper_q)
 
-                if self.FTavgGraphing and self.reset_number > 0 and i==(n_frames-1):
-                    self.FTavgGraph.yData[-1][self.numSteps] = self.handleNode.prev_avg_force[0]
-                    self.FTavgGraph.yData[-2][self.numSteps] = self.handleNode.prev_avg_force[1]
-                    self.FTavgGraph.yData[-3][self.numSteps] = self.handleNode.prev_avg_force[2]
-                    self.FTavgGraph.yData[-4][self.numSteps] = self.handleNode.prev_avg_torque[0]
-                    self.FTavgGraph.yData[-5][self.numSteps] = self.handleNode.prev_avg_torque[1]
-                    self.FTavgGraph.yData[-6][self.numSteps] = self.handleNode.prev_avg_torque[2]
+                    self.updateClothCollisionStructures(hapticSensors=True)
+                    self.clothScene.step()
+                    self.updateHandleContactForceTorques()
+                    self.handleNode.step()
+                    if(i ==1):
+                        self.handleNode.prev_avg_force = np.array(self.handleNode.prev_force)
+                        self.handleNode.prev_avg_torque = np.array(self.handleNode.prev_torque)
+                        if len(self.rigid_f_history) > 5:
+                            del self.rigid_f_history[0]
+                        if len(self.cloth_f_history) > 5:
+                            del self.cloth_f_history[0]
+                        self.rigid_f_history.append(self.getCumulativeHapticForcesFromRigidContacts())
+                        self.cloth_f_history.append(self.clothScene.getHapticSensorObs())
+                    else:
+                        self.handleNode.prev_avg_force += np.array(self.handleNode.prev_force)
+                        self.handleNode.prev_avg_torque += np.array(self.handleNode.prev_torque)
+                        self.rigid_f_history[-1] += self.getCumulativeHapticForcesFromRigidContacts()
+                        self.cloth_f_history[-1] += self.clothScene.getHapticSensorObs()
+                    if(i == (n_frames-1)):
+                        self.handleNode.prev_avg_force /= (n_frames/2.0)
+                        self.handleNode.prev_avg_torque /= (n_frames/2.0)
+                        self.rigid_f_history[-1] /= (n_frames/2.0)
+                        self.cloth_f_history[-1] /= (n_frames/2.0)
+                        self.rigid_f_history_avg = np.array(self.rigid_f_history[0])
+                        self.cloth_f_history_avg = np.array(self.cloth_f_history[0])
+                        for fix in range(1, len(self.rigid_f_history)):
+                            self.rigid_f_history_avg += self.rigid_f_history[fix]
+                        for fix in range(1, len(self.cloth_f_history)):
+                            self.cloth_f_history_avg += self.cloth_f_history[fix]
+                        self.rigid_f_history_avg /= len(self.rigid_f_history)
+                        self.cloth_f_history_avg /= len(self.cloth_f_history)
+                    clothStepsTaken += 1
 
-                    if self.numSteps % 5 == 0:
-                        self.FTavgGraph.update()
+
+
+                    if self.FTGraphing and self.reset_number > 0:
+                        print("S:"+str(self.numSteps)+"|I:"+str(i))
+                        print(self.handleNode.prev_force[1])
+                        self.FTGraph.yData[-1][self.numSteps*5+i] = self.handleNode.prev_force[0]
+                        self.FTGraph.yData[-2][self.numSteps*5+i] = self.handleNode.prev_force[1]
+                        self.FTGraph.yData[-3][self.numSteps*5+i] = self.handleNode.prev_force[2]
+                        self.FTGraph.yData[-4][self.numSteps*5+i] = self.handleNode.prev_torque[0]
+                        self.FTGraph.yData[-5][self.numSteps*5+i] = self.handleNode.prev_torque[1]
+                        self.FTGraph.yData[-6][self.numSteps*5+i] = self.handleNode.prev_torque[2]
+                        #print(self.numSteps)
+                        #print(i)
+                        #print(n_frames)
+
+                        if self.numSteps % 5 == 0 and i==(n_frames-1):
+                            #print("here")
+                            self.FTGraph.update()
+
+                    if self.FTavgGraphing and self.reset_number > 0 and i==(n_frames-1):
+                        self.FTavgGraph.yData[-1][self.numSteps] = self.handleNode.prev_avg_force[0]
+                        self.FTavgGraph.yData[-2][self.numSteps] = self.handleNode.prev_avg_force[1]
+                        self.FTavgGraph.yData[-3][self.numSteps] = self.handleNode.prev_avg_force[2]
+                        self.FTavgGraph.yData[-4][self.numSteps] = self.handleNode.prev_avg_torque[0]
+                        self.FTavgGraph.yData[-5][self.numSteps] = self.handleNode.prev_avg_torque[1]
+                        self.FTavgGraph.yData[-6][self.numSteps] = self.handleNode.prev_avg_torque[2]
+
+                        if self.numSteps % 5 == 0:
+                            self.FTavgGraph.update()
 
                 #TODO done new handle updates testing
 
@@ -875,17 +875,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
                     #print(self.actionTrajectory[-1])
 
             #pyPhysX step
-            if self.simulateCloth:# and (clothStepRatio * i)-clothStepsTaken >= 1:
+            #if self.simulateCloth:# and (clothStepRatio * i)-clothStepsTaken >= 1:
                 #self.updateClothCollisionStructures(hapticSensors=True)
                 #self.clothScene.step()
-                clothStepsTaken += 1
+                #clothStepsTaken += 1
                 #print("cloth step " + str(clothStepsTaken) + " frame " + str(i))
 
-        if self.simulateCloth and clothStepsTaken < clothSteps:
+        #if self.simulateCloth and clothStepsTaken < clothSteps:
             #print("here?")
             #self.updateClothCollisionStructures(hapticSensors=True)
             #self.clothScene.step()
-            clothStepsTaken += 1
+            #clothStepsTaken += 1
             #print("cloth step " + str(clothStepsTaken))
             #done pyPhysX step
         #if(self.clothScene.getMaxDeformationRatio(0) > 5):

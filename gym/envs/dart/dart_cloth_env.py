@@ -148,12 +148,15 @@ class DartClothEnv(DartEnv, utils.EzPickle):
             offset = node.to_local(pos)'''
 
     def checkInvalidDynamics(self):
-        if not np.isfinite(self.robot_skeleton.q).all():
-            print("Infinite value detected..." + str(self.robot_skeleton.q))
-            return True
-        elif np.amax(np.absolute(self.robot_skeleton.q)) > 5:
-            print("Detecting potential instability..." + str(self.robot_skeleton.q))
-            return True
+        for skel_ix, skel in enumerate(self.dart_world.skeletons):
+            if not np.isfinite(skel.q).all():
+                print("skel: " + str(skel_ix))
+                print("Infinite value detected..." + str(skel.q))
+                return True
+            elif np.amax(np.absolute(skel.q)) > 5:
+                print("skel: " + str(skel_ix))
+                print("Detecting potential instability..." + str(skel.q))
+                return True
         '''elif np.amax(np.absolute(self.robot_skeleton.dq)) > 1.0:
             print("Detecting potential instability via velocity: " + str(self.robot_skeleton.dq))
             return True'''

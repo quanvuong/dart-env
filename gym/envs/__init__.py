@@ -631,6 +631,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Capability Env
+register(
+    id='DartIiwaCapability-v1',
+    entry_point='gym.envs.dart:DartIiwaSPDCapabilityEnv',
+    #max_episode_steps=250,
+)
+
 #Iiwa Hanging Rigid Env (one file)
 register(
     id='DartIiwaRigid-v1',
@@ -649,6 +656,13 @@ register(
 register(
     id='DartIiwaGown-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnv',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Env v2(faster cloth)
+register(
+    id='DartIiwaGown-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnvV2',
     #max_episode_steps=250,
 )
 

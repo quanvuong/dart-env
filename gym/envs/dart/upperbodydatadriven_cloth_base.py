@@ -65,7 +65,7 @@ class SPDController():
         return tau
 
 class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=4, dt=0.002):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, simulateCloth=True, cloth_dt=0.002, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=4, dt=0.002):
         self.prefix = os.path.dirname(__file__)
         #print("---!!!----------------------!!!---")
         #print("cloth prefix: " + self.prefix)
@@ -200,13 +200,13 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
 
         #try:
         if clothMeshStateFile is not None:
-            clothScene = pyphysx.ClothScene(step=0.002,
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             state_path=self.prefix + "/../../../../" + clothMeshStateFile,
                                             #tube=True,
                                             scale=clothScale)
         else:
-            clothScene = pyphysx.ClothScene(step=0.002,
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             scale=clothScale)
         #except:
@@ -312,7 +312,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
 
         #print robot_skeleton issues
-        if False:
+        if True:
             for i in range(len(self.robot_skeleton.bodynodes)):
                 print(self.robot_skeleton.bodynodes[i])
 

@@ -17,6 +17,7 @@ if __name__ == '__main__':
     legend = False
     graphStats = True #if true, graph mean/variance instead of data
     singleFrame = False #if true, graph everything on the same graph
+    graph0 = True #if true, put a black line through 0 y
     ymax = 1.0
     #ymax = 200
     ymin = None
@@ -24,13 +25,27 @@ if __name__ == '__main__':
     graphTitle = "Graph"
 
     #2. set closest common directory
-    prefix = "/home/alexander/Documents/frame_capture_output/variations/"
+    prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/"
 
     #define the matrix structure with remaining directory info:
+    #folders = [
+    #    ["1", "2"],
+    #    ["3", "4"]
+    #           ]
+
+    #elbow variation
     folders = [
-        ["1", "2"],
-        ["3", "4"]
-               ]
+        ["0", "1", "2"],
+        ["3", "4", "5"],
+        ["6", "7", "8"]
+    ]
+    titles = None
+    titles = [
+        ["0", "0.125", "0.25"],
+        ["0.375", "0.5", "0.625"],
+        ["0.75", "0.875", "1.0"]
+    ]
+    #folders = [['baseline']]
 
     filename = "limbProgressGraphData"
     #filename = "deformationGraphData"
@@ -167,6 +182,8 @@ if __name__ == '__main__':
                     #nhex = '#%02x%02x%02x' % nrgb
                     #print('nhex =', nhex)
                     #newcolor = graph.lighten_color(pc)
+                    #if graph0:
+                    #    graph.plotData(ydata=np.zeros(xdim), color=[0, 0, 0])
                     ##graph.plotData(ydata=d, color=graph.colors[avg_ix]*1.2) #make it lighter
                     #graph.plotData(ydata=d, color=newcolor) #make it lighter
                     #TODO: fix this
@@ -198,7 +215,8 @@ if __name__ == '__main__':
                         newdata[rix][cix][-2].append(c[tix] - vars[rix][cix][tix])
 
                     graph = None
-
+                    if(titles is not None):
+                        graphTitle = titles[rix][cix]
                     if unifyScale or ymax is not None or ymax is not None:
                         graph = pyutils.LineGrapher(title=graphTitle, legend=legend, ylims=(ymin, ymax))
                     else:
@@ -206,10 +224,14 @@ if __name__ == '__main__':
 
                     graph.xdata = np.arange(xdim)
 
+                    if graph0:
+                        graph.plotData(ydata=np.zeros(xdim), color=[0, 0, 0])
+
                     graph.plotData(ydata=newdata[rix][cix][1], color=[0.6, 0.6, 1.0])
                     graph.plotData(ydata=newdata[rix][cix][2], color=[0.6, 0.6, 1.0])
 
                     graph.plotData(ydata=newdata[rix][cix][0], color=[0,0,1.0])
+
 
                     #save the graphs
                     graph.save(filename=outprefix+"g_"+str(rix)+"_"+str(cix))
@@ -227,13 +249,17 @@ if __name__ == '__main__':
             for rix,r in enumerate(data):
                 for cix,c in enumerate(r):
                     graph = None
-
+                    if (titles is not None):
+                        graphTitle = titles[rix][cix]
                     if unifyScale or ymax is not None or ymax is not None:
                         graph = pyutils.LineGrapher(title=graphTitle, legend=legend, ylims=(ymin, ymax))
                     else:
                         graph = pyutils.LineGrapher(title=graphTitle, legend=legend)
 
                     graph.xdata = np.arange(xdim)
+
+                    if graph0:
+                        graph.plotData(ydata=np.zeros(xdim), color=[0, 0, 0])
 
                     for six,s in enumerate(c):
                         graph.plotData(ydata=data[rix][cix][six])
