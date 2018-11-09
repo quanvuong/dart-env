@@ -104,7 +104,7 @@ class DartEnv(gym.Env):
         else:
             raise error.Error('Unrecognized observation type: {}'.format(self._obs_type))
 
-        self._seed()
+        self.seed()
 
         #self.viewer = None
 
@@ -114,7 +114,7 @@ class DartEnv(gym.Env):
         }
 
 
-    def _seed(self, seed=None):
+    def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 

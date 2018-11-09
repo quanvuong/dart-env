@@ -20,7 +20,7 @@
 #    git \
 #    xpra \
 #    libav-tools  \
-#    python3-dev \
+#    python3-dev \\
 #    software-properties-common \
 #    && apt-add-repository ppa:libccd-debs -y \
 #    && apt-add-repository ppa:fcl-debs -y \
