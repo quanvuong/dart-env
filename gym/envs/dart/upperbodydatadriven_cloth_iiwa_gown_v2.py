@@ -183,14 +183,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
         self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
-        self.elbowConVarObs = False #if true, modify limits of the elbow joint
+        self.elbowConVarObs = True #if true, modify limits of the elbow joint
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadReward           = True  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
-        self.oracleDisplacementReward   = True  # if true, reward ef displacement in the oracle vector direction
+        self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = True
@@ -267,7 +267,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         self.deformationGraphing = False
         self.deformationGraph = None
         if(self.deformationGraphing):
-            self.deformationGraph = pyutils.LineGrapher(title="Elbow Position")
+            #self.deformationGraph = pyutils.LineGrapher(title="Elbow Position")
+            self.deformationGraph = pyutils.LineGrapher(title="Max Deformation")
 
         # force/torque tracking
         self.FTGraphing = False
@@ -315,6 +316,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
             observation_size += len(self.actuatedDofs)
         if self.weaknessScaleVarObs:
             observation_size += 1
+        if self.elbowConVarObs:
+            observation_size += 1
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -345,9 +348,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         self.renderIKGhost = False
         self.renderIiwaReach = False
         self.renderIiwaCollidable = False
-        self.renderHapticObs = True
+        self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
 
 
@@ -374,7 +377,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
                     jinfo[12]))
 
         screensize = (1280,720)
-        if self.variationTesting:
+        if self.demoRendering:
             screensize = (720,720)
 
         DartClothUpperBodyDataDrivenClothBaseEnv.__init__(self,
@@ -515,6 +518,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         for i in range(len(self.robot_skeleton.dofs)):
             self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
+
+        #TODO: testing DOF springs
+        # upper arm rotation spring
+        #self.robot_skeleton.dofs[15].set_spring_stiffness(0.8)
+        #self.robot_skeleton.dofs[15].set_rest_position(1.0)
+        #TODO: done testing
 
         # load rewards into the RewardsData structure
         if self.uprightReward:
@@ -1087,7 +1096,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
 
         if self.deformationGraphing and self.reset_number > 0:
             self.deformationGraph.yData[-1][self.numSteps] = self.deformation
-            self.deformationGraph.yData[-1][self.numSteps] = (self.robot_skeleton.q[16]-0.25)/2.6
+            #elbow position...
+            #self.deformationGraph.yData[-1][self.numSteps] = (self.robot_skeleton.q[16]-0.25)/2.6
             if self.numSteps % 5 == 0:
                 self.deformationGraph.update()
 
@@ -1233,6 +1243,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             obs = np.concatenate([obs, np.array([self.weaknessScale])]).ravel()
 
+        if self.elbowConVarObs:
+            normalized_elbow_rest = (self.elbow_rest-0.5)/2.35
+            obs = np.concatenate([obs, np.array([normalized_elbow_rest])]).ravel()
+
         return obs
 
     def additionalResets(self):
@@ -1276,10 +1290,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
 
         if self.elbowConVarObs:
             #sample a rest position
-            self.elbow_rest = random.uniform(0.25, 2.85)
+            self.elbow_rest = random.uniform(0.5, 2.85)
             #testing range:
             # TODO: elbow variation testing
-            self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
+            #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
             print("elbow_rest = " + str(self.elbow_rest))
             # TODO: done - elbow variation testing
             #set the joint limits as boundary clamped, symmetrical range around rest
@@ -1300,7 +1314,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
                 prefix = self.viewer.captureDirectory+"/"
 
             # TODO: elbow variation testing
-            if True:
+            if False:
                 folderNum = max(int((self.reset_number-1)/10), 0)
                 print("folderNum: " + str(folderNum))
                 prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/"+str(folderNum)+"/"
@@ -1986,7 +2000,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
             if self.elbowConVarObs:
                 # render elbow stiffness variation
                 self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80,
-                                         text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.25)/2.6), color=(0., 0, 0))
+                                         text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])

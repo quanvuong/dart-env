@@ -19,6 +19,7 @@ import pybullet as p
 import time
 import pybullet_data
 import os
+import random
 
 try:
     import pyPhysX as pyphysx
@@ -136,7 +137,7 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
+class DartIiwaSPDBezierEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         rendering = True
         self.renderIKShadow = False #if true, render the IK solution skel also
@@ -147,7 +148,7 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim = 14
         self.param_manager = hopperContactMassManager(self)
         self.kinematicIK = True #if false, dynamic SPD
-        self.freezeTracking = True #if true, arm is stationary
+        self.freezeTracking = False #if true, arm is stationary
         self.previousIKResult = np.zeros(7)
         self.viewer = None
 
@@ -166,13 +167,18 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         # print(dir_path)
         self.pyBulletIiwa = p.loadURDF(dir_path + '/assets/iiwa_description/urdf/iiwa7_simplified_collision_complete.urdf', flags=p.URDF_USE_SELF_COLLISION)
         print("Iiwa bodyID: " + str(self.pyBulletIiwa))
-        self.ikPath = pyutils.Spline()
-        self.ikPath.addPoint(0, 0.5)
-        self.ikPath.addPoint(0.5, 0.5)
-        self.ikPath.addPoint(1.0, 0.5)
-        self.ikPathTimeScale = 0.01 #relationship between number of steps and spline time
+        self.ikPath = pyutils.CubicBezier()
+        self.ikPathTimeScale = 0.017 #relationship between number of steps and spline time
         self.ikTarget = np.array([0.5, 0, 0])
         self.ikOrientationFrame = pyutils.ShapeFrame() #reset in reset, go figure...
+        self.rigidClothTargetFrame = pyutils.BoxFrame(c0=np.array([0.1, 0.2, 0.001]), c1=np.array([-0.1, 0, -0.001]))
+        self.orientationEndPoints = [pyutils.ShapeFrame(), pyutils.ShapeFrame()]
+        self.orientationTarget = pyutils.ShapeFrame()  # only used for orientation
+        self.maxIiwaReach = 1.0
+        self.robotPathParams = {'p0_depth_range': 0.05, 'p0_depth_offset': -0.15, 'p0_disk_rad': self.maxIiwaReach * 0.7,
+                                'p3_el_dim': np.array([0.2, 0.1, 0.1]), 'p3_el_org': np.array([0.15, -0.025, -0.8]),
+                                'b_tan_dot_cone': 0.2, 'b_tan_len': 0.5,
+                                'orient_dot_cone': 0.8}
         print("Number of joint: " + str(p.getNumJoints(self.pyBulletIiwa)))
         for i in range(p.getNumJoints(self.pyBulletIiwa)):
             jinfo = p.getJointInfo(self.pyBulletIiwa, i)
@@ -194,11 +200,11 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         self.capable_range = 1.3 #radius of the sphere/cube for sampling
         self.orientationCapability  = True #if true, test orientations at each point
         self.clothTaskOrientations  = False #TODO:if true (and orientationCapability), then keep end effector level
-        self.liveCapabilitySample   = True #if true, try one sample per step and render cycle
+        self.liveCapabilitySample   = False #if true, try one sample per step and render cycle
         self.saveCapabilitySample   = False #if true, saving the error results
-        self.loadCapabilityMap      = True #if true, load a capabaility map immediately
-        self.numRandInitialPoses    = 10 #if 0, don't use. Otherwise, re-try the IK from this many random poses
-        self.maxIKIterations = 10 #number of iterations for the IK solver
+        self.loadCapabilityMap      = False #if true, load a capabaility map immediately
+        self.numRandInitialPoses    = 0 #if 0, don't use. Otherwise, re-try the IK from this many random poses
+        self.maxIKIterations = 4 #number of iterations for the IK solver
         self.sample_density = 25 #how many samples in each dimension within the cube
         self.sampleRenderRange = [[0, 0, 0], [self.sample_density-1,self.sample_density-1,self.sample_density-1]]
         self.capabilitySamples = []
@@ -308,6 +314,7 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
             randDir *= 2.0
             randDir -= np.ones(3)
         #self.ikTarget += randDir*0.025
+        #print(self.numSteps)
         self.ikTarget = self.ikPath.pos(self.numSteps*self.ikPathTimeScale)
         #self.ikTarget = np.array(self.ikPath.points[-1].p)
 
@@ -334,8 +341,17 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
 
         result = None
         if self.iiwa_ranges_initialized:
-            tar_quat = self.ikOrientationFrame.quat
+            self.rigidClothTargetFrame.setQuaternion(
+                pyutils.qSLERP(q0=self.orientationEndPoints[0].quat, q1=self.orientationEndPoints[1].quat,
+                               t=min(1.0, self.numSteps * self.ikPathTimeScale)))
+            self.rigidClothTargetFrame.setOrg(org=self.ikTarget)
+
+            tar_quat = self.rigidClothTargetFrame.quat
             tar_quat = (tar_quat.x, tar_quat.y, tar_quat.z, tar_quat.w)
+            tar_dir = -self.ikTarget / np.linalg.norm(self.ikTarget)
+
+            #tar_quat = self.ikOrientationFrame.quat
+            #tar_quat = (tar_quat.x, tar_quat.y, tar_quat.z, tar_quat.w)
             if self.orientationCapability:
                 result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
                                              endEffectorLinkIndex=8,
@@ -408,6 +424,7 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         if self.freezeTracking:
             fixed_pose = np.array([-1.2, -1.2, -1.2, 0., 0., 0., -0.57619293, 1.59480151, 0.15745552, -0.14593577, -0.16227263, 1.36463517, 1.02508058])
             fixed_pose = np.array([-1.2, -1.2, -1.2, 0., 0., 0., -2.45673167, 1.69136021, 0.19637591, -0.00873531, -0.18845419, 1.43566458, -0.87881501])
+            fixed_pose = np.concatenate([self.iiwa_root_dofs, self.iiwa_rest])
             self.robot_skeleton.set_positions(fixed_pose)
             a=0 #nothing happens
         elif self.kinematicIK:
@@ -545,16 +562,134 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         #test IK reset
         self.ikPath = pyutils.Spline()
         dart_ef = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
-        self.ikPath.addPoint(0, 0.0)
-        self.ikPath.addPoint(0.5, 0.5)
-        self.ikPath.addPoint(1.0, 0.5)
-        self.ikPath.points[0].p = np.array(dart_ef)
-        print("checking IK spline...")
+        #self.ikPath.addPoint(0, 0.0)
+        #self.ikPath.addPoint(0.5, 0.5)
+        #self.ikPath.addPoint(1.0, 0.5)
+        #self.ikPath.points[0].p = np.array(dart_ef)
+        #print("checking IK spline...")
 
         #setup the orientation frame
         self.ikOrientationFrame.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
                                                            up=np.array([0, 0, 1.0]),
                                                            org=np.zeros(3))
+
+        # ikPath: setup the Bezier curve with start and end point distribution and "in-facing" tangents
+        # p0 sample from planar disk 90% size of iiwa reach for xy,
+        # then sample from depth and move to iiwa location
+        depthRange = self.robotPathParams['p0_depth_range']
+        diskRad = self.robotPathParams['p0_disk_rad']
+        # rejection sample for cylinder
+        diskPoint = np.array([(random.random() * 2 - 1) * diskRad, (random.random() * 2 - 1) * diskRad])
+        while (np.linalg.norm(diskPoint) > diskRad):
+            diskPoint = np.array([(random.random() * 2 - 1) * diskRad, (random.random() * 2 - 1) * diskRad])
+        depth = random.random() * depthRange + self.robotPathParams['p0_depth_offset']
+        p0 = self.robot_skeleton.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[1], depth])
+
+        # p3 ellipsoid sampling about the shoulder region
+        p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'],
+                                                 org=self.robotPathParams['p3_el_org'])
+        p3 = p3_distribution.sample()[0]
+
+        # setup tangent vectors constrained to conical region between chosen end points
+        dot_constraint = self.robotPathParams['b_tan_dot_cone']
+        tan_length = self.robotPathParams['b_tan_len']
+        v03 = p3 - p0
+        v03n = v03 / np.linalg.norm(v03)
+        v1 = pyutils.sampleDirections()[0]
+        while (v1.dot(v03n) < dot_constraint):
+            v1 = pyutils.sampleDirections()[0]
+        v2 = pyutils.sampleDirections()[0]
+        while (v2.dot(-v03n) < dot_constraint):
+            v2 = pyutils.sampleDirections()[0]
+
+        p1 = p0 + v1 * tan_length
+        p2 = p3 + v2 * tan_length
+        self.ikPath = pyutils.CubicBezier(p0, p1, p2, p3)
+
+        # compute the orientation targets by picking a start and end quaternion and slerping over the path
+        # direction 1 should point toward the character
+        # direction 2 should point in the tangent of the curve at the end
+        # both distribution means should be projected into the
+        quat_dot_constraint = self.robotPathParams['orient_dot_cone']
+        d1 = pyutils.sampleDirections()[0]
+        while (d1.dot(v03n) < quat_dot_constraint):  # in the direction of the endpoint from startpoint
+            d1 = pyutils.sampleDirections()[0]
+        d2 = pyutils.sampleDirections()[0]
+        while (d2.dot(-v2) < quat_dot_constraint):  # in the tangent direction at the end of the curve
+            d2 = pyutils.sampleDirections()[0]
+        # now compute the quaternions from these directions
+        '''
+        self.orientationEndPoints[0].setFromDirectionandUp(dir=d1,
+                                                           up=np.array([0, -1.0, 0]),
+                                                           org=p0)
+        self.orientationEndPoints[1].setFromDirectionandUp(dir=d2,
+                                                           up=np.array([0, -1.0, 0]),
+                                                           org=p3)
+        '''
+
+        self.orientationEndPoints[0].setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
+                                                           up=d1,
+                                                           org=p0)
+        self.orientationEndPoints[1].setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
+                                                           up=d2,
+                                                           org=p3)
+        self.rigidClothTargetFrame.setQuaternion(self.orientationEndPoints[0].quat)  # set initial target
+
+        # self.checkIKSplineValidity()
+
+        # initial IK target is the first spline point
+        # self.ikTarget = self.ikPath.points[0].p
+        self.ikTarget = self.ikPath.pos(t=0.0)
+
+        # self.rigidClothTargetFrame.setFromDirectionandUp(dir=-self.ikTarget, up=np.array([0, -1.0, 0]),
+        #                                                 org=self.ikTarget)
+        tar_quat = self.rigidClothTargetFrame.quat
+        tar_quat = (tar_quat.x, tar_quat.y, tar_quat.z, tar_quat.w)
+        tar_dir = -self.ikTarget / np.linalg.norm(self.ikTarget)
+
+        result = None
+        result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
+                                                  endEffectorLinkIndex=8,
+                                                  targetPosition=self.ikTarget - self.iiwa_root_dofs[3:],
+                                                  targetOrientation=tar_quat,
+                                                  # targetOrientation=tar_dir,
+                                                  lowerLimits=self.iiwa_dof_llim.tolist(),
+                                                  upperLimits=self.iiwa_dof_ulim.tolist(),
+                                                  jointRanges=self.iiwa_dof_jr.tolist(),
+                                                  restPoses=self.robot_skeleton.q[6:].tolist()
+                                                  )
+
+
+        self.previousIKResult = result
+        self.setPosePyBullet(result)
+        self.robot_skeleton.set_velocities(np.zeros(len(self.robot_skeleton.dq)))
+        self.robot_skeleton.set_positions(np.concatenate([np.array(self.iiwa_root_dofs), result]))
+
+        hn = self.robot_skeleton.bodynodes[8]  # hand node
+
+        ef_accuracy = np.linalg.norm(hn.to_world(np.zeros(3)) - self.ikTarget)
+        retry_count = 0
+        while (ef_accuracy > 0.05 and retry_count < 10):
+            retry_count += 1
+            print("retry " + str(retry_count))
+            result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
+                                                      endEffectorLinkIndex=8,
+                                                      targetPosition=self.ikTarget - self.iiwa_root_dofs[3:],
+                                                      targetOrientation=tar_quat,
+                                                      # targetOrientation=tar_dir,
+                                                      lowerLimits=self.iiwa_dof_llim.tolist(),
+                                                      upperLimits=self.iiwa_dof_ulim.tolist(),
+                                                      jointRanges=self.iiwa_dof_jr.tolist(),
+                                                      restPoses=self.robot_skeleton.q[6:].tolist()
+                                                      )
+
+            self.previousIKResult = result
+            self.setPosePyBullet(result)
+            self.robot_skeleton.set_positions(np.concatenate([np.array(self.iiwa_root_dofs), result]))
+            ef_accuracy = np.linalg.norm(self.robot_skeleton.bodynodes[8].to_world(np.zeros(3)) - self.ikTarget)
+        # DONE: IK setup
+
+        #self.rigidClothFrame.setTransform(hn.world_transform())
 
         startTest = time.time()
         #self.checkIKSplineSmoothness()
@@ -581,8 +716,23 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         renderUtils.setColor(color=[0, 0, 1.0])
         #renderUtils.drawSphere(dart_ef)
 
-        self.ikOrientationFrame.setOrg(dart_ef)
-        self.ikOrientationFrame.drawFrame()
+        #self.ikOrientationFrame.setOrg(dart_ef)
+        #self.ikOrientationFrame.drawFrame()
+
+        renderUtils.setColor(color=[0, 0, 0])
+        hoop_norm = self.rigidClothTargetFrame.toGlobal(np.array([0, 1, 0])) - self.rigidClothTargetFrame.toGlobal(np.zeros(3))
+        hoop_norm /= np.linalg.norm(hoop_norm)
+        renderUtils.drawArrow(p0=self.rigidClothTargetFrame.org,
+                              p1=self.rigidClothTargetFrame.org + hoop_norm * 0.2)
+
+        robo_frame = pyutils.ShapeFrame()
+        robo_frame.setTransform(T=self.robot_skeleton.bodynodes[9].T)
+        robo_frame.drawFrame()
+
+        renderUtils.setColor([1,0,0])
+        for i in range(6,len(self.robot_skeleton.q)):
+            if (self.robot_skeleton.q[i] - self.robot_skeleton.dofs[i].position_lower_limit()) < 0.001 or (self.robot_skeleton.dofs[i].position_upper_limit() - self.robot_skeleton.q[i]) < 0.001:
+                renderUtils.drawSphere(pos=self.robot_skeleton.bodynodes[i-4].to_world(np.zeros(3)), rad=0.1)
 
         #draw capability range sphere
         #renderUtils.drawSphere(pos=np.zeros(3), rad=self.capable_range, solid=False)
@@ -602,7 +752,36 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
                                         renderUtils.drawSphere(pos=sample[0], rad=self.capable_range/self.sample_density)
 
 
-        #self.ikPath.draw()
+        diskRad = self.robotPathParams['p0_disk_rad']
+        depthRange = self.robotPathParams['p0_depth_range']
+        org = self.robot_skeleton.bodynodes[3].to_world(np.zeros(3))
+        renderUtils.setColor(color=[0.0, 0.0, 0])
+        renderUtils.drawCylinder(p0=org + np.array([0, 0, self.robotPathParams['p0_depth_offset']]),
+                                     p1=org + np.array([0, 0, depthRange + self.robotPathParams['p0_depth_offset']]),
+                                     rad=diskRad)
+
+        # p3 spherical distribution
+        p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'],
+                                                 org=self.robotPathParams['p3_el_org'])
+        p3_distribution.draw()
+
+        self.ikPath.draw()
+
+        renderUtils.setColor(color=[1.0, 0, 0])
+        renderUtils.drawSphere(self.ikTarget)
+        renderUtils.setColor(color=[0, 1.0, 0])
+        # renderUtils.drawLines(lines=[[np.zeros(3), self.sawyer_skel.bodynodes[3].to_world(np.zeros(3))]])
+        renderUtils.drawSphere(self.robot_skeleton.bodynodes[9].to_world(np.zeros(3)))
+
+        d_frame = pyutils.BoxFrame(c0=np.array([0.1, 0.2, 0.001]), c1=np.array([-0.1, 0, -0.001]))
+        for i in range(5):
+            t = i / (4.0)
+            d_frame.setQuaternion(
+                pyutils.qSLERP(q0=self.orientationEndPoints[0].quat, q1=self.orientationEndPoints[1].quat, t=t))
+            d_frame.setOrg(org=self.ikPath.pos(t=t))
+            # d_frame.draw()
+            d_frame.drawFrame(size=0.1)
+
         if not self.renderViewWindow:
             renderUtils.drawText(10, 80, "SPD Gains:")
             renderUtils.drawText(10, 60, "  P="+str(self.SPDController.Kp[0][0]))
@@ -623,7 +802,7 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         textLines = 2
 
         # draw Sawyer positions vs. limits
-        if not self.renderViewWindow:
+        if True:
             for d in range(7):
                 #renderUtils.drawText()
                 renderUtils.drawText(x=15., y=self.viewer.viewport[3] - 463 - d * 20,
@@ -642,12 +821,14 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
                 renderUtils.drawProgressBar(topLeft=[75, self.viewer.viewport[3] - 450 - d * 20], h=16, w=120, progress=val,
                                             origin=0.5, features=[tar], color=[1.0, 0.0, 0])
 
-                renderUtils.drawText(x=250., y=self.viewer.viewport[3] - 463 - d * 20,
-                                         text="%0.2f" % (self.robot_skeleton.force_lower_limits()[6 + d],), color=(0., 0, 0))
                 if not self.kinematicIK:
+                    renderUtils.drawText(x=250., y=self.viewer.viewport[3] - 463 - d * 20,
+                                         text="%0.2f" % (self.robot_skeleton.force_lower_limits()[6 + d],),
+                                         color=(0., 0, 0))
+
                     renderUtils.drawText(x=335., y=self.viewer.viewport[3] - 463 - d * 20,
                                          text="%0.2f" % (self.robot_skeleton.forces()[6 + d],), color=(0., 0, 0))
-                renderUtils.drawText(x=435., y=self.viewer.viewport[3] - 463 - d * 20,
+                    renderUtils.drawText(x=435., y=self.viewer.viewport[3] - 463 - d * 20,
                                          text="%0.2f" % (self.robot_skeleton.force_upper_limits()[6 + d],), color=(0., 0, 0))
 
                 if not self.kinematicIK:
@@ -659,10 +840,12 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
             self._get_viewer().scene.tb.trans[2] = -4
+            self._get_viewer().scene.tb.trans[2] = -3.2
             #self._get_viewer().scene.tb._set_orientation(-5.506431209546595, -1.533041108990674)
 
             #self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
             rot = [-0.049641316310301165, -0.1771298414587387, -0.021697643188284738, 0.98269525859233486]
+            rot = [0.094279722771759944, -0.86099711940024448, -0.14855547508497791, -0.47720704634449473]
             pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
         a=0
         #self._get_viewer().scene.tb.trans[2] = -5.5
@@ -679,7 +862,8 @@ class DartIiwaSPDCapabilityEnv(dart_env.DartEnv, utils.EzPickle):
         if self._obs_type == 'image':
             win.run(self.screen_width, self.screen_height, _show_window=self.visualize)
         else:
-            win.window_size = [self.screen_width, self.screen_height]
+            if self.renderViewWindow:
+                win.window_size = [self.screen_width, self.screen_height]
             win.run(_show_window=self.visualize)
         return win
 

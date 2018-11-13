@@ -25,6 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_11_04_ablegown_cont" #fixed weakness 1.0: v2 (continued at ~1500 iterations)
+    #trial = "experiment_2018_11_04_ablegown" #fixed weakness 1.0: v2
     #trial = "experiment_2018_10_25_robo_weakgown18" #robot iiwa policy for 18_weakgown human
     #trial = "experiment_2018_10_18_weakgown" #fixed oracle normal after limb progress > 0 (took ~2500 iterations)
     #trial = "experiment_2018_10_17_weakgown_warm" #warm start of 'experiment_2018_10_15_weakgown' with oracle correction
@@ -425,6 +427,7 @@ if __name__ == '__main__':
 
     #envName = 'DartSawyerRigid-v4'
     #envName = 'DartIiwaRigid-v1'
+    #envName = 'DartIiwaGown-v1'
     envName = 'DartIiwaGown-v2'
     #envName = 'DartIiwaGownAssist-v1'
     env = gym.make(envName)
@@ -475,7 +478,7 @@ if __name__ == '__main__':
         useMeanPolicy = True #always use mean if we loaded the policy
 
     #initialize an empty test policy
-    if False and policy is None:
+    if True and policy is None:
         env2 = normalize(GymEnv(envName, record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
         policy = GaussianMLPPolicy(

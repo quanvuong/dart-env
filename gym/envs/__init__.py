@@ -638,6 +638,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Bezier robot behavior space Env
+register(
+    id='DartIiwaBezier-v1',
+    entry_point='gym.envs.dart:DartIiwaSPDBezierEnv',
+    #max_episode_steps=250,
+)
+
 #Iiwa Hanging Rigid Env (one file)
 register(
     id='DartIiwaRigid-v1',

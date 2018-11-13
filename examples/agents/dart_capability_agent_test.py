@@ -28,7 +28,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGownAssist-v1'
-    envName = 'DartIiwaCapability-v1'
+    #envName = 'DartIiwaCapability-v1'
+    envName = 'DartIiwaBezier-v1'
 
     env = gym.make(envName)
 
@@ -90,7 +91,7 @@ if __name__ == '__main__':
         env.render()
         #time.sleep(0.5)
         rolloutHorizon = 10000
-        rolloutHorizon = 600
+        rolloutHorizon = 60
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -183,7 +183,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
         self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
-        self.elbowConVarObs = False #if true, modify limits of the elbow joint
+        self.elbowConVarObs = True #if true, modify limits of the elbow joint
 
         #reward flags
         self.uprightReward              = True  #if true, rewarded for 0 torso angle from vertical
@@ -345,7 +345,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
         self.renderIKGhost = False
         self.renderIiwaReach = False
         self.renderIiwaCollidable = False
-        self.renderHapticObs = True
+        self.renderHapticObs = False
         self.renderOracle = True
         self.print_skel_details = True
         self.posePath = pyutils.Spline()
@@ -1279,7 +1279,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnv(DartClothUpperBodyDataDrivenC
             self.elbow_rest = random.uniform(0.25, 2.85)
             #testing range:
             # TODO: elbow variation testing
-            self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
+            #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6 #switch every 10
+            self.elbow_rest = 0.25 + (int(self.reset_number)/8.0) * 2.6
             print("elbow_rest = " + str(self.elbow_rest))
             # TODO: done - elbow variation testing
             #set the joint limits as boundary clamped, symmetrical range around rest

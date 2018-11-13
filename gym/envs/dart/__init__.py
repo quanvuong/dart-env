@@ -70,6 +70,7 @@ from gym.envs.dart.multiagent import DartMultiAgentEnv
 from gym.envs.dart.sawyer_env import DartSawyerEnv
 from gym.envs.dart.sawyer_SPD_tracking_env import DartSawyerSPDTrackingEnv
 from gym.envs.dart.iiwa_SPD_capability_env import DartIiwaSPDCapabilityEnv
+from gym.envs.dart.iiwa_SPD_bezier_env import DartIiwaSPDBezierEnv
 from gym.envs.dart.sawyer_SPD_tracking_rigid_env import DartSawyerSPDTrackingRigidEnv
 from gym.envs.dart.upperbodydatadriven_rigidcloth_sawyer import DartClothUpperBodyDataDrivenRigidClothSawyerEnv
 from gym.envs.dart.upperbodydatadriven_rigidclothhang_sawyer import DartClothUpperBodyDataDrivenRigidClothHangSawyerEnv
