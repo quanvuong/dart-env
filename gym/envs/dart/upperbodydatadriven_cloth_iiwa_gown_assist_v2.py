@@ -523,6 +523,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
 
         for i in range(len(self.robot_skeleton.dofs)):
             self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+        self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         # load rewards into the RewardsData structure
         if self.uprightReward:
