@@ -66,7 +66,7 @@ class SPDController():
         return tau
 
 class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickle):
-    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, human_obs_size=0, simulateCloth=True, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=5, dt=0.002, humanPolicyFile=None):
+    def __init__(self, rendering=True, screensize=(1080,720), clothMeshFile="", clothMeshStateFile=None, clothScale=1.4, obs_size=0, human_obs_size=0, simulateCloth=True, cloth_dt=0.002, recurrency=0, SPDActionSpace=False, lockTorso=False, gravity=False, frameskip=5, dt=0.002, humanPolicyFile=None):
         self.prefix = os.path.dirname(__file__)
 
         #rendering variables
@@ -189,12 +189,12 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
 
 
         if clothMeshStateFile is not None:
-            clothScene = pyphysx.ClothScene(step=0.002,
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             state_path=self.prefix + "/../../../../" + clothMeshStateFile,
                                             scale=clothScale)
         else:
-            clothScene = pyphysx.ClothScene(step=0.002,
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
                                             mesh_path=self.prefix + "/assets/" + clothMeshFile,
                                             scale=clothScale)
 

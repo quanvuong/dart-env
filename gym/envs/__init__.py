@@ -680,6 +680,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Assist Env 2 (adjusted timestep, etc...)
+register(
+    id='DartIiwaGownAssist-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 
