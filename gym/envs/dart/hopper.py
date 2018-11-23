@@ -19,13 +19,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.action_filtering = 0  # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
-
-        self.imaginary_states = 0
+        self.action_filter_in_env = False # whether to filter out actions in the environment
+        self.action_filter_inobs = False  # whether to add the previous actions to the observations
 
         obs_dim = 11
 
-        if self.imaginary_states > 0:
-            obs_dim += obs_dim * self.imaginary_states
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
@@ -38,6 +36,9 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
+
+        if self.action_filtering > 0 and self.action_filter_inobs:
+            obs_dim += len(self.action_scale) * self.action_filtering
 
         self.t = 0
 
@@ -135,7 +136,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
             #and not self.fall_on_ground)
-            and (height > self.height_threshold_low) and (abs(ang) < .4))
+            and (height > self.height_threshold_low) and (abs(ang) < .8))
         return done
 
     def pre_advance(self):
@@ -160,7 +161,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_filter_cache.append(a)
         if len(self.action_filter_cache) > self.action_filtering:
             self.action_filter_cache.pop(0)
-        if self.action_filtering > 0:
+        if self.action_filtering > 0 and self.action_filter_in_env:
             a = np.mean(self.action_filter_cache, axis=0)
             
         self.t += self.dt
@@ -185,18 +186,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
 
-        if self.imaginary_states > 0:
-            cur_state = np.copy(self.state_vector())
-
-            for i in range(self.imaginary_states):
-                self.advance([0.0]*3)
-                s = np.concatenate([
-                    self.robot_skeleton.q[1:],
-                    self.robot_skeleton.dq,
-                ])
-                s[0] = self.robot_skeleton.bodynodes[2].com()[1]
-                state = np.concatenate([state, s])
-            self.set_state_vector(cur_state)
+        if self.action_filtering > 0 and self.action_filter_inobs:
+            state = np.concatenate([state] + self.action_filter_cache)
 
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
@@ -244,6 +235,11 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.observation_buffer = []
         self.action_buffer = []
+
+        self.action_filter_cache = []
+        if self.action_filtering > 0:
+            for i in range(self.action_filtering):
+                self.action_filter_cache.append(np.zeros(len(self.action_scale)))
 
         state = self._get_obs(update_buffer = True)
 

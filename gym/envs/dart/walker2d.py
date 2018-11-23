@@ -19,6 +19,16 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.UP_noise_level = 0.0
         self.param_manager = walker2dParamManager(self)
 
+        self.action_filtering = 0  # window size of filtering, 0 means no filtering
+        self.action_filter_cache = []
+        self.action_filter_in_env = False  # whether to filter out actions in the environment
+        self.action_filter_inobs = False  # whether to add the previous actions to the observations
+        self.action_filter_reward = 0.0
+        self.action_filter_delta_act = 0.0 # 0.0 if disabled
+
+        if self.action_filtering > 0 and self.action_filter_inobs:
+            obs_dim += len(self.action_scale) * self.action_filtering
+
         self.avg_div = 0
         self.target_vel = 0.9
         self.split_task_test = False
@@ -29,8 +39,8 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.state_index = 0
         self.use_sparse_reward = False
 
-        self.include_obs_history = 1
-        self.include_act_history = 0
+        self.include_obs_history = 10
+        self.include_act_history = 10
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
 
@@ -88,7 +98,7 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_buffer = []
         self.state_buffer = []
 
-        self.obs_delay = 3
+        self.obs_delay = 0
         self.act_delay = 0
 
         #print('sim parameters: ', self.param_manager.get_simulator_parameters())
@@ -168,9 +178,28 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.do_simulation(tau, self.frame_skip)
 
     def step(self, a):
+        action_filter_rew = 0
+        if self.action_filtering > 0 and self.action_filter_reward > 0 and len(self.action_filter_cache) > 0:
+            action_filter_rew = -np.abs(np.mean(self.action_filter_cache, axis=0) - a).sum() * self.action_filter_reward
+
+        if self.action_filter_delta_act > 0:
+            if len(self.action_filter_cache) == 0:
+                base_a = np.zeros(len(a))
+            else:
+                base_a = np.mean(self.action_filter_cache, axis=0)
+            act = base_a + a * self.action_filter_delta_act
+            self.action_filter_cache.append(act)
+            a = np.copy(act)
+        else:
+            self.action_filter_cache.append(a)
+        if len(self.action_filter_cache) > self.action_filtering:
+            self.action_filter_cache.pop(0)
+        if self.action_filtering > 0 and self.action_filter_in_env:
+            a = np.mean(self.action_filter_cache, axis=0)
+
         self.cur_step += 1
         self.advance(a)
-        reward = self.reward_func(a, sparse=self.use_sparse_reward)
+        reward = self.reward_func(a, sparse=self.use_sparse_reward) + action_filter_rew
 
         done = self.terminated()
 
@@ -184,6 +213,9 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.dq
         ])
         state[0] = self.robot_skeleton.bodynodes[2].com()[1]
+
+        if self.action_filtering > 0 and self.action_filter_inobs:
+            state = np.concatenate([state] + self.action_filter_cache)
 
         self.observation_buffer.append(np.copy(state))
 
@@ -249,6 +281,11 @@ class DartWalker2dEnv(dart_env.DartEnv, utils.EzPickle):
         self.observation_buffer = []
         self.action_buffer = []
         self.cur_step = 0
+
+        self.action_filter_cache = []
+        if self.action_filtering > 0:
+            for i in range(self.action_filtering):
+                self.action_filter_cache.append(np.zeros(len(self.action_scale)))
 
         return self._get_obs()
 

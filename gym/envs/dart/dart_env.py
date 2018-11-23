@@ -8,6 +8,7 @@ import numpy as np
 from os import path
 import gym
 import six
+import time
 
 
 from gym.envs.dart.static_window import *
@@ -80,7 +81,7 @@ class DartEnv(gym.Env):
 
         # random perturbation
         self.add_perturbation = False
-        self.perturbation_parameters = [0.05, 5, 2] # probability, magnitude, bodyid, duration
+        self.perturbation_parameters = [0.05, 5, 2, 40] # probability, magnitude, bodyid, duration
         self.perturbation_duration = 40
         self.perturb_force = np.array([0, 0, 0])
 
@@ -177,6 +178,7 @@ class DartEnv(gym.Env):
                 if self._get_viewer().key_being_pressed is not None:
                     if self._get_viewer().key_being_pressed == b'p':
                         self.paused = not self.paused
+                        time.sleep(0.1)
 
         if self.paused:
             return
@@ -188,6 +190,7 @@ class DartEnv(gym.Env):
                     axis_rand = np.random.randint(0, 2, 1)[0]
                     direction_rand = np.random.randint(0, 2, 1)[0] * 2 - 1
                     self.perturb_force[axis_rand] = direction_rand * self.perturbation_parameters[1]
+                    perturbation_duration = self.perturbation_parameters[3]
 
             else:
                 self.perturbation_duration -= 1

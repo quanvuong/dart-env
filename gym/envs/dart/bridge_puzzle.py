@@ -7,10 +7,10 @@ class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
         self.target = np.array([15.0, 0.3, 0.0])
         self.action_scale = 100
 
-        self.action_filtering = 5  # window size of filtering, 0 means no filtering
+        self.action_filtering = 0  # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
 
-        self.hierarchical = False
+        self.hierarchical = True
         if self.hierarchical:
             self.h_horizon = 20
             self.action_scale = 2.0
@@ -28,6 +28,9 @@ class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
             bn.set_friction_coeff(0.2)
         for bn in self.dart_world.skeletons[-1].bodynodes:
             bn.set_friction_coeff(0.2)
+
+        self.restored_initialization = True
+        self.init_state_pool = []
 
         utils.EzPickle.__init__(self)
 
@@ -62,7 +65,7 @@ class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
                 tau = np.zeros(3)
                 tvec = targets[int(i / (self.h_horizon * 1.0 / self.num_way_point))] - self.robot_skeleton.bodynodes[-1].com()[[0,2]]
                 tvec /= np.linalg.norm(tvec)
-                tau[[0,2]] = tvec * 25
+                tau[[0,2]] = tvec * 50
                 self.do_simulation(tau, self.frame_skip)
             self.dart_world.skeletons[-2].q = np.array([targets[0][0], 0.0, targets[0][1]])
 
@@ -79,6 +82,11 @@ class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         #done = not (np.isfinite(s).all() and (-reward_dist > 0.02))
         done = False
+
+        if np.random.random() < 0.01:
+            self.init_state_pool.append(self.state_vector())
+            if len(self.init_state_pool) > 1000:
+                self.init_state_pool.pop(0)
 
         if self.robot_skeleton.bodynodes[-1].com()[1] < -0.0 or self.robot_skeleton.bodynodes[-1].com()[1] > 0.5:
             done = True
@@ -97,6 +105,11 @@ class DartBridgePuzzle(dart_env.DartEnv, utils.EzPickle):
         qpos[1] = 0.0
         qvel[1] = 0.0
         self.set_state(qpos, qvel)
+
+
+        if len(self.init_state_pool) >= 900 and self.restored_initialization:
+            if np.random.random() < 0.25:
+                self.set_state_vector(self.init_state_pool[np.random.randint(len(self.init_state_pool))] + self.np_random.uniform(low=-.005, high=.005, size=self.robot_skeleton.ndofs*2))
 
         if not self.hierarchical:
             self.dart_world.skeletons[-2].q = np.array([1000, 10, 10])

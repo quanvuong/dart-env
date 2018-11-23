@@ -18,7 +18,7 @@ from gym.envs.dart.parameter_managers import *
 class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
 
-        obs_dim = 48
+        obs_dim = 40
 
         self.imu_input_step = 0  # number of imu steps as input
         self.imu_cache = []
@@ -32,13 +32,13 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.kd_ratio = 1.0
         self.imu_offset_deviation = np.array([0, 0, 0])
 
-        self.use_discrete_action = True
+        self.use_discrete_action = False
 
         self.param_manager = darwinSquatParamManager(self)
 
         self.train_UP = False
-        self.noisy_input = True
-        self.resample_MP = True
+        self.noisy_input = False
+        self.resample_MP = False
 
         obs_dim += self.imu_input_step * 6
 
@@ -51,7 +51,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.2
+        self.final_tv = 0.25
         self.tv_endtime = 0.001
         self.smooth_tv_change = True
         self.avg_rew_weighting = []
@@ -95,6 +95,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.f1 = np.array([0.])
         self.f2 = np.array([0.])
 
+        self.action_buffer = []
+
         self.include_obs_history = 1
         self.include_act_history = 0
         obs_dim *= self.include_obs_history
@@ -102,7 +104,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         obs_perm_base = np.array(
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -14, -15, -16, -17, -18, -19, -8, -9, -10, -11, -12, -13,
              -23, -24, -25, -20, -21, -22, 26, 27, -34, -35, -36, -37, -38, -39, -28, -29, -30, -31, -32, -33,
-             -40, 41, 42, -43, 44, -45, 46, -47])
+             ])
         act_perm_base = np.array(
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -14, -15, -16, -17, -18, -19, -8, -9, -10, -11, -12, -13])
         self.obs_perm = np.copy(obs_perm_base)
@@ -119,7 +121,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             from gym import spaces
             self.action_space = spaces.MultiDiscrete([15] * 20)
 
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/robotis_op2.urdf'], 15, obs_dim,
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/robotis_op2.urdf'], 25, obs_dim,
                                   self.control_bounds, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.dart_world.set_gravity([0, 0, -9.81])
@@ -180,17 +182,17 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         clamped_control = np.array(a)
 
         for i in range(len(clamped_control)):
-
             if clamped_control[i] > self.control_bounds[1][i]:
                 clamped_control[i] = self.control_bounds[1][i]
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
 
-        clamped_control = (clamped_control + 1.0) * 0.5 * self.angle_scale
+        clamped_control = clamped_control* self.angle_scale
 
         self.target[6:] = self.init_q[
                           6:] + clamped_control  # self.ref_traj[self.count,:] + (self.init[6:])# + #*self.action_scale# + self.ref_trajectory_right[self.count_right,6:]# +
         self.target[6:] = np.clip(self.target[6:], JOINT_LOW_BOUND, JOINT_UP_BOUND)
+
         self.dupSkel.set_positions(self.target)
         self.dupSkel.set_velocities(self.target*0)
 
@@ -232,6 +234,9 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
                                , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
                             0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
 
+        #self.kp = np.array([32]*20) * self.kp_ratio
+        #self.kd = np.array([0]*20) * self.kd_ratio
+
         self.kp = [item for item in self.kp]
         self.kd = [item for item in self.kd]
 
@@ -272,6 +277,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
             self.action_filter_cache.pop(0)
         if self.action_filtering > 0:
             a = np.mean(self.action_filter_cache, axis=0)
+
+        self.action_buffer.append(np.copy(a))
 
 
         if self.smooth_tv_change:
@@ -375,8 +382,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         qvel = self.robot_skeleton.dq + self.np_random.uniform(low=-.005, high=.005,
                                                                size=self.robot_skeleton.ndofs)  # np.zeros(self.robot_skeleton.ndofs) #
 
-        qpos[1] = 0.20
-        qpos[5] = -0.36
+        #qpos[1] = 0.20
+        qpos[5] = -0.3
 
         # LEFT HAND
         qpos[6] = (2518 - 2048) * (np.pi / 180) * 0.088# + np.random.uniform(low=-0.01, high=0.01, size=1)
@@ -403,7 +410,8 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         qpos[23] = 0.88# + np.random.uniform(low=-0.01, high=0.01, size=1)
         qpos[24] = (2389 - 2048) * (np.pi / 180) * 0.088# + np.random.uniform(low=-0.01, high=0.01, size=1)
         qpos[25] = (2057 - 2048) * (np.pi / 180) * 0.088# + np.random.uniform(low=-0.01, high=0.01, size=1)
-        print(repr(qpos))
+
+        self.action_buffer = []
 
         # set the mass
         '''
@@ -436,7 +444,7 @@ class DartDarwinTrajEnv(dart_env.DartEnv, utils.EzPickle):
         self.t = 0
         for i in range(6, self.robot_skeleton.ndofs):
             j = self.robot_skeleton.dof(i)
-            j.set_damping_coefficient(0.515)
+            j.set_damping_coefficient(0.1)
         self.init_position_x = self.robot_skeleton.bodynode('MP_BODY').C[0]
         self.init_footheight = -0.339
         return self._get_obs()
