@@ -77,10 +77,15 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.interp_sch = [[0.0, self.pose_squat],
                            [3.0, self.pose_stand],
                            [4.0, self.pose_stand],
-                           #[3.0, self.pose_squat],
-                           #[3.3, self.pose_stand],
-                           #[3.6, self.pose_squat],
                            ]
+        '''[[0.0, self.pose_stand],
+           [1.5, self.pose_squat],
+           [2.5, self.pose_stand],
+           [3.0, self.pose_squat],
+           [3.3, self.pose_stand],
+           [3.6, self.pose_squat], ]'''
+
+
 
         self.delta_angle_scale = 0.3
 
@@ -150,7 +155,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.set_collision_detector(0)
 
-        self.robot_skeleton.set_self_collision_check(False)
+        self.robot_skeleton.set_self_collision_check(True)
+
+        collision_filter = self.dart_world.create_collision_filter()
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_PELVIS_L'),
+                                           self.robot_skeleton.bodynode('MP_THIGH2_L'))
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_PELVIS_R'),
+                                           self.robot_skeleton.bodynode('MP_THIGH2_R'))
 
         self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(5.0)
         for bn in self.robot_skeleton.bodynodes:
@@ -164,7 +175,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             j = self.robot_skeleton.dof(i)
             j.set_damping_coefficient(0.515)
         self.init_position_x = self.robot_skeleton.bodynode('MP_BODY').C[0]
-        self.init_footheight = -0.339
 
         # set joint limits according to the measured one
         for i in range(6, self.robot_skeleton.ndofs):
@@ -318,17 +328,25 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all())
 
         self.fall_on_ground = False
+        self_colliding = False
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
         permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2],
                                     self.robot_skeleton.bodynodes[-7], self.robot_skeleton.bodynodes[-8]]
+        ground_bodies = [self.dart_world.skeletons[0].bodynodes[0]]
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
             if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
-                self.fall_on_ground = True
+                if contact.bodynode1 in ground_bodies or contact.bodynode2 in ground_bodies:
+                    self.fall_on_ground = True
+            if contact.bodynode1.skel == contact.bodynode2.skel:
+                self_colliding = True
         if self.t > self.interp_sch[-1][0] * 2:
             done = True
         if self.fall_on_ground:
+            done = True
+
+        if self_colliding:
             done = True
 
         if done:
@@ -343,6 +361,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         c = self.robot_skeleton.bodynode('MP_BODY').to_world(self.imu_offset+self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset_deviation)
         #self.dart_world.skeletons[2].q = np.array([0, 0, 0, c[0], c[1], c[2]])
+
 
         return ob, reward, done, {}
 
