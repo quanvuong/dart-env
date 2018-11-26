@@ -10,7 +10,7 @@ import pydart2.pydart2_api as papi
 import random
 from random import randrange
 import pickle
-import copy
+import copy, os
 
 from gym.envs.dart.darwin_utils import *
 from gym.envs.dart.parameter_managers import *
@@ -45,6 +45,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = True
         self.resample_MP = True
         self.randomize_timestep = True
+        self.load_keyframe_from_file = True
+        self.forward_reward = 5.0
 
         obs_dim += self.imu_input_step * 6
 
@@ -85,6 +87,16 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
            [3.3, self.pose_stand],
            [3.6, self.pose_squat], ]'''
 
+        if self.load_keyframe_from_file:
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe.txt')
+            rig_keyframe = np.loadtxt(fullpath)
+            self.interp_sch = []
+            interp_time = 0.0
+            for i in range(10):
+                for k in range(1, len(rig_keyframe)):
+                    self.interp_sch.append([interp_time, rig_keyframe[k]])
+                    interp_time += 0.35
+            self.interp_sch.append([interp_time, rig_keyframe[0]])
 
 
         self.delta_angle_scale = 0.3
@@ -313,7 +325,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.action_buffer.append(np.copy(a))
 
+        xpos_before = self.robot_skeleton.q[3]
         self.advance(a)
+        xpos_after = self.robot_skeleton.q[3]
 
         pose_math_rew = np.sum(
             np.abs(np.array(self.ref_target - self.robot_skeleton.q[6:])) ** 2)
@@ -322,6 +336,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             a) ** 2 + self.alive_bonus - pose_math_rew * self.pose_weight
         reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
         reward -= 0.5 * np.sum(np.abs(self.robot_skeleton.dC))
+
+        reward += self.forward_reward * (xpos_after - xpos_before) / self.dt
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
