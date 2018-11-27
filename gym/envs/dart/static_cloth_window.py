@@ -43,6 +43,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.captureIndex = 0 #increments when captureToFile is called
         self.captureDirectory = "/home/alexander/Documents/frame_capture_output"
         self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/1"
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/0"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
         self.capturing = False
         self.key_down = []

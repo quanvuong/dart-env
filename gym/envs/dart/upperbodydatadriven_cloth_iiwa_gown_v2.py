@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -1272,8 +1272,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            #self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            self.weaknessScale = random.uniform(0.05,1.0)
+            #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
@@ -1294,7 +1294,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
             #testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
-            print("elbow_rest = " + str(self.elbow_rest))
+            #print("elbow_rest = " + str(self.elbow_rest))
             # TODO: done - elbow variation testing
             #set the joint limits as boundary clamped, symmetrical range around rest
             self.robot_skeleton.dofs[16].set_position_lower_limit(max(self.elbow_rest-self.elbow_constraint_range, self.elbow_initial_limits[0]))

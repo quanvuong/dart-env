@@ -15,14 +15,14 @@ if __name__ == '__main__':
 
     #1. set variables
     legend = False
-    graphStats = True #if true, graph mean/variance instead of data
+    graphStats = False #if true, graph mean/variance instead of data
     singleFrame = False #if true, graph everything on the same graph
     graph0 = True #if true, put a black line through 0 y
-    ymax = 1.0
+    ymax = 100.0
     #ymax = 200
     ymin = None
     unifyScale = True #if true and no limits provided, compute from data min and max
-    graphTitle = "Graph"
+    graphTitle = "Limb Progress"
 
     #2. set closest common directory
     prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/"
@@ -47,8 +47,8 @@ if __name__ == '__main__':
     ]
     #folders = [['baseline']]
 
-    filename = "limbProgressGraphData"
-    #filename = "deformationGraphData"
+    #filename = "limbProgressGraphData"
+    filename = "deformationGraphData"
 
     inprefixs = []
     for f_row in folders:

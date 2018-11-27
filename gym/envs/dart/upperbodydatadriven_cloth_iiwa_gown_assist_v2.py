@@ -157,8 +157,8 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        rendering = True
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.0025
@@ -260,13 +260,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = False
+        self.limbProgressGraphing = True
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
 
         # deformation tracking
-        self.deformationGraphing = False
+        self.deformationGraphing = True
         self.deformationGraph = None
         if (self.deformationGraphing):
             self.deformationGraph = pyutils.LineGrapher(title="Deformation")
@@ -1505,10 +1505,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
 
         if self.elbowConVarObs:
             # sample a rest position
-            self.elbow_rest = random.uniform(0.5, 2.85)
+            #self.elbow_rest = random.uniform(0.5, 2.85)
             # testing range:
             # TODO: elbow variation testing
-            # self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
+            self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
             print("elbow_rest = " + str(self.elbow_rest))
             # TODO: done - elbow variation testing
             # set the joint limits as boundary clamped, symmetrical range around rest
@@ -1531,6 +1531,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
             if self.variationTesting:
                 prefix = self.viewer.captureDirectory+"/"
 
+            # TODO: elbow variation testing
+            if True:
+                folderNum = max(int((self.reset_number-1) / 10), 0)
+                print("folderNum: " + str(folderNum))
+                prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/" + str(
+                    folderNum) + "/"
+                #prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/baseline/"
+                if not os.path.exists(prefix):
+                    os.makedirs(prefix)
+            # TODO: done - elbow variation testing
+
             self.limbProgressGraph.update()
             self.limbProgressGraph.save(prefix+"limbProgressGraph", prefix+"limbProgressGraphData")
 
@@ -1538,6 +1549,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
                 if self.reset_number % self.numSeeds == 0:
                     self.limbProgressGraph.close()
                     self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
+
+            # TODO: elbow variation testing
+            if self.reset_number % 10 == 0:
+                self.limbProgressGraph.close()
+                self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
+            # TODO: done - elbow variation testing
 
             self.limbProgressGraph.xdata = np.arange(600)
             self.limbProgressGraph.plotData(ydata=np.zeros(600))
@@ -1548,6 +1565,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
             if self.variationTesting:
                 prefix = self.viewer.captureDirectory+"/"
 
+            # TODO: elbow variation testing
+            if True:
+                folderNum = max(int((self.reset_number-1) / 10), 0)
+                print("folderNum: " + str(folderNum))
+                prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/" + str(folderNum) + "/"
+                #prefix = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/baseline/"
+                if not os.path.exists(prefix):
+                    os.makedirs(prefix)
+            # TODO: done - elbow variation testing
+
             self.deformationGraph.update()
             self.deformationGraph.save(prefix+"deformationGraph", prefix+"deformationGraphData")
 
@@ -1555,6 +1582,21 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
                 if self.reset_number % self.numSeeds == 0:
                     self.deformationGraph.close()
                     self.deformationGraph = pyutils.LineGrapher(title="Deformation")
+
+            # TODO: elbow variation testing
+            if self.reset_number % 10 == 0 and self.reset_number > 0:
+                self.deformationGraph.close()
+                self.deformationGraph = pyutils.LineGrapher(title="Deformation")
+
+                folderNum = max(int((self.reset_number) / 10), 0)
+                self.viewer.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/" + str(folderNum)
+                if not os.path.exists(self.viewer.captureDirectory):
+                    os.makedirs(self.viewer.captureDirectory)
+                self.viewer.captureIndex = 0
+                # self.weaknessScale = self.variations[int(self.reset_number/self.numSeeds)]
+                print("reset capture directory to " + self.viewer.captureDirectory)
+                #exit(0)
+            # TODO: done - elbow variation testing
 
             self.deformationGraph.xdata = np.arange(600)
             self.deformationGraph.plotData(ydata=np.zeros(600))
@@ -2076,6 +2118,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
 
+        if self.elbowConVarObs:
+            # render elbow stiffness variation
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
+                                     text="Seed: (%i)" % self.setSeed,
+                                     color=(0., 0, 0))
+
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80,
+                                     text="Elbow Rest Value [0,1] = %0.2f" % ((self.elbow_rest - 0.25)/2.6),
+                                     color=(0., 0, 0))
+
         if self.renderUI and not self.demoRendering:
             if self.renderRewardsData:
                 self.rewardsData.render(topLeft=[m_viewport[2] - 410, m_viewport[3] - 15],
@@ -2119,11 +2171,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
 
             #render unilateral weakness variation
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="Weakness Scale Value = %0.2f" % self.weaknessScale, color=(0., 0, 0))
-
-            if self.elbowConVarObs:
-                # render elbow stiffness variation
-                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80,
-                                         text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
 
 
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])

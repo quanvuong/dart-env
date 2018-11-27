@@ -25,6 +25,7 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_11_20_robo_elbow_constraint13" #robo trained for "experiment_2018_11_13_elbow_constraint", fixed weakness 1.0: v2
     #trial = "experiment_2018_11_13_elbow_constraint" #fixed weakness 1.0: v2
     #trial = "experiment_2018_11_04_ablegown_cont" #fixed weakness 1.0: v2 (continued at ~1500 iterations)
     #trial = "experiment_2018_11_04_ablegown" #fixed weakness 1.0: v2
@@ -429,8 +430,8 @@ if __name__ == '__main__':
     #envName = 'DartSawyerRigid-v4'
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
-    #envName = 'DartIiwaGown-v2'
-    envName = 'DartIiwaGownAssist-v2'
+    envName = 'DartIiwaGown-v2'
+    #envName = 'DartIiwaGownAssist-v2'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -488,11 +489,12 @@ if __name__ == '__main__':
             hidden_sizes=(64, 64),
             #hidden_sizes=(128, 64),
             #init_std=0.2 #exploration scaling
-            init_std=0.1
+            init_std=0.15 #exploration scaling #human
+            #init_std=0.1
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        #all_param_values[4] *= 0.01
-        all_param_values[4] *= 0.002 #bias output scaling
+        all_param_values[4] *= 0.01 #human
+        #all_param_values[4] *= 0.002 #bias output scaling
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization
