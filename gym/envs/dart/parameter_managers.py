@@ -8,6 +8,7 @@ from gym.envs.dart import dart_env
 ##############################################################################################################
 
 
+
 class hopperContactMassManager:
     def __init__(self, simulator):
         self.simulator = simulator
@@ -833,8 +834,13 @@ class darwinSquatParamManager:
         self.kp_rat_range = [0.8, 1.2]
         self.kd_rat_range = [0.8, 1.2]
 
-        self.activated_param = [0,1,2,3,4,5]
-        self.controllable_param = [0,1,2,3,4,5]
+        self.kp_range = [0.0, 100]
+        self.kd_range = [0.0, 1.0]
+        self.joint_damping_range = [0.0, 5.0]
+        self.joint_friction_range = [0.0, 1.0]
+
+        self.activated_param = [6,7,8,9]
+        self.controllable_param = [6,7,8,9]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -854,13 +860,22 @@ class darwinSquatParamManager:
         imu_z_param = (cur_imu_z - self.imu_offset[0]) / (self.imu_offset[1] - self.imu_offset[0])
 
         cur_kp_rat = self.simulator.kp_ratio
-        kp_param = (cur_kp_rat - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
+        kp_rat_param = (cur_kp_rat - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
 
         cur_kd_rat = self.simulator.kd_ratio
-        kd_param = (cur_kd_rat - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
+        kd_rat_param = (cur_kd_rat - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
 
+        cur_kp = self.simulator.kp
+        kp_param = (cur_kp - self.kp_range[0]) / (self.kp_range[1] - self.kp_range[0])
+        cur_kd = self.simulator.kd
+        kd_param = (cur_kd - self.kd_range[0]) / (self.kd_range[1] - self.kd_range[0])
+        cur_damping = self.simulator.robot_skeleton.dofs[-1].damping_coefficient()
+        damping_param = (cur_damping - self.joint_damping_range[0]) / (self.joint_damping_range[1] - self.joint_damping_range[0])
+        cur_jt_friction = self.simulator.robot_skeleton.dofs[-1].coulomb_friction()
+        jt_friction_param = (cur_jt_friction - self.joint_friction_range[0]) / (self.joint_friction_range[1] - self.joint_friction_range[0])
 
-        return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_param, kd_param])[self.activated_param]
+        return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_rat_param, kd_rat_param,
+                         kp_param, kd_param, damping_param, jt_friction_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -888,6 +903,25 @@ class darwinSquatParamManager:
         if 5 in self.controllable_param:
             kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0]
             self.simulator.kd_ratio = kd_rat
+            cur_id += 1
+
+        if 6 in self.controllable_param:
+            kp = x[cur_id] * (self.kp_range[1] - self.kp_range[0]) + self.kp_range[0]
+            self.simulator.kp = kp
+            cur_id += 1
+        if 7 in self.controllable_param:
+            kd = x[cur_id] * (self.kd_range[1] - self.kd_range[0]) + self.kd_range[0]
+            self.simulator.kd = kd
+            cur_id += 1
+        if 8 in self.controllable_param:
+            damping = x[cur_id] * (self.joint_damping_range[1] - self.joint_damping_range[0]) + self.joint_damping_range[0]
+            for i in range(6, self.simulator.robot_skeleton.num_dofs()):
+                self.simulator.robot_skeleton.dofs[i].set_damping_coefficient(damping)
+            cur_id += 1
+        if 9 in self.controllable_param:
+            jt_friction = x[cur_id] * (self.joint_friction_range[1] - self.joint_friction_range[0]) + self.joint_friction_range[0]
+            for i in range(6, self.simulator.robot_skeleton.num_dofs()):
+                self.simulator.robot_skeleton.dofs[i].set_coulomb_friction(jt_friction)
             cur_id += 1
 
     def resample_parameters(self):

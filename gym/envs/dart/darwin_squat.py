@@ -11,6 +11,7 @@ import random
 from random import randrange
 import pickle
 import copy, os
+from gym.envs.dart.dc_motor import DCMotor
 
 from gym.envs.dart.darwin_utils import *
 from gym.envs.dart.parameter_managers import *
@@ -41,12 +42,19 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.param_manager = darwinSquatParamManager(self)
 
+        self.use_DCMotor = False
+        self.use_spd = False
         self.train_UP = False
         self.noisy_input = True
-        self.resample_MP = True
+        self.resample_MP = False
         self.randomize_timestep = True
-        self.load_keyframe_from_file = True
-        self.forward_reward = 5.0
+        self.load_keyframe_from_file = False
+        self.forward_reward = 0.0
+        self.kp = None
+        self.kd = None
+
+        if self.use_DCMotor:
+            self.motors = DCMotor(0.0107, 8.3, 12, 193)
 
         obs_dim += self.imu_input_step * 6
 
@@ -95,7 +103,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
-                    interp_time += 0.35
+                    interp_time += 0.25
             self.interp_sch.append([interp_time, rig_keyframe[0]])
 
 
@@ -108,28 +116,12 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step = 0
 
-        self.torqueLimits = 3.5
+        self.torqueLimits = 200
 
         self.t = 0
-        # self.dt = 0.002
-        self.itr = 0
-        self.sol = 0
-        self.rankleFlag = False
-        self.rhandFlag = False
-        self.lhandFlag = False
-        self.lankleFlag = False
-        self.preverror = np.zeros(26, )
-        self.edot = np.zeros(26, )
         self.target = np.zeros(26, )
-        self.ndofs = np.zeros(26, )  # self.robot_skeleton.ndofs
         self.tau = np.zeros(26, )
         self.init = np.zeros(26, )
-        self.sum = 0
-        self.count = 0
-        self.dumpTorques = False
-        self.dumpActions = False
-        self.f1 = np.array([0.])
-        self.f2 = np.array([0.])
 
         self.include_obs_history = 1
         self.include_act_history = 0
@@ -186,6 +178,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(6, self.robot_skeleton.ndofs):
             j = self.robot_skeleton.dof(i)
             j.set_damping_coefficient(0.515)
+            j.set_coulomb_friction(0.0)
         self.init_position_x = self.robot_skeleton.bodynode('MP_BODY').C[0]
 
         # set joint limits according to the measured one
@@ -262,14 +255,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.tau[6:] = self.PID()
             self.tau[0:6] *= 0.0
 
-            if self.dumpTorques:
-                with open("torques.txt", "ab") as fp:
-                    np.savetxt(fp, np.array([self.tau]), fmt='%1.5f')
-
-            if self.dumpActions:
-                with open("targets_from_net.txt", 'ab') as fp:
-                    np.savetxt(fp, np.array([[self.target[6], self.robot_skeleton.q[6]]]), fmt='%1.5f')
-
             if self.add_perturbation:
                 self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
             self.robot_skeleton.set_forces(self.tau)
@@ -279,24 +264,51 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
     def PID(self):
         # print("#########################################################################3")
 
-        self.kp = np.array([2.1+10, 1.79+10, 4.93+10,
-                   2.0+10, 2.02+10, 1.98+10,
-                   2.2+10, 2.06+10,
-                   148, 152, 150, 136, 153, 102,
-                   151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio
-        self.kd = np.array([0.021, 0.023, 0.022,
-                   0.025, 0.021, 0.026,
-                   0.28, 0.213
-            , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                   0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
+        if self.use_DCMotor:
+            if self.kp is not None:
+                kp = self.kp * self.kp_ratio
+                kd = self.kd * self.kd_ratio
+            else:
+                kp = np.array([0]*20) * self.kp_ratio
+                kd = np.array([0.0]*20) * self.kd_ratio
+            pwm_command = -1 * kp * (self.robot_skeleton.q[6:] - self.target[6:]) - kd * self.robot_skeleton.dq[6:]
+            tau = np.zeros(26, )
+            tau[6:] = self.motors.get_torque(pwm_command, self.robot_skeleton.dq[6:])
+        elif self.use_spd:
+            if self.kp is not None:
+                kp = np.array([self.kp]*26) * self.kp_ratio
+                kd = np.array([self.kd]*26) * self.kd_ratio
+                kp[0:6] *= 0
+                kd[0:6] *= 0
+            else:
+                kp = np.array([0]*26) * self.kp_ratio
+                kd = np.array([0.0]*26) * self.kd_ratio
 
-        #self.kp = np.array([30] * 20) * self.kp_ratio
-        #self.kd = np.array([0.0] * 20) * self.kd_ratio
+            p = -kp * (self.robot_skeleton.q + self.robot_skeleton.dq * self.sim_dt - self.target)
+            d = -kd * self.robot_skeleton.dq
+            qddot = np.linalg.solve(self.robot_skeleton.M + np.diagflat(kd) * self.sim_dt, -self.robot_skeleton.c + p + d + self.robot_skeleton.constraint_forces())
+            tau = p + d - kd * qddot * self.sim_dt
+            tau[0:6] *= 0
+        else:
+            if self.kp is not None:
+                kp = self.kp * self.kp_ratio
+                kd = self.kd * self.kd_ratio
+            else:
+                kp = np.array([2.1+10, 1.79+10, 4.93+10,
+                           2.0+10, 2.02+10, 1.98+10,
+                           2.2+10, 2.06+10,
+                           148, 152, 150, 136, 153, 102,
+                           151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio
+                kd = np.array([0.021, 0.023, 0.022,
+                           0.025, 0.021, 0.026,
+                           0.28, 0.213
+                    , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
+                           0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
 
-        q = self.robot_skeleton.q
-        qdot = self.robot_skeleton.dq
-        tau = np.zeros(26, )
-        tau[6:] = -self.kp * (q[6:] - self.target[6:]) - self.kd * qdot[6:]
+            q = self.robot_skeleton.q
+            qdot = self.robot_skeleton.dq
+            tau = np.zeros(26, )
+            tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:]
 
         torqs = self.ClampTorques(tau)
 
