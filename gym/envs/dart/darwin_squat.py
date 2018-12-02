@@ -48,7 +48,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.noisy_input = True
         self.resample_MP = True
         self.randomize_timestep = True
-        self.load_keyframe_from_file = False
+        self.load_keyframe_from_file = True
         self.forward_reward = 0.0
         self.kp = None
         self.kd = None
@@ -97,16 +97,21 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
            [3.6, self.pose_squat], ]'''
 
         if self.load_keyframe_from_file:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe.txt')
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe2.txt')
             rig_keyframe = np.loadtxt(fullpath)
-            self.interp_sch = [[0.0, rig_keyframe[0]]]
+            self.interp_sch = [[0.0, rig_keyframe[0]],
+                          [2.0, rig_keyframe[1]],
+                          [6.0, rig_keyframe[1]]]
+            '''self.interp_sch = [[0.0, rig_keyframe[0]]]
             interp_time = 0.5
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
                     interp_time += 0.25
-            self.interp_sch.append([interp_time, rig_keyframe[0]])
+            self.interp_sch.append([interp_time, rig_keyframe[0]])'''
 
+        self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
+        self.init_root_pert = np.array([0.0, 1.2, 0.0, 0.0, 0.0, 0.0])
 
         self.delta_angle_scale = 0.3
 
@@ -186,6 +191,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(6, self.robot_skeleton.ndofs):
             self.robot_skeleton.dofs[i].set_position_lower_limit(JOINT_LOW_BOUND[i - 6] - 0.01)
             self.robot_skeleton.dofs[i].set_position_upper_limit(JOINT_UP_BOUND[i - 6] + 0.01)
+
+        self.permitted_contact_bodies = [self.robot_skeleton.bodynodes[id] for id in self.permitted_contact_ids]
 
         utils.EzPickle.__init__(self)
 
@@ -360,12 +367,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self_colliding = False
         contacts = self.dart_world.collision_result.contacts
         total_force_mag = 0
-        permitted_contact_bodies = [self.robot_skeleton.bodynodes[-1], self.robot_skeleton.bodynodes[-2],
-                                    self.robot_skeleton.bodynodes[-7], self.robot_skeleton.bodynodes[-8]]
+
         ground_bodies = [self.dart_world.skeletons[0].bodynodes[0]]
         for contact in contacts:
             total_force_mag += np.square(contact.force).sum()
-            if contact.bodynode1 not in permitted_contact_bodies and contact.bodynode2 not in permitted_contact_bodies:
+            if contact.bodynode1 not in self.permitted_contact_bodies and contact.bodynode2 not in self.permitted_contact_bodies:
                 if contact.bodynode1 in ground_bodies or contact.bodynode2 in ground_bodies:
                     self.fall_on_ground = True
             if contact.bodynode1.skel == contact.bodynode2.skel:
@@ -439,10 +445,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_q = np.copy(qpos)
         # self.target = qpos
         self.count = 0
+        qpos[0:6] += self.init_root_pert
         self.set_state(qpos, qvel)
 
         q = self.robot_skeleton.q
-        q[5] = -0.33 - self.robot_skeleton.bodynodes[-1].C[2]
+        q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
         self.robot_skeleton.q = q
 
         self.t = 0
