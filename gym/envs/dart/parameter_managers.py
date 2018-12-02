@@ -836,11 +836,11 @@ class darwinSquatParamManager:
 
         self.kp_range = [0.0, 100]
         self.kd_range = [0.0, 1.0]
-        self.joint_damping_range = [0.0, 5.0]
-        self.joint_friction_range = [0.0, 1.0]
+        self.joint_damping_range = [0.0, 1.0]
+        self.joint_friction_range = [0.0, 0.3]
 
-        self.activated_param = [6,7,8,9]
-        self.controllable_param = [6,7,8,9]
+        self.activated_param = [0, 4,5, 8,9]
+        self.controllable_param = [0,4,5, 8,9]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None

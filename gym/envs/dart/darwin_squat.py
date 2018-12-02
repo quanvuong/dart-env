@@ -46,7 +46,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_spd = False
         self.train_UP = False
         self.noisy_input = True
-        self.resample_MP = False
+        self.resample_MP = True
         self.randomize_timestep = True
         self.load_keyframe_from_file = False
         self.forward_reward = 0.0
@@ -84,9 +84,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.pose_left_stand = VAL2RADIAN(self.pose_left_stand_val)
         self.pose_right_stand = VAL2RADIAN(self.pose_right_stand_val)
 
-        self.interp_sch = [[0.0, self.pose_squat],
-                           [3.0, self.pose_stand],
+        self.interp_sch = [[0.0, self.pose_stand],
+                           [2.0, self.pose_squat],
                            [4.0, self.pose_stand],
+                           [6.0, self.pose_stand],
                            ]
         '''[[0.0, self.pose_stand],
            [1.5, self.pose_squat],
@@ -98,8 +99,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         if self.load_keyframe_from_file:
             fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe.txt')
             rig_keyframe = np.loadtxt(fullpath)
-            self.interp_sch = []
-            interp_time = 0.0
+            self.interp_sch = [[0.0, rig_keyframe[0]]]
+            interp_time = 0.5
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
@@ -110,8 +111,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.delta_angle_scale = 0.3
 
         self.alive_bonus = 5.0
-        self.energy_weight = 0.1
-        self.work_weight = 0.01
+        self.energy_weight = 0.2
+        self.work_weight = 0.05
         self.pose_weight = 0.2
 
         self.cur_step = 0
