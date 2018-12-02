@@ -865,10 +865,14 @@ class darwinSquatParamManager:
         cur_kd_rat = self.simulator.kd_ratio
         kd_rat_param = (cur_kd_rat - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
 
-        cur_kp = self.simulator.kp
-        kp_param = (cur_kp - self.kp_range[0]) / (self.kp_range[1] - self.kp_range[0])
-        cur_kd = self.simulator.kd
-        kd_param = (cur_kd - self.kd_range[0]) / (self.kd_range[1] - self.kd_range[0])
+        if self.simulator.kp is not None:
+            cur_kp = self.simulator.kp
+            kp_param = (cur_kp - self.kp_range[0]) / (self.kp_range[1] - self.kp_range[0])
+            cur_kd = self.simulator.kd
+            kd_param = (cur_kd - self.kd_range[0]) / (self.kd_range[1] - self.kd_range[0])
+        else:
+            kp_param = 0.0
+            kd_param = 0.0
         cur_damping = self.simulator.robot_skeleton.dofs[-1].damping_coefficient()
         damping_param = (cur_damping - self.joint_damping_range[0]) / (self.joint_damping_range[1] - self.joint_damping_range[0])
         cur_jt_friction = self.simulator.robot_skeleton.dofs[-1].coulomb_friction()
