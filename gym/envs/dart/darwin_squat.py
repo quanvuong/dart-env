@@ -21,7 +21,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         obs_dim = 40
 
-        self.imu_input_step = 0   # number of imu steps as input
+        self.imu_input_step = 1   # number of imu steps as input
         self.imu_cache = []
 
         self.action_filtering = 10 # window size of filtering, 0 means no filtering
@@ -107,7 +107,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
-                    interp_time += 0.25
+                    interp_time += 0.5
             self.interp_sch.append([interp_time, rig_keyframe[0]])
 
         # single leg stand
@@ -125,7 +125,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.delta_angle_scale = 0.5
 
         self.alive_bonus = 5.0
-        self.energy_weight = 0.2
+        self.energy_weight = 0.02
         self.work_weight = 0.05
         self.pose_weight = 0.2
 
@@ -371,9 +371,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             np.abs(np.array(self.ref_target - self.robot_skeleton.q[6:])) ** 2)
 
         reward = -self.energy_weight * np.sum(
-            a) ** 2 + self.alive_bonus - pose_math_rew * self.pose_weight
+            self.tau ** 2) + self.alive_bonus - pose_math_rew * self.pose_weight
         reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
-        reward -= 0.5 * np.sum(np.abs(self.robot_skeleton.dC))
+        #reward -= 0.5 * np.sum(np.abs(self.robot_skeleton.dC))
 
         reward += self.forward_reward * (xpos_after - xpos_before) / self.dt
 
@@ -393,7 +393,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 if contact.bodynode1 in ground_bodies or contact.bodynode2 in ground_bodies:
                     self.fall_on_ground = True
             if contact.bodynode1.skel == contact.bodynode2.skel:
-                print(contact.bodynode1, contact.bodynode2)
                 self_colliding = True
         if self.t > self.interp_sch[-1][0] * 2:
             done = True
