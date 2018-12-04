@@ -24,7 +24,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
 
-        self.action_filtering = 5 # window size of filtering, 0 means no filtering
+        self.action_filtering = 10 # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
 
         self.obs_cache = []
@@ -46,17 +46,17 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_spd = False
         self.train_UP = False
         self.noisy_input = True
-        self.resample_MP = True
+        self.resample_MP = False
         self.randomize_timestep = True
         self.load_keyframe_from_file = True
-        self.forward_reward = 0.0
+        self.forward_reward = 10.0
         self.kp = None
         self.kd = None
 
         if self.use_DCMotor:
             self.motors = DCMotor(0.0107, 8.3, 12, 193)
 
-        obs_dim += self.imu_input_step * 6
+        obs_dim += self.imu_input_step * 3
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
@@ -97,23 +97,32 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
            [3.6, self.pose_squat], ]'''
 
         if self.load_keyframe_from_file:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe2.txt')
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_crawl.txt')
             rig_keyframe = np.loadtxt(fullpath)
-            self.interp_sch = [[0.0, rig_keyframe[0]],
-                          [2.0, rig_keyframe[1]],
-                          [6.0, rig_keyframe[1]]]
-            '''self.interp_sch = [[0.0, rig_keyframe[0]]]
+            #self.interp_sch = [[0.0, rig_keyframe[0]],
+            #              [2.0, rig_keyframe[1]],
+            #              [6.0, rig_keyframe[1]]]
+            self.interp_sch = [[0.0, rig_keyframe[0]]]
             interp_time = 0.5
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
                     interp_time += 0.25
-            self.interp_sch.append([interp_time, rig_keyframe[0]])'''
+            self.interp_sch.append([interp_time, rig_keyframe[0]])
 
-        self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
-        self.init_root_pert = np.array([0.0, 1.2, 0.0, 0.0, 0.0, 0.0])
+        # single leg stand
+        #self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
+        #self.init_root_pert = np.array([0.0, 1.2, 0.0, 0.0, 0.0, 0.0])
 
-        self.delta_angle_scale = 0.3
+        # craw
+        self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]  # [-1, -2, -7, -8]
+        self.init_root_pert = np.array([0.0, 1.35, 0.0, 0.0, 0.0, 0.0])
+
+        # normal pose
+        #self.permitted_contact_ids = [-1, -2, -7, -8]
+        #self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+        self.delta_angle_scale = 0.5
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.2
@@ -172,6 +181,14 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                                            self.robot_skeleton.bodynode('MP_THIGH2_L'))
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_PELVIS_R'),
                                            self.robot_skeleton.bodynode('MP_THIGH2_R'))
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_ARM_HIGH_L'),
+                                           self.robot_skeleton.bodynode('l_hand'))
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_ARM_HIGH_R'),
+                                           self.robot_skeleton.bodynode('r_hand'))
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_R'),
+                                           self.robot_skeleton.bodynode('MP_ANKLE2_R'))
+        collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
+                                           self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
         self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(5.0)
         for bn in self.robot_skeleton.bodynodes:
@@ -197,24 +214,25 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def get_imu_data(self):
-        acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
+        '''acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
                 offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True),
                          self.robot_skeleton.dq) + np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian(
                 offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True), self.robot_skeleton.ddq)
 
-        acc -= self.dart_world.gravity()
+        acc -= self.dart_world.gravity()'''
         angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
 
         tinv = np.linalg.inv(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3])
 
-        lacc = np.dot(tinv, acc)
+        #lacc = np.dot(tinv, acc)
         langvel = np.dot(tinv, angvel)
 
         # Correction for Darwin hardware
-        lacc = np.array([lacc[1], lacc[0], -lacc[2]])
-        langvel = np.array([langvel[0], -langvel[1], langvel[2]])
+        #lacc = np.array([lacc[1], lacc[0], -lacc[2]])
+        #langvel = np.array([-langvel[0], -langvel[1], langvel[2]])[[2,1,0]]
 
-        imu_data = np.concatenate([lacc, langvel])
+        #imu_data = np.concatenate([lacc, langvel])
+        imu_data = langvel
 
         imu_data += np.random.normal(0, 0.001, len(imu_data))
 
@@ -375,6 +393,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 if contact.bodynode1 in ground_bodies or contact.bodynode2 in ground_bodies:
                     self.fall_on_ground = True
             if contact.bodynode1.skel == contact.bodynode2.skel:
+                print(contact.bodynode1, contact.bodynode2)
                 self_colliding = True
         if self.t > self.interp_sch[-1][0] * 2:
             done = True
