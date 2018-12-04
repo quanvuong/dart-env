@@ -46,10 +46,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_spd = False
         self.train_UP = False
         self.noisy_input = True
-        self.resample_MP = False
+        self.resample_MP = True
         self.randomize_timestep = True
-        self.load_keyframe_from_file = True
-        self.forward_reward = 10.0
+        self.load_keyframe_from_file = False
+        self.forward_reward = 0.0
         self.kp = None
         self.kd = None
 
@@ -119,13 +119,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_root_pert = np.array([0.0, 1.35, 0.0, 0.0, 0.0, 0.0])
 
         # normal pose
-        #self.permitted_contact_ids = [-1, -2, -7, -8]
-        #self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.permitted_contact_ids = [-1, -2, -7, -8]
+        self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-        self.delta_angle_scale = 0.5
+        self.delta_angle_scale = 0.3
 
         self.alive_bonus = 5.0
-        self.energy_weight = 0.02
+        self.energy_weight = 0.015
         self.work_weight = 0.05
         self.pose_weight = 0.2
 
@@ -394,7 +394,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                     self.fall_on_ground = True
             if contact.bodynode1.skel == contact.bodynode2.skel:
                 self_colliding = True
-        if self.t > self.interp_sch[-1][0] * 2:
+        if self.t > self.interp_sch[-1][0] + 2:
             done = True
         if self.fall_on_ground:
             done = True
