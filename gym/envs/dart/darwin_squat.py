@@ -21,7 +21,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         obs_dim = 40
 
-        self.imu_input_step = 1   # number of imu steps as input
+        self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
 
         self.action_filtering = 10 # window size of filtering, 0 means no filtering
@@ -114,7 +114,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
         #self.init_root_pert = np.array([0.0, 1.2, 0.0, 0.0, 0.0, 0.0])
 
-        # craw
+        # crawl
         self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]  # [-1, -2, -7, -8]
         self.init_root_pert = np.array([0.0, 1.35, 0.0, 0.0, 0.0, 0.0])
 
@@ -131,7 +131,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step = 0
 
-        self.torqueLimits = 200
+        self.torqueLimits = 5.0
 
         self.t = 0
         self.target = np.zeros(26, )
@@ -190,9 +190,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
                                            self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
-        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(5.0)
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(2.0)
         for bn in self.robot_skeleton.bodynodes:
-            bn.set_friction_coeff(5.0)
+            bn.set_friction_coeff(2.0)
+        self.robot_skeleton.bodynode('l_hand').set_friction_coeff(0.0)
+        self.robot_skeleton.bodynode('r_hand').set_friction_coeff(0.0)
 
         self.add_perturbation = True
         self.perturbation_parameters = [0.02, 1, 1, 40]  # probability, magnitude, bodyid, duration
@@ -210,6 +212,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.robot_skeleton.dofs[i].set_position_upper_limit(JOINT_UP_BOUND[i - 6] + 0.01)
 
         self.permitted_contact_bodies = [self.robot_skeleton.bodynodes[id] for id in self.permitted_contact_ids]
+
+        print('Total mass: ', self.robot_skeleton.mass())
 
         utils.EzPickle.__init__(self)
 
@@ -327,7 +331,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio
                 kd = np.array([0.021, 0.023, 0.022,
                            0.025, 0.021, 0.026,
-                           0.28, 0.213
+                           0.028, 0.0213
                     , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
                            0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
 
@@ -396,11 +400,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 self_colliding = True
         if self.t > self.interp_sch[-1][0] + 2:
             done = True
-        if self.fall_on_ground:
-            done = True
+        #if self.fall_on_ground:
+        #    done = True
 
-        if self_colliding:
-            done = True
+        #if self_colliding:
+        #    done = True
 
         if done:
             reward = 0

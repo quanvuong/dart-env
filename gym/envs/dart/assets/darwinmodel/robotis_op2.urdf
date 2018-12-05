@@ -10,7 +10,11 @@
   <!-- unit conversions -->
   <!-- inventor sometimes gives ridiculous units -->
   <!-- such conversion factors make description easier to read -->
-  <link name="base_link"/>
+  <link name="base_link">
+  <inertial>
+      <mass value="0.0"/>
+  </inertial>
+  </link>
   <link name="MP_BODY">
     <inertial>
       <origin xyz="-0.003053 -0.0 -0.019268"/>
@@ -135,7 +139,6 @@
       <origin xyz="-0.0 -0.0 0.0" rpy="1.57 0 0" />
       <geometry>
          <box size="0.14 0.028 0.015" />
-        <mesh filename="./meshes/forearm_l.STL"  scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="Grey">
         <color rgba="0.20 0.0 0 1.0"/>
@@ -234,6 +237,7 @@
         <color rgba="0.20 0.20 0.20 1.0"/>
       </material>
     </visual>
+
 
     <collision>
       <origin xyz="-0.0 -0.0 -0.0" rpy="1.57 0 0" />
@@ -355,6 +359,9 @@
     </visual>
   </link>
   <link name="MP_PMDCAMBOARD">
+  <inertial>
+      <mass value="0.0"/>
+  </inertial>
   </link>
   <joint name="j_camboard" type="fixed">
     <parent link="MP_HEAD"/>
