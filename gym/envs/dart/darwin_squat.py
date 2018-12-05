@@ -299,8 +299,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 kp = self.kp * self.kp_ratio
                 kd = self.kd * self.kd_ratio
             else:
-                kp = np.array([0]*20) * self.kp_ratio
-                kd = np.array([0.0]*20) * self.kd_ratio
+                kp = np.array([4]*20) * self.kp_ratio
+                kd = np.array([0.032]*20) * self.kd_ratio
             pwm_command = -1 * kp * (self.robot_skeleton.q[6:] - self.target[6:]) - kd * self.robot_skeleton.dq[6:]
             tau = np.zeros(26, )
             tau[6:] = self.motors.get_torque(pwm_command, self.robot_skeleton.dq[6:])
@@ -400,11 +400,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 self_colliding = True
         if self.t > self.interp_sch[-1][0] + 2:
             done = True
-        #if self.fall_on_ground:
-        #    done = True
+        if self.fall_on_ground:
+            done = True
 
-        #if self_colliding:
-        #    done = True
+        if self_colliding:
+            done = True
 
         if done:
             reward = 0
