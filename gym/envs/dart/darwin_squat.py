@@ -467,7 +467,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         qpos[6:] = self.interp_sch[0][1]
 
         qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
-        self.init_q = np.copy(qpos)
         # self.target = qpos
         self.count = 0
         qpos[0:6] += self.init_root_pert
@@ -476,6 +475,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         q = self.robot_skeleton.q
         q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
         self.robot_skeleton.q = q
+
+        self.init_q = np.copy(self.robot_skeleton.q)
 
         self.t = 0
 

@@ -13,6 +13,7 @@
   <link name="base_link">
   <inertial>
       <mass value="0.0"/>
+      <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
   </inertial>
   </link>
   <link name="MP_BODY">
@@ -361,6 +362,7 @@
   <link name="MP_PMDCAMBOARD">
   <inertial>
       <mass value="0.0"/>
+      <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
   </inertial>
   </link>
   <joint name="j_camboard" type="fixed">
@@ -465,46 +467,48 @@
       <xacro:grey/>
     </visual>
   </link>
-  <link name="MP_ANKLE1_L">
+  <link name="MP_FOOT1_L">
     <inertial>
-      <origin xyz="-0.000214 -0.018536 -0.013873"/>
-      <mass value="0.16710792"/>
-      <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
+      <origin xyz="0 0 0"/>
+      <mass value="0.168"/>
+      <inertia ixx="0.0000448" ixy="0.0" ixz="0.0" iyy="0.0001624" iyz="0.0" izz="0.0001624"/>
     </inertial>
     <collision>
-      <origin xyz="-0.000214 -0.018536 0.013873"/>
+      <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.028652 0.08175 0.045"/>
+        <box size="0.1 0.04 0.04"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/ankle1_l.STL" scale="1 1 1"/>
+        <box size="0.1 0.04 0.04"/>
       </geometry>
       <xacro:grey/>
     </visual>
   </link>
-  <link name="MP_ANKLE2_L">
+
+  <link name="MP_FOOT2_L">
     <inertial>
-      <origin xyz="-0.025995 -0.009506 -0.000503"/>
-      <mass value="0.0794462"/>
-      <inertia ixx="0.000100446478867" ixy="0.0" ixz="0.0" iyy="7.20312213333e-05" iyz="0.0" izz="2.92626836667e-05"/>
+      <origin xyz="0 0 0"/>
+      <mass value="0.1187522"/>
+      <inertia ixx="0.00004275079" ixy="0.0" ixz="0.0" iyy="0.00004275079" iyz="0.0" izz="0.00004275079"/>
     </inertial>
     <collision>
-      <origin xyz="-0.025995 -0.009506 -0.000503"/>
+      <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.008 0.066 0.104"/>
+        <sphere radius="0.03"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/ankle2_l.STL" scale="1 1 1"/>
+        <sphere radius="0.03"/>
       </geometry>
       <xacro:grey/>
     </visual>
   </link>
+
   <link name="MP_PELVIS_R">
     <inertial>
       <origin xyz="0.000000 0.000480 0.018437"/>
@@ -585,46 +589,47 @@
       <xacro:grey/>
     </visual>
   </link>
-  <link name="MP_ANKLE1_R">
+  <link name="MP_FOOT1_R">
     <inertial>
-      <origin xyz="0.000214 -0.018536 -0.013873"/>
-      <mass value="0.16710792"/>
-      <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
+      <origin xyz="0 0 0"/>
+      <mass value="0.168"/>
+      <inertia ixx="0.0000448" ixy="0.0" ixz="0.0" iyy="0.0001624" iyz="0.0" izz="0.0001624"/>
     </inertial>
     <collision>
-      <origin xyz="-0.000214 -0.018536 0.013873"/>
+      <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.028652 0.08175 0.045"/>
+        <box size="0.1 0.04 0.04"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/ankle1_r.STL" scale="1 1 1"/>
+        <box size="0.1 0.04 0.04"/>
       </geometry>
       <xacro:grey/>
     </visual>
   </link>
-  <link name="MP_ANKLE2_R">
+  <link name="MP_FOOT2_R">
     <inertial>
-      <origin xyz="0.025995 -0.009506 -0.000503"/>
-      <mass value="0.0794462"/>
-      <inertia ixx="0.000100446478867" ixy="0.0" ixz="0.0" iyy="7.20312213333e-05" iyz="0.0" izz="2.92626836667e-05"/>
+      <origin xyz="0 0 0"/>
+      <mass value="0.1187522"/>
+      <inertia ixx="0.00004275079" ixy="0.0" ixz="0.0" iyy="0.00004275079" iyz="0.0" izz="0.00004275079"/>
     </inertial>
     <collision>
-      <origin xyz="0.025995 -0.009506 -0.000503"/>
+      <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.008 0.066 0.104"/>
+        <sphere radius="0.03"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/ankle2_r.STL" scale="1 1 1"/>
+        <sphere radius="0.03"/>
       </geometry>
       <xacro:grey/>
     </visual>
   </link>
+
   <joint name="j_pelvis_l" type="revolute">
     <parent link="MP_BODY"/>
     <child link="MP_PELVIS_L"/>
@@ -653,19 +658,15 @@
     <axis xyz="0 0 1"/>
     <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
   </joint>
-  <joint name="j_ankle1_l" type="revolute">
+  <joint name="j_ankle1_l" type="fixed">
     <parent link="MP_TIBIA_L"/>
-    <child link="MP_ANKLE1_L"/>
+    <child link="MP_FOOT1_L"/>
     <origin rpy="3.14159 0 0" xyz="-0.093 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
   </joint>
-  <joint name="j_ankle2_l" type="revolute">
-    <parent link="MP_ANKLE1_L"/>
-    <child link="MP_ANKLE2_L"/>
-    <origin rpy="-1.5707963 0 0" xyz="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
+  <joint name="j_ankle2_l" type="fixed">
+    <parent link="MP_FOOT1_L"/>
+    <child link="MP_FOOT2_L"/>
+    <origin rpy="0 0 0" xyz="-0.05 0 0"/>
   </joint>
   <joint name="j_pelvis_r" type="revolute">
     <parent link="MP_BODY"/>
@@ -695,19 +696,15 @@
     <axis xyz="0 0 1"/>
     <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
   </joint>
-  <joint name="j_ankle1_r" type="revolute">
+  <joint name="j_ankle1_r" type="fixed">
     <parent link="MP_TIBIA_R"/>
-    <child link="MP_ANKLE1_R"/>
+    <child link="MP_FOOT1_R"/>
     <origin rpy="3.14159 0 0" xyz="0.093 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
   </joint>
-  <joint name="j_ankle2_r" type="revolute">
-    <parent link="MP_ANKLE1_R"/>
-    <child link="MP_ANKLE2_R"/>
-    <origin rpy="-1.5707963 0 0" xyz="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit effort="2.8" lower="-2.6179939" upper="2.6179939" velocity="5.6548668"/>
+  <joint name="j_ankle2_r" type="fixed">
+    <parent link="MP_FOOT1_R"/>
+    <child link="MP_FOOT2_R"/>
+    <origin rpy="0 0 0" xyz="0.05 0 0"/>
   </joint>
   
   

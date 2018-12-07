@@ -66,9 +66,22 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.permitted_contact_ids = [-1, -2, -7, -8]
         self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+        self.target_vel = 0.0
+        self.init_tv = 0.0
+        self.final_tv = 0.25
+        self.tv_endtime = 0.001
+        self.avg_rew_weighting = []
+        self.vel_cache = []
+        self.target_vel_cache = []
+
+        self.assist_timeout = 10.0
+        self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
+
         self.alive_bonus = 5.0
         self.energy_weight = 0.015
         self.work_weight = 0.05
+        self.vel_reward_weight = 10.0
+        self.pose_weight = 0.2
 
         self.cur_step = 0
 
@@ -150,8 +163,24 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.permitted_contact_bodies = [self.robot_skeleton.bodynodes[id] for id in self.permitted_contact_ids]
 
         print('Total mass: ', self.robot_skeleton.mass())
+        print('Permitted ground contact: ', self.permitted_contact_bodies)
 
         utils.EzPickle.__init__(self)
+
+    def _bodynode_spd(self, bn, kp, dof, target_vel=None):
+        self.Kp = kp
+        self.Kd = kp * self.sim_dt
+        if target_vel is not None:
+            self.Kd = self.Kp
+            self.Kp *= 0
+        invM = 1.0 / (bn.mass() + self.Kd * self.sim_dt)
+        p = -self.Kp * (bn.C[dof] + bn.dC[dof] * self.sim_dt)
+        if target_vel is None:
+            target_vel = 0.0
+        d = -self.Kd * (bn.dC[dof] - target_vel)
+        qddot = invM * (-bn.C[dof] + p + d)
+        tau = p + d - self.Kd * (qddot) * self.sim_dt
+        return tau
 
     def get_imu_data(self):
         '''acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
@@ -187,7 +216,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
 
-        self.target[6:] = clamped_control * (JOINT_UP_BOUND_NEWFOOT - JOINT_LOW_BOUND_NEWFOOT) + JOINT_LOW_BOUND_NEWFOOT
+        self.target[6:] = (clamped_control + 1.0) / 2.0 * (CONTROL_UP_BOUND_NEWFOOT - CONTROL_LOW_BOUND_NEWFOOT) + CONTROL_LOW_BOUND_NEWFOOT
 
         dup_pos = np.copy(self.target)
         dup_pos[4] = 0.5
@@ -212,6 +241,14 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
             if self.add_perturbation:
                 self.robot_skeleton.bodynodes[self.perturbation_parameters[2]].add_ext_force(self.perturb_force)
+
+            if self.t < self.assist_timeout:
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('MP_BODY'), self.current_pd, 1)
+                self.robot_skeleton.bodynode('MP_BODY').add_ext_force(np.array([0, force, 0]))
+
+                force = self._bodynode_spd(self.robot_skeleton.bodynode('MP_BODY'), self.vel_enforce_kp, 0, self.target_vel)
+                self.robot_skeleton.bodynode('MP_BODY').add_ext_force(np.array([force, 0, 0]))
+
             self.robot_skeleton.set_forces(self.tau)
             self.dart_world.step()
 
@@ -262,7 +299,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
             q = self.robot_skeleton.q
             qdot = self.robot_skeleton.dq
-            tau = np.zeros(26, )
+            tau = np.zeros(22, )
             tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:]
 
         torqs = self.ClampTorques(tau)
@@ -292,20 +329,46 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.action_buffer.append(np.copy(a))
 
+        self.target_vel = (np.min([self.t, self.tv_endtime]) / self.tv_endtime) * (
+                self.final_tv - self.init_tv) + self.init_tv
+
+        self.current_pd = self.assist_schedule[0][1][0]
+        self.vel_enforce_kp = self.assist_schedule[0][1][1]
+        if len(self.assist_schedule) > 0:
+            for sch in self.assist_schedule:
+                if self.t > sch[0]:
+                    self.current_pd = sch[1][0]
+                    self.vel_enforce_kp = sch[1][1]
+
         xpos_before = self.robot_skeleton.q[3]
         self.advance(a)
         xpos_after = self.robot_skeleton.q[3]
 
-        reward = -self.energy_weight * np.sum(
-            self.tau ** 2) + self.alive_bonus
-        reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
-        #reward -= 0.5 * np.sum(np.abs(self.robot_skeleton.dC))
+        # reward
+        vel = (xpos_after - xpos_before) / self.dt
+        self.vel_cache.append(vel)
+        self.target_vel_cache.append(self.target_vel)
 
-        reward += self.forward_reward * (xpos_after - xpos_before) / self.dt
+        if len(self.vel_cache) > int(0.5 / self.dt / 1.0):
+            self.vel_cache.pop(0)
+            self.target_vel_cache.pop(0)
+
+        vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+        if self.t < self.tv_endtime:
+            vel_rew *= 0.5
+
+        pose_math_rew = np.sum(
+            np.abs(np.array(self.init_q - self.robot_skeleton.q)[6:]) ** 2)
+
+        reward = -self.energy_weight * np.sum(
+            self.tau) ** 2 + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
+        reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
-        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all())
+        done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all() and (com_height > -0.45) and
+                    (abs(self.robot_skeleton.q[0]) < 0.8) and (
+                            abs(self.robot_skeleton.q[1]) < 0.8) and (abs(self.robot_skeleton.q[2]) < 0.8))
 
         self.fall_on_ground = False
         self_colliding = False
@@ -320,6 +383,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
                     self.fall_on_ground = True
             if contact.bodynode1.skel == contact.bodynode2.skel:
                 self_colliding = True
+
 
         if self.fall_on_ground:
             done = True
@@ -380,8 +444,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
                                                                size=self.robot_skeleton.ndofs)  # np.zeros(self.robot_skeleton.ndofs) #
 
 
-        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
-        self.init_q = np.copy(qpos)
+        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=16)
         # self.target = qpos
         self.count = 0
         qpos[0:6] += self.init_root_pert
@@ -390,6 +453,8 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         q = self.robot_skeleton.q
         q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
         self.robot_skeleton.q = q
+
+        self.init_q = np.copy(self.robot_skeleton.q)
 
         self.t = 0
 
