@@ -78,7 +78,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.assist_timeout = 10.0
+        self.assist_timeout = 0.0
         self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
 
         self.alive_bonus = 5.0
@@ -108,7 +108,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(self.imu_input_step):
             beginid = len(obs_perm_base)
-            obs_perm_base = np.concatenate([obs_perm_base, [-beginid-1, beginid+2, -beginid-3]])
+            obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid+1, -beginid-2]])
         if self.root_input:
             beginid = len(obs_perm_base)
             obs_perm_base = np.concatenate([obs_perm_base, [beginid, beginid+1, beginid+2, -beginid-3, beginid+4, -beginid-5,
