@@ -44,7 +44,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.use_DCMotor = False
         self.use_spd = False
-        self.train_UP = False
+        self.train_UP = True
         self.noisy_input = True
         self.resample_MP = True
         self.randomize_timestep = True

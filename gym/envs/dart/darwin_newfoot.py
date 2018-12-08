@@ -21,8 +21,10 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         obs_dim = 32
 
-        self.imu_input_step = 0   # number of imu steps as input
+        self.imu_input_step = 1   # number of imu steps as input
         self.imu_cache = []
+
+        self.root_input = False    # whether to include root dofs in the obs
 
         self.action_filtering = 5 # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
@@ -56,6 +58,8 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
             self.motors = DCMotor(0.0107, 8.3, 12, 193)
 
         obs_dim += self.imu_input_step * 3
+        if self.root_input:
+            obs_dim += 12
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
@@ -78,9 +82,9 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
 
         self.alive_bonus = 5.0
-        self.energy_weight = 0.015
-        self.work_weight = 0.05
-        self.vel_reward_weight = 10.0
+        self.energy_weight = 0.0015
+        self.work_weight = 0.005
+        self.vel_reward_weight = 5.0
         self.pose_weight = 0.2
 
         self.cur_step = 0
@@ -101,6 +105,18 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
              -19, -20, -21, -16, -17, -18, 22, 23, -28, -29, -30, -31, -24, -25, -26, -27])
         act_perm_base = np.array(
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -12, -13, -14, -15, -8, -9, -10, -11])
+
+        for i in range(self.imu_input_step):
+            beginid = len(obs_perm_base)
+            obs_perm_base = np.concatenate([obs_perm_base, [-beginid-1, beginid+2, -beginid-3]])
+        if self.root_input:
+            beginid = len(obs_perm_base)
+            obs_perm_base = np.concatenate([obs_perm_base, [beginid, beginid+1, beginid+2, -beginid-3, beginid+4, -beginid-5,
+                                                            beginid+6, beginid + 7, beginid + 8, -beginid - 9,
+                                                            beginid + 10, -beginid - 11]])
+        if self.train_UP:
+            obs_dim += np.concatenate([obs_perm_base, np.arange(len(self.param_manager.activated_param), len(self.param_manager.activated_param)+3)])
+
         self.obs_perm = np.copy(obs_perm_base)
 
         for i in range(self.include_obs_history - 1):
@@ -115,7 +131,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
             from gym import spaces
             self.action_space = spaces.MultiDiscrete([11] * 16)
 
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision_newfoot.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2_newfoot.urdf'], 25, obs_dim,
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision_newfoot.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2_newfoot.urdf'], 15, obs_dim,
                                   self.control_bounds, dt=0.002, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.orig_bodynode_masses = [bn.mass() for bn in self.robot_skeleton.bodynodes]
@@ -405,7 +421,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         #self.dart_world.skeletons[2].q = np.array([0, 0, 0, c[0], c[1], c[2]])
 
 
-        return ob, reward, done, {}
+        return ob, reward, done, {'avg_vel': np.mean(self.vel_cache)}
 
     def _get_obs(self):
         # phi = np.array([self.count/self.ref_traj.shape[0]])
@@ -424,6 +440,9 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         for i in range(self.imu_input_step):
             state = np.concatenate([state, self.imu_cache[-i]])
+
+        if self.root_input:
+            state = np.concatenate([state, self.robot_skeleton.q[0:6], self.robot_skeleton.dq[0:6]])
 
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
