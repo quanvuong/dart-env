@@ -44,6 +44,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.param_manager = darwinSquatParamManager(self)
 
+        self.use_delta_action = 0.5    # if > 0, use delta action from the current state as the next target
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
@@ -232,7 +233,11 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
             if clamped_control[i] < self.control_bounds[0][i]:
                 clamped_control[i] = self.control_bounds[0][i]
 
-        self.target[6:] = (clamped_control + 1.0) / 2.0 * (CONTROL_UP_BOUND_NEWFOOT - CONTROL_LOW_BOUND_NEWFOOT) + CONTROL_LOW_BOUND_NEWFOOT
+        if self.use_delta_action > 0:
+            self.target[6:] = np.clip(clamped_control * self.use_delta_action + self.robot_skeleton.q[6:],
+                                      CONTROL_LOW_BOUND_NEWFOOT, CONTROL_UP_BOUND_NEWFOOT)
+        else:
+            self.target[6:] = (clamped_control + 1.0) / 2.0 * (CONTROL_UP_BOUND_NEWFOOT - CONTROL_LOW_BOUND_NEWFOOT) + CONTROL_LOW_BOUND_NEWFOOT
 
         dup_pos = np.copy(self.target)
         dup_pos[4] = 0.5
