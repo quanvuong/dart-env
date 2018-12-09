@@ -21,10 +21,10 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         obs_dim = 32
 
-        self.imu_input_step = 1   # number of imu steps as input
+        self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
 
-        self.root_input = False    # whether to include root dofs in the obs
+        self.root_input = True    # whether to include root dofs in the obs
 
         self.action_filtering = 5 # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
@@ -78,7 +78,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.assist_timeout = 0.0
+        self.assist_timeout = 10.0
         self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
 
         self.alive_bonus = 5.0
@@ -111,9 +111,9 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
             obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid+1, -beginid-2]])
         if self.root_input:
             beginid = len(obs_perm_base)
-            obs_perm_base = np.concatenate([obs_perm_base, [beginid, beginid+1, beginid+2, -beginid-3, beginid+4, -beginid-5,
-                                                            beginid+6, beginid + 7, beginid + 8, -beginid - 9,
-                                                            beginid + 10, -beginid - 11]])
+            obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid+1, -beginid-2, beginid+3, -beginid-4, beginid+5,
+                                                            -beginid-6, beginid + 7, -beginid - 8, beginid + 9,
+                                                            -beginid - 10, beginid + 11]])
         if self.train_UP:
             obs_dim += np.concatenate([obs_perm_base, np.arange(len(self.param_manager.activated_param), len(self.param_manager.activated_param)+3)])
 
@@ -378,7 +378,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward = -self.energy_weight * np.sum(
             self.tau) ** 2 + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
-        reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
+        reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq) - np.abs(self.robot_skeleton.q[4])
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]

@@ -44,7 +44,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.use_DCMotor = False
         self.use_spd = False
-        self.train_UP = True
+        self.train_UP = False
         self.noisy_input = True
         self.resample_MP = True
         self.randomize_timestep = True
@@ -88,8 +88,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            [2.0, self.pose_squat],
                            [4.0, self.pose_stand],
                            [5.0, self.pose_stand],
-                           [5.5, self.pose_squat],
-                           [6.0, self.pose_stand],
+                           [6.0, self.pose_squat],
+                           [7.0, self.pose_stand],
                            [8.0, self.pose_stand],
                            ]
         '''[[0.0, self.pose_stand],
@@ -199,7 +199,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(0.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(0.0)
 
-        self.add_perturbation = True
+        self.add_perturbation = False
         self.perturbation_parameters = [0.02, 1, 1, 40]  # probability, magnitude, bodyid, duration
         self.perturbation_duration = 40
 
