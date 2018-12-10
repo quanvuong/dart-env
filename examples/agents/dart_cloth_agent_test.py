@@ -25,6 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+    #trial = "experiment_2018_11_27_weakness_and_elbow_universal_cont" #Continued: 2D variation weakness and elbow constraint; V2; p1(to be continued)
+    #trial = "experiment_2018_11_27_weakness_and_elbow_universal" #2D variation weakness and elbow constraint; V2; p1(to be continued)
     #trial = "experiment_2018_11_20_robo_elbow_constraint13" #robo trained for "experiment_2018_11_13_elbow_constraint", fixed weakness 1.0: v2
     #trial = "experiment_2018_11_13_elbow_constraint" #fixed weakness 1.0: v2
     #trial = "experiment_2018_11_04_ablegown_cont" #fixed weakness 1.0: v2 (continued at ~1500 iterations)
@@ -430,8 +432,8 @@ if __name__ == '__main__':
     #envName = 'DartSawyerRigid-v4'
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
-    envName = 'DartIiwaGown-v2'
-    #envName = 'DartIiwaGownAssist-v2'
+    #envName = 'DartIiwaGown-v2'
+    envName = 'DartIiwaGownAssist-v2'
     env = gym.make(envName)
 
     reloaderTest = False

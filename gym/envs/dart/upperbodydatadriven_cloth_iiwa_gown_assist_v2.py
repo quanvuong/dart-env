@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -167,7 +167,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
         #humanPolicyFile = "experiment_2018_09_18_rhang_weakvar_simple"
         #humanPolicyFile = "experiment_2018_09_20_rhang_weakvar_simple"
         #humanPolicyFile = "experiment_2018_10_18_weakgown"
-        humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
+        #humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
+        humanPolicyFile = "experiment_2018_11_27_weakness_and_elbow_universal_cont"
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
@@ -260,13 +261,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
         self.linearTrackOrigin = np.zeros(3)
 
         # limb progress tracking
-        self.limbProgressGraphing = True
+        self.limbProgressGraphing = False
         self.limbProgressGraph = None
         if(self.limbProgressGraphing):
             self.limbProgressGraph = pyutils.LineGrapher(title="Limb Progress")
 
         # deformation tracking
-        self.deformationGraphing = True
+        self.deformationGraphing = False
         self.deformationGraph = None
         if (self.deformationGraphing):
             self.deformationGraph = pyutils.LineGrapher(title="Deformation")
@@ -1489,8 +1490,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            #self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            self.weaknessScale = random.uniform(0.05,1.0)
+            #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
@@ -1505,10 +1506,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
 
         if self.elbowConVarObs:
             # sample a rest position
-            #self.elbow_rest = random.uniform(0.5, 2.85)
+            self.elbow_rest = random.uniform(0.5, 2.85)
             # testing range:
             # TODO: elbow variation testing
-            self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
+            #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
             print("elbow_rest = " + str(self.elbow_rest))
             # TODO: done - elbow variation testing
             # set the joint limits as boundary clamped, symmetrical range around rest
@@ -2118,11 +2119,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV2(DartClothUpperBodyDat
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
 
+        if self.weaknessScaleVarObs:
+            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
+                                     text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed, self.weaknessScale),
+                                     color=(0., 0, 0))
+
         if self.elbowConVarObs:
             # render elbow stiffness variation
-            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
-                                     text="Seed: (%i)" % self.setSeed,
-                                     color=(0., 0, 0))
+            if not self.weaknessScaleVarObs:
+                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
+                                         text="Seed: (%i)" % self.setSeed,
+                                         color=(0., 0, 0))
 
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80,
                                      text="Elbow Rest Value [0,1] = %0.2f" % ((self.elbow_rest - 0.25)/2.6),
