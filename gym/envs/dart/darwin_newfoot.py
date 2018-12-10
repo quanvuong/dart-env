@@ -79,7 +79,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.assist_timeout = 10.0
+        self.assist_timeout = 0.0
         self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
 
         self.alive_bonus = 5.0

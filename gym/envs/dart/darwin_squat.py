@@ -45,7 +45,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
-        self.noisy_input = True
+        self.noisy_input = False
         self.resample_MP = True
         self.randomize_timestep = True
         self.load_keyframe_from_file = False
@@ -88,8 +88,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            [2.0, self.pose_squat],
                            [4.0, self.pose_stand],
                            [5.0, self.pose_stand],
-                           [6.0, self.pose_squat],
-                           [7.0, self.pose_stand],
+                           [5.5, self.pose_squat],
+                           [6.0, self.pose_stand],
                            [8.0, self.pose_stand],
                            ]
         '''[[0.0, self.pose_stand],
@@ -134,7 +134,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step = 0
 
-        self.torqueLimits = 5.0
+        self.torqueLimits = 10.0
 
         self.t = 0
         self.target = np.zeros(26, )
@@ -196,8 +196,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(2.0)
         for bn in self.robot_skeleton.bodynodes:
             bn.set_friction_coeff(2.0)
-        self.robot_skeleton.bodynode('l_hand').set_friction_coeff(0.0)
-        self.robot_skeleton.bodynode('r_hand').set_friction_coeff(0.0)
+        self.robot_skeleton.bodynode('l_hand').set_friction_coeff(2.0)
+        self.robot_skeleton.bodynode('r_hand').set_friction_coeff(2.0)
 
         self.add_perturbation = False
         self.perturbation_parameters = [0.02, 1, 1, 40]  # probability, magnitude, bodyid, duration
@@ -331,12 +331,12 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            2.0+10, 2.02+10, 1.98+10,
                            2.2+10, 2.06+10,
                            148, 152, 150, 136, 153, 102,
-                           151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio
+                           151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio * 2
                 kd = np.array([0.021, 0.023, 0.022,
                            0.025, 0.021, 0.026,
                            0.028, 0.0213
                     , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                           0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
+                           0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio / 10
 
             q = self.robot_skeleton.q
             qdot = self.robot_skeleton.dq

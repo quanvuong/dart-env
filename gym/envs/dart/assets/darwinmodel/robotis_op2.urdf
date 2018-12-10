@@ -452,9 +452,9 @@
       <inertia ixx="1.9042235875e-06" ixy="0.0" ixz="0.0" iyy="6.2540561763e-06" iyz="0.0" izz="5.7853242163e-06"/>
     </inertial>
     <collision>
-      <origin xyz="-0.053955 0.006548 -0.000592"/>
+      <origin xyz="-0.043955 0.007548 -0.000592" rpy="0.0 0 -0.25"/>
       <geometry>
-        <box size="0.093 0.035 0.045"/>
+        <box size="0.133 0.045 0.05"/>
       </geometry>
     </collision>
     <visual>
@@ -572,9 +572,9 @@
       <inertia ixx="1.9042235875e-05" ixy="0.0" ixz="0.0" iyy="6.2540561763e-05" iyz="0.0" izz="5.7853242163e-05"/>
     </inertial>
     <collision>
-      <origin xyz="0.053955 0.006548 -0.000592"/>
+      <origin xyz="0.043955 0.007548 -0.000592" rpy="0.0 0 0.25"/>
       <geometry>
-        <box size="0.093 0.035 0.045"/>
+        <box size="0.133 0.045 0.05"/>
       </geometry>
     </collision>
     <visual>
