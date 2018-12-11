@@ -454,7 +454,7 @@
     <collision>
       <origin xyz="-0.043955 0.007548 -0.000592" rpy="0.0 0 -0.25"/>
       <geometry>
-        <box size="0.133 0.045 0.05"/>
+        <box size="0.125 0.045 0.05"/>
       </geometry>
     </collision>
     <visual>
@@ -574,7 +574,7 @@
     <collision>
       <origin xyz="0.043955 0.007548 -0.000592" rpy="0.0 0 0.25"/>
       <geometry>
-        <box size="0.133 0.045 0.05"/>
+        <box size="0.125 0.045 0.05"/>
       </geometry>
     </collision>
     <visual>

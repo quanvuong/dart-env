@@ -44,7 +44,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.param_manager = darwinSquatParamManager(self)
 
-        self.use_delta_action = 0.5    # if > 0, use delta action from the current state as the next target
+        self.use_delta_action = 0.0    # if > 0, use delta action from the current state as the next target
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
@@ -102,10 +102,10 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim *= self.include_obs_history
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
         obs_perm_base = np.array(
-            [-3, -4, -5, -0.0001, -1, -2, 6, 7, -12, -13, -14, -15, -8, -9, -10, -11,
-             -19, -20, -21, -16, -17, -18, 22, 23, -28, -29, -30, -31, -24, -25, -26, -27])
+            [-3, -4, -5, -0.0001, -1, -2, -6, 7, -12, -13, -14, -15, -8, -9, -10, -11,
+             -19, -20, -21, -16, -17, -18, -22, 23, -28, -29, -30, -31, -24, -25, -26, -27])
         act_perm_base = np.array(
-            [-3, -4, -5, -0.0001, -1, -2, 6, 7, -12, -13, -14, -15, -8, -9, -10, -11])
+            [-3, -4, -5, -0.0001, -1, -2, -6, 7, -12, -13, -14, -15, -8, -9, -10, -11])
 
         for i in range(self.imu_input_step):
             beginid = len(obs_perm_base)

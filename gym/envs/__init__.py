@@ -590,7 +590,7 @@ register(
 
 register(
     id='DartDarwin-v1',
-    entry_point='gym.envs.dart:DartDarwinTrajEnv',
+    entry_point='gym.envs.dart:DartDarwinEnv',
     max_episode_steps=1500,
 )
 

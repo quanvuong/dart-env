@@ -83,7 +83,7 @@ from gym.envs.dart.reacher_7link import DartReacher7LinkEnv
 
 from gym.envs.dart.ant import DartAntEnv
 
-from gym.envs.dart.darwin import DartDarwinTrajEnv
+from gym.envs.dart.darwin import DartDarwinEnv
 from gym.envs.dart.darwin_squat import DartDarwinSquatEnv
 from gym.envs.dart.darwin_newfoot import DartDarwinNewFootEnv
 

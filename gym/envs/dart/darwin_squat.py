@@ -45,7 +45,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
-        self.noisy_input = False
+        self.noisy_input = True
         self.resample_MP = True
         self.randomize_timestep = True
         self.load_keyframe_from_file = False
@@ -369,7 +369,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             a = np.mean(self.action_filter_cache, axis=0)
 
         self.action_buffer.append(np.copy(a))
-
         xpos_before = self.robot_skeleton.q[3]
         self.advance(a)
         xpos_after = self.robot_skeleton.q[3]
