@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    #trial = "experiment_2018_11_27_weakness_and_elbow_universal_cont" #Continued: 2D variation weakness and elbow constraint; V2; p1(to be continued)
+    #trial = "experiment_2018_12_10_robo_2D_weakness_elbow_universal" #2D variation weakness and elbow constraint; V2; robot
+    #trial = "experiment_2018_11_27_weakness_and_elbow_universal_cont" #Continued: 2D variation weakness and elbow constraint; V2;
     #trial = "experiment_2018_11_27_weakness_and_elbow_universal" #2D variation weakness and elbow constraint; V2; p1(to be continued)
     #trial = "experiment_2018_11_20_robo_elbow_constraint13" #robo trained for "experiment_2018_11_13_elbow_constraint", fixed weakness 1.0: v2
     #trial = "experiment_2018_11_13_elbow_constraint" #fixed weakness 1.0: v2
@@ -433,7 +434,7 @@ if __name__ == '__main__':
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGown-v2'
-    envName = 'DartIiwaGownAssist-v2'
+    envName = 'DartIiwaGownAssist-v3'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -491,12 +492,13 @@ if __name__ == '__main__':
             hidden_sizes=(64, 64),
             #hidden_sizes=(128, 64),
             #init_std=0.2 #exploration scaling
-            init_std=0.15 #exploration scaling #human
-            #init_std=0.1
+            #init_std=0.15 #exploration scaling #human
+            init_std=0.1 #robot
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        all_param_values[4] *= 0.01 #human
-        #all_param_values[4] *= 0.002 #bias output scaling
+        #output bias scaling
+        #all_param_values[4] *= 0.01 #human
+        all_param_values[4] *= 0.002 #robot
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

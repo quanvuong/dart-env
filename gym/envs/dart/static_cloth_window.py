@@ -34,6 +34,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.camUp = np.array([0.,1.0,0])
         self.camRight = np.array([1.,0.0,0])
         self.mouseLastPos = np.array([0,0])
+        #self.mouseCurPos = np.array([0,0])
         self.curInteractorIX = None #set an interactor class to change user interaction with the window
         self.interactors = []
         [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)] #the list of available interactors

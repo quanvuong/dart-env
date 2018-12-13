@@ -687,6 +687,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Assist Env 3 (new output space: local Euler offsets at EF frame)
+register(
+    id='DartIiwaGownAssist-v3',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 
