@@ -80,7 +80,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_vel_cache = []
 
         self.assist_timeout = 10.0
-        self.assist_schedule = [[0.0, [20000, 20000]], [3.0, [15000, 15000]], [6.0, [11250.0, 11250.0]]]
+        self.assist_schedule = [[0.0, [26, 26]], [3.0, [26, 26]], [6.0, [11250.0, 11250.0]]]
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.0015
@@ -103,8 +103,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         obs_dim += len(self.control_bounds[0]) * self.include_act_history
         obs_perm_base = np.array(
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -14, -15, -16, -17, -18, -19, -8, -9, -10, -11, -12, -13,
-             -23, -24, -25, -20, -21, -22, 26, 27, -34, -35, -36, -37, -38, -39, -28, -29, -30, -31, -32, -33,
-             -40, 41, 42, -43, 44, -45, 46, -47])
+             -23, -24, -25, -20, -21, -22, 26, 27, -34, -35, -36, -37, -38, -39, -28, -29, -30, -31, -32, -33])
         act_perm_base = np.array(
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -14, -15, -16, -17, -18, -19, -8, -9, -10, -11, -12, -13])
 

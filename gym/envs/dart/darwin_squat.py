@@ -23,6 +23,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
+        self.include_accelerometer = False
+        self.accum_imu_input = False
+        self.accumulated_imu_info = np.zeros(9)  # start from 9 zeros, so it doesn't necessarily correspond to
+        # absolute physical quantity
+        if not self.include_accelerometer:
+            self.accumulated_imu_info = np.zeros(3)
+
 
         self.action_filtering = 5 # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
@@ -45,9 +52,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
-        self.noisy_input = True
-        self.resample_MP = True
-        self.randomize_timestep = True
+        self.noisy_input = False
+        self.resample_MP = False
+        self.randomize_timestep = False
         self.load_keyframe_from_file = False
         self.forward_reward = 0.0
         self.kp = None
@@ -56,7 +63,16 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         if self.use_DCMotor:
             self.motors = DCMotor(0.0107, 8.3, 12, 193)
 
-        obs_dim += self.imu_input_step * 3
+        if self.include_accelerometer:
+            obs_dim += self.imu_input_step * 6
+        else:
+            obs_dim += self.imu_input_step * 3
+        if self.accum_imu_input:
+            if self.include_accelerometer:
+                obs_dim += 9   # accumulated position, linear velocity and orientation, angular velocity is not used as
+                           # it is included in the gyro data
+            else:
+                obs_dim += 3
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
@@ -153,6 +169,24 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             [-3, -4, -5, -0.0001, -1, -2, 6, 7, -14, -15, -16, -17, -18, -19, -8, -9, -10, -11, -12, -13])
         self.obs_perm = np.copy(obs_perm_base)
 
+        if self.include_accelerometer:
+            for i in range(self.imu_input_step):
+                beginid = len(obs_perm_base)
+                obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid+1, beginid+2, -beginid-3, beginid+4, -beginid-5]])
+            if self.accum_imu_input:
+                beginid = len(obs_perm_base)
+                obs_perm_base = np.concatenate(
+                    [obs_perm_base, [-beginid, beginid + 1, beginid + 2, -beginid-3, beginid + 4, beginid + 5,
+                                     -beginid - 6, beginid + 7, -beginid - 8]])
+        else:
+            for i in range(self.imu_input_step):
+                beginid = len(obs_perm_base)
+                obs_perm_base = np.concatenate([obs_perm_base, [-beginid-1, beginid+2, -beginid-3]])
+            if self.accum_imu_input:
+                beginid = len(obs_perm_base)
+                obs_perm_base = np.concatenate(
+                    [obs_perm_base, [-beginid-1, beginid+2, -beginid-3]])
+
         for i in range(self.include_obs_history - 1):
             self.obs_perm = np.concatenate(
                 [self.obs_perm, np.sign(obs_perm_base) * (np.abs(obs_perm_base) + len(self.obs_perm))])
@@ -193,9 +227,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
                                            self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
-        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(2.0)
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(0.5)
         for bn in self.robot_skeleton.bodynodes:
-            bn.set_friction_coeff(2.0)
+            bn.set_friction_coeff(0.5)
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(2.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(2.0)
 
@@ -221,29 +255,38 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def get_imu_data(self):
-        '''acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
+        acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
                 offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True),
                          self.robot_skeleton.dq) + np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian(
                 offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True), self.robot_skeleton.ddq)
 
-        acc -= self.dart_world.gravity()'''
+        acc -= self.dart_world.gravity()
         angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
 
         tinv = np.linalg.inv(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3])
 
-        #lacc = np.dot(tinv, acc)
+        lacc = np.dot(tinv, acc)
         langvel = np.dot(tinv, angvel)
 
         # Correction for Darwin hardware
-        #lacc = np.array([lacc[1], lacc[0], -lacc[2]])
-        #langvel = np.array([-langvel[0], -langvel[1], langvel[2]])[[2,1,0]]
+        lacc = np.array([lacc[1], lacc[0], -lacc[2]])
+        langvel = np.array([-langvel[0], -langvel[1], langvel[2]])[[2,1,0]]
 
-        #imu_data = np.concatenate([lacc, langvel])
-        imu_data = langvel
+        imu_data = np.concatenate([lacc, langvel])
+        #imu_data = langvel
 
         imu_data += np.random.normal(0, 0.001, len(imu_data))
 
         return imu_data
+
+    def integrate_imu_data(self):
+        imu_data = self.get_imu_data()
+        if self.include_accelerometer:
+            self.accumulated_imu_info[3:6] += imu_data[0:3] * self.dt
+            self.accumulated_imu_info[0:3] += self.accumulated_imu_info[3:6] * self.dt
+            self.accumulated_imu_info[6:] += imu_data[3:] * self.dt
+        else:
+            self.accumulated_imu_info += imu_data * self.dt
 
     def advance(self, a):
         clamped_control = np.array(a)
@@ -373,6 +416,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.advance(a)
         xpos_after = self.robot_skeleton.q[3]
 
+        self.integrate_imu_data()
+
         pose_math_rew = np.sum(
             np.abs(np.array(self.ref_target - self.robot_skeleton.q[6:])) ** 2)
 
@@ -442,6 +487,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(self.imu_input_step):
             state = np.concatenate([state, self.imu_cache[-i]])
 
+        if self.accum_imu_input:
+            state = np.concatenate([state, self.accumulated_imu_info])
+
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
             state = np.concatenate([state, UP])
@@ -476,6 +524,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.q = q
 
         self.init_q = np.copy(self.robot_skeleton.q)
+
+        self.accumulated_imu_info = np.zeros(9)
+        if self.include_accelerometer:
+            self.accumulated_imu_info = np.zeros(3)
 
         self.t = 0
 
