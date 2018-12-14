@@ -231,25 +231,28 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         return tau
 
     def get_imu_data(self):
-        acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
-                offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True),
-                         self.robot_skeleton.dq) + np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian(
-                offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True), self.robot_skeleton.ddq)
-
-        acc -= self.dart_world.gravity()
-        angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
-
         tinv = np.linalg.inv(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3])
 
-        lacc = np.dot(tinv, acc)
+        if self.include_accelerometer:
+            acc = np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian_deriv(
+                    offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True),
+                             self.robot_skeleton.dq) + np.dot(self.robot_skeleton.bodynode('MP_BODY').linear_jacobian(
+                    offset=self.robot_skeleton.bodynode('MP_BODY').local_com()+self.imu_offset+self.imu_offset_deviation, full=True), self.robot_skeleton.ddq)
+            #acc -= self.dart_world.gravity()
+            lacc = np.dot(tinv, acc)
+            # Correction for Darwin hardware
+            lacc = np.array([lacc[1], lacc[0], -lacc[2]])
+
+        angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
         langvel = np.dot(tinv, angvel)
 
         # Correction for Darwin hardware
-        lacc = np.array([lacc[1], lacc[0], -lacc[2]])
         langvel = np.array([-langvel[0], -langvel[1], langvel[2]])[[2,1,0]]
 
-        imu_data = np.concatenate([lacc, langvel])
-        #imu_data = langvel
+        if self.include_accelerometer:
+            imu_data = np.concatenate([lacc, langvel])
+        else:
+            imu_data = langvel
 
         imu_data += np.random.normal(0, 0.001, len(imu_data))
 
