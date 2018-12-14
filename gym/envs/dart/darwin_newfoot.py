@@ -533,7 +533,7 @@ class DartDarwinNewFootEnv(dart_env.DartEnv, utils.EzPickle):
         self.action_buffer = []
 
         self.accumulated_imu_info = np.zeros(9)
-        if self.include_accelerometer:
+        if not self.include_accelerometer:
             self.accumulated_imu_info = np.zeros(3)
 
         if self.resample_MP:

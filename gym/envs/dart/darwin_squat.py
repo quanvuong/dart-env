@@ -24,7 +24,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
         self.include_accelerometer = False
-        self.accum_imu_input = False
+        self.accum_imu_input = True
         self.accumulated_imu_info = np.zeros(9)  # start from 9 zeros, so it doesn't necessarily correspond to
         # absolute physical quantity
         if not self.include_accelerometer:
@@ -529,7 +529,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_q = np.copy(self.robot_skeleton.q)
 
         self.accumulated_imu_info = np.zeros(9)
-        if self.include_accelerometer:
+        if not self.include_accelerometer:
             self.accumulated_imu_info = np.zeros(3)
 
         self.t = 0
