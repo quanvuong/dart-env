@@ -392,11 +392,19 @@
       <inertia ixx="5.00544166667e-05" ixy="0.0" ixz="0.0" iyy="2.70710833333e-05" iyz="0.0" izz="4.35041666667e-05"/>
     </inertial>
     <collision>
-      <origin xyz="0.000000 -0.010580 0.028437"/>
+      <origin xyz="0.000000 -0.017580 0.044437"/>
       <geometry>
-        <box size="0.045 0.08175 0.028652"/>
+        <box size="0.045 0.08175 0.03652"/>
       </geometry>
     </collision>
+
+    <visual>
+      <origin xyz="0.000000 -0.017580 0.044437"/>
+      <geometry>
+        <box size="0.045 0.08175 0.03652"/>
+      </geometry>
+    </visual>
+
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -472,11 +480,19 @@
       <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
     </inertial>
     <collision>
-      <origin xyz="-0.000214 -0.018536 0.013873"/>
+      <origin xyz="0.0115 -0.018536 0.00"/>
       <geometry>
-        <box size="0.028652 0.08175 0.045"/>
+        <box size="0.045 0.08175 0.03652"/>
       </geometry>
     </collision>
+
+    <visual>
+      <origin xyz="0.0115 -0.018536 0.00"/>
+      <geometry>
+        <box size="0.045 0.08175 0.03652"/>
+      </geometry>
+    </visual>
+
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -512,9 +528,9 @@
       <inertia ixx="5.00544166667e-05" ixy="0.0" ixz="0.0" iyy="2.70710833333e-05" iyz="0.0" izz="4.35041666667e-05"/>
     </inertial>
     <collision>
-      <origin xyz="0.000000 0.010580 0.028437"/>
+      <origin xyz="0.000000 0.017580 0.044437"/>
       <geometry>
-        <box size="0.045 0.08175 0.028652"/>
+        <box size="0.045 0.08175 0.03652"/>
       </geometry>
     </collision>
     <visual>
@@ -592,11 +608,13 @@
       <inertia ixx="8.87491015337e-05" ixy="0.0" ixz="0.0" iyy="3.78635506981e-05" iyz="0.0" izz="9.24947852318e-05"/>
     </inertial>
     <collision>
-      <origin xyz="-0.000214 -0.018536 0.013873"/>
+      <origin xyz="-0.0115 -0.018536 0.00"/>
       <geometry>
-        <box size="0.028652 0.08175 0.045"/>
+        <box size="0.045 0.08175 0.03652"/>
       </geometry>
     </collision>
+
+
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>

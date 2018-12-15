@@ -830,17 +830,19 @@ class darwinSquatParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
         self.mass_rat_range = [0.8, 1.2]
-        self.imu_offset = [-0.02, 0.02] # in cm
-        self.kp_rat_range = [0.8, 1.2]
-        self.kd_rat_range = [0.8, 1.2]
+        self.imu_offset = [-0.02, 0.02] # in cm, 3 dim
+        self.kp_rat_range = [0.5, 2.0]
+        self.kd_rat_range = [0.5, 2.0]
 
         self.kp_range = [0.0, 100]
         self.kd_range = [0.0, 1.0]
         self.joint_damping_range = [0.0, 1.0]
         self.joint_friction_range = [0.0, 0.3]
 
-        self.activated_param = [0, 4,5]
-        self.controllable_param = [0,4,5]
+        self.com_offset_range = [-0.05, 0.05] # index 13, denotes MP_BODY com offset in x direction for now
+
+        self.activated_param = [11,  13]
+        self.controllable_param = [11,  13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -878,8 +880,19 @@ class darwinSquatParamManager:
         cur_jt_friction = self.simulator.robot_skeleton.dofs[-1].coulomb_friction()
         jt_friction_param = (cur_jt_friction - self.joint_friction_range[0]) / (self.joint_friction_range[1] - self.joint_friction_range[0])
 
+        cur_hip_p_ratio = self.simulator.hip_kp_ratio
+        hip_p_ratio_param = (cur_hip_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
+        cur_knee_p_ratio = self.simulator.knee_kp_ratio
+        knee_p_ratio_param = (cur_knee_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
+        cur_ankle_p_ratio = self.simulator.ankle_kp_ratio
+        ankle_p_ratio_param = (cur_ankle_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
+
+        cur_body_com_x = self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - self.simulator.initial_local_coms[1][0]
+        body_com_x_param = (cur_body_com_x - self.com_offset_range[0]) / (self.com_offset_range[1] - self.com_offset_range[0])
+
         return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_rat_param, kd_rat_param,
-                         kp_param, kd_param, damping_param, jt_friction_param])[self.activated_param]
+                         kp_param, kd_param, damping_param, jt_friction_param,
+                         hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -926,6 +939,26 @@ class darwinSquatParamManager:
             jt_friction = x[cur_id] * (self.joint_friction_range[1] - self.joint_friction_range[0]) + self.joint_friction_range[0]
             for i in range(6, self.simulator.robot_skeleton.num_dofs()):
                 self.simulator.robot_skeleton.dofs[i].set_coulomb_friction(jt_friction)
+            cur_id += 1
+
+        if 10 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.hip_kp_ratio = kp_rat
+            cur_id += 1
+        if 11 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.knee_kp_ratio = kp_rat
+            cur_id += 1
+        if 12 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.ankle_kp_ratio = kp_rat
+            cur_id += 1
+
+        if 13 in self.controllable_param:
+            com = x[cur_id] * (self.com_offset_range[1] - self.com_offset_range[0]) + self.com_offset_range[0]
+            init_com = np.copy(self.simulator.initial_local_coms[1])
+            init_com[0] += com
+            self.simulator.robot_skeleton.bodynodes[1].set_local_com(init_com)
             cur_id += 1
 
     def resample_parameters(self):

@@ -24,7 +24,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.imu_input_step = 0   # number of imu steps as input
         self.imu_cache = []
         self.include_accelerometer = False
-        self.accum_imu_input = True
+        self.accum_imu_input = False
         self.accumulated_imu_info = np.zeros(9)  # start from 9 zeros, so it doesn't necessarily correspond to
         # absolute physical quantity
         if not self.include_accelerometer:
@@ -43,6 +43,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.mass_ratio = 1.0
         self.kp_ratio = 1.0
         self.kd_ratio = 1.0
+        self.hip_kp_ratio = 1.0  # scale up p gain
+        self.knee_kp_ratio = 1.0  # scale up p gain
+        self.ankle_kp_ratio = 1.0  # scale up p gain
+
         self.imu_offset_deviation = np.array([0,0,0])
 
         self.use_discrete_action = True
@@ -52,9 +56,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_DCMotor = False
         self.use_spd = False
         self.train_UP = False
-        self.noisy_input = False
-        self.resample_MP = False
-        self.randomize_timestep = False
+        self.noisy_input = True
+        self.resample_MP = True
+        self.randomize_timestep = True
         self.load_keyframe_from_file = False
         self.forward_reward = 0.0
         self.kp = None
@@ -81,7 +85,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.pose_squat_val = np.array([2509, 2297, 1714, 1508, 1816, 2376,
                                     2047, 2171,
-                                    2032, 2039, 2795, 648, 1231, 2040,   2041, 2060, 1281, 3448, 2855, 2073])
+                                    2032, 2039, 2795, 648, 1241, 2040,   2041, 2060, 1281, 3448, 2855, 2073])
 
         self.pose_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
                                         2048, 2048,
@@ -89,7 +93,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.pose_left_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
                                         2048, 2048,
-                                         2032, 2039, 2795, 568, 1231, 2040, 2048, 2048, 2048, 2048, 2048, 2048])
+                                         2032, 2039, 2795, 568, 1241, 2040, 2048, 2048, 2048, 2048, 2048, 2048])
 
         self.pose_right_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
                                         2048, 2048,
@@ -102,11 +106,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.interp_sch = [[0.0, self.pose_stand],
                            [2.0, self.pose_squat],
+                           [3.5, self.pose_squat],
                            [4.0, self.pose_stand],
                            [5.0, self.pose_stand],
-                           [5.5, self.pose_squat],
-                           [6.0, self.pose_stand],
-                           [8.0, self.pose_stand],
+                           [7.0, self.pose_squat],
                            ]
         '''[[0.0, self.pose_stand],
            [1.5, self.pose_squat],
@@ -199,8 +202,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             from gym import spaces
             self.action_space = spaces.MultiDiscrete([11] * 20)
 
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], 25, obs_dim,
-                                  self.control_bounds, dt=0.002, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], 100, obs_dim,
+                                  self.control_bounds, dt=0.0005, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.orig_bodynode_masses = [bn.mass() for bn in self.robot_skeleton.bodynodes]
 
@@ -227,9 +230,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
                                            self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
-        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(0.5)
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(0.6)
         for bn in self.robot_skeleton.bodynodes:
-            bn.set_friction_coeff(0.5)
+            bn.set_friction_coeff(0.6)
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(2.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(2.0)
 
@@ -250,7 +253,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.permitted_contact_bodies = [self.robot_skeleton.bodynodes[id] for id in self.permitted_contact_ids]
 
+        self.initial_local_coms = [b.local_com() for b in self.robot_skeleton.bodynodes]
+
         print('Total mass: ', self.robot_skeleton.mass())
+        print('Bodynodes: ', [b.name for b in self.robot_skeleton.bodynodes])
 
         utils.EzPickle.__init__(self)
 
@@ -373,16 +379,23 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 kp = self.kp * self.kp_ratio
                 kd = self.kd * self.kd_ratio
             else:
-                kp = np.array([2.1+10, 1.79+10, 4.93+10,
-                           2.0+10, 2.02+10, 1.98+10,
+                kp = np.array([2.1+100, 1.79+100, 4.93+100,
+                           2.0+100, 2.02+100, 1.98+100,
                            2.2+10, 2.06+10,
-                           148, 152, 150, 136, 153, 102,
-                           151, 151.4, 150.45, 151.36, 154, 105.2]) * self.kp_ratio * 2
+                           148, 152, 150, 12, 153, 102,
+                           151, 151.4, 150.45, 12, 154, 105.2]) * self.kp_ratio
                 kd = np.array([0.021, 0.023, 0.022,
                            0.025, 0.021, 0.026,
                            0.028, 0.0213
                     , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                           0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio / 10
+                           0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
+
+                kp[8:11] *= self.hip_kp_ratio
+                kp[14:17] *= self.hip_kp_ratio
+                kp[11] *= self.knee_kp_ratio
+                kp[17] *= self.knee_kp_ratio
+                kp[12:14] *= self.ankle_kp_ratio
+                kp[18:20] *= self.ankle_kp_ratio
 
             q = self.robot_skeleton.q
             qdot = self.robot_skeleton.dq
