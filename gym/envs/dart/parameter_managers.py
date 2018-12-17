@@ -839,10 +839,10 @@ class darwinSquatParamManager:
         self.joint_damping_range = [0.0, 1.0]
         self.joint_friction_range = [0.0, 0.3]
 
-        self.com_offset_range = [-0.05, 0.05] # index 13, denotes MP_BODY com offset in x direction for now
+        self.com_offset_range = [-0.04, 0.01] # index 13, denotes MP_BODY com offset in x direction for now
 
-        self.activated_param = [11,  13]
-        self.controllable_param = [11,  13]
+        self.activated_param = [13]
+        self.controllable_param = [13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
