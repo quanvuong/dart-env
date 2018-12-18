@@ -398,12 +398,6 @@
       </geometry>
     </collision>
 
-    <visual>
-      <origin xyz="0.000000 -0.017580 0.044437"/>
-      <geometry>
-        <box size="0.045 0.08175 0.03652"/>
-      </geometry>
-    </visual>
 
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -486,12 +480,6 @@
       </geometry>
     </collision>
 
-    <visual>
-      <origin xyz="0.0115 -0.018536 0.00"/>
-      <geometry>
-        <box size="0.045 0.08175 0.03652"/>
-      </geometry>
-    </visual>
 
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>

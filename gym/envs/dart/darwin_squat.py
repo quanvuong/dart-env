@@ -60,10 +60,12 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.same_gain_model = False # whether to use the model optimized with all motors to have the same gains
         self.limited_joint_vel = True
         self.train_UP = False
-        self.noisy_input = True
+        self.noisy_input = False
         self.resample_MP = False
-        self.randomize_timestep = True
+        self.randomize_timestep = False
         self.load_keyframe_from_file = False
+        self.randomize_gravity_sch = True
+        self.height_drop_threshold = 0.8    # terminate if com height drops below certain threshold
         self.forward_reward = 0.0
         self.kp = None
         self.kd = None
@@ -117,26 +119,31 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            [5.0, self.pose_stand],
                            [7.0, self.pose_squat],
                            ]
-        '''[[0.0, self.pose_stand],
-           [1.5, self.pose_squat],
-           [2.5, self.pose_stand],
-           [3.0, self.pose_squat],
-           [3.3, self.pose_stand],
-           [3.6, self.pose_squat], ]'''
+
+        # just balance
+        self.interp_sch = [[0.0, 0.5*(self.pose_stand + self.pose_squat)],
+                           [5.0, 0.5*(self.pose_stand + self.pose_squat)]]
+
+        self.gravity_sch = [[0.0, np.array([0, 0, -9.81])]]
 
         if self.load_keyframe_from_file:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe.txt')
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_cartwheel.txt')
             rig_keyframe = np.loadtxt(fullpath)
             #self.interp_sch = [[0.0, rig_keyframe[0]],
             #              [2.0, rig_keyframe[1]],
             #              [6.0, rig_keyframe[1]]]
-            self.interp_sch = [[0.0, rig_keyframe[0]]]
+
+            '''self.interp_sch = [[0.0, rig_keyframe[0]]]
             interp_time = 0.5
             for i in range(10):
                 for k in range(1, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
                     interp_time += 0.5
-            self.interp_sch.append([interp_time, rig_keyframe[0]])
+            self.interp_sch.append([interp_time, rig_keyframe[0]])'''
+
+            self.interp_sch = [[0.0, rig_keyframe[0]],
+                               [0.5, rig_keyframe[1]],
+                               ]
 
         # single leg stand
         #self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
@@ -149,6 +156,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         # normal pose
         self.permitted_contact_ids = [-1, -2, -7, -8]
         self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+        # cartwheel
+        #self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]
+        #self.init_root_pert = np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         self.delta_angle_scale = 0.3
 
@@ -454,6 +465,17 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         if self.action_filtering > 0:
             a = np.mean(self.action_filter_cache, axis=0)
 
+        # modify gravity according to schedule
+        grav = self.gravity_sch[0][1]
+
+        for i in range(len(self.gravity_sch) - 1):
+            if self.t >= self.gravity_sch[i][0] and self.t < self.gravity_sch[i + 1][0]:
+                ratio = (self.t - self.gravity_sch[i][0]) / (self.gravity_sch[i + 1][0] - self.gravity_sch[i][0])
+                grav = ratio * self.gravity_sch[i + 1][1] + (1 - ratio) * self.gravity_sch[i][1]
+        if self.t > self.gravity_sch[-1][0]:
+            grav = self.gravity_sch[-1][1]
+        self.dart_world.set_gravity(grav)
+
         self.action_buffer.append(np.copy(a))
         xpos_before = self.robot_skeleton.q[3]
         self.advance(a)
@@ -494,6 +516,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             done = True
 
         if self_colliding:
+            done = True
+
+        if self.init_q[5] - self.robot_skeleton.q[5] > self.height_drop_threshold:
             done = True
 
         if done:
@@ -567,7 +592,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
         q = self.robot_skeleton.q
-        q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
+        q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-7].C[2]])
         self.robot_skeleton.q = q
 
         self.init_q = np.copy(self.robot_skeleton.q)
@@ -600,6 +625,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.dart_world.skeletons[2].q = [0,0,0, 100, 100, 100]
 
+        if self.randomize_gravity_sch:
+            self.gravity_sch = [[0.0, np.array([0,0,-9.81])]] # always start from normal gravity
+            num_change = np.random.randint(1, 3) # number of gravity changes
+            interv = self.interp_sch[-1][0] / num_change
+            for i in range(num_change):
+                rots = np.random.uniform(-0.5, 0.5, 2)
+                self.gravity_sch.append([(i+1) * interv, np.array([np.cos(rots[0])*np.sin(rots[1]), np.sin(rots[0]), -np.cos(rots[0])*np.cos(rots[1])]) * 9.81])
 
         return self._get_obs()
 
