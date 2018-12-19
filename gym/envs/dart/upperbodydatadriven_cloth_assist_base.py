@@ -830,6 +830,7 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
         #if self.reset_number == 1:
         #    self.reset()
         #print("now entering rollout reset_number: " + str(self.reset_number))
+        #self.reset()
         return self._get_obs()
         #except:
         #    print("Failed on reset " + str(self.reset_number))

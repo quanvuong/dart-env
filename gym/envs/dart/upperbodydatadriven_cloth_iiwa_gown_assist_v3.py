@@ -72,7 +72,10 @@ class SPDController(Controller):
         #self.skel = env.robot_skeleton
         ndofs = self.skel.ndofs-6
         self.qhat = self.skel.q
-        self.Kp = np.diagflat([30000.0] * (ndofs))
+        #self.Kp = np.diagflat([30000.0] * (ndofs))
+        #self.Kd = np.diagflat([100.0] * (ndofs))
+
+        self.Kp = np.diagflat([3000.0] * (ndofs))
         self.Kd = np.diagflat([100.0] * (ndofs))
 
         #self.Kd[0, 6] = 1.0
@@ -158,7 +161,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = True #when true, reduce the debugging display significantly
+        self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.0025
@@ -246,7 +249,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.cloth_f_history = []
         self.cloth_f_history_avg = np.zeros(66)
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
-        self.targetCentric = False #if true, robot policy operates on the target, not the current pose
+        self.targetCentric = True #if true, robot policy operates on the target, not the current pose
+        self.manualTargetControl = False #if true, actions are not considered
+        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3)}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
         self.elbow_rest = 0.2  # drawn at reset
@@ -330,6 +335,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         bot_observation_size += 6 #human end effectors
         bot_observation_size += 6 #hoop joint resultant forces/torques
         bot_observation_size += 6 #end effector position and orientation
+        if self.targetCentric:
+            bot_observation_size += 6 #target frame position and orientation
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -344,8 +351,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.orientationBaseMatrix = np.array([[1, 0, 0],
                                                [0, 0, -1],
                                                [0, 1, 0]])
-        self.orientationEulerState = np.array([-0.05,-0.2,-0.15]) #XYZ used as euler angles to modify orientation base
-        self.orientationEulerStateLimits = np.array([1.5, 1.5, 1.5])
+        self.robotEulerState = np.array([math.pi/2.0, -0.2, -0.15]) #XYZ used as euler angles to modify orientation base
+        self.frameEulerState = np.array([math.pi/2.0, -0.2, -0.15]) #XYZ used as euler angles to modify orientation base
+        self.orientationEulerStateLimits = [np.array([math.pi/2.0-1.5, -1.5, -1.5]), np.array([math.pi/2.0+1.5, 1.5, 1.5])]
         self.robotPathParams = {'p0_depth_range': 0.05, 'p0_depth_offset': 0.15,
                                 'p0_disk_rad': self.maxIiwaReach * 0.7,
                                 'p3_el_dim': np.array([0.2, 0.1, 0.1]), 'p3_el_org': np.array([0.15, 0.075, 0]),
@@ -361,12 +369,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.iiwa_rest = np.array([0, 0, 0, 0, 0, 0, 0])
         self.rigidClothFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
         self.rigidClothTargetFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
+        self.targetFrameTracking = {"active":False, "history":[], "sampleRate":10}
         self.renderIKGhost = False
         self.renderIiwaReach = False
         self.renderIiwaCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = False
+        self.print_skel_details = True
         self.posePath = pyutils.Spline()
         self.hoopTorques = None
 
@@ -420,7 +429,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.initialActionScale = np.array(self.action_scale)
         self.robot_action_scale = np.ones(6)
         self.robot_action_scale[:3] = np.ones(3)*0.1 #position
-        self.robot_action_scale[3:] = np.ones(3)*0.1 #orientation
+        self.robot_action_scale[3:] = np.ones(3)*0.2 #orientation
         #self.robot_action_scale = np.zeros(6)
         iiwaFilename = ""
         if self.renderIiwaCollidable:
@@ -499,7 +508,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
 
         # initialize the controller
-        self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
+        #self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
+        self.SPDController = SPDController(self, self.iiwa_skel, timestep=dt)
 
         #disable character gravity
         if self.print_skel_details:
@@ -639,7 +649,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             #self.rigidClothTargetFrame.setFromDirectionandUp(dir=-self.ikTarget, up=np.array([0, -1.0, 0]),
             #                                                 org=self.ikTarget)
             #self.rigidClothTargetFrame.setQuaternion(pyutils.qSLERP(q0=self.orientationEndPoints[0].quat, q1=self.orientationEndPoints[1].quat, t=min(1.0, self.numSteps * self.ikPathTimeScale)))
-            self.rigidClothTargetFrame.setQuaternion(self.orientationTarget.quat)
+            self.rigidClothTargetFrame.orientation = np.array(self.orientationTarget.orientation)
+            self.rigidClothTargetFrame.updateQuaternion()
+            #self.rigidClothTargetFrame.setQuaternion(self.orientationTarget.quat)
             self.rigidClothTargetFrame.setOrg(org=self.ikTarget)
 
             tar_quat = self.rigidClothTargetFrame.quat
@@ -660,7 +672,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                       lowerLimits=self.iiwa_dof_llim.tolist(),
                                                       upperLimits=self.iiwa_dof_ulim.tolist(),
                                                       jointRanges=self.iiwa_dof_jr.tolist(),
-                                                      restPoses=self.iiwa_skel.q[6:].tolist()
+                                                      restPoses=self.iiwa_skel.q[6:].tolist(),
+                                                      maxNumIterations=10
                                                       )
             else:
                 result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
@@ -671,7 +684,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                       lowerLimits=self.iiwa_dof_llim.tolist(),
                                                       upperLimits=self.iiwa_dof_ulim.tolist(),
                                                       jointRanges=self.iiwa_dof_jr.tolist(),
-                                                      restPoses=self.iiwa_skel.q[6:].tolist()
+                                                      restPoses=self.iiwa_skel.q[6:].tolist(),
+                                                      maxNumIterations=10
                                                       )
             #print("computed IK result: " + str(result))
             self.previousIKResult = np.array(result)
@@ -1069,27 +1083,142 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             efdir = efdir / np.linalg.norm(efdir)
 
         #use actions
-        self.ikTarget = efpos+robo_action_scaled[:3]
-        targetDir = efdir + robo_action_scaled[3:]
-        currentStateBaseSpace = np.dot(self.orientationTarget.orientation, np.transpose(self.orientationBaseMatrix))
-        currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), self.orientationTarget.orientation)
+        if(not self.manualTargetControl):
+            #self.ikTarget = efpos+robo_action_scaled[:3]
+            self.frameInterpolator["target_pos"] += robo_action_scaled[:3]
+            self.frameInterpolator["eulers"] += robo_action_scaled[3:]
+
+        #ensure ik target is in reach
+        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.ikTarget
+        distToRoboRoot = np.linalg.norm(toRoboRoot)
+
+        #clamp ik target to reachability sphere...
+        #if(distToRoboRoot > self.robotPathParams['p0_disk_rad']):
+        #    self.ikTarget = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*self.robotPathParams['p0_disk_rad']
+
+        #interpolate the target frame at constant speed toward a goal location
+        if self.frameInterpolator["active"]:
+            targetFrame = pyutils.ShapeFrame()
+            targetFrame.orientation = np.array(self.frameInterpolator["target_frame"])
+            self.frameInterpolator["eulers"] = np.clip(self.frameInterpolator["eulers"], self.orientationEulerStateLimits[0],
+                                           self.orientationEulerStateLimits[1])
+
+            interpFrameEulerState = np.array(self.frameInterpolator["eulers"])
+
+            # TODO: interpolate orientation:
+            if True:
+                #1: extract eulers from orientation
+                #currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), targetFrame.orientation)
+                #currentStateBaseSpace = np.dot(self.orientationBaseMatrix, targetFrame.orientation)
+                #currentStateBaseSpace = np.array(targetFrame.orientation)
+                #print(currentStateBaseSpace)
+                #currentState1 = pyutils.getEulerAngles3(currentStateBaseSpace)
+                #eulers2 = pyutils.getEulerAngles(currentStateBaseSpace)
+                #currentState2 = eulers2[0]
+                #currentState3 = pyutils.getEulerAngles3(targetFrame.orientation)
+                #orientationState = pyutils.getEulerAngles3(self.orientationTarget.orientation)
+                #computedInterpFrameEulerState1 = np.array([-currentState1[0], currentState1[2], -currentState1[1]])
+                #computedInterpFrameEulerState2 = np.array([-currentState2[0], currentState2[2], -currentState2[1]])
+                #computedInterpFrameEulerState3 = np.array([currentState3[0], currentState3[1], currentState3[2]])
+                #computedInterpOrientationEulerState3 = np.array([orientationState[0], orientationState[1], orientationState[2]])
+                #interpFrameEulerState = np.array([currentState[0], currentState[1], currentState[2]])
+
+                #2: add delta
+                #interpFrameEulerState += self.frameInterpolator["deltaEuler"]
+                #print("interpFrameEulerState:               " + str(interpFrameEulerState))
+                #print("computedInterpFrameEulerState:       " + str(computedInterpFrameEulerState3))
+                #print("computedInterpFrameOrientationState: " + str(computedInterpOrientationEulerState3))
+
+                #print("---")
+
+
+                #3: convert back to matrix
+                #targetFrame.orientation = np.array(self.orientationBaseMatrix)
+                #targetFrame.orientation = np.identity(3)
+                #targetFrame.applyRotationMatrix(pyutils.rotateZ(interpFrameEulerState[2]))
+                #targetFrame.applyRotationMatrix(pyutils.rotateY(interpFrameEulerState[1]))
+                #targetFrame.applyRotationMatrix(pyutils.rotateX(interpFrameEulerState[0]))
+                #self.frameInterpolator["target_frame"] = np.array(targetFrame.orientation)
+
+                #euler to matrix (Shoemake)
+                s = np.array([math.sin(interpFrameEulerState[0]), math.sin(interpFrameEulerState[1]), math.sin(interpFrameEulerState[2])])
+                c = np.array([math.cos(interpFrameEulerState[0]), math.cos(interpFrameEulerState[1]), math.cos(interpFrameEulerState[2])])
+                cc = c[0]*c[2]
+                cs = c[0]*s[2]
+                sc = s[0]*c[2]
+                ss = s[0]*s[2]
+
+                #self.frameInterpolator["target_frame"] = np.array([
+                #    [c[1], s[1]*s[0], s[1]*c[0]],
+                #    [s[1]*s[2], -c[1]*ss+cc, -c[1]*cs-sc],
+                #    [-s[1]*c[2], c[1]*sc+cs, c[1]*cc-ss],
+                #])
+                self.frameInterpolator["target_frame"] = np.array([
+                    [c[1] * c[2], s[1] * sc - cs, s[1] * cc + ss],
+                    [c[1] * s[2], s[1] * ss + cc, s[1] * cs - sc],
+                    [-s[1],       c[1] * s[0],    c[1] * c[0]],
+                ])
+                targetFrame.orientation = np.array(self.frameInterpolator["target_frame"])
+                #print("Matrix from Euler determinant: " + str(np.linalg.det(targetFrame.orientation)))
+                #print(interpFrameEulerState)
+                #print(self.frameInterpolator["target_frame"])
+
+                #4 zero deltas
+                #self.frameInterpolator["deltaEuler"] = np.zeros(3)
+
+
+            targetFrame.org = np.array(self.frameInterpolator["target_pos"])
+            targetFrame.updateQuaternion()
+            globalOffset = targetFrame.toGlobal(p=self.frameInterpolator["localOffset"])
+            targetFrame.org += targetFrame.org-globalOffset
+            targetDisp = targetFrame.org - self.ikTarget
+            dispMag = np.linalg.norm(targetDisp)
+            travelMag = min(self.dt*self.frameInterpolator["speed"], dispMag)
+            if(travelMag > 0.001):
+                self.ikTarget += (targetDisp/dispMag)*travelMag
+
+            #set the orientation of the target frame directly (later may want to interpolate)
+            #self.frameEulerState = np.array(interpFrameEulerState)
+
+            #interpolate the target eulers:
+            hn = self.iiwa_skel.bodynodes[8]
+            roboFrame = pyutils.ShapeFrame()
+            roboFrame.setTransform(hn.T)
+            robo_eulers = pyutils.getEulerAngles3(roboFrame.orientation)
+            for i in range(3):
+                eDist = interpFrameEulerState[i] - robo_eulers[i]
+                eTraverse = min(self.dt*self.frameInterpolator["aSpeed"], abs(eDist))
+                if(eDist != 0):
+                    self.frameEulerState[i] = robo_eulers[i] + (eDist/abs(eDist))*eTraverse
+                    #print("eTraverse " + str(i) + ": " + str((eDist/abs(eDist))*eTraverse))
+
+
+
+        #targetDir = efdir + robo_action_scaled[3:]
+        #currentStateBaseSpace = np.dot(self.orientationTarget.orientation, np.transpose(self.orientationBaseMatrix))
+        #currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), self.orientationTarget.orientation)
         #currentStateBaseSpace = np.array(self.orientationTarget.orientation)
         #print("Current Euler State: " + str(currentStateBaseSpace))
-        currentState = pyutils.getEulerAngles2(currentStateBaseSpace)
+        #currentState = pyutils.getEulerAngles2(currentStateBaseSpace)
         #print("Current Euler State (computed): " + str(currentState))
         #print("Current Euler State (corrected): " + str(np.array([-currentState[0], currentState[2], -currentState[1]])))
         #print("Current Euler State (true): " + str(self.orientationEulerState))
-        self.orientationEulerState = np.array([-currentState[0], currentState[2], -currentState[1]])
+        #self.robotEulerState = np.array([-currentState[0], currentState[2], -currentState[1]])
+        #roboState = pyutils.getEulerAngles3(targetFrame.orientation)
+        #if(not self.targetCentric):
+        #    self.frameEulerState = np.array(self.robotEulerState)
         #print(robo_action_scaled[3:])
-        self.orientationEulerState += robo_action_scaled[3:]
-        self.orientationEulerState = np.clip(self.orientationEulerState, -self.orientationEulerStateLimits, self.orientationEulerStateLimits)
+        #if(not self.manualTargetControl):
+        #    self.frameEulerState += robo_action_scaled[3:]
+
+        self.frameEulerState = np.clip(self.frameEulerState, self.orientationEulerStateLimits[0], self.orientationEulerStateLimits[1])
 
 
         #simulate 0 action
         #targetDir = np.array(efdir)
         # self.ikTarget = np.array(efpos)
 
-        targetDir /= np.linalg.norm(targetDir)
+        #targetDir /= np.linalg.norm(targetDir)
 
         #if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
         #    print("INVALID TARGET SETTING STATE:")
@@ -1098,13 +1227,37 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #    return np.zeros(self.obs_size), -10000, True
 
         try:
-            self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
-                                                           up=targetDir,
-                                                           org=self.ikTarget)
-            self.orientationTarget.orientation = np.array(self.orientationBaseMatrix)
-            self.orientationTarget.applyRotationMatrix(pyutils.rotateX(self.orientationEulerState[0]))
-            self.orientationTarget.applyRotationMatrix(pyutils.rotateY(self.orientationEulerState[1]))
-            self.orientationTarget.applyRotationMatrix(pyutils.rotateZ(self.orientationEulerState[2]))
+            #self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
+            #                                               up=targetDir,
+            #                                               org=self.ikTarget)
+            #self.orientationTarget.orientation = np.array(self.orientationBaseMatrix)
+            #self.orientationTarget.orientation = np.identity(3)
+            #self.orientationTarget.applyRotationMatrix(pyutils.rotateZ(self.frameEulerState[2]))
+            #self.orientationTarget.applyRotationMatrix(pyutils.rotateY(self.frameEulerState[1]))
+            #self.orientationTarget.applyRotationMatrix(pyutils.rotateX(self.frameEulerState[0]))
+
+            # euler to matrix (Shoemake)
+            s = np.array([math.sin(self.frameEulerState[0]), math.sin(self.frameEulerState[1]), math.sin(self.frameEulerState[2])])
+            c = np.array([math.cos(self.frameEulerState[0]), math.cos(self.frameEulerState[1]), math.cos(self.frameEulerState[2])])
+            cc = c[0] * c[2]
+            cs = c[0] * s[2]
+            sc = s[0] * c[2]
+            ss = s[0] * s[2]
+            # first axis repeated format
+            #self.orientationTarget.orientation = np.array([
+            #    [c[1], s[1] * s[0], s[1] * c[0]],
+            #    [s[1] * s[2], -c[1] * ss + cc, -c[1] * cs - sc],
+            #    [-s[1] * c[2], c[1] * sc + cs, c[1] * cc - ss],
+            #])
+            self.orientationTarget.orientation = np.array([
+                    [c[1] * c[2], s[1] * sc - cs, s[1] * cc + ss],
+                    [c[1] * s[2], s[1] * ss + cc, s[1] * cs - sc],
+                    [-s[1],       c[1] * s[0],    c[1] * c[0]],
+                ])
+            self.orientationTarget.updateQuaternion()
+
+            if self.targetFrameTracking["active"]:
+                self.targetFrameTracking["history"].append(self.orientationTarget.get4x4Transform())
             #print(self.orientationEulerState)
             #print(self.orientationTarget.orientation)
         except:
@@ -1205,7 +1358,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
             if not self.kinematic:
                 self.robot_skeleton.set_forces(human_tau)
-                #self.dart_world.skeletons[0].set_forces(robot_tau)
+                self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), self.SPDController.query(obs=None)]))
+
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
@@ -1493,16 +1647,28 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             obs = np.concatenate([obs, np.zeros(6)]).ravel()
 
         #robot end effector info
-        efpos = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+        #efpos = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
         #efdir = self.iiwa_skel.bodynodes[9].to_world(np.array([1.0, 0, 0])) - efpos
         #efdir = efdir / np.linalg.norm(efdir)
         #obs = np.concatenate([obs, efpos, efdir]).ravel()
-        obs = np.concatenate([obs, efpos, self.orientationEulerState]).ravel()
+        hn = self.iiwa_skel.bodynodes[8]
+        roboFrame = pyutils.ShapeFrame()
+        roboFrame.setTransform(hn.T)
+        self.robotEulerState = pyutils.getEulerAngles3(roboFrame.orientation)
+        obs = np.concatenate([obs, hn.to_world(np.zeros(3)), self.robotEulerState]).ravel()
+        if self.targetCentric:
+            #obs = np.concatenate([obs, self.ikTarget, self.frameEulerState])
+            obs = np.concatenate([obs, self.frameInterpolator["target_pos"], self.frameInterpolator["eulers"]])
+
 
         return obs
 
     def additionalResets(self):
         self.consecutiveInstabilities = 0
+
+        if self.targetFrameTracking["active"]:
+            self.targetFrameTracking["history"] = []
+
         if self.collisionResult is None:
             self.collisionResult = CollisionResult.CollisionResult(self.dart_world)
 
@@ -1560,7 +1726,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #if(self.reset_number > 0):
         #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
-        self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
+        #self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
 
         if self.limbProgressGraphing:
             prefix = ""
@@ -1830,7 +1996,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                   lowerLimits=self.iiwa_dof_llim.tolist(),
                                                   upperLimits=self.iiwa_dof_ulim.tolist(),
                                                   jointRanges=self.iiwa_dof_jr.tolist(),
-                                                  restPoses=self.iiwa_skel.q[6:].tolist()
+                                                  restPoses=self.iiwa_skel.q[6:].tolist(),
+                                                  maxNumIterations=30 #gain falls off after 30
                                                   )
         else:
             result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
@@ -1841,7 +2008,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                   lowerLimits=self.iiwa_dof_llim.tolist(),
                                                   upperLimits=self.iiwa_dof_ulim.tolist(),
                                                   jointRanges=self.iiwa_dof_jr.tolist(),
-                                                  restPoses=self.iiwa_skel.q[6:].tolist()
+                                                  restPoses=self.iiwa_skel.q[6:].tolist(),
+                                                  maxNumIterations=10
                                                   )
 
         self.previousIKResult = result
@@ -1852,41 +2020,23 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         hn = self.iiwa_skel.bodynodes[8]  # hand node
 
         ef_accuracy = np.linalg.norm(hn.to_world(np.zeros(3)) - self.ikTarget)
-        retry_count = 0
-        while(ef_accuracy > 0.05 and retry_count < 10):
-            retry_count += 1
-            print("retry " + str(retry_count))
-            if (self.ikOrientation):
-                result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
-                                                      endEffectorLinkIndex=8,
-                                                      targetPosition=self.ikTarget - self.iiwa_root_dofs[3:],
-                                                      targetOrientation=tar_quat,
-                                                      # targetOrientation=tar_dir,
-                                                      lowerLimits=self.iiwa_dof_llim.tolist(),
-                                                      upperLimits=self.iiwa_dof_ulim.tolist(),
-                                                      jointRanges=self.iiwa_dof_jr.tolist(),
-                                                      restPoses=self.iiwa_skel.q[6:].tolist()
-                                                      )
-            else:
-                result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,
-                                                      endEffectorLinkIndex=8,
-                                                      targetPosition=self.ikTarget - self.iiwa_root_dofs[3:],
-                                                      # targetOrientation=tar_quat,
-                                                      # targetOrientation=tar_dir,
-                                                      lowerLimits=self.iiwa_dof_llim.tolist(),
-                                                      upperLimits=self.iiwa_dof_ulim.tolist(),
-                                                      jointRanges=self.iiwa_dof_jr.tolist(),
-                                                      restPoses=self.iiwa_skel.q[6:].tolist()
-                                                      )
-
-            self.previousIKResult = result
-            self.setPosePyBullet(result)
-            self.iiwa_skel.set_positions(np.concatenate([np.array(self.iiwa_root_dofs), result]))
-            ef_accuracy = np.linalg.norm(self.iiwa_skel.bodynodes[8].to_world(np.zeros(3)) - self.ikTarget)
-        #DONE: IK setup
+        #print("ef_accuracy: " + str(ef_accuracy))
 
         self.rigidClothFrame.setTransform(hn.world_transform())
 
+        #reset target orientation frame
+        #currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), self.orientationTarget.orientation)
+        #currentState = pyutils.getEulerAngles2(currentStateBaseSpace)
+        currentState = pyutils.getEulerAngles3(self.rigidClothFrame.orientation)
+        frameState = pyutils.getEulerAngles3(self.orientationTarget.orientation)
+        #self.robotEulerState = np.array([-currentState[0], currentState[2], -currentState[1]])
+        self.robotEulerState = np.array(currentState)
+        self.frameEulerState = np.array(frameState)
+
+        #self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[8].to_world(np.zeros(3))
+        self.frameInterpolator["target_pos"] = np.array(self.ikTarget)
+        self.frameInterpolator["target_frame"] = np.array(self.orientationTarget.orientation)
+        self.frameInterpolator["eulers"] = np.array(self.frameEulerState)
 
         if self.handleNode is not None:
             self.handleNode.clearHandles()
@@ -1950,12 +2100,46 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), feature=self.sleeveLSeamFeature)
 
+            #initial ik accuracy testing
+            #if self.reset_number > 100:
+            #    exit()
+            #else:
+            #    if(self.reset_number == 0):
+            #        self.ef_accuracy_info["best"] = ef_accuracy
+            #    self.ef_accuracy_info["total"] += ef_accuracy
+            #    self.ef_accuracy_info["best"] = min(self.ef_accuracy_info["best"], ef_accuracy)
+            #    self.ef_accuracy_info["worst"] = max(self.ef_accuracy_info["worst"], ef_accuracy)
+            #    self.ef_accuracy_info["average"] = self.ef_accuracy_info["total"]/(self.reset_number+1)
+            #    print(self.ef_accuracy_info)
         a=0
 
     def extraRenderFunction(self):
         #self._get_viewer().scene.tb.trans[0] = self.rigidClothFrame.getCenter()[0]
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
+
+        #draw target frame tracking
+        if self.targetFrameTracking["active"]:
+            points = []
+            renderFrame = pyutils.ShapeFrame()
+            for ix,T in enumerate(self.targetFrameTracking["history"]):
+                if(ix%self.targetFrameTracking["sampleRate"]==0):
+                    renderFrame.setTransform(T)
+                    renderFrame.drawFrame(size=0.1)
+                    points.append(renderFrame.org)
+            renderUtils.setColor(color=[0,0,0])
+            renderUtils.drawLineStrip(points)
+
+        #draw interpolation target frame
+        if self.frameInterpolator["active"]:
+            renderFrame = pyutils.ShapeFrame()
+            renderFrame.setOrg(org=self.frameInterpolator["target_pos"])
+            renderFrame.orientation = np.array(self.frameInterpolator["target_frame"])
+            renderFrame.updateQuaternion()
+            renderFrame.drawFrame(size=1.1)
+            renderUtils.setColor(color=[0, 0, 0])
+            renderUtils.drawLineStrip(points=[self.ikTarget, self.frameInterpolator["target_pos"]])
+            renderUtils.drawSphere(pos=renderFrame.org+renderFrame.org-renderFrame.toGlobal(p=self.frameInterpolator["localOffset"]), rad=0.02)
 
         renderUtils.setColor(color=[0.0, 0.0, 0])
         GL.glBegin(GL.GL_LINES)
@@ -1982,7 +2166,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self.testFrame.setFromDirectionandUp(dir=vdir,
         #                                             up=np.array([0, -1.0, 0]),
         #                                             org=np.array([0, 0, -1.0]))
-        self.testFrame.drawFrame()
+        #self.testFrame.drawFrame()
         #print(self.testFrame.orientation)
         #print(self.orientationTarget.orientation)
         # TODO: done testing unlocked frame from vector
@@ -2066,12 +2250,19 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             efdir = self.iiwa_skel.bodynodes[9].to_world(np.array([0, 1.0, 0])) - efpos
             efdir /= np.linalg.norm(efdir)
             renderUtils.drawArrow(p0=efpos, p1=efpos+efdir*0.2)
+            renderUtils.setColor(color=[0, 0, 0])
+            renderUtils.drawLines(lines=[
+                [efpos, self.iiwa_skel.bodynodes[9].to_world(np.array([0, 1.0, 0]))],
+                [efpos, self.iiwa_skel.bodynodes[9].to_world(np.array([1.0, 0, 0]))],
+                [efpos, self.iiwa_skel.bodynodes[9].to_world(np.array([0, 0, 1.0]))]
+            ])
 
             #if (self.targetCentric):
             if (True):
                 renderUtils.setColor(color=[1.0,0,0])
                 efpos = np.array(self.ikTarget)
-                efdir = self.orientationTarget.toGlobalVec(np.array([0.0, 1.0, 0]))
+                #efdir = self.orientationTarget.toGlobalVec(np.array([0.0, 1.0, 0]))
+                efdir = self.orientationTarget.toGlobal(p=np.array([0.0, 1.0, 0])) - self.orientationTarget.toGlobal(p=np.zeros(3))
                 efdir = efdir / np.linalg.norm(efdir)
                 renderUtils.drawArrow(p0=efpos, p1=efpos + efdir * 0.2)
 

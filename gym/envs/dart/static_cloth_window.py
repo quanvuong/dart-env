@@ -37,7 +37,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.mouseCurPos = np.array([0,0])
         self.curInteractorIX = None #set an interactor class to change user interaction with the window
         self.interactors = []
-        [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)] #the list of available interactors
+        [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self), Frame6DInteractor(self)] #the list of available interactors
         #self.interactors.append(BaseInteractor(self))
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
@@ -70,7 +70,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
             GLUT.glutHideWindow()
 
         self.viewport = GL.glGetInteger(GL.GL_VIEWPORT)
-        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self)]  # the list of available interactors
+        self.interactors = [BaseInteractor(self), VertexSelectInteractor(self), FrameSelectInteractor(self), IKInteractor(self), PoseInteractor(self), Frame6DInteractor(self)]  # the list of available interactors
 
         GLUT.glutDisplayFunc(self.drawGL)
         GLUT.glutReshapeFunc(self.resizeGL)
@@ -1408,3 +1408,156 @@ class PoseInteractor(BaseInteractor):
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glPopMatrix()
 
+class Frame6DInteractor(BaseInteractor):
+    # controls for manual manipulation of 6dof frame
+    def __init__(self, viewer):
+        self.viewer = viewer
+        self.label = "Frame Interactor"
+        self.rotationToggle = False
+        self.f_down = False
+        self.x_down = False
+        self.y_down = False
+        self.z_down = False
+        self.s_down = False #s_down for handle select
+        #inverse kinematics info
+        self.ikTargets = []
+        self.ikOffsets = []
+        self.ikNodes = []
+        self.selectedHandle = None
+        self.skelix = 1 #change this if the skel file changes
+
+    def key_down(self):
+        #check for all function key_down booleans
+        if self.f_down is True:
+            return True
+        if self.s_down is True:
+            return True
+        if self.x_down is True:
+            return True
+        if self.y_down is True:
+            return True
+        if self.z_down is True:
+            return True
+        return False
+
+    def keyboard(self, key, x, y):
+        keycode = ord(key)
+        #print(keycode)
+        if keycode == 27:
+            self.viewer.close()
+            return
+        if keycode == 13:  # ENTER
+            if self.viewer.inputFunc is not None:
+                self.viewer.inputFunc()
+        if keycode == 102:  # 'f'
+            self.f_down = True
+        if keycode == 112:  # 'p'
+            # print relevant info
+            #print()
+            a=0
+        if keycode == 115:  # 's'
+            self.s_down = True
+        if keycode == 116:  # 't'
+            self.rotationToggle = not self.rotationToggle
+            print("rotation toggle: " + str(self.rotationToggle))
+
+        if keycode == 104:  # 'h' hand
+            self.viewer.env.frameInterpolator["target_pos"] = self.viewer.env.robot_skeleton.bodynodes[11].to_world(np.zeros(3))
+
+        if keycode == 101:  # 'e' elbow
+            self.viewer.env.frameInterpolator["target_pos"] = self.viewer.env.robot_skeleton.bodynodes[10].to_world(np.zeros(3))
+
+        if keycode == 118: #'v' shoulder
+            self.viewer.env.frameInterpolator["target_pos"] = self.viewer.env.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+
+        if keycode == 120:  # 'x'
+            self.x_down = True
+        if keycode == 121:  # 'y'
+            self.y_down = True
+        if keycode == 122:  # 'z'
+            self.z_down = True
+        self.viewer.keyPressed(key, x, y)
+
+    def keyboardUp(self, key, x, y):
+        keycode = ord(key)
+        if keycode == 102:  # 'f'
+            self.f_down = False
+        if keycode == 115:  # 's'
+            self.s_down = False
+        if keycode == 120:  # 'x'
+            self.x_down = False
+        if keycode == 121:  # 'y'
+            self.y_down = False
+        if keycode == 122:  # 'z'
+            self.z_down = False
+
+    def drag(self, x, y):
+        dx = x - self.viewer.mouseLastPos[0]
+        dy = y - self.viewer.mouseLastPos[1]
+        if self.key_down() is False:
+            tb = self.viewer.scene.tb
+            if self.viewer.mouseLButton is True and self.viewer.mouseRButton is True:
+                tb.zoom_to(dx, -dy)
+            elif self.viewer.mouseRButton is True:
+                tb.trans_to(dx, -dy)
+            elif self.viewer.mouseLButton is True:
+                tb.drag_to(x, y, dx, -dy)
+        elif (self.f_down):
+            a=0
+        elif (self.x_down):
+            if not self.rotationToggle:
+                self.viewer.env.frameInterpolator["target_pos"][0] += dx*0.001
+            else:
+                self.viewer.env.frameInterpolator["eulers"][0] += dx*0.001
+                #self.viewer.env.frameEulerState[0] += dx*0.001
+        elif (self.y_down):
+            if not self.rotationToggle:
+                self.viewer.env.frameInterpolator["target_pos"][1] += dx * 0.001
+            else:
+                self.viewer.env.frameInterpolator["eulers"][1] += dx*0.001
+                #self.viewer.env.frameEulerState[1] += dx*0.001
+        elif (self.z_down):
+            if not self.rotationToggle:
+                self.viewer.env.frameInterpolator["target_pos"][2] += dx * 0.001
+            else:
+                self.viewer.env.frameInterpolator["eulers"][2] += dx * 0.001
+                #self.viewer.env.frameEulerState[2] += dx * 0.001
+
+        self.viewer.mouseLastPos = np.array([x, y])
+
+    def click(self, button, state, x, y):
+        tb = self.viewer.scene.tb
+        if state == 0:  # Mouse pressed
+            if button == 0:
+                self.viewer.mouseLButton = True
+
+            if button == 2:
+                self.viewer.mouseRButton = True
+
+            self.viewer.mouseLastPos = np.array([x, y])
+
+            if button == 3:  # wheel up
+                if self.f_down is True:
+                    a = 0
+                elif self.s_down is True:
+                    a = 0
+                else:
+                    tb.trans[2] += 0.1
+            elif button == 4:  # wheel down
+                if self.f_down is True:
+                    a = 0
+                elif self.s_down is True:
+                    a = 0
+                else:
+                    tb.trans[2] -= 0.1
+        elif state == 1:  # mouse released
+            # self.mouseLastPos = None
+            if button == 0:
+                self.viewer.mouseLButton = False
+            if button == 2:
+                self.viewer.mouseRButton = False
+
+    def contextRender(self):
+        # place any extra rendering for this context here
+
+        a = 0
