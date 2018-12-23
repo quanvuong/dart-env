@@ -375,7 +375,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.renderIiwaCollidable = False
         self.renderHapticObs = False
         self.renderOracle = True
-        self.print_skel_details = True
+        self.print_skel_details = False
         self.posePath = pyutils.Spline()
         self.hoopTorques = None
 
@@ -1089,12 +1089,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.frameInterpolator["eulers"] += robo_action_scaled[3:]
 
         #ensure ik target is in reach
-        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.ikTarget
+        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
         distToRoboRoot = np.linalg.norm(toRoboRoot)
 
-        #clamp ik target to reachability sphere...
-        #if(distToRoboRoot > self.robotPathParams['p0_disk_rad']):
-        #    self.ikTarget = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*self.robotPathParams['p0_disk_rad']
+        #clamp interpolation target frame to reachability sphere...
+        if(distToRoboRoot > (self.robotPathParams['p0_disk_rad'])*1.5):
+            #print("clamping frame")
+            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*(self.robotPathParams['p0_disk_rad'])*1.5
 
         #interpolate the target frame at constant speed toward a goal location
         if self.frameInterpolator["active"]:
