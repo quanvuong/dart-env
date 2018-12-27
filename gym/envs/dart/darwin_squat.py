@@ -66,9 +66,12 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.load_keyframe_from_file = False
         self.randomize_gravity_sch = True
         self.height_drop_threshold = 0.8    # terminate if com height drops below certain threshold
+        self.control_interval = 0.05  # control every 50 ms
+        self.sim_timestep = 0.002
         self.forward_reward = 0.0
         self.kp = None
         self.kd = None
+        self.kc = None
 
         if self.use_DCMotor:
             self.motors = DCMotor(0.0107, 8.3, 12, 193)
@@ -127,7 +130,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.gravity_sch = [[0.0, np.array([0, 0, -9.81])]]
 
         if self.load_keyframe_from_file:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_cartwheel.txt')
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_lift.txt')
             rig_keyframe = np.loadtxt(fullpath)
             #self.interp_sch = [[0.0, rig_keyframe[0]],
             #              [2.0, rig_keyframe[1]],
@@ -142,7 +145,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.interp_sch.append([interp_time, rig_keyframe[0]])'''
 
             self.interp_sch = [[0.0, rig_keyframe[0]],
-                               [0.5, rig_keyframe[1]],
+                               [1.0, rig_keyframe[1]],
+                               [2.0, rig_keyframe[2]],
+                               [3.0, rig_keyframe[3]],
+                               [4.0, rig_keyframe[4]],
                                ]
 
         # single leg stand
@@ -170,7 +176,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.cur_step = 0
 
-        self.torqueLimits = 10.0
+        self.torqueLimits = 3.0
         if self.same_gain_model:
             self.torqueLimits = 2.5
 
@@ -221,8 +227,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             from gym import spaces
             self.action_space = spaces.MultiDiscrete([11] * 20)
 
-        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], 25, obs_dim,
-                                  self.control_bounds, dt=0.002, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
+        dart_env.DartEnv.__init__(self, ['darwinmodel/ground1.urdf', 'darwinmodel/darwin_nocollision.URDF', 'darwinmodel/coord.urdf', 'darwinmodel/robotis_op2.urdf'], int(self.control_interval / self.sim_timestep), obs_dim,
+                                  self.control_bounds, dt=self.sim_timestep, disableViewer=True, action_type="continuous" if not self.use_discrete_action else "discrete")
 
         self.orig_bodynode_masses = [bn.mass() for bn in self.robot_skeleton.bodynodes]
 
@@ -249,9 +255,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
                                            self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
-        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(3.0)
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(1.0)
         for bn in self.robot_skeleton.bodynodes:
-            bn.set_friction_coeff(3.0)
+            bn.set_friction_coeff(1.0)
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(2.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(2.0)
 
@@ -359,8 +365,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.tau[6:] = self.PID()
             self.tau[0:6] *= 0.0
 
-            if self.limited_joint_vel:
-                self.tau[(np.abs(self.robot_skeleton.dq) > 2.0) * (np.sign(self.robot_skeleton.dq) == np.sign(self.tau))] = 0
+
             #print(i, self.tau[6:])
 
             if self.add_perturbation:
@@ -401,18 +406,20 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             if self.kp is not None:
                 kp = self.kp * self.kp_ratio
                 kd = self.kd * self.kd_ratio
+                kc = self.kc
             else:
                 if not self.same_gain_model:
                     kp = np.array([2.1+100, 1.79+100, 4.93+100,
                                2.0+100, 2.02+100, 1.98+100,
                                2.2+10, 2.06+10,
-                               148, 152, 150, 12, 153, 102,
-                               151, 151.4, 150.45, 12, 154, 105.2]) * self.kp_ratio
+                               148, 152, 150, 60, 153, 102,
+                               151, 151.4, 150.45, 60, 154, 105.2]) * self.kp_ratio
                     kd = np.array([0.021, 0.023, 0.022,
                                0.025, 0.021, 0.026,
                                0.028, 0.0213
                         , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
                                0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
+                    kc = 0.0
 
                     kp[8:11] *= self.hip_kp_ratio
                     kp[14:17] *= self.hip_kp_ratio
@@ -423,11 +430,33 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 else:
                     kp = 54.019 * self.kp_ratio
                     kd = 2.5002 * self.kd_ratio
+                    kc = 0.0
 
             q = self.robot_skeleton.q
             qdot = self.robot_skeleton.dq
             tau = np.zeros(26, )
-            tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:]
+
+            # velocity limiting
+            '''lamb = kp / kd
+            x_tilde = q[6:] - self.target[6:]
+            vmax = 5.75 * self.sim_dt / lamb
+            sat = vmax / (lamb * np.abs(x_tilde))
+            scale = np.ones(20)
+            if np.any(sat < 1):
+                index = np.argmin(sat)
+                unclipped = kp * x_tilde[index]
+                clipped = kd * vmax * np.sign(x_tilde[index])
+                scale = np.ones(20) * clipped / unclipped
+                scale[index] = 1
+            tau[6:] = -kd * (qdot[6:] + np.clip(sat / scale, 0, 1) *
+                           scale * lamb * x_tilde)'''
+
+            #print(tau[6:])
+
+            if self.limited_joint_vel:
+                self.tau[(np.abs(self.robot_skeleton.dq) > 2.0) * (np.sign(self.robot_skeleton.dq) == np.sign(self.tau))] = 0
+
+            tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:] - kc * np.sign(qdot[6:])
 
         torqs = self.ClampTorques(tau)
 
@@ -496,6 +525,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all())
+
+        if np.any(np.abs(np.array(self.robot_skeleton.q)[0:2]) > 0.6):
+            done = True
 
         self.fall_on_ground = False
         self_colliding = False
@@ -611,7 +643,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.randomize_timestep:
             self.frame_skip = np.random.randint(20, 40)
-            self.dart_world.dt = 0.05 / self.frame_skip
+            self.dart_world.dt = self.control_interval / self.frame_skip
 
         self.imu_cache = []
         for i in range(self.imu_input_step):

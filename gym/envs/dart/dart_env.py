@@ -231,7 +231,7 @@ class DartEnv(gym.Env):
         return win
 
     def _get_viewer(self):
-        if self.viewer is None and not self.disableViewer:
+        if self.viewer is None and ((not self.disableViewer) or (not self.visualize)):
             self.viewer = self.getViewer(self.dart_world)
             self.viewer_setup()
         return self.viewer

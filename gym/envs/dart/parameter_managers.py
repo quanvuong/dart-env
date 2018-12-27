@@ -23,8 +23,8 @@ class hopperContactMassManager:
         self.frame_skip_range = [4, 10]
         self.actuator_nonlin_range = [0.75, 1.5]
 
-        self.activated_param = [1,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
-        self.controllable_param = [1,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.activated_param = [0,1,2,3,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.controllable_param = [0,1,2,3,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -830,19 +830,19 @@ class darwinSquatParamManager:
     def __init__(self, simulator):
         self.simulator = simulator
         self.mass_rat_range = [0.8, 1.2]
-        self.imu_offset = [-0.02, 0.02] # in cm, 3 dim
-        self.kp_rat_range = [0.5, 2.0]
-        self.kd_rat_range = [0.5, 2.0]
+        self.imu_offset = [-0.02, 0.02]  # in cm, 3 dim
+        self.kp_rat_range = [0.1, 1.5]
+        self.kd_rat_range = [0.25, 2.0]
 
         self.kp_range = [0.0, 100]
         self.kd_range = [0.0, 1.0]
         self.joint_damping_range = [0.0, 1.0]
         self.joint_friction_range = [0.0, 0.3]
 
-        self.com_offset_range = [-0.04, 0.01] # index 13, denotes MP_BODY com offset in x direction for now
+        self.com_offset_range = [-0.04, 0.01]  # index 13, denotes MP_BODY com offset in x direction for now
 
-        self.activated_param = [13]
-        self.controllable_param = [13]
+        self.activated_param = [10, 11, 12, 13]
+        self.controllable_param = [10, 11, 12, 13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None

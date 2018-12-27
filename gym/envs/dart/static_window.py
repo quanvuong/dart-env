@@ -37,13 +37,14 @@ class StaticGLUTWindow(GLUTWindow):
         return img.reshape(_width, _height)
 
     def getFrame(self):
-        self.runSingleStep()
+        self.scene.render(self.sim)
         data = GL.glReadPixels(0, 0,
                                self.window_size[0], self.window_size[1],
                                GL.GL_RGBA,
                                GL.GL_UNSIGNED_BYTE)
         img = np.frombuffer(data, dtype=np.uint8)
         return img.reshape(self.window_size[1], self.window_size[0], 4)[::-1,:,0:3]
+
 
     def mykeyboard(self, key, x, y):
         keycode = ord(key)
