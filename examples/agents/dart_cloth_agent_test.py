@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_12_19_robo_2D_weakness_elbow_universal_eulerinterp" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control
+    trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
+    #trial = "experiment_2018_12_19_robo_2D_weakness_elbow_universal_eulerinterp" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control
     #trial = "experiment_2018_12_13_robo_2D_weakness_elbow_universal_euler" #2D variation weakness and elbow constraint; V3; robot with full frame control
     #trial = "experiment_2018_12_10_robo_2D_weakness_elbow_universal" #2D variation weakness and elbow constraint; V2; robot
     #trial = "experiment_2018_11_27_weakness_and_elbow_universal_cont" #Continued: 2D variation weakness and elbow constraint; V2;

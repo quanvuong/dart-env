@@ -198,6 +198,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
+        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -208,6 +209,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenaltyWeight         = 5
         self.restPoseRewardWeight             = 1
         self.variationEntropyRewardWeight     = 1
+        self.shoulderPlaneRewardWeight        = 3
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -580,6 +582,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.variationEntropyReward:
             self.rewardsData.addReward(label="variation entropy", rmin=0, rmax=1.0, rval=0,
                                        rweight=self.variationEntropyRewardWeight)
+
+        if self.shoulderPlaneReward:
+            self.rewardsData.addReward(label="shoulder plane", rmin=-1.0, rmax=0, rval=0,
+                                       rweight=self.shoulderPlaneRewardWeight)
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -957,6 +963,24 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             a = 0
             reward_record.append(0)
 
+        reward_shoulderPlane = 0
+        if self.shoulderPlaneReward:
+            efpos = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+            #construct shoulder plane
+            s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
+            s1 = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            snorm = s1 - s0
+            _snorm = snorm / np.linalg.norm(snorm)
+            sb1 = np.cross(_snorm, np.array([0, 1.0, 0]))
+            sb2 = np.cross(_snorm, sb1)
+            shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
+            proj_ef = shoulderPlane.projectPoint(p=efpos)
+            if (proj_ef-efpos).dot(_snorm) > 0:
+                reward_shoulderPlane = -min(1.0, np.linalg.norm(proj_ef-efpos))
+            else:
+                reward_shoulderPlane = 0
+            reward_record.append(reward_shoulderPlane)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -985,7 +1009,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                       + reward_clothdeformation * self.deformationPenaltyWeight \
                       + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
-                      + reward_restPose * self.restPoseRewardWeight
+                      + reward_restPose * self.restPoseRewardWeight \
+                      + reward_shoulderPlane * self.shoulderPlaneRewardWeight
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
@@ -2130,6 +2155,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                     points.append(renderFrame.org)
             renderUtils.setColor(color=[0,0,0])
             renderUtils.drawLineStrip(points)
+
+        #draw shoulder plane
+        s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
+        s1 = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+        snorm = s1-s0
+        _snorm = snorm/np.linalg.norm(snorm)
+        sb1 = np.cross(_snorm, np.array([0,1.0,0]))
+        sb2 = np.cross(_snorm, sb1)
+        shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
+        shoulderPlane.draw()
 
         #draw interpolation target frame
         if self.frameInterpolator["active"]:
