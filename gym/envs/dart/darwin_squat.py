@@ -163,7 +163,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]
         #self.init_root_pert = np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-        self.delta_angle_scale = 0.0
+        self.delta_angle_scale = 0.3
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.015
@@ -573,7 +573,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.dart_world.skeletons[2].q = np.array([0, 0, 0, c[0], c[1], c[2]])
 
 
-        return ob, reward, False, {}
+        return ob, reward, done, {}
 
     def _get_obs(self):
         # phi = np.array([self.count/self.ref_traj.shape[0]])

@@ -843,8 +843,8 @@ class darwinSquatParamManager:
 
         self.vel_lim_range = [1.0, 10.0]
 
-        self.activated_param = [10, 11, 12, 13, 14]
-        self.controllable_param = [10, 11, 12, 13, 14]
+        self.activated_param = [10, 11, 12, 13]
+        self.controllable_param = [10, 11, 12, 13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
