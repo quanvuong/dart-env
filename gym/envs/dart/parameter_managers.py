@@ -841,8 +841,10 @@ class darwinSquatParamManager:
 
         self.com_offset_range = [-0.04, 0.01]  # index 13, denotes MP_BODY com offset in x direction for now
 
-        self.activated_param = [10, 11, 12, 13]
-        self.controllable_param = [10, 11, 12, 13]
+        self.vel_lim_range = [1.0, 10.0]
+
+        self.activated_param = [10, 11, 12, 13, 14]
+        self.controllable_param = [10, 11, 12, 13, 14]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -890,9 +892,11 @@ class darwinSquatParamManager:
         cur_body_com_x = self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - self.simulator.initial_local_coms[1][0]
         body_com_x_param = (cur_body_com_x - self.com_offset_range[0]) / (self.com_offset_range[1] - self.com_offset_range[0])
 
+        vel_lim_param = (self.simulator.joint_vel_limit - self.vel_lim_range[0]) / (self.vel_lim_range[1] - self.vel_lim_range[0])
+
         return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_rat_param, kd_rat_param,
                          kp_param, kd_param, damping_param, jt_friction_param,
-                         hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param])[self.activated_param]
+                         hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param, vel_lim_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -959,6 +963,11 @@ class darwinSquatParamManager:
             init_com = np.copy(self.simulator.initial_local_coms[1])
             init_com[0] += com
             self.simulator.robot_skeleton.bodynodes[1].set_local_com(init_com)
+            cur_id += 1
+
+        if 14 in self.controllable_param:
+            vel_lim = x[cur_id] * (self.vel_lim_range[1] - self.vel_lim_range[0]) + self.vel_lim_range[0]
+            self.simulator.joint_vel_limit = vel_lim
             cur_id += 1
 
     def resample_parameters(self):

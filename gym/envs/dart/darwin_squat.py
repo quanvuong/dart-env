@@ -59,12 +59,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_spd = False
         self.same_gain_model = False # whether to use the model optimized with all motors to have the same gains
         self.limited_joint_vel = True
-        self.train_UP = False
-        self.noisy_input = False
-        self.resample_MP = False
-        self.randomize_timestep = False
-        self.load_keyframe_from_file = False
-        self.randomize_gravity_sch = True
+        self.joint_vel_limit = 2.0
+        self.train_UP = True
+        self.noisy_input = True
+        self.resample_MP = True
+        self.randomize_timestep = True
+        self.load_keyframe_from_file = True
+        self.randomize_gravity_sch = False
         self.height_drop_threshold = 0.8    # terminate if com height drops below certain threshold
         self.control_interval = 0.05  # control every 50 ms
         self.sim_timestep = 0.002
@@ -124,32 +125,27 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                            ]
 
         # just balance
-        self.interp_sch = [[0.0, 0.5*(self.pose_stand + self.pose_squat)],
-                           [5.0, 0.5*(self.pose_stand + self.pose_squat)]]
+        #self.interp_sch = [[0.0, 0.5*(self.pose_stand + self.pose_squat)],
+        #                   [5.0, 0.5*(self.pose_stand + self.pose_squat)]]
 
         self.gravity_sch = [[0.0, np.array([0, 0, -9.81])]]
 
         if self.load_keyframe_from_file:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_lift.txt')
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/rig_keyframe_step.txt')
             rig_keyframe = np.loadtxt(fullpath)
             #self.interp_sch = [[0.0, rig_keyframe[0]],
             #              [2.0, rig_keyframe[1]],
             #              [6.0, rig_keyframe[1]]]
 
-            '''self.interp_sch = [[0.0, rig_keyframe[0]]]
-            interp_time = 0.5
-            for i in range(10):
-                for k in range(1, len(rig_keyframe)):
+            self.interp_sch = [[0.0, rig_keyframe[0]]]
+            interp_time = 0.03
+            for i in range(1):
+                for k in range(0, len(rig_keyframe)):
                     self.interp_sch.append([interp_time, rig_keyframe[k]])
-                    interp_time += 0.5
-            self.interp_sch.append([interp_time, rig_keyframe[0]])'''
+                    interp_time += 0.03
+            self.interp_sch.append([interp_time, rig_keyframe[0]])
 
-            self.interp_sch = [[0.0, rig_keyframe[0]],
-                               [1.0, rig_keyframe[1]],
-                               [2.0, rig_keyframe[2]],
-                               [3.0, rig_keyframe[3]],
-                               [4.0, rig_keyframe[4]],
-                               ]
+
 
         # single leg stand
         #self.permitted_contact_ids = [-7, -8] #[-1, -2, -7, -8]
@@ -167,16 +163,17 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]
         #self.init_root_pert = np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-        self.delta_angle_scale = 0.3
+        self.delta_angle_scale = 0.0
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.015
         self.work_weight = 0.05
         self.pose_weight = 0.2
+        self.comvel_pen = 0.1
 
         self.cur_step = 0
 
-        self.torqueLimits = 3.0
+        self.torqueLimits = 10.0
         if self.same_gain_model:
             self.torqueLimits = 2.5
 
@@ -255,9 +252,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         collision_filter.add_to_black_list(self.robot_skeleton.bodynode('MP_TIBIA_L'),
                                            self.robot_skeleton.bodynode('MP_ANKLE2_L'))
 
-        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(1.0)
+        self.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(5.0)
         for bn in self.robot_skeleton.bodynodes:
-            bn.set_friction_coeff(1.0)
+            bn.set_friction_coeff(5.0)
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(2.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(2.0)
 
@@ -405,21 +402,13 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         else:
             if self.kp is not None:
                 kp = self.kp * self.kp_ratio
-                kd = self.kd * self.kd_ratio
-                kc = self.kc
             else:
                 if not self.same_gain_model:
-                    kp = np.array([2.1+100, 1.79+100, 4.93+100,
-                               2.0+100, 2.02+100, 1.98+100,
+                    kp = np.array([2.1+10, 1.79+10, 4.93+10,
+                               2.0+10, 2.02+10, 1.98+10,
                                2.2+10, 2.06+10,
-                               148, 152, 150, 60, 153, 102,
-                               151, 151.4, 150.45, 60, 154, 105.2]) * self.kp_ratio
-                    kd = np.array([0.021, 0.023, 0.022,
-                               0.025, 0.021, 0.026,
-                               0.028, 0.0213
-                        , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                               0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
-                    kc = 0.0
+                                   60, 60, 60, 60, 153, 102,
+                                   60, 60, 60, 60, 154, 105.2]) * self.kp_ratio
 
                     kp[8:11] *= self.hip_kp_ratio
                     kp[14:17] *= self.hip_kp_ratio
@@ -429,8 +418,25 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                     kp[18:20] *= self.ankle_kp_ratio
                 else:
                     kp = 54.019 * self.kp_ratio
+
+
+
+            if self.kd is not None:
+                kd = self.kd * self.kd_ratio
+            else:
+                if not self.same_gain_model:
+                    kd = np.array([0.021, 0.023, 0.022,
+                               0.025, 0.021, 0.026,
+                               0.028, 0.0213
+                                  , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
+                               0.53, 0.27, 0.21, 0.205, 0.022, 0.056]) * self.kd_ratio
+                else:
                     kd = 2.5002 * self.kd_ratio
-                    kc = 0.0
+
+            if self.kc is not None:
+                kc = self.kc
+            else:
+                kc = 0.0
 
             q = self.robot_skeleton.q
             qdot = self.robot_skeleton.dq
@@ -451,12 +457,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             tau[6:] = -kd * (qdot[6:] + np.clip(sat / scale, 0, 1) *
                            scale * lamb * x_tilde)'''
 
-            #print(tau[6:])
+            tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:] - kc * np.sign(qdot[6:])
 
             if self.limited_joint_vel:
-                self.tau[(np.abs(self.robot_skeleton.dq) > 2.0) * (np.sign(self.robot_skeleton.dq) == np.sign(self.tau))] = 0
-
-            tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:] - kc * np.sign(qdot[6:])
+                tau[(np.abs(self.robot_skeleton.dq) > self.joint_vel_limit) * (np.sign(self.robot_skeleton.dq) == np.sign(tau))] = 0
 
         torqs = self.ClampTorques(tau)
 
@@ -522,6 +526,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         reward += self.forward_reward * (xpos_after - xpos_before) / self.dt
 
+        reward -= self.comvel_pen * np.linalg.norm(self.robot_skeleton.dC)
+
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 200).all())
@@ -567,7 +573,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.dart_world.skeletons[2].q = np.array([0, 0, 0, c[0], c[1], c[2]])
 
 
-        return ob, reward, done, {}
+        return ob, reward, False, {}
 
     def _get_obs(self):
         # phi = np.array([self.count/self.ref_traj.shape[0]])
@@ -587,9 +593,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         for i in range(self.future_ref_pose):
             state = np.concatenate([state, self.get_ref_pose(self.t + self.dt * (i+1))])
 
-
         for i in range(self.imu_input_step):
-            state = np.concatenate([state, self.imu_cache[-i]])
+            state = np.concatenate([state, self.imu_cache[-i-1]])
 
         if self.accum_imu_input:
             state = np.concatenate([state, self.accumulated_imu_info])
@@ -600,8 +605,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.noisy_input:
             state = state + np.random.normal(0, .01, len(state))
-
-
 
         return state
 
@@ -615,9 +618,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #qpos[1] += np.random.uniform(-0.2, 0.2)
 
         # LEFT HAND
-        qpos[6:] = self.interp_sch[0][1]
+        if self.interp_sch is not None:
+            qpos[6:] = self.interp_sch[0][1]
 
-        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
+        #qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
         # self.target = qpos
         self.count = 0
         qpos[0:6] += self.init_root_pert
@@ -664,6 +668,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             for i in range(num_change):
                 rots = np.random.uniform(-0.5, 0.5, 2)
                 self.gravity_sch.append([(i+1) * interv, np.array([np.cos(rots[0])*np.sin(rots[1]), np.sin(rots[0]), -np.cos(rots[0])*np.cos(rots[1])]) * 9.81])
+
+        self.action_filter_cache = []
 
         return self._get_obs()
 

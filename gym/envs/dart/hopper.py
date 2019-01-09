@@ -42,6 +42,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.t = 0
 
+        self.action_buffer = []
+
         self.total_dist = []
 
         self.include_obs_history = 1
@@ -51,6 +53,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.input_time:
             obs_dim += 1
+
+        self.action_bound_model = None
 
         dart_env.DartEnv.__init__(self, ['hopper_capsule.skel', 'hopper_box.skel', 'hopper_ellipsoid.skel'], 4, obs_dim, self.control_bounds, disableViewer=True)
 
@@ -134,7 +138,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
         ang = self.robot_skeleton.q[2]
         done = not (np.isfinite(s).all() and (np.abs(s[2:]) < 100).all() and (np.abs(self.robot_skeleton.dq) < 100).all()\
             #and not self.fall_on_ground)
-            and (height > self.height_threshold_low) and (abs(ang) < .8))
+            and (height > self.height_threshold_low) and (abs(ang) < .4))
         return done
 
     def pre_advance(self):
@@ -161,7 +165,19 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
             self.action_filter_cache.pop(0)
         if self.action_filtering > 0 and self.action_filter_in_env:
             a = np.mean(self.action_filter_cache, axis=0)
-            
+
+        self.action_buffer.append(np.copy(a))
+
+        if self.action_bound_model is not None:
+            pred_bound = self.action_bound_model.predict(self._get_obs(False))[0]
+            in_a = np.copy(a)
+            up_bound = pred_bound[::2]
+            low_bound = pred_bound[1::2]
+            mid = 0.5 * (up_bound + low_bound)
+            up_bound[up_bound - low_bound < 0.05] = mid[up_bound - low_bound < 0.05] + 0.05
+            low_bound[up_bound - low_bound < 0.05] = mid[up_bound - low_bound < 0.05] - 0.05
+            a = in_a * (up_bound - low_bound) + low_bound
+
         self.t += self.dt
         self.pre_advance()
         self.advance(a)
@@ -240,6 +256,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
                 self.action_filter_cache.append(np.zeros(len(self.action_scale)))
 
         state = self._get_obs(update_buffer = True)
+
+        self.action_buffer = []
 
         self.cur_step = 0
 
