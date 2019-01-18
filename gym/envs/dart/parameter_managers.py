@@ -843,8 +843,10 @@ class darwinSquatParamManager:
 
         self.vel_lim_range = [1.0, 10.0]
 
-        self.activated_param = [10, 11, 12, 13]
-        self.controllable_param = [10, 11, 12, 13]
+        self.ground_friction_range = [0.2, 1.0]
+
+        self.activated_param = [8, 9, 10, 11, 13]
+        self.controllable_param = [8, 9, 10, 11, 13]
 
         self.param_dim = len(self.activated_param)
         self.sampling_selector = None
@@ -863,12 +865,6 @@ class darwinSquatParamManager:
         cur_imu_z = self.simulator.imu_offset_deviation[2]
         imu_z_param = (cur_imu_z - self.imu_offset[0]) / (self.imu_offset[1] - self.imu_offset[0])
 
-        cur_kp_rat = self.simulator.kp_ratio
-        kp_rat_param = (cur_kp_rat - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
-
-        cur_kd_rat = self.simulator.kd_ratio
-        kd_rat_param = (cur_kd_rat - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
-
         if self.simulator.kp is not None:
             cur_kp = self.simulator.kp
             kp_param = (cur_kp - self.kp_range[0]) / (self.kp_range[1] - self.kp_range[0])
@@ -882,11 +878,11 @@ class darwinSquatParamManager:
         cur_jt_friction = self.simulator.robot_skeleton.dofs[-1].coulomb_friction()
         jt_friction_param = (cur_jt_friction - self.joint_friction_range[0]) / (self.joint_friction_range[1] - self.joint_friction_range[0])
 
-        cur_hip_p_ratio = self.simulator.hip_kp_ratio
+        cur_hip_p_ratio = self.simulator.kp_ratios[2]
         hip_p_ratio_param = (cur_hip_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
-        cur_knee_p_ratio = self.simulator.knee_kp_ratio
+        cur_knee_p_ratio = self.simulator.kp_ratios[3]
         knee_p_ratio_param = (cur_knee_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
-        cur_ankle_p_ratio = self.simulator.ankle_kp_ratio
+        cur_ankle_p_ratio = self.simulator.kp_ratios[4]
         ankle_p_ratio_param = (cur_ankle_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
 
         cur_body_com_x = self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - self.simulator.initial_local_coms[1][0]
@@ -894,9 +890,13 @@ class darwinSquatParamManager:
 
         vel_lim_param = (self.simulator.joint_vel_limit - self.vel_lim_range[0]) / (self.vel_lim_range[1] - self.vel_lim_range[0])
 
-        return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param, kp_rat_param, kd_rat_param,
+        fric_param = (self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff() - self.ground_friction_range[0]) / (
+                self.ground_friction_range[1] - self.ground_friction_range[0])
+
+        return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param,
                          kp_param, kd_param, damping_param, jt_friction_param,
-                         hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param, vel_lim_param])[self.activated_param]
+                         hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param, vel_lim_param,
+                         fric_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -917,59 +917,312 @@ class darwinSquatParamManager:
             imu_z = x[cur_id] * (self.imu_offset[1] - self.imu_offset[0]) + self.imu_offset[0]
             self.simulator.imu_offset_deviation[2] = imu_z
             cur_id += 1
-        if 4 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
-            self.simulator.kp_ratio = kp_rat
-            cur_id += 1
-        if 5 in self.controllable_param:
-            kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0]
-            self.simulator.kd_ratio = kd_rat
-            cur_id += 1
 
-        if 6 in self.controllable_param:
+        if 4 in self.controllable_param:
             kp = x[cur_id] * (self.kp_range[1] - self.kp_range[0]) + self.kp_range[0]
             self.simulator.kp = kp
             cur_id += 1
-        if 7 in self.controllable_param:
+        if 5 in self.controllable_param:
             kd = x[cur_id] * (self.kd_range[1] - self.kd_range[0]) + self.kd_range[0]
             self.simulator.kd = kd
             cur_id += 1
-        if 8 in self.controllable_param:
+        if 6 in self.controllable_param:
             damping = x[cur_id] * (self.joint_damping_range[1] - self.joint_damping_range[0]) + self.joint_damping_range[0]
             for i in range(6, self.simulator.robot_skeleton.num_dofs()):
                 self.simulator.robot_skeleton.dofs[i].set_damping_coefficient(damping)
             cur_id += 1
-        if 9 in self.controllable_param:
+        if 7 in self.controllable_param:
             jt_friction = x[cur_id] * (self.joint_friction_range[1] - self.joint_friction_range[0]) + self.joint_friction_range[0]
             for i in range(6, self.simulator.robot_skeleton.num_dofs()):
                 self.simulator.robot_skeleton.dofs[i].set_coulomb_friction(jt_friction)
             cur_id += 1
 
+        if 8 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.kp_ratios[2] = kp_rat
+            cur_id += 1
+        if 9 in self.controllable_param:
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            self.simulator.kp_ratios[3] = kp_rat
+            cur_id += 1
         if 10 in self.controllable_param:
             kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
-            self.simulator.hip_kp_ratio = kp_rat
-            cur_id += 1
-        if 11 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
-            self.simulator.knee_kp_ratio = kp_rat
-            cur_id += 1
-        if 12 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
-            self.simulator.ankle_kp_ratio = kp_rat
+            self.simulator.kp_ratios[4] = kp_rat
             cur_id += 1
 
-        if 13 in self.controllable_param:
+        if 11 in self.controllable_param:
             com = x[cur_id] * (self.com_offset_range[1] - self.com_offset_range[0]) + self.com_offset_range[0]
             init_com = np.copy(self.simulator.initial_local_coms[1])
             init_com[0] += com
             self.simulator.robot_skeleton.bodynodes[1].set_local_com(init_com)
             cur_id += 1
 
-        if 14 in self.controllable_param:
+        if 12 in self.controllable_param:
             vel_lim = x[cur_id] * (self.vel_lim_range[1] - self.vel_lim_range[0]) + self.vel_lim_range[0]
             self.simulator.joint_vel_limit = vel_lim
             cur_id += 1
 
+        if 13 in self.controllable_param:
+            fric = x[cur_id] * (self.ground_friction_range[1] - self.ground_friction_range[0]) + self.ground_friction_range[0]
+            self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(fric)
+            for bn in self.simulator.robot_skeleton.bodynodes:
+                bn.set_friction_coeff(fric)
+
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+        self.set_simulator_parameters(x)
+
+# new formatted manager
+class darwinParamManager:
+    VARIATIONS = 'KP KD KC KP_RATIO KD_RATIO NEURAL_MOTOR VEL_LIM GROUP_JOINT_DAMPING JOINT_DAMPING JOINT_FRICTION TORQUE_LIM COM_OFFSET GROUND_FRICTION'.split(' ')
+    KP, KD, KC, KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, GROUP_JOINT_DAMPING, JOINT_DAMPING, JOINT_FRICTION, \
+    TORQUE_LIM, COM_OFFSET, GROUND_FRICTION = list(
+        range(13))
+    MU_DIMS = np.array([5, 5, 5, 5, 5, 27, 1, 5, 1, 1, 1, 1, 1])
+    MU_UP_BOUNDS = np.array([[200, 200, 200, 200, 200], [1, 1, 1, 1, 1], [10, 10, 10, 10, 10], [3.0, 3.0, 3.0, 3.0, 3.0],
+                    [3.0, 3.0, 3.0, 3.0, 3.0], [1] * 27, [15], [1, 1, 1, 1, 1], [1], [1], [20.0], [0.01], [1.0]])
+    MU_LOW_BOUNDS = np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
+                     [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.04], [0.2]])
+    # ACTIVE_MUS = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, JOINT_DAMPING, TORQUE_LIM]
+    activated_param = [KP, KD, KC, VEL_LIM, GROUP_JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    controllable_param = [KP, KD, KC, VEL_LIM, GROUP_JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    MU_UNSCALED = None  # unscaled version of mu
+
+    def __init__(self, simulator):
+        self.simulator = simulator
+
+    def set_bounds(self, up, lb): # set bounds from sysid results
+        current_id = 0
+        for mu in self.controllable_param:
+            self.MU_UP_BOUNDS[mu] *= up[current_id:current_id + self.MU_DIMS[mu]]
+            self.MU_LOW_BOUNDS[mu] *= lb[current_id:current_id + self.MU_DIMS[mu]]
+            current_id += self.MU_DIMS[mu]
+
+    def get_simulator_parameters(self):
+        self.MU_UNSCALED = []
+
+        if self.KP in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.kp[0]) # arm
+            self.MU_UNSCALED.append(self.simulator.kp[6])  # head
+            self.MU_UNSCALED.append(self.simulator.kp[8])  # hip
+            self.MU_UNSCALED.append(self.simulator.kp[11])  # knee
+            self.MU_UNSCALED.append(self.simulator.kp[12])  # head
+
+
+        if self.KD in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.kd[0])  # arm
+            self.MU_UNSCALED.append(self.simulator.kd[6])  # head
+            self.MU_UNSCALED.append(self.simulator.kd[8])  # hip
+            self.MU_UNSCALED.append(self.simulator.kd[11])  # knee
+            self.MU_UNSCALED.append(self.simulator.kd[12])  # head
+
+        if self.KC in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.kc[0])  # arm
+            self.MU_UNSCALED.append(self.simulator.kc[6])  # head
+            self.MU_UNSCALED.append(self.simulator.kc[8])  # hip
+            self.MU_UNSCALED.append(self.simulator.kc[11])  # knee
+            self.MU_UNSCALED.append(self.simulator.kc[12])  # head
+
+        if self.KP_RATIO in self.activated_param:
+            for rat in self.simulator.kp_ratios:
+                self.MU_UNSCALED.append(rat)
+
+        if self.KD_RATIO in self.activated_param:
+            for rat in self.simulator.kd_ratios:
+                self.MU_UNSCALED.append(rat)
+
+        if self.NEURAL_MOTOR in self.activated_param:
+            for pm in range(len(self.simulator.NN_motor_parameters)):
+                dim = np.prod(self.simulator.NN_motor_parameters[pm].shape)
+                self.MU_UNSCALED += np.reshape(self.simulator.NN_motor_parameters[pm], (dim,)).tolist()
+
+        if self.VEL_LIM in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.joint_vel_limit)
+
+        if self.GROUP_JOINT_DAMPING in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).damping_coefficient())  # arm
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(12).damping_coefficient())  # head
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(14).damping_coefficient())  # hip
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(17).damping_coefficient())  # knee
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(18).damping_coefficient())  # head
+
+
+        if self.JOINT_DAMPING in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).damping_coefficient())
+
+        if self.JOINT_FRICTION in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).coulomb_friction())
+
+        if self.TORQUE_LIM in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.torqueLimits)
+
+        if self.COM_OFFSET in self.activated_param:
+            init_com = np.copy(self.simulator.initial_local_coms[1])
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[1] - init_com[0])
+
+        if self.GROUND_FRICTION in self.activated_param:
+            self.MU_UNSCALED.append(self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff())
+
+        current_id = 0
+        scaled_mu = np.zeros(len(self.MU_UNSCALED))
+        self.MU_UNSCALED = np.array(self.MU_UNSCALED)
+        for mu in self.controllable_param:
+            scaled_mu[current_id:current_id + self.MU_DIMS[mu]] = \
+                (self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[mu]] - np.array(self.MU_LOW_BOUNDS[mu]))/ \
+                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu]))
+            current_id += self.MU_DIMS[mu]
+        return scaled_mu
+
+
+    def set_simulator_parameters(self, x):
+        assert (len(x) == np.sum(self.MU_DIMS[self.controllable_param]))
+
+        self.MU_UNSCALED = np.zeros(len(x))
+        current_id = 0
+        for mu in self.controllable_param:
+            self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[mu]] = \
+                np.array(x[current_id:current_id + self.MU_DIMS[mu]]) * \
+                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu])) + \
+                np.array(self.MU_LOW_BOUNDS[mu])
+            current_id += self.MU_DIMS[mu]
+
+        current_id = 0
+        if self.KP in self.controllable_param:
+            self.simulator.kp = np.zeros(20)
+            # arms
+            self.simulator.kp[0:6] = self.MU_UNSCALED[current_id]
+            # head
+            self.simulator.kp[6:8] = self.MU_UNSCALED[current_id + 1]
+            # hip
+            self.simulator.kp[8:11] = self.MU_UNSCALED[current_id + 2]
+            self.simulator.kp[14:17] = self.MU_UNSCALED[current_id + 2]
+            # knee
+            self.simulator.kp[11] = self.MU_UNSCALED[current_id + 3]
+            self.simulator.kp[17] = self.MU_UNSCALED[current_id + 3]
+            # ankle
+            self.simulator.kp[12:14] = self.MU_UNSCALED[current_id + 4]
+            self.simulator.kp[18:20] = self.MU_UNSCALED[current_id + 4]
+
+            current_id += self.MU_DIMS[self.KP]
+
+        if self.KD in self.controllable_param:
+            self.simulator.kd = np.zeros(20)
+            # arms
+            self.simulator.kd[0:6] = self.MU_UNSCALED[current_id]
+            # head
+            self.simulator.kd[6:8] = self.MU_UNSCALED[current_id + 1]
+            # hip
+            self.simulator.kd[8:11] = self.MU_UNSCALED[current_id + 2]
+            self.simulator.kd[14:17] = self.MU_UNSCALED[current_id + 2]
+            # knee
+            self.simulator.kd[11] = self.MU_UNSCALED[current_id + 3]
+            self.simulator.kd[17] = self.MU_UNSCALED[current_id + 3]
+            # ankle
+            self.simulator.kd[12:14] = self.MU_UNSCALED[current_id + 4]
+            self.simulator.kd[18:20] = self.MU_UNSCALED[current_id + 4]
+            current_id += self.MU_DIMS[self.KD]
+
+        if self.KC in self.controllable_param:
+            self.simulator.kc = np.zeros(20)
+            # arms
+            self.simulator.kc[0:6] = self.MU_UNSCALED[current_id]
+            # head
+            self.simulator.kc[6:8] = self.MU_UNSCALED[current_id + 1]
+            # hip
+            self.simulator.kc[8:11] = self.MU_UNSCALED[current_id + 2]
+            self.simulator.kc[14:17] = self.MU_UNSCALED[current_id + 2]
+            # knee
+            self.simulator.kc[11] = self.MU_UNSCALED[current_id + 3]
+            self.simulator.kc[17] = self.MU_UNSCALED[current_id + 3]
+            # ankle
+            self.simulator.kc[12:14] = self.MU_UNSCALED[current_id + 4]
+            self.simulator.kc[18:20] = self.MU_UNSCALED[current_id + 4]
+            current_id += self.MU_DIMS[self.KC]
+
+        if self.KP_RATIO in self.controllable_param:
+            self.simulator.kp_ratios = self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[self.KP_RATIO]]
+            current_id += self.MU_DIMS[self.KP_RATIO]
+
+        if self.KD_RATIO in self.controllable_param:
+            self.simulator.kd_ratios = self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[self.KD_RATIO]]
+            current_id += self.MU_DIMS[self.KD_RATIO]
+
+        if self.NEURAL_MOTOR in self.controllable_param:
+            self.simulator.NN_motor = True
+            for pm in range(len(self.simulator.NN_motor_parameters)):
+                dim = np.prod(self.simulator.NN_motor_parameters[pm].shape)
+                shape = self.simulator.NN_motor_parameters[pm].shape
+                self.simulator.NN_motor_parameters[pm] = np.reshape(self.MU_UNSCALED[current_id: current_id + dim],
+                                                                     shape)
+                current_id += dim
+
+        if self.VEL_LIM in self.controllable_param:
+            self.simulator.joint_vel_limit = self.MU_UNSCALED[current_id]
+            current_id += self.MU_DIMS[self.VEL_LIM]
+
+        if self.GROUP_JOINT_DAMPING in self.controllable_param:
+            # arms
+            for i in range(6, 12):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id])
+            # head
+            for i in range(12, 14):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id + 1])
+            # hip
+            for i in range(14, 17):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id + 2])
+            for i in range(20, 23):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id + 2])
+            # knee
+            j = self.simulator.robot_skeleton.dof(17)
+            j.set_damping_coefficient(self.MU_UNSCALED[current_id + 3])
+            j = self.simulator.robot_skeleton.dof(23)
+            j.set_damping_coefficient(self.MU_UNSCALED[current_id + 3])
+            # ankle
+            for i in range(18, 20):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id + 4])
+            for i in range(24, 26):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(self.MU_UNSCALED[current_id + 4])
+
+            current_id += self.MU_DIMS[self.GROUP_JOINT_DAMPING]
+
+        if self.JOINT_DAMPING in self.controllable_param:
+            joint_damping = self.MU_UNSCALED[current_id]
+            for i in range(6, self.simulator.robot_skeleton.ndofs):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_damping_coefficient(joint_damping)
+
+            current_id += self.MU_DIMS[self.JOINT_DAMPING]
+
+        if self.JOINT_FRICTION in self.controllable_param:
+            joint_friction = self.MU_UNSCALED[current_id]
+            for i in range(6, self.simulator.robot_skeleton.ndofs):
+                j = self.simulator.robot_skeleton.dof(i)
+                j.set_coulomb_friction(joint_friction)
+            current_id += self.MU_DIMS[self.JOINT_FRICTION]
+
+        if self.TORQUE_LIM in self.controllable_param:
+            self.simulator.torqueLimits = self.MU_UNSCALED[current_id]
+            current_id += self.MU_DIMS[self.TORQUE_LIM]
+
+        if self.COM_OFFSET in self.controllable_param:
+            init_com = np.copy(self.simulator.initial_local_coms[1])
+            init_com[0] += self.MU_UNSCALED[current_id]
+            self.simulator.robot_skeleton.bodynodes[1].set_local_com(init_com)
+            current_id += self.MU_DIMS[self.COM_OFFSET]
+
+
+        if self.GROUND_FRICTION in self.controllable_param:
+            self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(self.MU_UNSCALED[current_id])
+            for bn in self.simulator.robot_skeleton.bodynodes:
+                bn.set_friction_coeff(self.MU_UNSCALED[current_id])
+            current_id += self.MU_DIMS[self.GROUND_FRICTION]
+
+    def resample_parameters(self):
+        x = np.random.uniform(-0.05, 1.05, np.sum(self.MU_DIMS[self.controllable_param]))
         self.set_simulator_parameters(x)
