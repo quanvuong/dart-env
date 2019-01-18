@@ -984,16 +984,19 @@ class darwinParamManager:
     MU_LOW_BOUNDS = np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
                      [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.04], [0.2]])
     # ACTIVE_MUS = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, JOINT_DAMPING, TORQUE_LIM]
-    activated_param = [KP, KD, KC, VEL_LIM, GROUP_JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
-    controllable_param = [KP, KD, KC, VEL_LIM, GROUP_JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    activated_param = [KP_RATIO, KD_RATIO, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    controllable_param = [KP_RATIO, KD_RATIO, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
     MU_UNSCALED = None  # unscaled version of mu
 
     def __init__(self, simulator):
         self.simulator = simulator
+        self.param_dim = np.sum(self.MU_DIMS[self.controllable_param])
 
     def set_bounds(self, up, lb): # set bounds from sysid results
         current_id = 0
         for mu in self.controllable_param:
+            if current_id >= len(up):
+                break
             self.MU_UP_BOUNDS[mu] *= up[current_id:current_id + self.MU_DIMS[mu]]
             self.MU_LOW_BOUNDS[mu] *= lb[current_id:current_id + self.MU_DIMS[mu]]
             current_id += self.MU_DIMS[mu]

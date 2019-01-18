@@ -52,12 +52,14 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         self.use_discrete_action = True
 
         self.param_manager = darwinParamManager(self)
-        self.param_manager.set_bounds(np.array([1., 1., 0.42851597, 0.65813109, 0.4201802, 1., 0.36126679, 0.31340887,
+        # ACTIVE_MUS = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, JOINT_DAMPING, TORQUE_LIM]
+        #activated_param = [KP_RATIO, KD_RATIO, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+        '''self.param_manager.set_bounds(np.array([1., 1., 0.42851597, 0.65813109, 0.4201802, 1., 0.36126679, 0.31340887,
                                                 0.79622163, 0.38913437, 1., 0.3337475 , 0.44224559, 0.50553362,
                                                 0.52248522, 0.37787977, 0.49588931, 0.86357381, 1., 1., 1., 0.86250497]),
                                       np.array([0.41992873, 0.43140856, 0.06141259, 0.0617155 , 0.07655205, 0.73423724,
                                                 0., 0., 0., 0., 0.53981395, 0., 0.07246776, 0., 0., 0., 0., 0.4103391,
-                                                0.6888913 , 0.74206043, 0.80702923, 0.2456629]))
+                                                0.6888913 , 0.74206043, 0.80702923, 0.2456629]))'''
 
         self.use_DCMotor = False
         self.use_spd = False
@@ -103,7 +105,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             obs_dim += 4
 
         if self.train_UP:
-            obs_dim += len(self.param_manager.activated_param)
+            obs_dim += len(self.param_manager.param_dim)
 
         self.control_bounds = np.array([-np.ones(20, ), np.ones(20, )])
 
@@ -183,7 +185,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.015
-        self.work_weight = 0.05
+        self.work_weight = 0.005
         self.pose_weight = 0.2
         self.comvel_pen = 0.0
         self.compos_pen = 0.0
@@ -389,7 +391,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
             self.dart_world.step()
 
     def NN_forward(self, input):
-        NN_out = np.dot(np.clip(np.dot(input, self.NN_motor_parameters[0]) + self.NN_motor_parameters[1], 0, 1),
+        NN_out = np.dot(np.tanh(np.dot(input, self.NN_motor_parameters[0]) + self.NN_motor_parameters[1]),
                         self.NN_motor_parameters[2]) + self.NN_motor_parameters[3]
 
         NN_out = np.exp(-np.logaddexp(0, -NN_out))
@@ -455,9 +457,9 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
             tau[6:] = -kp * (q[6:] - self.target[6:]) - kd * qdot[6:]
 
-            #if self.limited_joint_vel:
-            #    tau[(np.abs(self.robot_skeleton.dq) > self.joint_vel_limit) * (
-            #            np.sign(self.robot_skeleton.dq) == np.sign(tau))] = 0
+            if self.limited_joint_vel:
+                tau[(np.abs(self.robot_skeleton.dq) > self.joint_vel_limit) * (
+                        np.sign(self.robot_skeleton.dq) == np.sign(tau))] = 0
         else:
             if self.kp is not None:
                 kp = self.kp
@@ -585,11 +587,11 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         pose_math_rew = np.sum(
             np.abs(np.array(self.ref_target - self.robot_skeleton.q[6:])) ** 2)
-
         reward = -self.energy_weight * np.sum(
             self.tau ** 2) + self.alive_bonus - pose_math_rew * self.pose_weight
         reward -= self.work_weight * np.dot(self.tau, self.robot_skeleton.dq)
         #reward -= 0.5 * np.sum(np.abs(self.robot_skeleton.dC))
+        print(np.max(np.abs(self.robot_skeleton.dq)), self.torqueLimits)
 
         reward += self.forward_reward * (xpos_after - xpos_before) / self.dt
 
