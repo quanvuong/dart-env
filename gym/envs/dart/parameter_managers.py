@@ -831,7 +831,7 @@ class darwinSquatParamManager:
         self.simulator = simulator
         self.mass_rat_range = [0.8, 1.2]
         self.imu_offset = [-0.02, 0.02]  # in cm, 3 dim
-        self.kp_rat_range = [0.1, 1.5]
+        self.kp_rat_range = [0.7, 1.3]
         self.kd_rat_range = [0.25, 2.0]
 
         self.kp_range = [0.0, 100]
@@ -839,7 +839,7 @@ class darwinSquatParamManager:
         self.joint_damping_range = [0.0, 1.0]
         self.joint_friction_range = [0.0, 0.3]
 
-        self.com_offset_range = [-0.04, 0.01]  # index 13, denotes MP_BODY com offset in x direction for now
+        self.com_offset_range = [-0.03, 0.03]  # index 13, denotes MP_BODY com offset in x direction for now
 
         self.vel_lim_range = [1.0, 10.0]
 
@@ -978,14 +978,13 @@ class darwinParamManager:
     KP, KD, KC, KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, GROUP_JOINT_DAMPING, JOINT_DAMPING, JOINT_FRICTION, \
     TORQUE_LIM, COM_OFFSET, GROUND_FRICTION = list(
         range(13))
-    MU_DIMS = np.array([5, 5, 5, 5, 5, 27, 1, 5, 1, 1, 1, 1, 1])
-    MU_UP_BOUNDS = np.array([[200, 200, 200, 200, 200], [1, 1, 1, 1, 1], [10, 10, 10, 10, 10], [3.0, 3.0, 3.0, 3.0, 3.0],
-                    [3.0, 3.0, 3.0, 3.0, 3.0], [1] * 27, [15], [1, 1, 1, 1, 1], [1], [1], [20.0], [0.01], [1.0]])
-    MU_LOW_BOUNDS = np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
-                     [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.04], [0.2]])
-    # ACTIVE_MUS = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, JOINT_DAMPING, TORQUE_LIM]
-    activated_param = [KP_RATIO, KD_RATIO, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
-    controllable_param = [KP_RATIO, KD_RATIO, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    MU_DIMS = np.array([5, 5, 5, 5, 5, 27, 1, 5, 1, 1, 1, 2, 1])
+    MU_UP_BOUNDS = [[200, 200, 200, 200, 200], [1, 1, 1, 1, 1], [10, 10, 10, 10, 10], [3.0, 3.0, 3.0, 3.0, 3.0],
+                    [3.0, 3.0, 3.0, 3.0, 3.0], [1] * 27, [15], [1, 1, 1, 1, 1], [1], [1], [20.0], [0.1, 0.05], [3.0]]
+    MU_LOW_BOUNDS = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
+                     [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.1, -0.05], [0.0]]
+    activated_param = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+    controllable_param = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
     MU_UNSCALED = None  # unscaled version of mu
 
     def __init__(self, simulator):
@@ -1216,9 +1215,9 @@ class darwinParamManager:
         if self.COM_OFFSET in self.controllable_param:
             init_com = np.copy(self.simulator.initial_local_coms[1])
             init_com[0] += self.MU_UNSCALED[current_id]
+            init_com[2] += self.MU_UNSCALED[current_id + 1]
             self.simulator.robot_skeleton.bodynodes[1].set_local_com(init_com)
             current_id += self.MU_DIMS[self.COM_OFFSET]
-
 
         if self.GROUND_FRICTION in self.controllable_param:
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(self.MU_UNSCALED[current_id])

@@ -10,7 +10,7 @@ import pydart2.pydart2_api as papi
 import random
 from random import randrange
 import pickle
-import copy, os
+import copy, os, time
 from gym.envs.dart.dc_motor import DCMotor
 
 from gym.envs.dart.darwin_utils import *
@@ -87,7 +87,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         # normal pose
         self.permitted_contact_ids = [-1, -2, -7, -8]
-        self.init_root_pert = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.init_root_pert = np.array([0.0, 0.16, 0.0, 0.0, 0.0, 0.0])
 
         self.no_target_vel = True
         self.target_vel = 0.0
@@ -98,7 +98,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.assist_timeout = 0.0
+        self.assist_timeout = 10.0
         self.assist_schedule = [[0.0, [2000, 0]], [3.0, [1500, 0]], [6.0, [1125.0, 0.0]]]
 
         self.alive_bonus = 4.5
@@ -272,6 +272,16 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
             self.accumulated_imu_info += imu_data * self.dt
 
     def advance(self, a):
+        if self._get_viewer() is not None:
+            if hasattr(self._get_viewer(), 'key_being_pressed'):
+                if self._get_viewer().key_being_pressed is not None:
+                    if self._get_viewer().key_being_pressed == b'p':
+                        self.paused = not self.paused
+                        time.sleep(0.1)
+
+        if self.paused:
+            return
+
         clamped_control = np.array(a)
 
         for i in range(len(clamped_control)):
@@ -362,12 +372,12 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
                                2.0 + 10, 2.02 + 10, 1.98 + 10,
                                2.2 + 10, 2.06 + 10,
                                60, 60, 60, 60, 153, 102,
-                               60, 60, 60, 60, 154, 105.2])
+                               60, 60, 60, 60, 153, 102])
                 kd = np.array([0.021, 0.023, 0.022,
                                0.025, 0.021, 0.026,
                                0.028, 0.0213
-                                  , 0.192, 0.198, 0.22, 0.199, 0.02, 0.01,
-                               0.53, 0.27, 0.21, 0.205, 0.022, 0.056])
+                                  , 0.2, 0.2, 0.2, 0.2, 0.02, 0.02,
+                               0.2, 0.2, 0.2, 0.2, 0.02, 0.02])
 
                 kp[0:6] *= self.kp_ratios[0]
                 kp[7:8] *= self.kp_ratios[1]
@@ -585,7 +595,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
         q = self.robot_skeleton.q
-        q[5] += -0.33 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
+        q[5] += -0.335 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
         self.robot_skeleton.q = q
 
         self.init_q = np.copy(self.robot_skeleton.q)
