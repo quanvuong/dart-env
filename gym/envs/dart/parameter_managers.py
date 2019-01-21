@@ -831,8 +831,8 @@ class darwinSquatParamManager:
         self.simulator = simulator
         self.mass_rat_range = [0.8, 1.2]
         self.imu_offset = [-0.02, 0.02]  # in cm, 3 dim
-        self.kp_rat_range = [0.7, 1.3]
-        self.kd_rat_range = [0.25, 2.0]
+        self.kp_rat_range = [-0.3, 0.3]
+        self.kd_rat_range = [-0.3, 0.3]
 
         self.kp_range = [0.0, 100]
         self.kd_range = [0.0, 1.0]
@@ -878,11 +878,11 @@ class darwinSquatParamManager:
         cur_jt_friction = self.simulator.robot_skeleton.dofs[-1].coulomb_friction()
         jt_friction_param = (cur_jt_friction - self.joint_friction_range[0]) / (self.joint_friction_range[1] - self.joint_friction_range[0])
 
-        cur_hip_p_ratio = self.simulator.kp_ratios[2]
+        cur_hip_p_ratio = self.simulator.kp_ratios[2] - self.simulator.default_kp_ratios[2]
         hip_p_ratio_param = (cur_hip_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
-        cur_knee_p_ratio = self.simulator.kp_ratios[3]
+        cur_knee_p_ratio = self.simulator.kp_ratios[3] - self.simulator.default_kp_ratios[3]
         knee_p_ratio_param = (cur_knee_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
-        cur_ankle_p_ratio = self.simulator.kp_ratios[4]
+        cur_ankle_p_ratio = self.simulator.kp_ratios[4] - self.simulator.default_kp_ratios[4]
         ankle_p_ratio_param = (cur_ankle_p_ratio - self.kp_rat_range[0]) / (self.kp_rat_range[1] - self.kp_rat_range[0])
 
         cur_body_com_x = self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - self.simulator.initial_local_coms[1][0]
@@ -938,15 +938,15 @@ class darwinSquatParamManager:
             cur_id += 1
 
         if 8 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0] + self.simulator.default_kp_ratios[2]
             self.simulator.kp_ratios[2] = kp_rat
             cur_id += 1
         if 9 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0] + self.simulator.default_kp_ratios[3]
             self.simulator.kp_ratios[3] = kp_rat
             cur_id += 1
         if 10 in self.controllable_param:
-            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0]
+            kp_rat = x[cur_id] * (self.kp_rat_range[1] - self.kp_rat_range[0]) + self.kp_rat_range[0] + self.simulator.default_kp_ratios[4]
             self.simulator.kp_ratios[4] = kp_rat
             cur_id += 1
 

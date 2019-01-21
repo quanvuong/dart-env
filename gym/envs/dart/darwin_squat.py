@@ -66,10 +66,10 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.limited_joint_vel = True
         self.joint_vel_limit = 2.0
-        self.train_UP = False
-        self.noisy_input = False
-        self.resample_MP = False
-        self.randomize_timestep = False
+        self.train_UP = True
+        self.noisy_input = True
+        self.resample_MP = True
+        self.randomize_timestep = True
         self.load_keyframe_from_file = True
         self.randomize_gravity_sch = False
         self.height_drop_threshold = 0.8    # terminate if com height drops below certain threshold
@@ -175,7 +175,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
         #self.permitted_contact_ids = [-1, -2, -7, -8, 6, 11]
         #self.init_root_pert = np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-        self.delta_angle_scale = 0.2
+        self.delta_angle_scale = 0.4
 
         self.alive_bonus = 5.0
         self.energy_weight = 0.015
@@ -311,6 +311,8 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                                                                1.57528627e-01, 2.38714176e-04, 1.69420498e-01])
         self.sysid_manager.set_simulator_parameters(sysid_params)
         self.initial_local_coms = [b.local_com() for b in self.robot_skeleton.bodynodes]
+        self.default_kp_ratios = np.copy(self.kp_ratios)
+        self.default_kd_ratios = np.copy(self.kd_ratios)
         ######################################################################################################
 
 
