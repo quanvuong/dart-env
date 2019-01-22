@@ -843,7 +843,7 @@ class darwinSquatParamManager:
 
         self.vel_lim_range = [1.0, 10.0]
 
-        self.ground_friction_range = [0.2, 1.0]
+        self.ground_friction_range = [0.2, 3.0]
 
         self.activated_param = [8, 9, 10, 11, 13]
         self.controllable_param = [8, 9, 10, 11, 13]
@@ -893,10 +893,17 @@ class darwinSquatParamManager:
         fric_param = (self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff() - self.ground_friction_range[0]) / (
                 self.ground_friction_range[1] - self.ground_friction_range[0])
 
+        cur_hip_d_ratio = self.simulator.kd_ratios[2] - self.simulator.default_kd_ratios[2]
+        hip_d_ratio_param = (cur_hip_d_ratio - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
+        cur_knee_d_ratio = self.simulator.kd_ratios[3] - self.simulator.default_kd_ratios[3]
+        knee_d_ratio_param = (cur_knee_d_ratio - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
+        cur_ankle_d_ratio = self.simulator.kd_ratios[4] - self.simulator.default_kd_ratios[4]
+        ankle_d_ratio_param = (cur_ankle_d_ratio - self.kd_rat_range[0]) / (self.kd_rat_range[1] - self.kd_rat_range[0])
+
         return np.array([mass_param, imu_x_param, imu_y_param, imu_z_param,
                          kp_param, kd_param, damping_param, jt_friction_param,
                          hip_p_ratio_param, knee_p_ratio_param, ankle_p_ratio_param, body_com_x_param, vel_lim_param,
-                         fric_param])[self.activated_param]
+                         fric_param, hip_d_ratio_param, knee_d_ratio_param, ankle_d_ratio_param])[self.activated_param]
 
     def set_simulator_parameters(self, x):
         cur_id = 0
@@ -967,6 +974,20 @@ class darwinSquatParamManager:
             self.simulator.dart_world.skeletons[0].bodynodes[0].set_friction_coeff(fric)
             for bn in self.simulator.robot_skeleton.bodynodes:
                 bn.set_friction_coeff(fric)
+            cur_id += 1
+
+        if 14 in self.controllable_param:
+            kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0] + self.simulator.default_kd_ratios[2]
+            self.simulator.kd_ratios[2] = kd_rat
+            cur_id += 1
+        if 15 in self.controllable_param:
+            kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0] + self.simulator.default_kd_ratios[3]
+            self.simulator.kd_ratios[3] = kd_rat
+            cur_id += 1
+        if 16 in self.controllable_param:
+            kd_rat = x[cur_id] * (self.kd_rat_range[1] - self.kd_rat_range[0]) + self.kd_rat_range[0] + self.simulator.default_kd_ratios[4]
+            self.simulator.kd_ratios[4] = kd_rat
+            cur_id += 1
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
@@ -993,12 +1014,38 @@ class darwinParamManager:
 
     def set_bounds(self, up, lb): # set bounds from sysid results
         current_id = 0
+        unnormed_up = self.UnNormalizeMu(up)
+        unnormed_lb = self.UnNormalizeMu(lb)
         for mu in self.controllable_param:
             if current_id >= len(up):
                 break
-            self.MU_UP_BOUNDS[mu] *= up[current_id:current_id + self.MU_DIMS[mu]]
-            self.MU_LOW_BOUNDS[mu] *= lb[current_id:current_id + self.MU_DIMS[mu]]
+            self.MU_UP_BOUNDS[mu] = unnormed_up[current_id:current_id + self.MU_DIMS[mu]]
+            self.MU_LOW_BOUNDS[mu] = unnormed_lb[current_id:current_id + self.MU_DIMS[mu]]
             current_id += self.MU_DIMS[mu]
+        print('New bounds: ')
+        print([[self.VARIATIONS[mu], [self.MU_UP_BOUNDS[mu], self.MU_LOW_BOUNDS[mu]]] for mu in self.controllable_param])
+
+    def NormalizeMu(self, unnorm_mu):
+        current_id = 0
+        scaled_mu = np.zeros(len(unnorm_mu))
+        unnorm_mu = np.array(unnorm_mu)
+        for mu in self.controllable_param:
+            scaled_mu[current_id:current_id + self.MU_DIMS[mu]] = \
+                (unnorm_mu[current_id:current_id + self.MU_DIMS[mu]] - np.array(self.MU_LOW_BOUNDS[mu])) / \
+                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu]))
+            current_id += self.MU_DIMS[mu]
+        return np.copy(scaled_mu)
+
+    def UnNormalizeMu(self, norm_mu):
+        unnorm_mu = np.zeros(len(norm_mu))
+        current_id = 0
+        for mu in self.controllable_param:
+            unnorm_mu[current_id:current_id + self.MU_DIMS[mu]] = \
+                np.array(norm_mu[current_id:current_id + self.MU_DIMS[mu]]) * \
+                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu])) + \
+                np.array(self.MU_LOW_BOUNDS[mu])
+            current_id += self.MU_DIMS[mu]
+        return np.copy(unnorm_mu)
 
     def get_simulator_parameters(self):
         self.MU_UNSCALED = []
@@ -1060,33 +1107,20 @@ class darwinParamManager:
 
         if self.COM_OFFSET in self.activated_param:
             init_com = np.copy(self.simulator.initial_local_coms[1])
-            self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[1] - init_com[0])
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - init_com[0])
+            self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[2] - init_com[2])
 
         if self.GROUND_FRICTION in self.activated_param:
             self.MU_UNSCALED.append(self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff())
 
-        current_id = 0
-        scaled_mu = np.zeros(len(self.MU_UNSCALED))
-        self.MU_UNSCALED = np.array(self.MU_UNSCALED)
-        for mu in self.controllable_param:
-            scaled_mu[current_id:current_id + self.MU_DIMS[mu]] = \
-                (self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[mu]] - np.array(self.MU_LOW_BOUNDS[mu]))/ \
-                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu]))
-            current_id += self.MU_DIMS[mu]
-        return scaled_mu
+
+        return self.NormalizeMu(self.MU_UNSCALED)
 
 
     def set_simulator_parameters(self, x):
         assert (len(x) == np.sum(self.MU_DIMS[self.controllable_param]))
 
-        self.MU_UNSCALED = np.zeros(len(x))
-        current_id = 0
-        for mu in self.controllable_param:
-            self.MU_UNSCALED[current_id:current_id + self.MU_DIMS[mu]] = \
-                np.array(x[current_id:current_id + self.MU_DIMS[mu]]) * \
-                (np.array(self.MU_UP_BOUNDS[mu]) - np.array(self.MU_LOW_BOUNDS[mu])) + \
-                np.array(self.MU_LOW_BOUNDS[mu])
-            current_id += self.MU_DIMS[mu]
+        self.MU_UNSCALED = self.UnNormalizeMu(x)
 
         current_id = 0
         if self.KP in self.controllable_param:
