@@ -180,7 +180,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
         self.robotJointObs  = False #if true, obs includes robot joint locations in world space
-        self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
+        #self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
+        self.redundantRoboJoints = [1] #these will be excluded from obs
         self.humanJointObs  = True #if true, obs includes human joint locations
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
@@ -199,6 +200,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.contactPenalty             = True #if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -210,6 +212,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.restPoseRewardWeight             = 1
         self.variationEntropyRewardWeight     = 1
         self.shoulderPlaneRewardWeight        = 3
+        self.contactPenaltyWeight             = 1
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -232,6 +235,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.fingertip = np.array([0,-0.085,0])
         self.ef_accuracy_info = {'best':0, 'worst':0, 'total':0, 'average':0 }
         self.collisionResult = None
+        self.humanRobotCollision = False #true if robot/human collision this step
         self.haptic_data = {'high':0, 'total':0, 'avg':0, 'var':0, 'instances':[]}
         self.hoop_FT_data = {'max':np.zeros(6), 'total':np.zeros(6), 'avg':np.zeros(6), 'instances':0}
         self.task_data = {'successes':0, 'trials':0, 'avg_limb_prog':0, 'total_limb_prog':0}
@@ -333,7 +337,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
-        #TODO: try adding robot joint positions also...
+        bot_observation_size += 27 #robot joint posistions
         bot_observation_size += 6 #human end effectors
         bot_observation_size += 6 #hoop joint resultant forces/torques
         bot_observation_size += 6 #end effector position and orientation
@@ -586,6 +590,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.shoulderPlaneReward:
             self.rewardsData.addReward(label="shoulder plane", rmin=-1.0, rmax=0, rval=0,
                                        rweight=self.shoulderPlaneRewardWeight)
+
+        if self.contactPenalty:
+            self.rewardsData.addReward(label="contact", rmin=-1.0, rmax=0, rval=0,
+                                       rweight=self.contactPenaltyWeight)
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -981,6 +989,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 reward_shoulderPlane = 0
             reward_record.append(reward_shoulderPlane)
 
+        reward_contactPenalty = 0
+        if self.contactPenalty:
+            if self.humanRobotCollision:
+                reward_contactPenalty = -1.0
+            reward_record.append(reward_contactPenalty)
+
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -1010,7 +1025,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                       + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
                       + reward_restPose * self.restPoseRewardWeight \
-                      + reward_shoulderPlane * self.shoulderPlaneRewardWeight
+                      + reward_shoulderPlane * self.shoulderPlaneRewardWeight \
+                      + reward_contactPenalty * self.contactPenaltyWeight
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
@@ -1377,6 +1393,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         human_pre_dq = np.array(self.robot_skeleton.dq)
         robot_pre_q = np.array(self.iiwa_skel.q)
         robot_pre_dq = np.array(self.iiwa_skel.dq)
+        self.humanRobotCollision = False
         for i in range(n_frames):
             #print("step " + str(i))
             if self.add_perturbation:
@@ -1624,6 +1641,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         theta = np.array(self.iiwa_skel.q)
         dtheta = np.array(self.iiwa_skel.dq)
         obs = np.concatenate([np.cos(theta[6:]), np.sin(theta[6:]), dtheta[6:]]).ravel()
+
+        #robot joint positions
+        rlocs = np.zeros(0)
+        for jix, j in enumerate(self.iiwa_skel.joints):
+            if (jix in self.redundantRoboJoints):
+                continue
+            rlocs = np.concatenate([rlocs, j.position_in_world_frame()])
+        obs = np.concatenate([obs, rlocs]).ravel()
 
         #human joint positions
         locs = np.zeros(0)
@@ -2209,7 +2234,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         if self.simulateCloth and self.handleNode is not None:
             #self.handleNode.draw()
-            self.handleNode.drawForce()
+            if self.humanRobotCollision:
+                self.handleNode.drawForce(color=(1.0,0.5,0.5))
+            else:
+                self.handleNode.drawForce()
+
 
         #render human joint positions
         if False:
@@ -2219,6 +2248,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                     continue
                 loc = j.position_in_world_frame()
                 renderUtils.drawSphere(pos=loc, rad=0.065)
+
+        #render robot joint positions
+        if False:
+            locs = np.zeros(0)
+            for jix, j in enumerate(self.iiwa_skel.joints):
+                if (jix in self.redundantRoboJoints):
+                    continue
+                locs = np.concatenate([locs, j.position_in_world_frame()])
+                jFrame = pyutils.ShapeFrame(org=j.position_in_world_frame())
+                jFrame.draw()
+            print(locs)
+
 
         #render hoop joint origin
         #if True:
@@ -2661,6 +2702,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             for ix, c in enumerate(self.collisionResult.contacts):
                 # add a contact if the human skeleton is involved with the robot EF (FT sensor)
                 if (c.skel_id1 == self.iiwa_skel.id and c.skel_id2 == self.robot_skeleton.id):
+                    self.humanRobotCollision = True
                     if(c.bodynode_id1 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -2670,6 +2712,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                         self.handleNode.contactForce += force
                         self.handleNode.contactTorque += np.cross(c.point-self.handleNode.org, force)
                 if (c.skel_id2 == self.iiwa_skel.id and c.skel_id1 == self.robot_skeleton.id):
+                    self.humanRobotCollision = True
                     if (c.bodynode_id2 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -2678,7 +2721,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                             force *= maxClamp
                         self.handleNode.contactForce -= force
                         self.handleNode.contactTorque -= np.cross(c.point - self.handleNode.org, force)
-
 
     def viewer_setup(self):
         if self._get_viewer().scene is not None:

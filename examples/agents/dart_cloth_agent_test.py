@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
+    trial = "experiment_2019_01_02_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint.
+    #trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
     #trial = "experiment_2018_12_19_robo_2D_weakness_elbow_universal_eulerinterp" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control
     #trial = "experiment_2018_12_13_robo_2D_weakness_elbow_universal_euler" #2D variation weakness and elbow constraint; V3; robot with full frame control
     #trial = "experiment_2018_12_10_robo_2D_weakness_elbow_universal" #2D variation weakness and elbow constraint; V2; robot
@@ -358,7 +359,7 @@ if __name__ == '__main__':
     #trial = "experiment_2017_09_11_mode7_nooraclebaseline"
     #trial = "experiment_2017_09_11_mode7_nohapticsbaseline"
 
-    loadSave = False
+    loadSave = False #now done automatically if policy file not found...
 
     if loadSave is True:
         import tensorflow as tf
@@ -481,9 +482,21 @@ if __name__ == '__main__':
     #print("policy time")
     policy = None
     if trial is not None and policy is None:
-        policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
-        print(policy)
-        useMeanPolicy = True #always use mean if we loaded the policy
+        try:
+            policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
+            print(policy)
+            useMeanPolicy = True #always use mean if we loaded the policy
+        except:
+            print("FOUND NO POLICY FILE...")
+            import tensorflow as tf
+            with tf.Session() as sess:
+                print("trying to load the params.pkl file")
+                data = joblib.load(prefix+trial+"/params.pkl")
+                print("loaded the pkl file")
+                policy = data['policy']
+                pickle.dump(policy, open(prefix+trial+"/policy.pkl", "wb"))
+                print("saved the policy")
+                exit()
 
     #initialize an empty test policy
     if True and policy is None:
