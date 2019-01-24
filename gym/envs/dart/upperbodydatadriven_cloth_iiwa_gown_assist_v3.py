@@ -1760,7 +1760,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
-            self.elbow_rest = 0.75
+            self.elbow_rest = 2.0
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
