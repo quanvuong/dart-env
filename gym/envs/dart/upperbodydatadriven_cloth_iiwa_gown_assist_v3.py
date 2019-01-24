@@ -161,7 +161,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.0025
@@ -199,7 +199,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
@@ -1743,6 +1743,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
+            self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -1759,6 +1760,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
+            self.elbow_rest = 0.75
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
@@ -2182,14 +2184,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             renderUtils.drawLineStrip(points)
 
         #draw shoulder plane
-        s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
-        s1 = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
-        snorm = s1-s0
-        _snorm = snorm/np.linalg.norm(snorm)
-        sb1 = np.cross(_snorm, np.array([0,1.0,0]))
-        sb2 = np.cross(_snorm, sb1)
-        shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
-        shoulderPlane.draw()
+        if False:
+            s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
+            s1 = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
+            snorm = s1-s0
+            _snorm = snorm/np.linalg.norm(snorm)
+            sb1 = np.cross(_snorm, np.array([0,1.0,0]))
+            sb2 = np.cross(_snorm, sb1)
+            shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
+            shoulderPlane.draw()
 
         #draw interpolation target frame
         if self.frameInterpolator["active"]:
@@ -2197,7 +2200,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             renderFrame.setOrg(org=self.frameInterpolator["target_pos"])
             renderFrame.orientation = np.array(self.frameInterpolator["target_frame"])
             renderFrame.updateQuaternion()
-            renderFrame.drawFrame(size=1.1)
+            #renderFrame.drawFrame(size=1.1)
+            v0 = renderFrame.toGlobal(p=[1,0,0]) - renderFrame.org
+            v1 = renderFrame.toGlobal(p=[0,1,0]) - renderFrame.org
+            v2 = renderFrame.toGlobal(p=[0,0,1]) - renderFrame.org
+            renderUtils.drawArrowAxis(org=self.frameInterpolator["target_pos"], v0=v0, v1=v1, v2=v2, scale=0.5)
             renderUtils.setColor(color=[0, 0, 0])
             renderUtils.drawLineStrip(points=[self.ikTarget, self.frameInterpolator["target_pos"]])
             renderUtils.drawSphere(pos=renderFrame.org+renderFrame.org-renderFrame.toGlobal(p=self.frameInterpolator["localOffset"]), rad=0.02)
@@ -2235,7 +2242,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.simulateCloth and self.handleNode is not None:
             #self.handleNode.draw()
             if self.humanRobotCollision:
-                self.handleNode.drawForce(color=(1.0,0.5,0.5))
+                self.handleNode.drawForce(color=(1.0,0.2,0.2))
             else:
                 self.handleNode.drawForce()
 
@@ -2445,6 +2452,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
+        elif self.demoRendering:
+            #still want time displayed
+            self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,

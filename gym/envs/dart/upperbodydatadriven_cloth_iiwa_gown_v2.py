@@ -157,7 +157,7 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -176,8 +176,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         self.contactIDInObs = True  # if true, contact ids are in obs
         self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
-        self.robotJointObs  = False #if true, obs includes robot joint locations in world space
-        self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs #TODO: iiwa update
+        self.robotJointObs  = True #if true, obs includes robot joint locations in world space
+        self.redundantRoboJoints = [1] #these will be excluded from obs
         self.humanJointObs  = True #if true, obs includes human joint locations
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
@@ -304,8 +304,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV2(DartClothUpperBodyDataDrive
         if self.contactIDInObs:
             observation_size += 22
         if self.robotJointObs:
-            #observation_size += 48 - len(self.redundantRoboJoints)*3
-            observation_size += 66 - len(self.redundantRoboJoints)*3
+            observation_size += 27
         if self.humanJointObs:
             observation_size += 45
         if self.hoopNormalObs:

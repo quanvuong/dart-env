@@ -25,7 +25,8 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2019_01_02_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint.
+    trial = "experiment_2019_01_23_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane_conPen" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint. Contact penalty.
+    #trial = "experiment_2019_01_02_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint.
     #trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
     #trial = "experiment_2018_12_19_robo_2D_weakness_elbow_universal_eulerinterp" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control
     #trial = "experiment_2018_12_13_robo_2D_weakness_elbow_universal_euler" #2D variation weakness and elbow constraint; V3; robot with full frame control
@@ -508,13 +509,13 @@ if __name__ == '__main__':
             hidden_sizes=(64, 64),
             #hidden_sizes=(128, 64),
             #init_std=0.2 #exploration scaling
-            #init_std=0.15 #exploration scaling #human
-            init_std=0.1 #robot
+            init_std=0.15 #exploration scaling #human
+            #init_std=0.1 #robot
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         #output bias scaling
-        #all_param_values[4] *= 0.01 #human
-        all_param_values[4] *= 0.002 #robot
+        all_param_values[4] *= 0.01 #human
+        #all_param_values[4] *= 0.002 #robot
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization
