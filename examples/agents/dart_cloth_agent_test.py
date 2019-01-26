@@ -25,7 +25,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2019_01_23_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane_conPen" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint. Contact penalty.
+    #trial = "experiment_2019_01_24_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_spec" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability
+    trial = "experiment_2019_01_24_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_specHard_cont" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. Bent elbow, full capability
+    #trial = "experiment_2019_01_23_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane_conPen" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint. Contact penalty.
     #trial = "experiment_2019_01_02_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint.
     #trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
     #trial = "experiment_2018_12_19_robo_2D_weakness_elbow_universal_eulerinterp" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control
