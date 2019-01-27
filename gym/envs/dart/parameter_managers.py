@@ -995,22 +995,27 @@ class darwinSquatParamManager:
 
 # new formatted manager
 class darwinParamManager:
-    VARIATIONS = 'KP KD KC KP_RATIO KD_RATIO NEURAL_MOTOR VEL_LIM GROUP_JOINT_DAMPING JOINT_DAMPING JOINT_FRICTION TORQUE_LIM COM_OFFSET GROUND_FRICTION'.split(' ')
+    VARIATIONS = 'KP KD KC KP_RATIO KD_RATIO NEURAL_MOTOR VEL_LIM GROUP_JOINT_DAMPING JOINT_DAMPING JOINT_FRICTION TORQUE_LIM COM_OFFSET GROUND_FRICTION BODY_MASSES'.split(' ')
     KP, KD, KC, KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, GROUP_JOINT_DAMPING, JOINT_DAMPING, JOINT_FRICTION, \
-    TORQUE_LIM, COM_OFFSET, GROUND_FRICTION = list(
-        range(13))
-    MU_DIMS = np.array([5, 5, 5, 5, 5, 27, 1, 5, 1, 1, 1, 2, 1])
+    TORQUE_LIM, COM_OFFSET, GROUND_FRICTION, BODY_MASSES = list(
+        range(14))
+    MU_DIMS = np.array([5, 5, 5, 5, 5, 27, 1, 5, 1, 1, 1, 2, 1, 14])
     MU_UP_BOUNDS = [[200, 200, 200, 200, 200], [1, 1, 1, 1, 1], [10, 10, 10, 10, 10], [3.0, 3.0, 3.0, 3.0, 3.0],
-                    [3.0, 3.0, 3.0, 3.0, 3.0], [1] * 27, [15], [1, 1, 1, 1, 1], [1], [1], [20.0], [0.1, 0.05], [3.0]]
+                    [3.0, 3.0, 3.0, 3.0, 3.0], [1] * 27, [15], [1, 1, 1, 1, 1], [1], [1], [20.0], [0.1, 0.05], [3.0],
+                    [1.5,  0.1, 0.1, 0.5, 0.1, 0.1,  0.1, 0.5, 0.5, 0.5, 0.1, 0.1, 0.5, 0.1]]
     MU_LOW_BOUNDS = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
-                     [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.1, -0.05], [0.0]]
-    activated_param = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
+                     [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.1, -0.05], [0.0],
+                     [0.5, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.0, 0.0, 0.1, 0.0]]
+    activated_param = [13]#np.arange(16)
     controllable_param = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
     MU_UNSCALED = None  # unscaled version of mu
 
     def __init__(self, simulator):
         self.simulator = simulator
-        self.param_dim = np.sum(self.MU_DIMS[self.controllable_param])
+
+    @property
+    def param_dim(self):
+        return len(self.activated_param)
 
     def set_bounds(self, up, lb): # set bounds from sysid results
         current_id = 0
@@ -1050,7 +1055,7 @@ class darwinParamManager:
     def get_simulator_parameters(self):
         self.MU_UNSCALED = []
 
-        if self.KP in self.activated_param:
+        if self.KP in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.kp[0]) # arm
             self.MU_UNSCALED.append(self.simulator.kp[6])  # head
             self.MU_UNSCALED.append(self.simulator.kp[8])  # hip
@@ -1058,37 +1063,37 @@ class darwinParamManager:
             self.MU_UNSCALED.append(self.simulator.kp[12])  # head
 
 
-        if self.KD in self.activated_param:
+        if self.KD in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.kd[0])  # arm
             self.MU_UNSCALED.append(self.simulator.kd[6])  # head
             self.MU_UNSCALED.append(self.simulator.kd[8])  # hip
             self.MU_UNSCALED.append(self.simulator.kd[11])  # knee
             self.MU_UNSCALED.append(self.simulator.kd[12])  # head
 
-        if self.KC in self.activated_param:
+        if self.KC in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.kc[0])  # arm
             self.MU_UNSCALED.append(self.simulator.kc[6])  # head
             self.MU_UNSCALED.append(self.simulator.kc[8])  # hip
             self.MU_UNSCALED.append(self.simulator.kc[11])  # knee
             self.MU_UNSCALED.append(self.simulator.kc[12])  # head
 
-        if self.KP_RATIO in self.activated_param:
+        if self.KP_RATIO in self.controllable_param:
             for rat in self.simulator.kp_ratios:
                 self.MU_UNSCALED.append(rat)
 
-        if self.KD_RATIO in self.activated_param:
+        if self.KD_RATIO in self.controllable_param:
             for rat in self.simulator.kd_ratios:
                 self.MU_UNSCALED.append(rat)
 
-        if self.NEURAL_MOTOR in self.activated_param:
+        if self.NEURAL_MOTOR in self.controllable_param:
             for pm in range(len(self.simulator.NN_motor_parameters)):
                 dim = np.prod(self.simulator.NN_motor_parameters[pm].shape)
                 self.MU_UNSCALED += np.reshape(self.simulator.NN_motor_parameters[pm], (dim,)).tolist()
 
-        if self.VEL_LIM in self.activated_param:
+        if self.VEL_LIM in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.joint_vel_limit)
 
-        if self.GROUP_JOINT_DAMPING in self.activated_param:
+        if self.GROUP_JOINT_DAMPING in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).damping_coefficient())  # arm
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(12).damping_coefficient())  # head
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(14).damping_coefficient())  # hip
@@ -1096,25 +1101,25 @@ class darwinParamManager:
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(18).damping_coefficient())  # head
 
 
-        if self.JOINT_DAMPING in self.activated_param:
+        if self.JOINT_DAMPING in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).damping_coefficient())
 
-        if self.JOINT_FRICTION in self.activated_param:
+        if self.JOINT_FRICTION in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.dof(6).coulomb_friction())
 
-        if self.TORQUE_LIM in self.activated_param:
+        if self.TORQUE_LIM in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.torqueLimits)
 
-        if self.COM_OFFSET in self.activated_param:
+        if self.COM_OFFSET in self.controllable_param:
             init_com = np.copy(self.simulator.initial_local_coms[1])
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[0] - init_com[0])
             self.MU_UNSCALED.append(self.simulator.robot_skeleton.bodynodes[1].local_com()[2] - init_com[2])
 
-        if self.GROUND_FRICTION in self.activated_param:
+        if self.GROUND_FRICTION in self.controllable_param:
             self.MU_UNSCALED.append(self.simulator.dart_world.skeletons[0].bodynodes[0].friction_coeff())
 
 
-        return self.NormalizeMu(self.MU_UNSCALED)
+        return self.NormalizeMu(self.MU_UNSCALED)[self.activated_param]
 
 
     def set_simulator_parameters(self, x):

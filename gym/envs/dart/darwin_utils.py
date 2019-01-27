@@ -56,3 +56,28 @@ CONTROL_UP_BOUND_NEWFOOT_VAL = CONTROL_UP_BOUND_VAL[[0,1,2,3,4,5,6,7,  8,9,10,11
 CONTROL_LOW_BOUND_NEWFOOT = VAL2RADIAN(CONTROL_LOW_BOUND_NEWFOOT_VAL)
 
 CONTROL_UP_BOUND_NEWFOOT = VAL2RADIAN(CONTROL_UP_BOUND_NEWFOOT_VAL)
+
+
+
+############## predefined poses #######################
+pose_squat_val = np.array([2509, 2297, 1714, 1508, 1816, 2376,
+                                    2047, 2171,
+                                    2032, 2039, 2795, 648, 1241, 2040,   2041, 2060, 1281, 3448, 2855, 2073])
+
+pose_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
+                                2048, 2048,
+                                2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048])
+
+pose_left_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
+                                2048, 2048,
+                                 2032, 2039, 2795, 568, 1241, 2040, 2048, 2048, 2048, 2048, 2048, 2048])
+
+pose_right_stand_val = np.array([1500, 2048, 2048, 2500, 2048, 2048,
+                                2048, 2048,
+                                2048, 2048, 2048, 2048, 2048, 2048, 2041, 2060, 1281, 3525, 2855, 2073])
+
+pose_squat_rad = VAL2RADIAN(pose_squat_val)
+pose_stand_rad = VAL2RADIAN(pose_stand_val)
+pose_left_stand_rad = VAL2RADIAN(pose_left_stand_val)
+pose_right_stand_rad = VAL2RADIAN(pose_right_stand_val)
+######################################################
