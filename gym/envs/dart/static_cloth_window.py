@@ -372,6 +372,10 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         obj = GLU.gluUnProject(winp[0], winp[1], winp[2], self.modelviewM, self.projectionM, self.viewport)
         return obj
 
+    def project(self, worldp=np.array([0.,0.,0.])):
+        winp = GLU.gluProject(worldp[0], worldp[1], worldp[2], self.modelviewM, self.projectionM, self.viewport)
+        return winp
+
     def drawSphere(self, p, r, solid=True, slices=10):
         GL.glPushMatrix()
         GL.glTranslated(p[0], p[1], p[2])

@@ -157,6 +157,101 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
+class CapacitiveSensor:
+    def __init__(self, env, bodynode=None, offset=np.zeros(3), R=np.identity(3)):
+        self.env = env
+        self.bodynode = bodynode
+        self.offset = offset
+        self.R = R
+        self.frame = pyutils.ShapeFrame()
+        self.sensorRaySettings = [] #list of local position, direction, range for each sensor ray
+        self.sensorRayGlobals = [] #list of global position and direction for each sensor ray
+        self.sensorRayReadings = [] #list of most recent reading for each sensor ray
+        self.update()
+
+    def update(self):
+        try:
+            self.frame.setOrg(org=self.bodynode.to_world(self.offset))
+            self.frame.orientation = np.dot(self.bodynode.T[:3,:3], self.R)
+            self.frame.updateQuaternion()
+        except:
+            print("update failed")
+            pass
+
+        #update sensor ray global info
+        self.sensorRayGlobals = []
+        for s in self.sensorRaySettings:
+            pos = self.frame.toGlobal(p=s[0])
+            dir = self.frame.toGlobal(p=s[1]+s[0]) - pos
+            self.sensorRayGlobals.append([pos, dir])
+
+    def setupSensorRays(self, localOrgs, localDirs, ranges):
+        #setup some number of sensors at local positions with a set of directions and ranges
+        self.sensorRaySettings = []
+        self.sensorRayReadings = []
+        for i in range(len(localOrgs)):
+            self.sensorRaySettings.append([localOrgs[i], localDirs[i], ranges[i]])
+            self.sensorRayReadings.append(ranges[i])
+
+
+    def default1RaySetup(self):
+        #default setup with 1 ray in center
+        self.setupSensorRays(localOrgs=[np.zeros(3)], localDirs=[np.array([0,1,0])], ranges=[0.15])
+
+    def defaultCircle5Center1Setup(self, rad=0.05):
+        # default setup with 1 ray in center and 5 equidistant radial points
+        orgs = []
+        dirs = []
+        ranges = []
+
+        for i in range(6):
+            dirs.append(np.array([0,0,1]))
+            ranges.append(0.15)
+
+        orgs.append(np.array([0, 0, 0.075]))
+        for i in range(5):
+            ang = 2*math.pi * (i/5.0)
+            x = math.cos(ang) * rad
+            y = math.sin(ang) * rad
+            orgs.append(np.array([x, y, 0.065]))
+
+        self.setupSensorRays(localOrgs=orgs, localDirs=dirs, ranges=ranges)
+
+    def getAggregateSensorReading(self):
+        #return the average reading
+        total = sum(self.sensorRayReadings)/len(self.sensorRayReadings)
+        return total
+
+    def draw(self):
+        #draw the sensor rays and contact points
+        renderUtils.setColor(color=[0,0,0])
+        lines = []
+        for ix,gr in enumerate(self.sensorRayGlobals):
+            cp = gr[0] + gr[1]*self.sensorRayReadings[ix]
+            renderUtils.drawSphere(pos=cp)
+            lines.append([gr[0], gr[0]+gr[1]*self.sensorRaySettings[ix][2]])
+        renderUtils.drawLines(lines=lines)
+
+
+    def getReading(self):
+        #reset sensor readings to max
+        for i in range(len(self.sensorRayReadings)):
+            self.sensorRayReadings[i] = self.sensorRaySettings[i][2]
+
+        #read the "robot_skeleton" from env
+        for s0 in range(len(self.env.collisionCapsuleInfo)):
+            for s1 in range(len(self.env.collisionCapsuleInfo)):
+                if self.env.collisionCapsuleInfo[s0][s1] == 1:
+                    c0 = self.env.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
+                    r0 = self.env.collisionSphereInfo[s0 * 9 + 3]
+                    c1 = self.env.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
+                    r1 = self.env.collisionSphereInfo[s1 * 9 + 3]
+                    for ix, gr in enumerate(self.sensorRayGlobals):
+                        hit = pyutils.rayCapIntersect(gr[0], gr[1], c0, c1, r0, r1)
+                        if hit[0]:
+                            self.sensorRayReadings[ix] = min(self.sensorRayReadings[ix], hit[1])
+
+
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
@@ -199,7 +294,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
@@ -335,6 +430,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             human_observation_size += 1
 
+        #setup robot obs:
+        self.robotCapacitiveObs = True #need this flag for rendering and reading updates
+
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
         bot_observation_size += 27 #robot joint posistions
@@ -343,6 +441,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         bot_observation_size += 6 #end effector position and orientation
         if self.targetCentric:
             bot_observation_size += 6 #target frame position and orientation
+        if self.robotCapacitiveObs:
+            bot_observation_size += 1
+            pass
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -516,6 +617,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         # initialize the controller
         #self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
         self.SPDController = SPDController(self, self.iiwa_skel, timestep=dt)
+
+        #initialzie capacitive sensor
+        self.capacitiveSensor = CapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
+        self.capacitiveSensor.defaultCircle5Center1Setup()
+        self.capacitiveSensor.update()
 
         #disable character gravity
         if self.print_skel_details:
@@ -1334,6 +1440,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             qvel[dof] = 0
         self.set_state(qpos, qvel)
 
+        #update capacitive sensor
+        if self.robotCapacitiveObs:
+            try:
+                self.capacitiveSensor.update()
+                self.capacitiveSensor.getReading()
+            except:
+                print("Capacitive sensor is not setup")
+
         startTime2 = time.time()
         reward = self.computeReward(tau=human_tau)
         #print("computeReward took " + str(time.time() - startTime2))
@@ -1711,6 +1825,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             #obs = np.concatenate([obs, self.ikTarget, self.frameEulerState])
             obs = np.concatenate([obs, self.frameInterpolator["target_pos"], self.frameInterpolator["eulers"]])
 
+        #capacitive sensor aggregate reading
+        if self.robotCapacitiveObs:
+            obs = np.concatenate([obs, np.array([self.capacitiveSensor.getAggregateSensorReading()/0.15])])
 
         return obs
 
@@ -1761,7 +1878,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
             self.elbow_rest = 0.75 #spec (easy)
-            self.elbow_rest = 2.0 #spec hard
+            #self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
@@ -2115,6 +2232,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.handleNode.recomputeOffsets()
             self.handleNode.updatePrevConstraintPositions()
 
+        try:
+            self.capacitiveSensor.update()
+        except:
+            print("Capacitive Sensor not yet setup")
+
         if self.simulateCloth:
             if self.sleeveLSeamFeature is not None:
                 # the normal should always point toward the origin in this task
@@ -2172,6 +2294,88 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
 
+        #render capacitive sensor readings
+        if self.robotCapacitiveObs:
+            self.capacitiveSensor.draw()
+            #TODO: better visualization?
+
+        #test capsule intersection
+        if False:
+            time_start = time.time()
+            ro = np.array([0.2, 0.1, 0.5])
+            robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+            #rd = np.array([math.sin(self.numSteps/100.0), math.cos(self.numSteps/100.0), -1.0])
+            rd = robo_ef - ro
+            rd /= np.linalg.norm(rd)
+
+            solutions = []
+
+            backPlane = Plane(org=ro, normal=rd)
+            #backPlane.draw()
+
+            lines = []
+            origins = []
+            hits = []
+            sampleDim = 12
+            spacing = 0.0375
+            xy0 = -spacing*(sampleDim-1)/2
+            for x in range(sampleDim):
+                for y in range(sampleDim):
+                    cx = xy0+x*spacing
+                    cy = xy0+y*spacing
+                    origins.append(backPlane.get3D(p=[cx,cy]))
+                    lines.append([origins[-1], origins[-1]+rd*2])
+                    hits.append([])
+            #s0 = np.array([0.1, 0.23, -0.21])
+            #r0 = 0.2
+            #renderUtils.drawSphere(pos=s0, rad=r0)
+            #hit = pyutils.raySphereIntersect(ro,rd,s0,r0)
+            #if hit[0]:
+            #    solutions.append(hit[1])
+
+            for s0 in range(len(self.collisionCapsuleInfo)):
+                for s1 in range(len(self.collisionCapsuleInfo)):
+                    if self.collisionCapsuleInfo[s0][s1] == 1:
+                        c0 = self.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
+                        r0 = self.collisionSphereInfo[s0 * 9 + 3]
+                        c1 = self.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
+                        r1 = self.collisionSphereInfo[s1 * 9 + 3]
+                        for ix,p in enumerate(origins):
+                            hit = pyutils.rayCapIntersect(p,rd,c0,c1,r0,r1)
+                            if hit[0]:
+                                hits[ix].append(hit[1])
+
+
+            print("raytrace took: " + str(time.time()-time_start))
+            for ix, p in enumerate(origins):
+                renderUtils.setColor(color=[0, 0, 0])
+                for t in hits[ix]:
+                    renderUtils.drawSphere(pos=origins[ix] + rd * t, rad=0.015)
+                if len(hits[ix]) > 0:
+                    renderUtils.setColor(color=[0, 1, 0])
+                renderUtils.drawLines(lines=[lines[ix]])
+
+        #draw capsule projection points of robot end effector
+        if False:
+            lines = []
+            robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+            for s0 in range(len(self.collisionCapsuleInfo)):
+                for s1 in range(len(self.collisionCapsuleInfo)):
+                    if self.collisionCapsuleInfo[s0][s1] == 1:
+                        c0 = self.collisionSphereInfo[s0*9:s0*9 + 3]
+                        r0 = self.collisionSphereInfo[s0*9 + 3]
+                        c1 = self.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
+                        r1 = self.collisionSphereInfo[s1 * 9 + 3]
+                        cp = pyutils.projectToCapsule(robo_ef, c0, c1, r0, r1)
+                        lines.append([robo_ef, cp[0]])
+                        #lines.append([robo_ef, c0])
+                        #lines.append([robo_ef, c1])
+
+                        #print(str(s0) + ", " + str(s1))
+                        print(str(r0) + ", " + str(r1))
+            renderUtils.drawLines(lines)
+
+
         #draw target frame tracking
         if self.targetFrameTracking["active"]:
             points = []
@@ -2185,7 +2389,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             renderUtils.drawLineStrip(points)
 
         #draw shoulder plane
-        if True:
+        if False:
             s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
             s1 = self.robot_skeleton.bodynodes[9].to_world(np.zeros(3))
             snorm = s1-s0
@@ -2456,6 +2660,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         elif self.demoRendering:
             #still want time displayed
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+
+        robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+        windowef = self.viewer.project(robo_ef)
+        #renderUtils.rect2D(topLeft=[windowef[0], windowef[1]], dimensions=[30,16], fill=True)
+        self.clothScene.drawText(x=windowef[0], y=windowef[1],
+                                 text="cap. reading: %0.4f" % self.capacitiveSensor.getAggregateSensorReading(),
+                                 color=(1.0, 0., 0.))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
