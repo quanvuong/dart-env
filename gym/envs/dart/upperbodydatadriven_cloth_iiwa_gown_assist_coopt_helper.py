@@ -159,10 +159,10 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptEnv(DartClothEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptHelperEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        self.isHuman = True #otherwise robot
+        self.isHuman = False #otherwise robot
         rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True

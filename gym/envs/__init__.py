@@ -700,6 +700,20 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Assist Coopt Env
+register(
+    id='DartIiwaGownAssistCoopt-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptEnv',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Assist Coopt HELPER Env (duplicate of above with one flag set: HACK)
+register(
+    id='DartIiwaGownAssistCoopt_h-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptHelperEnv',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 
