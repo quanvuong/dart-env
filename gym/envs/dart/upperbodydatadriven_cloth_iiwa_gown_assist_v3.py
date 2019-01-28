@@ -232,7 +232,6 @@ class CapacitiveSensor:
             lines.append([gr[0], gr[0]+gr[1]*self.sensorRaySettings[ix][2]])
         renderUtils.drawLines(lines=lines)
 
-
     def getReading(self):
         #reset sensor readings to max
         for i in range(len(self.sensorRayReadings)):
@@ -256,7 +255,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = True #when true, reduce the debugging display significantly
+        self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.0025
@@ -289,6 +288,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.stableHeadReward           = False  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
+        self.limbProgressExponential    = True  # if true, positive limb progress is d^2
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
@@ -296,6 +296,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
+        self.towardArmReward            = True #if true, reward robot ef toward the arm
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -308,6 +309,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.variationEntropyRewardWeight     = 1
         self.shoulderPlaneRewardWeight        = 3
         self.contactPenaltyWeight             = 1
+        self.towardArmRewardWeight            = 0.5
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -357,6 +359,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
         self.elbow_rest = 0.2  # drawn at reset
         self.elbow_initial_limits = [0, 0]  # set later in init
+
+        #test arm target path idea
+        self.armTargetPathInfo = {"target_angle":-0.813, "target_dist":0.15 }
 
         #TODO: testing unlocked frame from vector
         self.testFrame = pyutils.ShapeFrame()
@@ -701,6 +706,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.rewardsData.addReward(label="contact", rmin=-1.0, rmax=0, rval=0,
                                        rweight=self.contactPenaltyWeight)
 
+        if self.towardArmReward:
+            self.rewardsData.addReward(label="toward arm", rmin=-1.0, rmax=1.0, rval=0,
+                                       rweight=self.towardArmRewardWeight)
+
         #self.loadCharacterState(filename="characterState_1starmin")
 
         if self.simpleWeakness:
@@ -1007,6 +1016,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 print("!!! NaN limb progress detected !!!")
                 self.limbProgress = -2.0
             reward_limbprogress = self.limbProgress
+
+            if self.limbProgressExponential:
+                if reward_limbprogress > 0:
+                    reward_limbprogress *= reward_limbprogress
             #if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
             #    reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
@@ -1101,6 +1114,22 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 reward_contactPenalty = -1.0
             reward_record.append(reward_contactPenalty)
 
+        reward_towardArm = 0
+        if self.towardArmReward:
+            #compute closest limb point
+            robot_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
+            limb = pyutils.limbFromNodeSequence(self.robot_skeleton, self.limbNodesL, self.fingertip)
+            d,cp = pyutils.distToLineStrip(robot_ef, limb)
+            #print(cp)
+
+            #compute dot product between robot EF down and vector to point
+            robot_ef_down = self.iiwa_skel.bodynodes[9].to_world(np.array([0,0,1])) - robot_ef
+            robot_ef_down /= np.linalg.norm(robot_ef_down)
+            v_to_limb = cp-robot_ef
+            v_to_limb /= np.linalg.norm(v_to_limb)
+            reward_towardArm = np.dot(v_to_limb, robot_ef_down)
+
+            reward_record.append(reward_towardArm)
 
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
@@ -1132,7 +1161,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
                       + reward_restPose * self.restPoseRewardWeight \
                       + reward_shoulderPlane * self.shoulderPlaneRewardWeight \
-                      + reward_contactPenalty * self.contactPenaltyWeight
+                      + reward_contactPenalty * self.contactPenaltyWeight \
+                      + reward_towardArm * self.towardArmRewardWeight
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
@@ -2293,6 +2323,57 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[0] = self.rigidClothFrame.getCenter()[0]
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
+
+        #render arm target path info
+        if True:
+            armTargetPoints = []
+            closeTrunkPoints = []
+            jointPositions = []
+            root_pos = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
+            spine_pos = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
+            trunk_vec = spine_pos-root_pos
+            trunk_vec /= np.linalg.norm(trunk_vec)
+            for n in self.limbNodesL:
+                jpos = self.robot_skeleton.bodynodes[n].to_world(np.zeros(3))
+                trunkClose = pyutils.distToLineSegment(l0=root_pos, l1=spine_pos, p=jpos, segment=False)[1]
+                closeTrunkPoints.append(trunkClose)
+                jointPositions.append(jpos)
+
+            #end effector
+            efpos = self.robot_skeleton.bodynodes[self.limbNodesL[-1]].to_world(self.fingertip)
+            trunkCloseEF = pyutils.distToLineSegment(l0=root_pos, l1=spine_pos, p=efpos, segment=False)[1]
+            closeTrunkPoints.append(trunkCloseEF)
+            jointPositions.append(efpos)
+
+            for i in range(len(jointPositions)):
+                jpos = jointPositions[i]
+                trunkClose = closeTrunkPoints[i]
+
+                #compute a plane with basis 1  algined with trunk to joint
+                b1 = jpos - trunkClose
+                b1_mag = np.linalg.norm(b1)
+                b1 /= b1_mag
+                jt_plane = Plane(org=trunkClose, normal=np.cross(trunk_vec, b1), b1=b1)
+
+                #our point at angle is: p = trunkClose + b1*b1_mag + b1*dist*cos(theta) + b2*dist*sin(theta)
+                #                         = jpos + b1*dist*cos(theta) + b2*dist*sin(theta)
+                p = np.array(jpos)
+                p += jt_plane.basis2*self.armTargetPathInfo["target_dist"]*math.sin(self.armTargetPathInfo["target_angle"])
+                p += jt_plane.basis1*self.armTargetPathInfo["target_dist"]*math.cos(self.armTargetPathInfo["target_angle"])
+                armTargetPoints.append(p)
+
+                #no angle
+                #armTargetPoints.append(jpos + b1*self.armTargetPathInfo["target_dist"])
+
+
+            renderUtils.setColor(color=[0.1,0.1,0.8])
+            renderUtils.drawLineStrip(armTargetPoints)
+            lines = []
+            for i in range(len(armTargetPoints)):
+                lines.append([closeTrunkPoints[i], jointPositions[i]])
+                lines.append([jointPositions[i], armTargetPoints[i]])
+            renderUtils.setColor(color=[0.1, 0.1, 0.1])
+            renderUtils.drawLines(lines)
 
         #render capacitive sensor readings
         if self.robotCapacitiveObs:

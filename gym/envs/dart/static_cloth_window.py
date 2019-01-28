@@ -1419,6 +1419,7 @@ class Frame6DInteractor(BaseInteractor):
         self.label = "Frame Interactor"
         self.rotationToggle = False
         self.f_down = False
+        self.q_down = False
         self.x_down = False
         self.y_down = False
         self.z_down = False
@@ -1442,6 +1443,8 @@ class Frame6DInteractor(BaseInteractor):
             return True
         if self.z_down is True:
             return True
+        if self.q_down is True:
+            return True
         return False
 
     def keyboard(self, key, x, y):
@@ -1459,6 +1462,8 @@ class Frame6DInteractor(BaseInteractor):
             # print relevant info
             #print()
             a=0
+        if keycode == 113:  # 'q'
+            self.q_down = True
         if keycode == 115:  # 's'
             self.s_down = True
         if keycode == 116:  # 't'
@@ -1486,6 +1491,8 @@ class Frame6DInteractor(BaseInteractor):
         keycode = ord(key)
         if keycode == 102:  # 'f'
             self.f_down = False
+        if keycode == 113:  # 'q'
+            self.q_down = False
         if keycode == 115:  # 's'
             self.s_down = False
         if keycode == 120:  # 'x'
@@ -1508,6 +1515,9 @@ class Frame6DInteractor(BaseInteractor):
                 tb.drag_to(x, y, dx, -dy)
         elif (self.f_down):
             a=0
+        elif (self.q_down):
+            self.viewer.env.armTargetPathInfo["target_angle"] += dx*0.001
+            print("target_angle = " + str(self.viewer.env.armTargetPathInfo["target_angle"]))
         elif (self.x_down):
             if not self.rotationToggle:
                 self.viewer.env.frameInterpolator["target_pos"][0] += dx*0.001
