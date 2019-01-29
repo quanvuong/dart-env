@@ -254,7 +254,7 @@ class CapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True

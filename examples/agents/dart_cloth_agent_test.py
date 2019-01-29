@@ -25,7 +25,7 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
-    trial = "experiment_2019_01_27_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_conplane_spec_capobs" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability, capacitive sensor, shoulder plane penalty
+    #trial = "experiment_2019_01_27_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_conplane_spec_capobs" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability, capacitive sensor, shoulder plane penalty
     #trial = "experiment_2019_01_26_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_spec_capobs" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability, capacitive sensor
     #trial = "experiment_2019_01_26_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_conplane_specHard" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. Bent elbow, full capability. plane penalty
     #trial = "experiment_2019_01_24_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_spec" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability
