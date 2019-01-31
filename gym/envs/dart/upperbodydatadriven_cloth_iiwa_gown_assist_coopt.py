@@ -163,7 +163,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptEnv(DartClothEnv, util
     def __init__(self):
         #feature flags
         self.isHuman = True #otherwise robot
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True

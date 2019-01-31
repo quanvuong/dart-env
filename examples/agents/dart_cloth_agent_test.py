@@ -25,11 +25,16 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+
+    #trial = "experiment_2019_01_29_coopt_test"
+    #trial = "experiment_2019_01_28_robo_2D_w_e_u_einterp_lim_conPen_conplane_spec_capobs_expprog_limbdir"
+
     #trial = "experiment_2019_01_27_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_conplane_spec_capobs" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability, capacitive sensor, shoulder plane penalty
     #trial = "experiment_2019_01_26_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_spec_capobs" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability, capacitive sensor
     #trial = "experiment_2019_01_26_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_conplane_specHard" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. Bent elbow, full capability. plane penalty
     #trial = "experiment_2019_01_24_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_spec" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. straight-ish elbow, full capability
     #trial = "experiment_2019_01_24_robo_2D_weakness_elbow_universal_eulerinterp_lim_conPen_specHard_cont" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Contact penalty. Bent elbow, full capability
+
     #trial = "experiment_2019_01_23_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane_conPen" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint. Contact penalty.
     #trial = "experiment_2019_01_02_robo_2D_weakness_elbow_universal_eulerinterp_lim_splane" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach. Plane constraint.
     #trial = "experiment_2018_12_23_robo_2D_weakness_elbow_universal_eulerinterp_lim" #2D variation weakness and elbow constraint; V3; robot with full interpolation frame control. Frame limited to near robot reach.
@@ -494,16 +499,22 @@ if __name__ == '__main__':
             print(policy)
             useMeanPolicy = True #always use mean if we loaded the policy
         except:
-            print("FOUND NO POLICY FILE...")
-            import tensorflow as tf
-            with tf.Session() as sess:
-                print("trying to load the params.pkl file")
-                data = joblib.load(prefix+trial+"/params.pkl")
-                print("loaded the pkl file")
-                policy = data['policy']
-                pickle.dump(policy, open(prefix+trial+"/policy.pkl", "wb"))
-                print("saved the policy")
-                exit()
+            print("No PICKLE policy file found. Trying joblib...")
+            try:
+                policy = joblib.load(prefix+trial+"/policy.pkl")
+                print(policy)
+                useMeanPolicy = True
+            except:
+                print("FOUND NO POLICY FILE...")
+                import tensorflow as tf
+                with tf.Session() as sess:
+                    print("trying to load the params.pkl file")
+                    data = joblib.load(prefix+trial+"/params.pkl")
+                    print("loaded the pkl file")
+                    policy = data['policy']
+                    pickle.dump(policy, open(prefix+trial+"/policy.pkl", "wb"))
+                    print("saved the policy")
+                    exit()
 
     #initialize an empty test policy
     if True and policy is None:

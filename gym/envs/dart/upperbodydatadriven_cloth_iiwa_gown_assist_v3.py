@@ -254,8 +254,8 @@ class CapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        rendering = False
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         dt = 0.0025
@@ -288,15 +288,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.stableHeadReward           = False  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
-        self.limbProgressExponential    = True  # if true, positive limb progress is d^2
+        self.limbProgressExponential    = False  # if true, positive limb progress is d^2
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
-        self.towardArmReward            = True #if true, reward robot ef toward the arm
+        self.towardArmReward            = False #if true, reward robot ef toward the arm
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -354,7 +354,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
         self.manualTargetControl = False #if true, actions are not considered
-        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3)}
+        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
         self.elbow_rest = 0.2  # drawn at reset
@@ -477,7 +477,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.adaptiveSPD = False
         self.freezeTracking = False #if true, target SPD pose is frozen
         self.previousIKResult = np.zeros(7)
-        self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, 0, -0.1, -0.8]) #values for the fixed 6 dof root transformation
+
+        #setup robot base location
+        self.dFromRoot = 0.65
+        self.aFrom_invZ = 0.959931
+        self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, self.dFromRoot*math.sin(self.aFrom_invZ), -0.2, -self.dFromRoot*math.cos(self.aFrom_invZ)]) #values for the fixed 6 dof root transformation
+
+        #self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, 0, -0.1, -0.8]) #values for the fixed 6 dof root transformation
         self.iiwa_rest = np.array([0, 0, 0, 0, 0, 0, 0])
         self.rigidClothFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
         self.rigidClothTargetFrame = pyutils.BoxFrame(c0=np.array([0.1,0.2,0.001]),c1=np.array([-0.1,0,-0.001]))
@@ -1266,13 +1272,20 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.frameInterpolator["eulers"] += robo_action_scaled[3:]
 
         #ensure ik target is in reach
-        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
-        distToRoboRoot = np.linalg.norm(toRoboRoot)
+        #toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
+        #distToRoboRoot = np.linalg.norm(toRoboRoot)
+        # clamp interpolation target frame to reachability sphere...
+        #if (distToRoboRoot > (self.robotPathParams['p0_disk_rad']) * 1.5):
+        #    # print("clamping frame")
+        #    self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(
+        #    toRoboRoot / distToRoboRoot) * (self.robotPathParams['p0_disk_rad']) * 1.5
 
-        #clamp interpolation target frame to reachability sphere...
-        if(distToRoboRoot > (self.robotPathParams['p0_disk_rad'])*1.5):
-            #print("clamping frame")
-            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*(self.robotPathParams['p0_disk_rad'])*1.5
+        toRoboEF = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
+        distToRoboEF = np.linalg.norm(toRoboEF)
+        # clamp interpolation target frame to distance from EF to prevent over commit
+        if (distToRoboEF > (self.frameInterpolator["distanceLimit"])):
+            # print("clamping frame")
+            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) + -(toRoboEF / distToRoboEF) * self.frameInterpolator["distanceLimit"]
 
         #interpolate the target frame at constant speed toward a goal location
         if self.frameInterpolator["active"]:
@@ -2125,6 +2138,25 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         depth = random.random()*depthRange + self.robotPathParams['p0_depth_offset']
         p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[1], depth])
 
+        #pick p0 with rejection sampling
+        p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0]* diskRad
+        good = False
+        r_pivot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3))
+        while(not good):
+            good = True
+            #xz0 = np.array([p0[0], p0[2]])
+
+            #cut off points too close or behind the robot in x
+            if p0[0] > (r_pivot[0] - self.robotPathParams['p0_depth_offset']):
+                good = False
+
+            # cut off points too close or behind the robot in z
+            if p0[2] > (r_pivot[2] - self.robotPathParams['p0_depth_offset']):
+                good = False
+
+            if not good:
+                p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0] * diskRad
+
         #p3 ellipsoid sampling about the shoulder region
         p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'], org=self.robotPathParams['p3_el_org'])
         p3 = p3_distribution.sample()[0]
@@ -2325,7 +2357,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
 
         #render arm target path info
-        if True:
+        if False:
             armTargetPoints = []
             closeTrunkPoints = []
             jointPositions = []
@@ -2745,7 +2777,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
         windowef = self.viewer.project(robo_ef)
         #renderUtils.rect2D(topLeft=[windowef[0], windowef[1]], dimensions=[30,16], fill=True)
-        self.clothScene.drawText(x=windowef[0], y=windowef[1],
+        if self.robotCapacitiveObs:
+            self.clothScene.drawText(x=windowef[0], y=windowef[1],
                                  text="cap. reading: %0.4f" % self.capacitiveSensor.getAggregateSensorReading(),
                                  color=(1.0, 0., 0.))
 
