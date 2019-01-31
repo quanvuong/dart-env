@@ -436,7 +436,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             human_observation_size += 1
 
         #setup robot obs:
-        self.robotCapacitiveObs = True #need this flag for rendering and reading updates
+        self.robotCapacitiveObs = False #need this flag for rendering and reading updates
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
