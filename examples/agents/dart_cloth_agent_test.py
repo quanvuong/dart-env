@@ -16,6 +16,27 @@ from rllab.envs.gym_env import GymEnv
 from rllab.envs.normalized_env import normalize
 import lasagne.layers as L
 
+def renderGraph(filename, targetField="AverageDiscountedReturn"):
+    data = []
+    f = open(filename, 'r')
+    col = 0
+    for ix, line in enumerate(f):
+        words = line.split(",")
+        if ix == 0:
+            for ix2, i in enumerate(words):
+                if i == targetField:
+                    col = ix2
+        else:
+            data.append(float(words[col]))
+
+    f.close()
+    graph = pyutils.LineGrapher(title=targetField)
+    graph.plotData(data)
+    graph.plotData(np.zeros(len(graph.xdata)),color=(0,0,0))
+    graph.update()
+
+    return data
+
 if __name__ == '__main__':
 
     filename = None
@@ -25,6 +46,9 @@ if __name__ == '__main__':
     prefix = os.path.join(prefix, '../../../rllab/data/local/experiment/')
 
     trial = None
+
+    trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec_capobs"
+    #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec"
 
     #trial = "experiment_2019_01_29_coopt_test"
     #trial = "experiment_2019_01_28_robo_2D_w_e_u_einterp_lim_conPen_conplane_spec_capobs_expprog_limbdir"
@@ -490,6 +514,7 @@ if __name__ == '__main__':
         exit(0)
 
     useMeanPolicy = True
+    showDiscountedReturnGraph = True
 
     #print("policy time")
     policy = None
@@ -498,6 +523,7 @@ if __name__ == '__main__':
             policy = pickle.load(open(prefix+trial+"/policy.pkl", "rb"))
             print(policy)
             useMeanPolicy = True #always use mean if we loaded the policy
+            renderGraph(filename=prefix+trial+"/progress.csv")
         except:
             print("No PICKLE policy file found. Trying joblib...")
             try:
