@@ -1903,7 +1903,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            #self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -1920,8 +1920,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
-            self.elbow_rest = 0.75 #spec (easy)
-            self.elbow_rest = 2.0 #spec hard
+            #self.elbow_rest = 0.75 #spec (easy)
+            #self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
