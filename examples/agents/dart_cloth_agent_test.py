@@ -24,7 +24,7 @@ def renderGraph(filename, targetField="AverageDiscountedReturn"):
         words = line.split(",")
         if ix == 0:
             for ix2, i in enumerate(words):
-                if i == targetField:
+                if i.strip() == targetField: #strip to remove trailing newlines at end of csv file
                     col = ix2
         else:
             data.append(float(words[col]))
@@ -34,6 +34,10 @@ def renderGraph(filename, targetField="AverageDiscountedReturn"):
     graph.plotData(data)
     graph.plotData(np.zeros(len(graph.xdata)),color=(0,0,0))
     graph.update()
+    filenameParts = filename.split("/")
+    dirName = filename[:-len(filenameParts[-1])]
+    print("saving graph to " + dirName)
+    graph.save(filename=dirName+targetField)
 
     return data
 
@@ -47,8 +51,12 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec_capobs"
+    #--- Trial block with moved arm
+    #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_full_variation"
+    trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_spec_hard"
+    #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec_capobs"
     #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec"
+    #---
 
     #trial = "experiment_2019_01_29_coopt_test"
     #trial = "experiment_2019_01_28_robo_2D_w_e_u_einterp_lim_conPen_conplane_spec_capobs_expprog_limbdir"
@@ -577,7 +585,9 @@ if __name__ == '__main__':
     #o = env.reset()
 
     for i in range(110):
-        #print("here")
+        print("-----------------------------------")
+        print("  Starting rollout " + str(i))
+        print("-----------------------------------")
         o = env.reset()
         #envFilename = env.getFile()
         #print(envFilename)
