@@ -16,6 +16,8 @@ from gym.envs.dart.dc_motor import DCMotor
 from gym.envs.dart.darwin_utils import *
 from gym.envs.dart.parameter_managers import *
 
+from pydart2.utils.transformations import euler_from_matrix
+
 class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.debug_env = False
@@ -31,7 +33,8 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.include_accelerometer:
             self.accumulated_imu_info = np.zeros(3)
 
-        self.root_input = True    # whether to include root dofs in the obs
+        self.root_input = False    # whether to include root dofs in the obs
+        self.fallstate_input = False
 
         self.action_filtering = 5 # window size of filtering, 0 means no filtering
         self.action_filter_cache = []
@@ -72,9 +75,14 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.resample_MP = True
         self.randomize_timestep = True
         self.randomize_obstacle = True
+        self.randomize_gyro_bias = True
+        self.gyro_bias = [0.0, 0.0]
         self.joint_vel_limit = 2.0
         self.stride_limit = 0.2
         self.control_interval = 0.03
+        self.use_settled_initial_states = True
+        if self.use_settled_initial_states:
+            self.init_states_candidates = np.loadtxt(os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/halfsquat_init.txt'))
 
         self.kp = None
         self.kd = None
@@ -94,6 +102,8 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
                 obs_dim += 3
         if self.root_input:
             obs_dim += 4  # won't include linear part
+        if self.fallstate_input:
+            obs_dim += 2
 
         if self.train_UP:
             obs_dim += len(self.param_manager.activated_param)
@@ -113,14 +123,14 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache = []
         self.target_vel_cache = []
 
-        self.assist_timeout = 0.0
+        self.assist_timeout = 10.0
         self.assist_schedule = [[0.0, [2000, 0]], [3.0, [1500, 0]], [6.0, [1125.0, 0.0]]]
 
         self.alive_bonus = 4.5
-        self.energy_weight = 0.1
+        self.energy_weight = 0.05
         self.work_weight = 0.005
         self.vel_reward_weight = 10.0
-        self.pose_weight = 0.0
+        self.pose_weight = 0.5
         self.contact_weight = 0.0
 
         self.cur_step = 0
@@ -159,6 +169,9 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if self.root_input:
             beginid = len(obs_perm_base)
             obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid+1, -beginid-2, beginid+3]])
+        if self.fallstate_input:
+            beginid = len(obs_perm_base)
+            obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid + 1]])
         if self.train_UP:
             obs_perm_base = np.concatenate([obs_perm_base, np.arange(len(obs_perm_base), len(obs_perm_base) + len(self.param_manager.activated_param))])
 
@@ -210,7 +223,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.robot_skeleton.bodynode('l_hand').set_friction_coeff(0.0)
         self.robot_skeleton.bodynode('r_hand').set_friction_coeff(0.0)
 
-        self.add_perturbation = True
+        self.add_perturbation = False
         self.perturbation_parameters = [0.02, 5, 1, 10]  # probability, magnitude, bodyid, duration
         self.perturbation_duration = 40
 
@@ -548,14 +561,13 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if self.t < self.tv_endtime:
             vel_rew *= 0.5
 
-        pose_math_rew = np.sum(
-            np.abs(np.array(self.init_q - self.robot_skeleton.q)[6:]) ** 2)
+        upright_rew = np.abs(euler_from_matrix(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3], 'sxyz')[1])
 
         reward = -self.energy_weight * np.sum(
-            np.abs(self.avg_tau)) + vel_rew + self.alive_bonus - pose_math_rew * self.pose_weight
-        reward -= self.work_weight * np.dot(self.avg_tau, self.robot_skeleton.dq) - np.abs(self.robot_skeleton.q[4])
+            np.abs(self.avg_tau)) + vel_rew + self.alive_bonus - upright_rew * self.pose_weight
+        reward -= self.work_weight * np.dot(self.avg_tau, self.robot_skeleton.dq)
 
-        reward -= np.abs(self.robot_skeleton.q[4]) * 0.5 # prevent moving sideways
+        reward -= np.abs(self.robot_skeleton.q[4]) * 1.5 # prevent moving sideways
 
         s = self.state_vector()
         com_height = self.robot_skeleton.bodynodes[0].com()[2]
@@ -621,13 +633,34 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         # move the obstacle forward when the robot has passed it
         if self.randomize_obstacle:
-            offset = np.copy(self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].offset())
-            offset[0] += 1.0
-            self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset(offset)
-            self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset(offset)
+            if self.robot_skeleton.C[0] - 0.4 > self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].offset()[0]:
+                offset = np.copy(self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].offset())
+                offset[0] += 1.0
+                self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset(offset)
+                self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset(offset)
 
 
         return ob, reward, done, {'avg_vel': np.mean(self.vel_cache)}
+
+    def get_sim_bno55(self):
+        # simulate bno55 reading
+        tinv = np.linalg.inv(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3])
+        angvel = self.robot_skeleton.bodynode('MP_BODY').com_spatial_velocity()[0:3]
+        langvel = np.dot(tinv, angvel) + np.random.uniform(-0.1, 0.1, 3)
+
+        euler = euler_from_matrix(self.robot_skeleton.bodynode('MP_BODY').T[0:3, 0:3], 'sxyz') + np.random.uniform(-0.01, 0.01, 3)
+        if self.randomize_gyro_bias:
+            euler[0:2] += self.gyro_bias
+        return np.array([euler[0], euler[1]-0.075, euler[2], langvel[0], langvel[1], langvel[2]])
+
+    def falling_state(self): # detect if it's falling fwd/bwd or left/right
+        gyro = self.get_sim_bno55()
+        fall_flags = [0, 0]
+        if np.abs(gyro[0]) > 0.5:
+            fall_flags[0] = np.sign(gyro[0])
+        if np.abs(gyro[1]) > 0.5:
+            fall_flags[1] = np.sign(gyro[1])
+        return fall_flags
 
     def _get_obs(self):
         # phi = np.array([self.count/self.ref_traj.shape[0]])
@@ -645,9 +678,11 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
             state = np.concatenate(self.obs_cache)
 
         if self.root_input:
-            gyro = np.concatenate([self.robot_skeleton.q[0:2] + np.random.uniform(-0.05, 0.05, 2),
-                                   self.robot_skeleton.dq[0:2] + np.random.uniform(-0.2, 0.2, 2)])
+            gyro = self.get_sim_bno55()
+            gyro = np.array([gyro[0], gyro[1], gyro[3], gyro[4]])
             state = np.concatenate([state, gyro])
+        if self.fallstate_input:
+            state = np.concatenate([state, self.falling_state()])
 
         for i in range(self.imu_input_step):
             state = np.concatenate([state, self.imu_cache[-i-1]])
@@ -687,6 +722,8 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         q = self.robot_skeleton.q
         q[5] += -0.335 - np.min([self.robot_skeleton.bodynodes[-1].C[2], self.robot_skeleton.bodynodes[-8].C[2]])
+        if self.use_settled_initial_states:
+            q = self.init_states_candidates[np.random.randint(len(self.init_states_candidates))]
         self.robot_skeleton.q = q
 
         self.init_q = np.copy(self.robot_skeleton.q)
@@ -732,12 +769,15 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.avg_tau = np.zeros(26, )
 
         if self.randomize_obstacle:
-            horizontal_range = [0.4, 0.7]
-            vertical_range = [-1.36, -1.348]
+            horizontal_range = [0.6, 0.7]
+            vertical_range = [-1.368, -1.363]
             sampled_v = np.random.uniform(vertical_range[0], vertical_range[1])
             sampled_h = np.random.uniform(horizontal_range[0], horizontal_range[1])
             self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset([sampled_h, 0, sampled_v])
             self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset([sampled_h, 0, sampled_v])
+
+        if self.randomize_gyro_bias:
+            self.gyro_bias = np.random.uniform(-0.05, 0.05, 2)
 
         return self._get_obs()
 

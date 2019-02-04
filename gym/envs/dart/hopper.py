@@ -13,8 +13,8 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
     def __init__(self):
         self.control_bounds = np.array([[1.0, 1.0, 1.0],[-1.0, -1.0, -1.0]])
         self.action_scale = np.array([200.0, 200.0, 200.0]) * 1.0
-        self.train_UP = False
-        self.noisy_input = False
+        self.train_UP = True
+        self.noisy_input = True
         self.input_time = False
 
         self.action_filtering = 0  # window size of filtering, 0 means no filtering
@@ -27,7 +27,7 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.velrew_weight = 1.0
         self.UP_noise_level = 0.0
-        self.resample_MP = False  # whether to resample the model paraeters
+        self.resample_MP = True  # whether to resample the model paraeters
 
         self.actuator_nonlinearity = False
         self.actuator_nonlin_coef = 1.0

@@ -81,3 +81,17 @@ pose_stand_rad = VAL2RADIAN(pose_stand_val)
 pose_left_stand_rad = VAL2RADIAN(pose_left_stand_val)
 pose_right_stand_rad = VAL2RADIAN(pose_right_stand_val)
 ######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<robot name="track_box_skeleton">
+    <link name="world" />
+    <link name="dummy1">
+      <inertial>
+          <mass value="0.0"/>
+      </inertial>
+    </link>
+    <link name="dummy2">
+      <inertial>
+          <mass value="0.0"/>
+      </inertial>
+    </link>
+
+
+    <link name="track_box">
+        <inertial>
+            <mass value="100.0" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.02 0.2 0.4" />
+            </geometry>
+        </visual>
+    </link>
+
+
+    <joint name="jt1" type="revolute">
+        <parent link="world"/>
+        <child link="dummy1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.3"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="2.8" lower="-6.28" upper="6.28" velocity="5.6548668"/>
+    </joint>
+
+    <joint name="jt2" type="revolute">
+        <parent link="dummy1"/>
+        <child link="dummy2"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="2.8" lower="-6.28" upper="6.28" velocity="5.6548668"/>
+    </joint>
+
+    <joint name="jt3" type="revolute">
+        <parent link="dummy2"/>
+        <child link="track_box"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="2.8" lower="-6.28" upper="6.28" velocity="5.6548668"/>
+    </joint>
+
+</robot>

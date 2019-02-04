@@ -22,9 +22,10 @@ class hopperContactMassManager:
         self.com_offset_range = [-0.05, 0.05]
         self.frame_skip_range = [4, 10]
         self.actuator_nonlin_range = [0.75, 1.5]
+        self.reward_predictor = None
 
-        self.activated_param = [0,1,2,3,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
-        self.controllable_param = [0,1,2,3,5]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.activated_param = [0]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
+        self.controllable_param = [0]#[0, 2,3,4,5, 6,7,8, 9, 12,13,14,15]
         
         self.binned_param = 0 # don't bin if = 0
 
@@ -137,9 +138,16 @@ class hopperContactMassManager:
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
-        if self.sampling_selector is not None:
-            while not self.sampling_selector.classify(np.array([x])) == self.selector_target:
-                x = np.random.uniform(0, 1, len(self.get_simulator_parameters()))
+        if self.reward_predictor is not None:
+            while True:
+                pred_rew = self.reward_predictor.predict_reward(x)[0]
+                normed_rew = (pred_rew - self.reward_predictor.reward_range[0]) / (self.reward_predictor.reward_range[1] - self.reward_predictor.reward_range[0])
+                normed_rew = np.clip(normed_rew, 0.05, 0.95)
+                if np.random.random() > normed_rew:
+                    break
+                else:
+                    x = np.random.uniform(-0.05, 1.05, len(self.get_simulator_parameters()))
+            print(normed_rew, x)
         self.set_simulator_parameters(x)
 
 
@@ -1006,12 +1014,13 @@ class darwinParamManager:
     MU_LOW_BOUNDS = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1] * 27,
                      [2.0], [0, 0, 0, 0, 0], [0], [0], [3.0], [-0.1, -0.05], [0.0],
                      [0.5, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.0, 0.0, 0.1, 0.0]]
-    activated_param = [13]#np.arange(16)
+    activated_param = np.arange(16)
     controllable_param = [KP_RATIO, KD_RATIO, NEURAL_MOTOR, VEL_LIM, JOINT_DAMPING, TORQUE_LIM, COM_OFFSET, GROUND_FRICTION]
     MU_UNSCALED = None  # unscaled version of mu
 
     def __init__(self, simulator):
         self.simulator = simulator
+        self.reward_predictor = None
 
     @property
     def param_dim(self):
@@ -1266,4 +1275,13 @@ class darwinParamManager:
 
     def resample_parameters(self):
         x = np.random.uniform(-0.05, 1.05, np.sum(self.MU_DIMS[self.controllable_param]))
+        if self.reward_predictor is not None:
+            while True:
+                pred_rew = self.reward_predictor.predict_reward(x)[0]
+                normed_rew = (pred_rew - self.reward_predictor.reward_range[0]) / (self.reward_predictor.reward_range[1] - self.reward_predictor.reward_range[0])
+                normed_rew = np.clip(normed_rew, 0.05, 0.95)
+                if np.random.random() > normed_rew:
+                    break
+                else:
+                    x = np.random.uniform(-0.05, 1.05, np.sum(self.MU_DIMS[self.controllable_param]))
         self.set_simulator_parameters(x)
