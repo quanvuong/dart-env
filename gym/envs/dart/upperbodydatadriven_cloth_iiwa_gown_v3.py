@@ -321,6 +321,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             observation_size += 1
         if self.elbowConVarObs:
             observation_size += 1
+        if self.SPDTargetObs:
+            observation_size += 22
 
         # initialize the Iiwa variables
         self.SPDController = None
