@@ -167,6 +167,8 @@ class CapacitiveSensor:
         self.sensorRaySettings = [] #list of local position, direction, range for each sensor ray
         self.sensorRayGlobals = [] #list of global position and direction for each sensor ray
         self.sensorRayReadings = [] #list of most recent reading for each sensor ray
+        self.sensorRayZones = [] # a per sensor list of zone relationship
+        self.numSensorRayZones = 1 #how many zones exist on this sensor
         self.update()
 
     def update(self):
@@ -193,10 +195,11 @@ class CapacitiveSensor:
             self.sensorRaySettings.append([localOrgs[i], localDirs[i], ranges[i]])
             self.sensorRayReadings.append(ranges[i])
 
-
     def default1RaySetup(self):
         #default setup with 1 ray in center
         self.setupSensorRays(localOrgs=[np.zeros(3)], localDirs=[np.array([0,1,0])], ranges=[0.15])
+        self.sensorRayZones = [0]
+        self.numSensorRayZones = 1
 
     def defaultCircle5Center1Setup(self, rad=0.05):
         # default setup with 1 ray in center and 5 equidistant radial points
@@ -216,26 +219,96 @@ class CapacitiveSensor:
             orgs.append(np.array([x, y, 0.065]))
 
         self.setupSensorRays(localOrgs=orgs, localDirs=dirs, ranges=ranges)
+        self.sensorRayZones = []
+        for i in range(len(orgs)):
+            self.sensorRayZones.append(0)
+        self.numSensorRayZones = 1
+
+    def defaultCir5Cen1Rad_nxm(self, rad=0.05, radialZones=5, sPerZone=3):
+        # default setup with 1 ray in center and 5 equidistant radial points
+        orgs = []
+        dirs = []
+        ranges = []
+
+        for i in range(6):
+            dirs.append(np.array([0, 0, 1]))
+            ranges.append(0.15)
+
+        #center and downward radial 5
+        orgs.append(np.array([0, 0, 0.075]))
+        for i in range(5):
+            ang = 2 * math.pi * (i / 5.0)
+            x = math.cos(ang) * rad
+            y = math.sin(ang) * rad
+            orgs.append(np.array([x, y, 0.065]))
+
+        self.sensorRayZones = []
+        for i in range(6):
+            self.sensorRayZones.append(0)
+
+        self.numSensorRayZones = 1 + radialZones
+
+        #radial zones 2 per zone
+        for i in range(radialZones*sPerZone):
+            ang = 2 * math.pi * (i / (radialZones*sPerZone))
+            x = math.cos(ang) * rad
+            y = math.sin(ang) * rad
+            orgs.append(np.array([x, y, 0.065]))
+            dirs.append(np.array([x,y,0]))
+            dirs[-1] /= np.linalg.norm(dirs[-1])
+            zone = 1 + (i/sPerZone)
+            self.sensorRayZones.append(zone)
+            ranges.append(0.15)
+
+        self.setupSensorRays(localOrgs=orgs, localDirs=dirs, ranges=ranges)
 
     def getAggregateSensorReading(self):
-        #return the average reading
-        total = sum(self.sensorRayReadings)/len(self.sensorRayReadings)
-        return total
+        totals = np.zeros(self.numSensorRayZones)
+        numInZones = np.zeros(self.numSensorRayZones)
+
+        for ix,z in enumerate(self.sensorRayZones):
+            totals[int(z)] += self.sensorRayReadings[ix]
+            numInZones[int(z)] += 1
+
+        for i in range(self.numSensorRayZones):
+            totals[i] /= numInZones[i]
+
+        return totals
+        #return the average reading per zone
+        #total = sum(self.sensorRayReadings)/len(self.sensorRayReadings)
+        #return total
 
     def draw(self):
         #draw the sensor rays and contact points
+
         renderUtils.setColor(color=[0,0,0])
-        lines = []
         for ix,gr in enumerate(self.sensorRayGlobals):
+            lines = []
+            renderUtils.setColor(color=renderUtils.differentialColors(int(self.sensorRayZones[ix])))
             cp = gr[0] + gr[1]*self.sensorRayReadings[ix]
             renderUtils.drawSphere(pos=cp)
             lines.append([gr[0], gr[0]+gr[1]*self.sensorRaySettings[ix][2]])
-        renderUtils.drawLines(lines=lines)
+            renderUtils.drawLines(lines=lines)
 
     def getReading(self):
+        starttime = time.time()
         #reset sensor readings to max
         for i in range(len(self.sensorRayReadings)):
             self.sensorRayReadings[i] = self.sensorRaySettings[i][2]
+
+        #build bounding boxes
+        BB = {}
+        for s0 in range(len(self.env.collisionCapsuleInfo)):
+            for s1 in range(len(self.env.collisionCapsuleInfo)):
+                if self.env.collisionCapsuleInfo[s0][s1] == 1:
+                    c0 = self.env.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
+                    r0 = self.env.collisionSphereInfo[s0 * 9 + 3]
+                    c1 = self.env.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
+                    r1 = self.env.collisionSphereInfo[s1 * 9 + 3]
+                    x = np.array([c0[0]+r0, c0[0]-r0, c1[0]+r1, c1[0]-r1])
+                    y = np.array([c0[1]+r0, c0[1]-r0, c1[1]+r1, c1[1]-r1])
+                    z = np.array([c0[2]+r0, c0[2]-r0, c1[2]+r1, c1[2]-r1])
+                    BB[(s0,s1)] = [(np.amin(x), np.amax(x)),(np.amin(y), np.amax(y)),(np.amin(z), np.amax(z))]
 
         #read the "robot_skeleton" from env
         for s0 in range(len(self.env.collisionCapsuleInfo)):
@@ -245,11 +318,24 @@ class CapacitiveSensor:
                     r0 = self.env.collisionSphereInfo[s0 * 9 + 3]
                     c1 = self.env.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
                     r1 = self.env.collisionSphereInfo[s1 * 9 + 3]
+                    BBc = BB[(s0,s1)]
                     for ix, gr in enumerate(self.sensorRayGlobals):
+                        #if both line points on the same side of any bounding box dimension, then collsion is impossible
+                        #check x
+
+                        if (gr[0][0] >= BBc[0][0]) == (gr[1][0] >= BBc[0][0]) == (gr[0][0] >= BBc[0][1]) == (gr[1][0] >= BBc[0][1]):
+                            continue
+                        #check y
+                        if (gr[0][1] >= BBc[1][0]) == (gr[1][1] >= BBc[1][0]) == (gr[0][1] >= BBc[1][1]) == (gr[1][1] >= BBc[1][1]):
+                            continue
+                        #check z
+                        if (gr[0][2] >= BBc[2][0]) == (gr[1][2] >= BBc[2][0]) == (gr[0][2] >= BBc[2][1]) == (gr[1][2] >= BBc[2][1]):
+                            continue
+
                         hit = pyutils.rayCapIntersect(gr[0], gr[1], c0, c1, r0, r1)
                         if hit[0]:
                             self.sensorRayReadings[ix] = min(self.sensorRayReadings[ix], hit[1])
-
+        #print(time.time()-starttime)
 
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
@@ -326,6 +412,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.prevAvgGeodesic = None
         self.localLeftEfShoulder1 = None
         self.limbProgress = 0
+        self.limbProgressPoint = None
         self.previousDeformationReward = 0
         self.handFirst = False #once the hand enters the feature, switches to true
         self.state_save_directory = "saved_control_states/"
@@ -353,7 +440,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.cloth_f_history_avg = np.zeros(66)
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
-        self.manualTargetControl = False #if true, actions are not considered
+        self.manualTargetControl = True #if true, actions are not considered
         self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
@@ -437,6 +524,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #setup robot obs:
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
+        self.robotProgressObs   = False #cheat to get progress of limb
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
@@ -447,8 +535,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.targetCentric:
             bot_observation_size += 6 #target frame position and orientation
         if self.robotCapacitiveObs:
-            bot_observation_size += 1
+            #bot_observation_size += 1
+            bot_observation_size += 6 #NOTE: need to reset this for expected setup
             pass
+        if self.robotProgressObs:
+            bot_observation_size += 4 #position and total progress up the arm
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -479,7 +570,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.previousIKResult = np.zeros(7)
 
         #setup robot base location
-        self.dFromRoot = 0.65
+        self.dFromRoot = 0.75
         self.aFrom_invZ = 0.959931
         self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, self.dFromRoot*math.sin(self.aFrom_invZ), -0.2, -self.dFromRoot*math.cos(self.aFrom_invZ)]) #values for the fixed 6 dof root transformation
 
@@ -631,7 +722,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #initialzie capacitive sensor
         self.capacitiveSensor = CapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
-        self.capacitiveSensor.defaultCircle5Center1Setup()
+        #self.capacitiveSensor.defaultCircle5Center1Setup()
+        self.capacitiveSensor.defaultCir5Cen1Rad_nxm()
         self.capacitiveSensor.update()
 
         #disable character gravity
@@ -1012,7 +1104,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         reward_limbprogress = 0
         if self.limbProgressReward:
             if self.simulateCloth:
-                self.limbProgress = pyutils.limbFeatureProgress(
+                self.limbProgress,self.limbProgressPoint = pyutils.limbFeatureProgressPoint(
                     limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
                                                       offset=self.fingertip), feature=self.sleeveLSeamFeature)
             #hoop_norm = self.rigidClothFrame.toGlobal(np.array([0, 0, -1])) - self.rigidClothFrame.toGlobal(np.zeros(3))
@@ -1870,7 +1962,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #capacitive sensor aggregate reading
         if self.robotCapacitiveObs:
-            obs = np.concatenate([obs, np.array([self.capacitiveSensor.getAggregateSensorReading()/0.15])])
+            obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
+
+        if self.robotProgressObs:
+            if self.limbProgressPoint is None:
+                self.limbProgressPoint = np.zeros(3)
+                print("bad progress obs")
+            obs = np.concatenate([obs, np.array([max(0, self.limbProgress)]), self.limbProgressPoint])
 
         return obs
 
@@ -2356,6 +2454,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
 
+        if self.robotProgressObs:
+            #draw the progress point
+            if self.limbProgressPoint is not None:
+                renderUtils.drawArrowAxis(org=self.limbProgressPoint, v0=np.array([1,0,0]), v1=np.array([0,1,0]), v2=np.array([0,0,1]))
+
         #render arm target path info
         if False:
             armTargetPoints = []
@@ -2778,9 +2881,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         windowef = self.viewer.project(robo_ef)
         #renderUtils.rect2D(topLeft=[windowef[0], windowef[1]], dimensions=[30,16], fill=True)
         if self.robotCapacitiveObs:
-            self.clothScene.drawText(x=windowef[0], y=windowef[1],
-                                 text="cap. reading: %0.4f" % self.capacitiveSensor.getAggregateSensorReading(),
-                                 color=(1.0, 0., 0.))
+            sensorReading = self.capacitiveSensor.getAggregateSensorReading()
+            for s in range(self.capacitiveSensor.numSensorRayZones):
+
+                self.clothScene.drawText(x=windowef[0], y=windowef[1]+16*s,
+                                     text="Z["+str(s)+"]: %0.4f" % sensorReading[s],
+                                     color=(1.0, 0., 0.))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,

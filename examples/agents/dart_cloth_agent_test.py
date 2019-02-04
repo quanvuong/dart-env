@@ -52,8 +52,10 @@ if __name__ == '__main__':
     trial = None
 
     #--- Trial block with moved arm
+    #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_full_variation_plane_cap"
+    #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap"
     #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_full_variation"
-    trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_spec_hard"
+    #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_spec_hard"
     #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec_capobs"
     #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec"
     #---
