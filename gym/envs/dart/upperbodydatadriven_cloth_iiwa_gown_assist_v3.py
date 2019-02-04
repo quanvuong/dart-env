@@ -440,7 +440,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.cloth_f_history_avg = np.zeros(66)
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
-        self.manualTargetControl = True #if true, actions are not considered
+        self.manualTargetControl = False #if true, actions are not considered
         self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
@@ -524,7 +524,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #setup robot obs:
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
-        self.robotProgressObs   = True #cheat to get progress of limb
+        self.robotProgressObs   = False #cheat to get progress of limb
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions

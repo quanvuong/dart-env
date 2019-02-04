@@ -679,6 +679,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Env v3(moved robot and SPD human)
+register(
+    id='DartIiwaGown-v3',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnvV3',
+    #max_episode_steps=250,
+)
+
 #Iiwa Hanging Gown Assist Env
 register(
     id='DartIiwaGownAssist-v1',

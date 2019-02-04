@@ -42,7 +42,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
         self.captureIndex = 0 #increments when captureToFile is called
-        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/02_02_spec_hard_plane_cap"
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/02_03_sped_hard_cap2_farther"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/1"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/0"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
@@ -112,11 +112,13 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         self.projectionM = GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)
         self.viewport = GL.glGetInteger(GL.GL_VIEWPORT)
 
+        if self.clothScene is not None:
+            self.clothScene.render()
+
         if self.extraRenderFunc is not None:
             self.extraRenderFunc()
 
-        if self.clothScene is not None:
-            self.clothScene.render()
+
 
         #unprojections:
         #mouse hover object
