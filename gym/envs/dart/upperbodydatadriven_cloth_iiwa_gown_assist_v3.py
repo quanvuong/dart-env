@@ -524,7 +524,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #setup robot obs:
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
-        self.robotProgressObs   = False #cheat to get progress of limb
+        self.robotProgressObs   = True #cheat to get progress of limb
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
