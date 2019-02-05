@@ -600,6 +600,7 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         rolloutHorizon = 10000
         rolloutHorizon = 600
+        rolloutHorizon = 900
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

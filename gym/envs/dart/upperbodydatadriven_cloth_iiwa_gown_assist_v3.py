@@ -1974,7 +1974,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
     def additionalResets(self):
         #set friction low to allow easier dressing?
-        self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
+        #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
 
         self.consecutiveInstabilities = 0
 
