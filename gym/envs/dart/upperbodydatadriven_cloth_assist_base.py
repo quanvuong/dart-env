@@ -172,10 +172,10 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
             if 1 in self.actuatedDofs:
                 self.action_scale[self.actuatedDofs.tolist().index(1)] = 50
 
-        if self.recurrency > 0:
-            self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
+        #if self.recurrency > 0:
+        #    self.action_scale = np.concatenate([self.action_scale, np.ones(self.recurrency)])
 
-        self.control_bounds = np.array([np.ones(len(self.actuatedDofs)+self.recurrency), np.ones(len(self.actuatedDofs)+self.recurrency)*-1])
+        self.control_bounds = np.array([np.ones(len(self.actuatedDofs)), np.ones(len(self.actuatedDofs))*-1])
 
         self.reset_number = 0
         self.numSteps = 0
@@ -185,6 +185,8 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
 
         self.robot_actuatedDofs = np.arange(6)
         self.robot_action_scale = np.ones(6)*2.0
+        if self.recurrency > 0:
+            self.robot_action_scale = np.concatenate([self.robot_action_scale, np.ones(self.recurrency)])
         self.robot_control_bounds = np.array([np.ones(len(self.robot_action_scale)), np.ones(len(self.robot_action_scale))*-1])
 
 

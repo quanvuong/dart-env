@@ -588,6 +588,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
+    useMeanPolicy = False
 
     for i in range(11):
         print("-----------------------------------")

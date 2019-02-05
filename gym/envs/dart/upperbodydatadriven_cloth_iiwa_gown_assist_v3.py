@@ -525,6 +525,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #setup robot obs:
         self.robotCapacitiveObs = False #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
+        self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
+        self.lastRecurrentAction = np.zeros(self.recurrentSize)
 
         bot_observation_size = (13-6) * 3 #robot dofs
         bot_observation_size += 45 #human joint posistions
@@ -540,6 +542,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             pass
         if self.robotProgressObs:
             bot_observation_size += 4 #position and total progress up the arm
+        bot_observation_size += self.recurrentSize
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -631,14 +634,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                           cloth_dt=cloth_dt,
                                                           frameskip=frameskip,
                                                           gravity=True,
-                                                          humanPolicyFile=humanPolicyFile)
+                                                          humanPolicyFile=humanPolicyFile,
+                                                          recurrency=self.recurrentSize)
 
         #initialize the Iiwa robot
         #print("loading URDFs")
         self.initialActionScale = np.array(self.action_scale)
-        self.robot_action_scale = np.ones(6)
+        self.robot_action_scale = np.ones(6+self.recurrentSize)
         self.robot_action_scale[:3] = np.ones(3)*0.1 #position
-        self.robot_action_scale[3:] = np.ones(3)*0.2 #orientation
+        self.robot_action_scale[3:6] = np.ones(3)*0.2 #orientation
         #self.robot_action_scale = np.zeros(6)
         iiwaFilename = ""
         if self.renderIiwaCollidable:
@@ -1348,6 +1352,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #print("action scale: " + str(self.robot_action_scale))
         #print("scaled action: " + str(robo_action_scaled))
 
+        # record the recurrency if necessary
+        if self.recurrency > 0:
+            self.lastRecurrentAction = np.array(robo_action_scaled[-self.recurrency:])
+
         efpos = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
         efdir = self.iiwa_skel.bodynodes[9].to_world(np.array([0, 1.0, 0])) - efpos
         efdir = efdir / np.linalg.norm(efdir)
@@ -1361,7 +1369,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if(not self.manualTargetControl):
             #self.ikTarget = efpos+robo_action_scaled[:3]
             self.frameInterpolator["target_pos"] += robo_action_scaled[:3]
-            self.frameInterpolator["eulers"] += robo_action_scaled[3:]
+            self.frameInterpolator["eulers"] += robo_action_scaled[3:6]
 
         #ensure ik target is in reach
         #toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
@@ -1969,6 +1977,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 self.limbProgressPoint = np.zeros(3)
                 print("bad progress obs")
             obs = np.concatenate([obs, np.array([max(0, self.limbProgress)]), self.limbProgressPoint])
+
+        if self.recurrency > 0:
+            obs = np.concatenate([obs, self.lastRecurrentAction])
 
         return obs
 
