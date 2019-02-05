@@ -52,8 +52,8 @@ if __name__ == '__main__':
     trial = None
 
     #--- Trial block with moved arm
-    #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75"
-    trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75_prog"
+    trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75"
+    #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75_prog"
     #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_full_variation_plane_cap"
     #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap"
     #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_full_variation"
@@ -589,7 +589,7 @@ if __name__ == '__main__':
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
 
-    for i in range(110):
+    for i in range(11):
         print("-----------------------------------")
         print("  Starting rollout " + str(i))
         print("-----------------------------------")

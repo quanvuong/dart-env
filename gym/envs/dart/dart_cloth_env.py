@@ -155,7 +155,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
                 return True
             elif np.amax(np.absolute(skel.q)) > 5:
                 print("skel: " + str(skel_ix))
-                print("Detecting potential instability..." + str(skel.q))
+                print("Detecting potential instability...")# + str(skel.q))
                 return True
         '''elif np.amax(np.absolute(self.robot_skeleton.dq)) > 1.0:
             print("Detecting potential instability via velocity: " + str(self.robot_skeleton.dq))
