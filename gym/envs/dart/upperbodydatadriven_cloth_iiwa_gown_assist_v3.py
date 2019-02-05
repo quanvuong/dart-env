@@ -340,7 +340,7 @@ class CapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -380,7 +380,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
         self.towardArmReward            = False #if true, reward robot ef toward the arm
 
@@ -523,7 +523,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             human_observation_size += 1
 
         #setup robot obs:
-        self.robotCapacitiveObs = True #need this flag for rendering and reading updates
+        self.robotCapacitiveObs = False #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
 
         bot_observation_size = (13-6) * 3 #robot dofs
@@ -2001,7 +2001,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            #self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2018,8 +2018,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
+            self.elbow_rest = random.uniform(0.5, 1.0) #easier variation set
             #self.elbow_rest = 0.75 #spec (easy)
-            self.elbow_rest = 2.0 #spec hard
+            #self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6
