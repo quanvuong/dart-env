@@ -860,6 +860,7 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         #print(seeds)
 
         #Seeding for determinism:
+        self.setSeed = -1
         if False:
             try:
                 seed = seeds[self.reset_number]

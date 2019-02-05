@@ -51,13 +51,15 @@ if __name__ == '__main__':
 
     trial = None
 
+    trial = "experiment_2019_02_04_SPD_human"
+
     #--- Trial block with moved arm
     #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75"
     #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75_prog"
     #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_full_variation_plane_cap"
     #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap"
     #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_full_variation"
-    trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_spec_hard"
+    #trial = "experiment_2019_02_01_robo_2D_w_e_u_einterp_lim_conPen_spec_hard"
     #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec_capobs"
     #trial = "experiment_2019_01_31_robo_2D_w_e_u_einterp_lim_conPen_spec"
     #---
@@ -485,8 +487,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGown-v2'
-    #envName = 'DartIiwaGown-v3'
-    envName = 'DartIiwaGownAssist-v3'
+    envName = 'DartIiwaGown-v3'
+    #envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssistCoopt-v1'
     env = gym.make(envName)
 
@@ -588,9 +590,9 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
-    useMeanPolicy = False
+    #useMeanPolicy = False
 
-    for i in range(11):
+    for i in range(20):
         print("-----------------------------------")
         print("  Starting rollout " + str(i))
         print("-----------------------------------")
@@ -601,7 +603,7 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         rolloutHorizon = 10000
         rolloutHorizon = 600
-        rolloutHorizon = 900
+        #rolloutHorizon = 900
         #rolloutHorizon = 10000
         if paused is True:
             rolloutHorizon = 10000

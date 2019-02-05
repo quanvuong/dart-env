@@ -159,9 +159,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = False #when true, reduce the debugging display significantly
+        self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
+        self.renderSPDGhost = True
 
         #dt = 0.002
         #cloth_dt = 0.002
@@ -805,11 +806,19 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
             q = np.array(self.robot_skeleton.q)
+            maxDeviation = 0.15
             for d in range(self.robot_skeleton.ndofs):
                 t = self.humanSPDController.target[d]
                 self.humanSPDController.target[d] = min(t, pos_upper_lim[d])
                 self.humanSPDController.target[d] = max(t, pos_lower_lim[d])
-                #TODO: limit to close to current pose?
+                #limit close to current pose
+                qdof = self.robot_skeleton.q[d]
+                diff = qdof - self.humanSPDController.target[d]
+                if abs(diff) > maxDeviation:
+                    if diff > 0:
+                        self.humanSPDController.target[d] = qdof - maxDeviation
+                    else:
+                        self.humanSPDController.target[d] = qdof + maxDeviation
             full_control = self.humanSPDController.query(None)
             #print(self.humanSPDController.query(None))
         #full_control = np.array(a)
@@ -2205,10 +2214,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         m_viewport = self.viewer.viewport
         # print(m_viewport)
 
-        if self.variationTesting:
-            self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
-            self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
-            self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
+        #if self.variationTesting:
+        self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
+        self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+        #self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
+        if self.elbowConVarObs:
+                # render elbow stiffness variation
+                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80, text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
+
+
 
         if self.renderUI and not self.demoRendering:
             if self.renderRewardsData:
@@ -2254,11 +2268,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             #render unilateral weakness variation
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="Weakness Scale Value = %0.2f" % self.weaknessScale, color=(0., 0, 0))
 
-            if self.elbowConVarObs:
-                # render elbow stiffness variation
-                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80,
-                                         text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
-
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
 
@@ -2291,12 +2300,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             self.iiwa_skel.set_velocities(dq)
 
         #render SPD target ghost
-        if True:
+        if self.renderSPDGhost:
             q = np.array(self.robot_skeleton.q)
             dq = np.array(self.robot_skeleton.dq)
             self.robot_skeleton.set_positions(self.humanSPDController.target)
             # self.viewer.scene.render(self.viewer.sim)
-            self.robot_skeleton.render()
+            self.robot_skeleton.render_with_color(color=[0.6,0.6,0.6])
             self.robot_skeleton.set_positions(q)
             self.robot_skeleton.set_velocities(dq)
 
