@@ -1674,7 +1674,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 if (i % 2 == 1):  # every other step
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
-                    self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
+                    newOrg = hn.to_world(np.array([0, 0, 0.05]))
+                    if not np.isfinite(newOrg).all():
+                        print("Invalid robot pose in handle update...")
+                        self.iiwa_skel.set_positions(robot_pre_q)
+                        self.iiwa_skel.set_velocities(robot_pre_dq)
+                        return
+                    self.handleNode.org = np.array(newOrg)
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
                     # gripper_q = self.dart_world.skeletons[0].q
@@ -1985,7 +1991,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
     def additionalResets(self):
         #set friction low to allow easier dressing?
-        self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
+        #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
 
         self.consecutiveInstabilities = 0
 
@@ -2015,7 +2021,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            #self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2034,7 +2040,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.elbow_rest = random.uniform(0.5, 2.85)
             self.elbow_rest = random.uniform(0.5, 1.0) #easier variation set
             #self.elbow_rest = 0.75 #spec (easy)
-            self.elbow_rest = 2.0 #spec hard
+            #self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6

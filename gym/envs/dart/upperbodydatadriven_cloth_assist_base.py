@@ -696,7 +696,10 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
 
     def checkInvalidDynamics(self):
         if not np.isfinite(self.robot_skeleton.q).all():
-            print("Infinite value detected..." + str(self.robot_skeleton.q))
+            try:
+                print("Infinite value detected..." + str(self.robot_skeleton.q))
+            except:
+                print("Infinite value detected... CAN'T PRINT THE q VECTOR...")
             return True
         elif np.amax(np.absolute(self.robot_skeleton.q)) > 5:
             try:
@@ -705,10 +708,16 @@ class DartClothUpperBodyDataDrivenClothAssistBaseEnv(DartClothEnv, utils.EzPickl
                 print("Detecting potential instability... CAN'T PRINT THE q VECTOR...")
             return True
         if not np.isfinite(self.dart_world.skeletons[0].q).all():
-            print("Infinite value detected (robot)..." + str(self.dart_world.skeletons[0].q))
+            try:
+                print("Infinite value detected (robot)..." + str(self.dart_world.skeletons[0].q))
+            except:
+                print("Infinite value detected (robot) ... CAN'T PRINT THE q VECTOR...")
             return True
         elif np.amax(np.absolute(self.dart_world.skeletons[0].q)) > 5:
-            print("Detecting potential instability (robot)..." + str(self.dart_world.skeletons[0].q))
+            try:
+                print("Detecting potential instability (robot)..." + str(self.dart_world.skeletons[0].q))
+            except:
+                print("Detecting potential instability (robot)... CAN'T PRINT THE q VECTOR...")
             return True
 
     def _get_obs(self):

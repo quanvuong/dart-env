@@ -51,9 +51,12 @@ if __name__ == '__main__':
 
     trial = None
 
-    trial = "experiment_2019_02_04_SPD_human"
+    #trial = "experiment_2019_02_04_SPD_human"
 
     #--- Trial block with moved arm
+    trial = "experiment_2019_02_05_robo_weakness_easyelbow" #untested
+    #trial = "experiment_2019_02_05_robo_spec_hard_lowfriction" #untested
+    #trial = "experiment_2019_02_05_robo_spec_hard_longHorizon" #untested
     #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75"
     #trial = "experiment_2019_02_03_robo_2D_w_e_u_einterp_lim_conPen_spec_hard_plane_cap2_75_prog"
     #trial = "experiment_2019_02_02_robo_2D_w_e_u_einterp_lim_conPen_full_variation_plane_cap"
@@ -487,8 +490,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGown-v2'
-    envName = 'DartIiwaGown-v3'
-    #envName = 'DartIiwaGownAssist-v3'
+    #envName = 'DartIiwaGown-v3'
+    envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssistCoopt-v1'
     env = gym.make(envName)
 
