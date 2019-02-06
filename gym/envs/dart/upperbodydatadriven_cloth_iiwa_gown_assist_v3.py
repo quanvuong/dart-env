@@ -380,7 +380,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
         self.towardArmReward            = False #if true, reward robot ef toward the arm
 
