@@ -340,7 +340,7 @@ class CapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -377,7 +377,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.limbProgressExponential    = False  # if true, positive limb progress is d^2
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = True
+        self.deformationPenalty         = False
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
@@ -1991,7 +1991,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
     def additionalResets(self):
         #set friction low to allow easier dressing?
-        self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
+        #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
 
         self.consecutiveInstabilities = 0
 

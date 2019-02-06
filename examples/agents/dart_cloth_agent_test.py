@@ -493,8 +493,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaRigid-v1'
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGown-v2'
-    envName = 'DartIiwaGown-v3'
-    #envName = 'DartIiwaGownAssist-v3'
+    #envName = 'DartIiwaGown-v3'
+    envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssistCoopt-v1'
     env = gym.make(envName)
 
