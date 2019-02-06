@@ -974,6 +974,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         clothStepsTaken = 0
         pre_q = np.array(self.robot_skeleton.q)
         pre_dq = np.array(self.robot_skeleton.dq)
+        robot_pre_q = np.array(self.iiwa_skel.q)
+        robot_pre_dq = np.array(self.iiwa_skel.dq)
         for i in range(n_frames):
             #print("step " + str(i))
             if self.add_perturbation:
@@ -1021,7 +1023,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
                     #print(i)
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
-                    self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
+                    newOrg = hn.to_world(np.array([0, 0, 0.05]))
+                    if not np.isfinite(newOrg).all():
+                        print("Invalid robot pose in handle update...")
+                        self.iiwa_skel.set_positions(robot_pre_q)
+                        self.iiwa_skel.set_velocities(robot_pre_dq)
+                        return
+                    self.handleNode.org = np.array(newOrg)
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
                     #gripper_q = self.dart_world.skeletons[0].q

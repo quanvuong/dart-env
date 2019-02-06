@@ -151,7 +151,7 @@ class DartClothEnv(DartEnv, utils.EzPickle):
         for skel_ix, skel in enumerate(self.dart_world.skeletons):
             if not np.isfinite(skel.q).all():
                 print("skel: " + str(skel_ix))
-                print("Infinite value detected..." + str(skel.q))
+                print("Infinite value detected...")
                 return True
             elif np.amax(np.absolute(skel.q)) > 5:
                 print("skel: " + str(skel_ix))
