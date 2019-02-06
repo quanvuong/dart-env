@@ -340,7 +340,7 @@ class CapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -1991,7 +1991,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
     def additionalResets(self):
         #set friction low to allow easier dressing?
-        #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
+        self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
 
         self.consecutiveInstabilities = 0
 
@@ -2021,7 +2021,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            #self.weaknessScale = 1.0
+            self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2040,7 +2040,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.elbow_rest = random.uniform(0.5, 2.85)
             self.elbow_rest = random.uniform(0.5, 1.0) #easier variation set
             #self.elbow_rest = 0.75 #spec (easy)
-            #self.elbow_rest = 2.0 #spec hard
+            self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
             #self.elbow_rest = 0.25 + (int(self.reset_number/10)/8.0) * 2.6

@@ -159,7 +159,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
     def __init__(self):
         #feature flags
         rendering = False
-        self.demoRendering = True #when true, reduce the debugging display significantly
+        self.demoRendering = False #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
         self.renderSPDGhost = True
@@ -198,6 +198,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.deformationPenalty         = True
         self.restPoseReward             = True
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
+        self.actionMagnitudePenalty     = True  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 2
@@ -208,6 +209,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.deformationPenaltyWeight         = 5
         self.restPoseRewardWeight             = 2
         self.variationEntropyRewardWeight     = 1
+        self.actionMagnitudePenaltyWeight     = 1
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -218,6 +220,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         #other variables
         self.humanSPDController = None
         self.humanSPDTarget = np.zeros(22)
+        self.previousAction = np.zeros(22) #TODO: increase if recurrent
         self.prevTau = None
         self.elbowFlairNode = 10
         self.maxDeformation = 30.0
@@ -572,6 +575,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             self.rewardsData.addReward(label="variation entropy", rmin=0, rmax=1.0, rval=0,
                                        rweight=self.variationEntropyRewardWeight)
 
+        if self.actionMagnitudePenalty:
+            self.rewardsData.addReward(label="action magnitude", rmin=-1.0, rmax=0, rval=0,
+                                       rweight=self.actionMagnitudePenaltyWeight)
+
         #self.loadCharacterState(filename="characterState_1starmin")
 
         if self.simpleWeakness:
@@ -744,6 +751,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
     def _step(self, a):
         #print("starting step")
         #print("a: " + str(a))
+        self.previousAction = np.array(a)
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
             return np.zeros(self.obs_size), 0, False, {}
@@ -1319,6 +1327,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             a = 0
             reward_record.append(0)
 
+        reward_actionMagnitude = 0
+        if self.actionMagnitudePenalty:
+            reward_actionMagnitude = -np.linalg.norm(self.previousAction)
+            reward_record.append(reward_actionMagnitude)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -1349,7 +1362,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
                       + reward_clothdeformation * self.deformationPenaltyWeight \
                       + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
-                      + reward_restPose * self.restPoseRewardWeight
+                      + reward_restPose * self.restPoseRewardWeight \
+                      + reward_actionMagnitude * self.actionMagnitudePenaltyWeight
+
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
