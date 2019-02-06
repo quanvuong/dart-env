@@ -33,7 +33,8 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if not self.include_accelerometer:
             self.accumulated_imu_info = np.zeros(3)
 
-        self.root_input = False    # whether to include root dofs in the obs
+        self.root_input = True    # whether to include root dofs in the obs
+        self.last_root = [0, 0]
         self.fallstate_input = False
 
         self.action_filtering = 5 # window size of filtering, 0 means no filtering
@@ -80,7 +81,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.joint_vel_limit = 2.0
         self.stride_limit = 0.2
         self.control_interval = 0.03
-        self.use_settled_initial_states = True
+        self.use_settled_initial_states = False
         if self.use_settled_initial_states:
             self.init_states_candidates = np.loadtxt(os.path.join(os.path.dirname(__file__), "assets", 'darwinmodel/halfsquat_init.txt'))
 
@@ -114,22 +115,22 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.permitted_contact_ids = [-1, -2, -7, -8]
         self.init_root_pert = np.array([0.0, 0.16, 0.0, 0.0, 0.0, 0.0])
 
-        self.no_target_vel = True
+        self.no_target_vel = False
         self.target_vel = 0.0
         self.init_tv = 0.0
-        self.final_tv = 0.15
+        self.final_tv = 0.25
         self.tv_endtime = 1.0
         self.avg_rew_weighting = []
         self.vel_cache = []
         self.target_vel_cache = []
 
         self.assist_timeout = 10.0
-        self.assist_schedule = [[0.0, [2000, 0]], [3.0, [1500, 0]], [6.0, [1125.0, 0.0]]]
+        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
 
         self.alive_bonus = 4.5
         self.energy_weight = 0.05
         self.work_weight = 0.005
-        self.vel_reward_weight = 10.0
+        self.vel_reward_weight = 5.0
         self.pose_weight = 0.5
         self.contact_weight = 0.0
 
@@ -550,7 +551,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.vel_cache.append(vel)
         self.target_vel_cache.append(self.target_vel)
 
-        if len(self.vel_cache) > int(0.5 / self.dt / 1.0):
+        if len(self.vel_cache) > int(1.0 / self.dt / 1.0):
             self.vel_cache.pop(0)
             self.target_vel_cache.pop(0)
 
@@ -618,8 +619,9 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if done:
             reward = 0
 
-        self.t += self.dt * 1.0
-        self.cur_step += 1
+        if not self.paused:
+            self.t += self.dt * 1.0
+            self.cur_step += 1
 
         self.imu_cache.append(self.get_imu_data())
 
@@ -638,7 +640,6 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
                 offset[0] += 1.0
                 self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset(offset)
                 self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset(offset)
-
 
         return ob, reward, done, {'avg_vel': np.mean(self.vel_cache)}
 
@@ -679,7 +680,8 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.root_input:
             gyro = self.get_sim_bno55()
-            gyro = np.array([gyro[0], gyro[1], gyro[3], gyro[4]])
+            gyro = np.array([gyro[0], gyro[1], self.last_root[0], self.last_root[1]])
+            self.last_root = [gyro[0], gyro[1]]
             state = np.concatenate([state, gyro])
         if self.fallstate_input:
             state = np.concatenate([state, self.falling_state()])
@@ -714,7 +716,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
 
         qpos[0:3] += np.random.uniform(low=-0.1, high=0.1, size=3)
-        qpos[6:] += np.random.uniform(low=-0.01, high=0.01, size=20)
+        qpos[6:] += np.random.uniform(low=-0.05, high=0.05, size=20)
         # self.target = qpos
         self.count = 0
         qpos[0:6] += self.init_root_pert
@@ -729,6 +731,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.init_q = np.copy(self.robot_skeleton.q)
 
         self.t = 0
+        self.last_root = [0, 0]
 
         self.action_buffer = []
 

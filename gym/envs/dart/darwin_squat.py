@@ -288,7 +288,7 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                         1.85632551e-02, 1.21496602e-05, 3.80372848e-01, 6.69136279e-01,
                         1.74107278e-02, 6.26648504e-01, 3.75747411e-01, 8.17102077e-03,
                         2.98731311e-01, 1.57159749e-01, 9.98434262e-01, 5.25150954e-01,
-                        2.08939569e-01, 6.14854563e-03, 2.56508710e-01]))
+                        2.28939569e-01, 6.14854563e-03, 2.56508710e-01]))
             temp = copy.copy(self.param_manager.controllable_param)
             #self.param_manager.controllable_param = [self.param_manager.KP_RATIO, self.param_manager.KD_RATIO, self.param_manager.VEL_LIM, self.param_manager.JOINT_DAMPING, self.param_manager.TORQUE_LIM, self.param_manager.COM_OFFSET, self.param_manager.GROUND_FRICTION]
             #self.param_manager.set_simulator_parameters(np.array([0.42346066, 0.36085507, 0.30421745, 0.47742987, 0.58012065,
@@ -502,7 +502,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.ref_target = self.get_ref_pose(self.t)
 
-
         self.target[6:] = self.ref_target + clamped_control * self.delta_angle_scale
         self.target[6:] = np.clip(self.target[6:], JOINT_LOW_BOUND, JOINT_UP_BOUND)
 
@@ -521,7 +520,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                     self.perturbation_duration = self.perturbation_parameters[3]
             else:
                 self.perturbation_duration -= 1
-
 
         for i in range(self.frame_skip):
             self.tau[6:] = self.PID()
@@ -812,7 +810,6 @@ class DartDarwinSquatEnv(dart_env.DartEnv, utils.EzPickle):
                 offset[0] += 1.0
                 self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset(offset)
                 self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset(offset)
-
 
         return ob, reward, done, {}
 
