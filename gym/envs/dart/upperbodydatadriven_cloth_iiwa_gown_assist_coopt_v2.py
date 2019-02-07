@@ -14,6 +14,8 @@ import pydart2.collision_result as CollisionResult
 import pybullet as p
 import pybullet_data
 import os
+import pickle
+import joblib
 
 from pyPhysX.colors import *
 import pyPhysX.pyutils as pyutils
@@ -61,22 +63,23 @@ class Controller(object):
         return False
 
 class SPDController(Controller):
-    def __init__(self, env, skel, target=None, timestep=0.01):
+    def __init__(self, env, skel, target=None, timestep=0.01, startDof=6, ckp=30000.0, ckd=100.0):
         obs_subset = []
         policyfilename = None
         name = "SPD"
         self.target = target
+        self.startDof = startDof
         Controller.__init__(self, env, skel, policyfilename, name, obs_subset)
 
         self.h = timestep
         #self.skel = env.robot_skeleton
-        ndofs = self.skel.ndofs-6
+        ndofs = self.skel.ndofs-startDof
         self.qhat = self.skel.q
         #self.Kp = np.diagflat([30000.0] * (ndofs))
         #self.Kd = np.diagflat([100.0] * (ndofs))
 
-        self.Kp = np.diagflat([3000.0] * (ndofs))
-        self.Kd = np.diagflat([100.0] * (ndofs))
+        self.Kp = np.diagflat([ckp] * (ndofs))
+        self.Kd = np.diagflat([ckd] * (ndofs))
 
         #self.Kd[0, 6] = 1.0
 
@@ -104,7 +107,7 @@ class SPDController(Controller):
         #reset the target
         #cur_q = np.array(self.skel.q)
         #self.env.loadCharacterState(filename="characterState_regrip")
-        self.target = np.array(self.skel.q[6:])
+        self.target = np.array(self.skel.q[self.startDof:])
         #self.env.restPose = np.array(self.target)
         #self.target = np.array(self.skel.q)
         #self.env.robot_skeleton.set_positions(cur_q)
@@ -123,9 +126,9 @@ class SPDController(Controller):
     def query(self, obs):
         if self.env.adaptiveSPD:
             #test adaptive gains
-            ndofs = self.skel.ndofs - 6
+            ndofs = self.skel.ndofs - self.startDof
             self.Kd = np.diagflat([300.0] * (ndofs))
-            dif = self.skel.q[6:]-self.target
+            dif = self.skel.q[self.startDof:]-self.target
             for i in range(7):
                 dm = abs(dif[i])
                 if(dm > 0.75):
@@ -139,10 +142,10 @@ class SPDController(Controller):
         #SPD
         self.qhat = self.target
         skel = self.skel
-        p = -self.Kp.dot(skel.q[6:] + skel.dq[6:] * self.h - self.qhat)
-        d = -self.Kd.dot(skel.dq[6:])
-        b = -skel.c[6:] + p + d + skel.constraint_forces()[6:]
-        A = skel.M[6:, 6:] + self.Kd * self.h
+        p = -self.Kp.dot(skel.q[self.startDof:] + skel.dq[self.startDof:] * self.h - self.qhat)
+        d = -self.Kd.dot(skel.dq[self.startDof:])
+        b = -skel.c[self.startDof:] + p + d + skel.constraint_forces()[self.startDof:]
+        A = skel.M[self.startDof:, self.startDof:] + self.Kd * self.h
 
         #print(np.linalg.cond(A))
         #TODO: near singular matrix check ... remove for speed
@@ -157,209 +160,33 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class CapacitiveSensor:
-    def __init__(self, env, bodynode=None, offset=np.zeros(3), R=np.identity(3)):
-        self.env = env
-        self.bodynode = bodynode
-        self.offset = offset
-        self.R = R
-        self.frame = pyutils.ShapeFrame()
-        self.sensorRaySettings = [] #list of local position, direction, range for each sensor ray
-        self.sensorRayGlobals = [] #list of global position and direction for each sensor ray
-        self.sensorRayReadings = [] #list of most recent reading for each sensor ray
-        self.sensorRayZones = [] # a per sensor list of zone relationship
-        self.numSensorRayZones = 1 #how many zones exist on this sensor
-        self.update()
-
-    def update(self):
-        try:
-            self.frame.setOrg(org=self.bodynode.to_world(self.offset))
-            self.frame.orientation = np.dot(self.bodynode.T[:3,:3], self.R)
-            self.frame.updateQuaternion()
-        except:
-            print("update failed")
-            pass
-
-        #update sensor ray global info
-        self.sensorRayGlobals = []
-        for s in self.sensorRaySettings:
-            pos = self.frame.toGlobal(p=s[0])
-            dir = self.frame.toGlobal(p=s[1]+s[0]) - pos
-            self.sensorRayGlobals.append([pos, dir])
-
-    def setupSensorRays(self, localOrgs, localDirs, ranges):
-        #setup some number of sensors at local positions with a set of directions and ranges
-        self.sensorRaySettings = []
-        self.sensorRayReadings = []
-        for i in range(len(localOrgs)):
-            self.sensorRaySettings.append([localOrgs[i], localDirs[i], ranges[i]])
-            self.sensorRayReadings.append(ranges[i])
-
-    def default1RaySetup(self):
-        #default setup with 1 ray in center
-        self.setupSensorRays(localOrgs=[np.zeros(3)], localDirs=[np.array([0,1,0])], ranges=[0.15])
-        self.sensorRayZones = [0]
-        self.numSensorRayZones = 1
-
-    def defaultCircle5Center1Setup(self, rad=0.05):
-        # default setup with 1 ray in center and 5 equidistant radial points
-        orgs = []
-        dirs = []
-        ranges = []
-
-        for i in range(6):
-            dirs.append(np.array([0,0,1]))
-            ranges.append(0.15)
-
-        orgs.append(np.array([0, 0, 0.075]))
-        for i in range(5):
-            ang = 2*math.pi * (i/5.0)
-            x = math.cos(ang) * rad
-            y = math.sin(ang) * rad
-            orgs.append(np.array([x, y, 0.065]))
-
-        self.setupSensorRays(localOrgs=orgs, localDirs=dirs, ranges=ranges)
-        self.sensorRayZones = []
-        for i in range(len(orgs)):
-            self.sensorRayZones.append(0)
-        self.numSensorRayZones = 1
-
-    def defaultCir5Cen1Rad_nxm(self, rad=0.05, radialZones=5, sPerZone=3):
-        # default setup with 1 ray in center and 5 equidistant radial points
-        orgs = []
-        dirs = []
-        ranges = []
-
-        for i in range(6):
-            dirs.append(np.array([0, 0, 1]))
-            ranges.append(0.15)
-
-        #center and downward radial 5
-        orgs.append(np.array([0, 0, 0.075]))
-        for i in range(5):
-            ang = 2 * math.pi * (i / 5.0)
-            x = math.cos(ang) * rad
-            y = math.sin(ang) * rad
-            orgs.append(np.array([x, y, 0.065]))
-
-        self.sensorRayZones = []
-        for i in range(6):
-            self.sensorRayZones.append(0)
-
-        self.numSensorRayZones = 1 + radialZones
-
-        #radial zones 2 per zone
-        for i in range(radialZones*sPerZone):
-            ang = 2 * math.pi * (i / (radialZones*sPerZone))
-            x = math.cos(ang) * rad
-            y = math.sin(ang) * rad
-            orgs.append(np.array([x, y, 0.065]))
-            dirs.append(np.array([x,y,0]))
-            dirs[-1] /= np.linalg.norm(dirs[-1])
-            zone = 1 + (i/sPerZone)
-            self.sensorRayZones.append(zone)
-            ranges.append(0.15)
-
-        self.setupSensorRays(localOrgs=orgs, localDirs=dirs, ranges=ranges)
-
-    def getAggregateSensorReading(self):
-        totals = np.zeros(self.numSensorRayZones)
-        numInZones = np.zeros(self.numSensorRayZones)
-
-        for ix,z in enumerate(self.sensorRayZones):
-            totals[int(z)] += self.sensorRayReadings[ix]
-            numInZones[int(z)] += 1
-
-        for i in range(self.numSensorRayZones):
-            totals[i] /= numInZones[i]
-
-        return totals
-        #return the average reading per zone
-        #total = sum(self.sensorRayReadings)/len(self.sensorRayReadings)
-        #return total
-
-    def draw(self):
-        #draw the sensor rays and contact points
-
-        renderUtils.setColor(color=[0,0,0])
-        for ix,gr in enumerate(self.sensorRayGlobals):
-            lines = []
-            renderUtils.setColor(color=renderUtils.differentialColors(int(self.sensorRayZones[ix])))
-            cp = gr[0] + gr[1]*self.sensorRayReadings[ix]
-            renderUtils.drawSphere(pos=cp)
-            lines.append([gr[0], gr[0]+gr[1]*self.sensorRaySettings[ix][2]])
-            renderUtils.drawLines(lines=lines)
-
-    def getReading(self):
-        starttime = time.time()
-        #reset sensor readings to max
-        for i in range(len(self.sensorRayReadings)):
-            self.sensorRayReadings[i] = self.sensorRaySettings[i][2]
-
-        #build bounding boxes
-        BB = {}
-        for s0 in range(len(self.env.collisionCapsuleInfo)):
-            for s1 in range(len(self.env.collisionCapsuleInfo)):
-                if self.env.collisionCapsuleInfo[s0][s1] == 1:
-                    c0 = self.env.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
-                    r0 = self.env.collisionSphereInfo[s0 * 9 + 3]
-                    c1 = self.env.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
-                    r1 = self.env.collisionSphereInfo[s1 * 9 + 3]
-                    x = np.array([c0[0]+r0, c0[0]-r0, c1[0]+r1, c1[0]-r1])
-                    y = np.array([c0[1]+r0, c0[1]-r0, c1[1]+r1, c1[1]-r1])
-                    z = np.array([c0[2]+r0, c0[2]-r0, c1[2]+r1, c1[2]-r1])
-                    BB[(s0,s1)] = [(np.amin(x), np.amax(x)),(np.amin(y), np.amax(y)),(np.amin(z), np.amax(z))]
-
-        #read the "robot_skeleton" from env
-        for s0 in range(len(self.env.collisionCapsuleInfo)):
-            for s1 in range(len(self.env.collisionCapsuleInfo)):
-                if self.env.collisionCapsuleInfo[s0][s1] == 1:
-                    c0 = self.env.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
-                    r0 = self.env.collisionSphereInfo[s0 * 9 + 3]
-                    c1 = self.env.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
-                    r1 = self.env.collisionSphereInfo[s1 * 9 + 3]
-                    BBc = BB[(s0,s1)]
-                    for ix, gr in enumerate(self.sensorRayGlobals):
-                        #if both line points on the same side of any bounding box dimension, then collsion is impossible
-                        #check x
-
-                        if (gr[0][0] >= BBc[0][0]) == (gr[1][0] >= BBc[0][0]) == (gr[0][0] >= BBc[0][1]) == (gr[1][0] >= BBc[0][1]):
-                            continue
-                        #check y
-                        if (gr[0][1] >= BBc[1][0]) == (gr[1][1] >= BBc[1][0]) == (gr[0][1] >= BBc[1][1]) == (gr[1][1] >= BBc[1][1]):
-                            continue
-                        #check z
-                        if (gr[0][2] >= BBc[2][0]) == (gr[1][2] >= BBc[2][0]) == (gr[0][2] >= BBc[2][1]) == (gr[1][2] >= BBc[2][1]):
-                            continue
-
-                        hit = pyutils.rayCapIntersect(gr[0], gr[1], c0, c1, r0, r1)
-                        if hit[0]:
-                            self.sensorRayReadings[ix] = min(self.sensorRayReadings[ix], hit[1])
-        #print(time.time()-starttime)
-
-class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
+        self.isHuman = True #otherwise robot
         rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
+        self.renderSPDGhost = True
         dt = 0.0025
         cloth_dt = 0.005
         frameskip = 4
-        #humanPolicyFile = "experiment_2018_09_18_rhang_weakvar_simple"
-        #humanPolicyFile = "experiment_2018_09_20_rhang_weakvar_simple"
-        #humanPolicyFile = "experiment_2018_10_18_weakgown"
-        #humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
-        humanPolicyFile = "experiment_2018_11_27_weakness_and_elbow_universal_cont"
 
-        #observation terms
+        self.prefix = os.path.dirname(__file__)
+        experiment_prefix = self.prefix+"/../../../../rllab/data/local/experiment/"
+        experiment_directory = "experiment_2019_01_29_coopt_test"
+        self.humanPolicyFile = experiment_prefix + experiment_directory + "/policy.pkl"
+        self.robotPolicyFile = experiment_prefix + experiment_directory + "2/policy.pkl"
+        self.otherPolicy = None #load this
+
+        #human observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
         self.oracleInObs    = True  # if true, oracle vector is in obs
         self.contactIDInObs = True  # if true, contact ids are in obs
         self.hapticsInObs   = True  # if true, haptics are in observation
         self.prevTauObs     = False  # if true, previous action in observation
-        self.robotJointObs  = False #if true, obs includes robot joint locations in world space
+        self.robotJointObs  = True #if true, obs includes robot joint locations in world space
         #self.redundantRoboJoints = [4, 6, 10] #these will be excluded from obs
         self.redundantRoboJoints = [1] #these will be excluded from obs
         self.humanJointObs  = True #if true, obs includes human joint locations
@@ -368,21 +195,27 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
         self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = True  # if true, modify limits of the elbow joint
+        self.SPDTargetObs = True  # need this to control this
 
-        #reward flags
+        #reward flags (robot default)
         self.uprightReward              = False  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadReward           = False  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
         self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
-        self.limbProgressExponential    = False  # if true, positive limb progress is d^2
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = False
+        self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
-        self.shoulderPlaneReward        = True #if true, penalize robot for being "inside" the shoulder plan wrt human
+        self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
-        self.towardArmReward            = False #if true, reward robot ef toward the arm
+
+        if self.isHuman:
+            self.uprightReward = True
+            self.stableHeadReward = True
+            self.contactGeoReward = True
+            self.restPoseReward = True
+
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -395,7 +228,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.variationEntropyRewardWeight     = 1
         self.shoulderPlaneRewardWeight        = 3
         self.contactPenaltyWeight             = 1
-        self.towardArmRewardWeight            = 0.5
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -404,6 +236,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
 
         #other variables
+        self.humanSPDController = None
+        self.humanSPDTarget = np.zeros(22)
         self.prevTau = None
         self.elbowFlairNode = 10
         self.maxDeformation = 30.0
@@ -412,7 +246,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.prevAvgGeodesic = None
         self.localLeftEfShoulder1 = None
         self.limbProgress = 0
-        self.limbProgressPoint = None
         self.previousDeformationReward = 0
         self.handFirst = False #once the hand enters the feature, switches to true
         self.state_save_directory = "saved_control_states/"
@@ -441,14 +274,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
         self.manualTargetControl = False #if true, actions are not considered
-        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
+        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3)}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
         self.elbow_rest = 0.2  # drawn at reset
         self.elbow_initial_limits = [0, 0]  # set later in init
-
-        #test arm target path idea
-        self.armTargetPathInfo = {"target_angle":-0.813, "target_dist":0.15 }
 
         #TODO: testing unlocked frame from vector
         self.testFrame = pyutils.ShapeFrame()
@@ -494,55 +324,43 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
 
-        self.actuatedDofs = np.arange(22)
-        human_observation_size = len(self.actuatedDofs)*3 #q(sin,cos), dq
+        self.human_actuatedDofs = np.arange(22)
+        self.human_observation_size = len(self.human_actuatedDofs) * 3 #q(sin,cos), dq
         if self.prevTauObs:
-            human_observation_size += len(self.actuatedDofs)
+            self.human_observation_size += len(self.human_actuatedDofs)
         if self.hapticsInObs:
-            human_observation_size += 66
+            self.human_observation_size += 66
         if self.featureInObs:
-            human_observation_size += 6
+            self.human_observation_size += 6
         if self.oracleInObs:
-            human_observation_size += 3
+            self.human_observation_size += 3
         if self.contactIDInObs:
-            human_observation_size += 22
+            self.human_observation_size += 22
         if self.robotJointObs:
-            #human_observation_size += 48 - len(self.redundantRoboJoints)*3
-            human_observation_size += 66 - len(self.redundantRoboJoints)*3
+            self.human_observation_size += 27
         if self.humanJointObs:
-            human_observation_size += 45
+            self.human_observation_size += 45
         if self.hoopNormalObs:
-            human_observation_size += 3
+            self.human_observation_size += 3
         if self.actionScaleVarObs:
-            human_observation_size += len(self.actuatedDofs)
+            self.human_observation_size += len(self.human_actuatedDofs)
         if self.jointLimVarObs:
-            human_observation_size += len(self.actuatedDofs)
+            self.human_observation_size += len(self.human_actuatedDofs)
         if self.weaknessScaleVarObs:
-            human_observation_size += 1
+            self.human_observation_size += 1
         if self.elbowConVarObs:
-            human_observation_size += 1
+            self.human_observation_size += 1
+        if self.SPDTargetObs:
+            self.human_observation_size += 22
 
-        #setup robot obs:
-        self.robotCapacitiveObs = False #need this flag for rendering and reading updates
-        self.robotProgressObs   = False #cheat to get progress of limb
-        self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
-        self.lastRecurrentAction = np.zeros(self.recurrentSize)
-
-        bot_observation_size = (13-6) * 3 #robot dofs
-        bot_observation_size += 45 #human joint posistions
-        bot_observation_size += 27 #robot joint posistions
-        bot_observation_size += 6 #human end effectors
-        bot_observation_size += 6 #hoop joint resultant forces/torques
-        bot_observation_size += 6 #end effector position and orientation
+        self.robot_observation_size = (13 - 6) * 3 #robot dofs
+        self.robot_observation_size += 45 #human joint posistions
+        self.robot_observation_size += 27 #robot joint posistions
+        self.robot_observation_size += 6 #human end effectors
+        self.robot_observation_size += 6 #hoop joint resultant forces/torques
+        self.robot_observation_size += 6 #end effector position and orientation
         if self.targetCentric:
-            bot_observation_size += 6 #target frame position and orientation
-        if self.robotCapacitiveObs:
-            #bot_observation_size += 1
-            bot_observation_size += 6 #NOTE: need to reset this for expected setup
-            pass
-        if self.robotProgressObs:
-            bot_observation_size += 4 #position and total progress up the arm
-        bot_observation_size += self.recurrentSize
+            self.robot_observation_size += 6 #target frame position and orientation
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -576,6 +394,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.dFromRoot = 0.75
         self.aFrom_invZ = 0.959931
         self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, self.dFromRoot*math.sin(self.aFrom_invZ), -0.2, -self.dFromRoot*math.cos(self.aFrom_invZ)]) #values for the fixed 6 dof root transformation
+
 
         #self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, 0, -0.1, -0.8]) #values for the fixed 6 dof root transformation
         self.iiwa_rest = np.array([0, 0, 0, 0, 0, 0, 0])
@@ -618,6 +437,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.demoRendering:
             screensize = (720,720)
 
+        #TODO: remove this...
+        '''
         DartClothUpperBodyDataDrivenClothAssistBaseEnv.__init__(self,
                                                           rendering=rendering,
                                                           screensize=screensize,
@@ -634,15 +455,192 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                                                           cloth_dt=cloth_dt,
                                                           frameskip=frameskip,
                                                           gravity=True,
-                                                          humanPolicyFile=humanPolicyFile,
-                                                          recurrency=self.recurrentSize)
+                                                          humanPolicyFile=humanPolicyFile)
+
+        '''
+        #TODO:HERE IN INIT (replaces init in DartClothUpperBodyDataDrivenClothAssistBaseEnv)
+
+        # rendering variables
+        self.useOpenGL = rendering
+        self.screenSize = screensize
+        self.renderDARTWorld = True
+        self.renderUI = True
+        self.renderRewardsData = True
+        self.gravity = True
+        self.dataDrivenJointLimts = True
+
+        #rewardsData setup
+        self.rewardsData = renderUtils.RewardsData([], [], [], [])
+
+        self.arm = 0  # 0->both, 1->right, 2->left
+        self.human_actuatedDofs = np.arange(22)  # full upper body
+        self.lockedDofs = []
+        self.limbNodesR = [3, 4, 5, 6, 7]
+        self.limbNodesL = [8, 9, 10, 11, 12]
+        self.efOffset = np.array([0, -0.06, 0])
+
+        if self.arm == 1:
+            self.human_actuatedDofs = np.arange(3, 11) # right arm
+            self.lockedDofs = np.concatenate([np.arange(3), np.arange(11, 22)])
+
+        elif self.arm == 2:
+            self.human_actuatedDofs = np.arange(11, 19) # left arm
+            self.lockedDofs = np.concatenate([np.arange(11), np.arange(19, 22)])
+
+        # 22 dof upper body (HUMAN)
+        self.human_action_scale = np.ones(len(self.human_actuatedDofs))
+        self.actionScaleVariation = np.ones(len(self.human_action_scale))
+        self.human_action_scale *= 12
+        if 0 in self.human_actuatedDofs:
+            self.human_action_scale[self.human_actuatedDofs.tolist().index(0)] = 50
+        if 1 in self.human_actuatedDofs:
+            self.human_action_scale[self.human_actuatedDofs.tolist().index(1)] = 50
+
+        self.human_control_bounds = np.array([np.ones(len(self.human_actuatedDofs)),
+                                              np.ones(len(self.human_actuatedDofs)) * -1])
+
+        #robot dofs and action/control bounds
+        self.robot_actuatedDofs = np.arange(6)
+        self.robot_action_scale = np.ones(6) * 2.0
+        self.robot_control_bounds = np.array(
+            [np.ones(len(self.robot_action_scale)), np.ones(len(self.robot_action_scale)) * -1])
+
+        self.reset_number = 0
+        self.numSteps = 0
+
+
+        #clothScene creation (and geodesic/separated mesh)
+        clothMeshFile = "fullgown1.obj"
+        clothMeshStateFile = "hanginggown.obj"
+        clothScale = np.array([1.3, 1.3, 1.3])
+        clothScene = None
+
+        if clothMeshStateFile is not None:
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            state_path=self.prefix + "/../../../../" + clothMeshStateFile,
+                                            scale=clothScale)
+        else:
+            clothScene = pyphysx.ClothScene(step=cloth_dt,
+                                            mesh_path=self.prefix + "/assets/" + clothMeshFile,
+                                            scale=clothScale)
+
+        clothScene.togglePinned(0, 0)  # turn off auto-pin
+
+        self.separatedMesh = None
+        if clothSimulation:
+            self.separatedMesh = meshgraph.MeshGraph(clothscene=clothScene)
+
+        self.reward = 0
+        self.cumulativeReward = 0
+        self.deformation = 0
+
+        #DartClothEnv setup
+        skelFile = 'UpperBodyCapsules_datadriven.skel'
+        obs_size = self.robot_observation_size
+        act_bounds = self.robot_control_bounds
+        if self.isHuman:
+            obs_size = self.human_observation_size
+            act_bounds = self.human_control_bounds
+        # intialize the parent env
+        if self.useOpenGL is True:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
+                                  observation_size=obs_size, action_bounds=act_bounds,
+                                  screen_width=self.screenSize[0], screen_height=self.screenSize[1])
+        else:
+            DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
+                                  observation_size=obs_size, action_bounds=act_bounds,
+                                  disableViewer=True, visualize=False)
+
+        self.setSeed = -1  # default to no seed
+
+        print("action_space: " + str(self.action_space))
+        #print("action_scale: " + str(self.action_scale))
+        #print("control_bounds: " + str(self.control_bounds))
+
+        #dataDrivenJointLimts
+        if self.dataDrivenJointLimts:
+            leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), True)
+            rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), False)
+            leftarmConstraint.add_to_world(self.dart_world)
+            rightarmConstraint.add_to_world(self.dart_world)
+
+        utils.EzPickle.__init__(self)
+
+        #gravity
+        if not self.gravity:
+            self.dart_world.set_gravity(np.zeros(3))
+        else:
+            self.dart_world.set_gravity(np.array([0., -9.8, 0]))
+
+        self.clothScene.setFriction(0, 0.5)  # reset this anytime as desired
+
+        self.collisionCapsuleInfo = None  # set in updateClothCollisionStructures(capsules=True)
+        self.collisionSphereInfo = None  # set in updateClothCollisionStructures()
+        self.updateClothCollisionStructures(capsules=True, hapticSensors=True)
+
+        self.simulateCloth = clothSimulation
+
+        # enable DART collision testing
+        self.robot_skeleton.set_self_collision_check(True)
+        self.robot_skeleton.set_adjacent_body_check(False)
+
+        # setup collision filtering
+        self.collision_filter = self.dart_world.create_collision_filter()
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[10],
+                                                self.robot_skeleton.bodynodes[12])  # left forearm to fingers
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[5],
+                                                self.robot_skeleton.bodynodes[7])  # right forearm to fingers
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                                self.robot_skeleton.bodynodes[13])  # torso to neck
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                                self.robot_skeleton.bodynodes[14])  # torso to head
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                                self.robot_skeleton.bodynodes[3])  # torso to right shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[1],
+                                                self.robot_skeleton.bodynodes[8])  # torso to left shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+                                                self.robot_skeleton.bodynodes[3])  # neck to right shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[13],
+                                                self.robot_skeleton.bodynodes[8])  # neck to left shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+                                                self.robot_skeleton.bodynodes[3])  # head to right shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[14],
+                                                self.robot_skeleton.bodynodes[8])  # head to left shoulder
+        self.collision_filter.add_to_black_list(self.robot_skeleton.bodynodes[3],
+                                                self.robot_skeleton.bodynodes[8])  # right shoulder to left shoulder
+
+        for i in range(len(self.robot_skeleton.bodynodes)):
+            print(self.robot_skeleton.bodynodes[i])
+
+        for i in range(len(self.robot_skeleton.dofs)):
+            print(self.robot_skeleton.dofs[i])
+
+        for i in range(len(self.dart_world.skeletons[0].dofs)):
+            # print(self.dart_world.skeletons[0].dofs[i])
+            self.dart_world.skeletons[0].dofs[i].set_damping_coefficient(1.0)
+
+        # enable joint limits
+        for i in range(len(self.robot_skeleton.joints)):
+            print(self.robot_skeleton.joints[i])
+
+        # DART does not automatically limit joints with any unlimited dofs
+        self.robot_skeleton.joints[4].set_position_limit_enforced(True)
+        self.robot_skeleton.joints[9].set_position_limit_enforced(True)
+
+        self.clothScene.setSelfCollisionDistance(distance=0.03)
+        self.clothScene.step()
+        self.clothScene.reset()
+
+        #TODO:LATER IN FILE:
+        #TODO: separate robot/human obs
 
         #initialize the Iiwa robot
         #print("loading URDFs")
-        self.initialActionScale = np.array(self.action_scale)
-        self.robot_action_scale = np.ones(6+self.recurrentSize)
+        self.initialActionScale = np.array(self.human_action_scale)
+        self.robot_action_scale = np.ones(6)
         self.robot_action_scale[:3] = np.ones(3)*0.1 #position
-        self.robot_action_scale[3:6] = np.ones(3)*0.2 #orientation
+        self.robot_action_scale[3:] = np.ones(3)*0.2 #orientation
         #self.robot_action_scale = np.zeros(6)
         iiwaFilename = ""
         if self.renderIiwaCollidable:
@@ -707,28 +705,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         self.iiwa_skel.set_self_collision_check(True)
         self.iiwa_skel.set_adjacent_body_check(False)
 
-        # setup collision filtering
-        #collision_filter = self.dart_world.create_collision_filter()
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[16], self.iiwa_skel.bodynodes[17]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[16], self.iiwa_skel.bodynodes[18]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[16], self.iiwa_skel.bodynodes[19]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[17], self.iiwa_skel.bodynodes[18]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[17], self.iiwa_skel.bodynodes[19]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[18], self.iiwa_skel.bodynodes[19]) #hoop self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[4], self.iiwa_skel.bodynodes[5]) #robot self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[2], self.iiwa_skel.bodynodes[4]) #robot self-collision
-        #self.collision_filter.add_to_black_list(self.iiwa_skel.bodynodes[16], self.iiwa_skel.bodynodes[13])  # hoop to hand collision
-
-
         # initialize the controller
         #self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
-        self.SPDController = SPDController(self, self.iiwa_skel, timestep=dt)
+        self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip*dt)
+        self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=3.0, ckd=0.01)
 
-        #initialzie capacitive sensor
-        self.capacitiveSensor = CapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
-        #self.capacitiveSensor.defaultCircle5Center1Setup()
-        self.capacitiveSensor.defaultCir5Cen1Rad_nxm()
-        self.capacitiveSensor.update()
 
         #disable character gravity
         if self.print_skel_details:
@@ -808,10 +789,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.rewardsData.addReward(label="contact", rmin=-1.0, rmax=0, rval=0,
                                        rweight=self.contactPenaltyWeight)
 
-        if self.towardArmReward:
-            self.rewardsData.addReward(label="toward arm", rmin=-1.0, rmax=1.0, rval=0,
-                                       rweight=self.towardArmRewardWeight)
-
         #self.loadCharacterState(filename="characterState_1starmin")
 
         if self.simpleWeakness:
@@ -848,9 +825,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #compute gravity compenstation and set action scale for the state
         if self.weaknessScaleVarObs:
             if self.simpleWeakness:
-                self.action_scale = np.array(self.initialActionScale)
+                self.human_action_scale = np.array(self.initialActionScale)
                 for i in range(11,19):
-                    self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+                    self.human_action_scale[i] = self.weaknessScale * self.initialActionScale[i]
             else:
                 grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
                 #self.additionalAction = np.array(grav_comp)
@@ -861,13 +838,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 #max_abs = max(arm_tau.max(), arm_tau.min(), key=abs)
                 #print("     max: " + str(max_abs))
                 for i in range(len(arm_tau)):
-                    self.action_scale[i+11] = self.weaknessScale*self.initialActionScale[i+11]-abs((1.0-self.weaknessScale)*arm_tau[i])
-                    if(self.action_scale[i+11] < 0):
+                    self.human_action_scale[i + 11] = self.weaknessScale * self.initialActionScale[i + 11] - abs((1.0 - self.weaknessScale) * arm_tau[i])
+                    if(self.human_action_scale[i+11] < 0):
                         if(arm_tau[i] > 0):
-                            arm_tau[i] += self.action_scale[i + 11]
+                            arm_tau[i] += self.human_action_scale[i + 11]
                         else:
-                            arm_tau[i] -= self.action_scale[i + 11]
-                        self.action_scale[i + 11] = 0
+                            arm_tau[i] -= self.human_action_scale[i + 11]
+                        self.human_action_scale[i + 11] = 0
                 self.supplementalTau[11:19] = arm_tau
                 #print(self.action_scale)
 
@@ -1019,12 +996,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 self.ef_accuracy_info['total'] += ef_accuracy
                 self.ef_accuracy_info['average'] = self.ef_accuracy_info['total']/self.numSteps
 
-        # save state for rendering
-        if self.recordForRendering:
-            fname = self.recordForRenderingOutputPrefix
-            gripperfname_ix = fname + "_grip%05d" % self.renderSaveSteps
-            self.saveGripperState(gripperfname_ix)
-
         if self.consecutiveInstabilities > 5:
             print("too many consecutive instabilities: " + str(self.consecutiveInstabilities) + "/5")
             return True, -5000
@@ -1108,7 +1079,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         reward_limbprogress = 0
         if self.limbProgressReward:
             if self.simulateCloth:
-                self.limbProgress,self.limbProgressPoint = pyutils.limbFeatureProgressPoint(
+                self.limbProgress = pyutils.limbFeatureProgress(
                     limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
                                                       offset=self.fingertip), feature=self.sleeveLSeamFeature)
             #hoop_norm = self.rigidClothFrame.toGlobal(np.array([0, 0, -1])) - self.rigidClothFrame.toGlobal(np.zeros(3))
@@ -1118,10 +1089,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 print("!!! NaN limb progress detected !!!")
                 self.limbProgress = -2.0
             reward_limbprogress = self.limbProgress
-
-            if self.limbProgressExponential:
-                if reward_limbprogress > 0:
-                    reward_limbprogress *= reward_limbprogress
             #if reward_limbprogress < 0:  # remove euclidean distance penalty before containment
             #    reward_limbprogress = 0
             reward_record.append(reward_limbprogress)
@@ -1202,7 +1169,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             _snorm = snorm / np.linalg.norm(snorm)
             sb1 = np.cross(_snorm, np.array([0, 1.0, 0]))
             sb2 = np.cross(_snorm, sb1)
-            shoulderPlane = Plane(org=s1+_snorm*0.05, normal=_snorm, b1=sb1, b2=sb2)
+            shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
             proj_ef = shoulderPlane.projectPoint(p=efpos)
             if (proj_ef-efpos).dot(_snorm) > 0:
                 reward_shoulderPlane = -min(1.0, np.linalg.norm(proj_ef-efpos))
@@ -1216,22 +1183,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 reward_contactPenalty = -1.0
             reward_record.append(reward_contactPenalty)
 
-        reward_towardArm = 0
-        if self.towardArmReward:
-            #compute closest limb point
-            robot_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
-            limb = pyutils.limbFromNodeSequence(self.robot_skeleton, self.limbNodesL, self.fingertip)
-            d,cp = pyutils.distToLineStrip(robot_ef, limb)
-            #print(cp)
-
-            #compute dot product between robot EF down and vector to point
-            robot_ef_down = self.iiwa_skel.bodynodes[9].to_world(np.array([0,0,1])) - robot_ef
-            robot_ef_down /= np.linalg.norm(robot_ef_down)
-            v_to_limb = cp-robot_ef
-            v_to_limb /= np.linalg.norm(v_to_limb)
-            reward_towardArm = np.dot(v_to_limb, robot_ef_down)
-
-            reward_record.append(reward_towardArm)
 
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
@@ -1263,8 +1214,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
                       + reward_restPose * self.restPoseRewardWeight \
                       + reward_shoulderPlane * self.shoulderPlaneRewardWeight \
-                      + reward_contactPenalty * self.contactPenaltyWeight \
-                      + reward_towardArm * self.towardArmRewardWeight
+                      + reward_contactPenalty * self.contactPenaltyWeight
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
@@ -1281,80 +1231,90 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
-            return np.zeros(self.obs_size), 0, False, {}
-
-        #save state for rendering
-        if self.recordForRendering:
-            fname = self.recordForRenderingOutputPrefix
-            objfname_ix = fname + "%05d" % self.renderSaveSteps
-            charfname_ix = fname + "_char%05d" % self.renderSaveSteps
-            self.saveObjState(filename=objfname_ix)
-            self.saveCharacterRenderState(filename=charfname_ix)
-            self.renderSaveSteps += 1
-
-        #try:
-        if self.graphViolation:
-            if self.numSteps%self.violationGraphFrequency == 0:
-                self.graphJointConstraintViolation(counting=True)
-
-        if self.graphClothViolation:
-            clothViolation = self.clothScene.getNumSelfCollisions()
-            maxDef, minDef, avgDef, variance, ratios = self.clothScene.getAllDeformationStats(cid=0)
-            defPenalty = (math.tanh(0.14 * (maxDef - 25)) + 1) / 2.0 #taken from reward in envs
-            #print(maxDef)
-            #print(avgDef)
-            self.clothViolationGraph.addToLinePlot(data=[clothViolation/5.0, maxDef, defPenalty*10])
-
-        if self.graphingRandomness:
-            if len(self.randomnessGraph.xdata) > 0:
-                self.initialRand += random.random()
-                self.initialnpRand += np.random.random()
-                self.initialselfnpRand += self.np_random.uniform()
-                self.randomnessGraph.yData[-3][self.numSteps] = self.initialRand
-                self.randomnessGraph.yData[-2][self.numSteps] = self.initialnpRand
-                self.randomnessGraph.yData[-1][self.numSteps] = self.initialselfnpRand
-                self.randomnessGraph.update()
-
-        if self.graphPoseSum:
-            if len(self.poseSumGraph.xdata) > 0:
-                poseSum = np.linalg.norm(self.robot_skeleton.q)
-                self.poseSumGraph.yData[-1][self.numSteps] = poseSum
-                self.poseSumGraph.update()
+            if self.isHuman:
+                return np.zeros(self.human_observation_size), 0, False, {}
+            else:
+                return np.zeros(self.robot_observation_size), 0, False, {}
 
         startTime2 = time.time()
         self.additionalAction = np.zeros(len(self.robot_skeleton.q))
 
-        #query the human policy
-        human_obs = self._get_human_obs()
-        human_a, human_a_info = self.humanPolicy.get_action(human_obs)
-        human_a = human_a_info['mean']
-        human_clamped_control = np.array(human_a)
+        human_a = None
+        robot_a = None
+
+        #query the "other" policy and set actions
+        if self.isHuman:
+            human_a = a
+
+            #query the robot policy
+            try:
+                robot_obs = self._get_robot_obs()
+                robot_a, robot_a_info = self.otherPolicy.get_action(robot_obs)
+                robot_a = robot_a_info['mean']
+            except:
+                print("robot policy not setup, defaulting zero action")
+                robot_a = np.zeros(len(self.robot_action_scale))
+
+        else:
+            robot_a = a
+
+            #query the human policy
+            try:
+                human_obs = self._get_human_obs()
+                human_a, human_a_info = self.otherPolicy.get_action(human_obs)
+                human_a = human_a_info['mean']
+            except:
+                print("human policy not setup, defaulting zero action")
+                human_a = np.zeros(len(self.human_action_scale))
+
+        human_control = np.zeros(self.robot_skeleton.ndofs)
+
+        # SPD addition for human
+        if (self.humanSPDController is not None):
+            # print(self.humanSPDController.target)
+            self.humanSPDController.target += a * 0.1
+            # clamp humanSPD target
+            pos_upper_lim = self.robot_skeleton.position_upper_limits()
+            pos_lower_lim = self.robot_skeleton.position_lower_limits()
+            q = np.array(self.robot_skeleton.q)
+            maxDeviation = 0.15
+            for d in range(self.robot_skeleton.ndofs):
+                t = self.humanSPDController.target[d]
+                self.humanSPDController.target[d] = min(t, pos_upper_lim[d])
+                self.humanSPDController.target[d] = max(t, pos_lower_lim[d])
+                # limit close to current pose
+                qdof = self.robot_skeleton.q[d]
+                diff = qdof - self.humanSPDController.target[d]
+                if abs(diff) > maxDeviation:
+                    if diff > 0:
+                        self.humanSPDController.target[d] = qdof - maxDeviation
+                    else:
+                        self.humanSPDController.target[d] = qdof + maxDeviation
+            human_control = self.humanSPDController.query(None)
+
+        human_clamped_control = np.array(human_control)
+
+        #for i in range(len(human_clamped_control)):
+        #    if human_clamped_control[i] > self.human_control_bounds[0][i]:
+        #        human_clamped_control[i] = self.human_control_bounds[0][i]
+        #    if human_clamped_control[i] < self.human_control_bounds[1][i]:
+        #        human_clamped_control[i] = self.human_control_bounds[1][i]
+
         for i in range(len(human_clamped_control)):
-            if human_clamped_control[i] > self.control_bounds[0][i]:
-                human_clamped_control[i] = self.control_bounds[0][i]
-            if human_clamped_control[i] < self.control_bounds[1][i]:
-                human_clamped_control[i] = self.control_bounds[1][i]
-        #human_tau = np.array(human_clamped_control)
-        human_tau = np.multiply(human_clamped_control, self.action_scale)
+            if human_clamped_control[i] > self.human_action_scale[i]:
+                human_clamped_control[i] = self.human_action_scale[i]
+            if human_clamped_control[i] < -self.human_action_scale[i]:
+                human_clamped_control[i] = -self.human_action_scale[i]
+
+        human_tau = np.array(human_clamped_control)
+        #human_tau = np.multiply(human_clamped_control, self.human_action_scale)
         #human_tau = np.multiply(human_clamped_control, self.actionScaleVariation)
 
         #compute robot IK targets
         #robo_action_clamped = np.array(a)
-        robo_action_clamped = np.clip(a, -np.ones(len(a)), np.ones(len(a)))
-        #for i in range(len(robo_action_clamped)):
-        #    if robo_action_clamped[i] > 1:
-        #        robo_action_clamped[i] = 1
-        #    if robo_action_clamped[i] < -1:
-        #        robo_action_clamped[i] = -1
-        robo_action_scaled = np.multiply(robo_action_clamped, self.robot_action_scale)
-        #print("action: " + str(a))
-        #print("clamped action: " + str(robo_action_clamped))
-        #print("action scale: " + str(self.robot_action_scale))
-        #print("scaled action: " + str(robo_action_scaled))
+        robo_action_clamped = np.clip(robot_a, -np.ones(len(robot_a)), np.ones(len(robot_a)))
 
-        # record the recurrency if necessary
-        if self.recurrency > 0:
-            self.lastRecurrentAction = np.array(robo_action_scaled[-self.recurrency:])
+        robo_action_scaled = np.multiply(robo_action_clamped, self.robot_action_scale)
 
         efpos = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
         efdir = self.iiwa_skel.bodynodes[9].to_world(np.array([0, 1.0, 0])) - efpos
@@ -1369,23 +1329,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if(not self.manualTargetControl):
             #self.ikTarget = efpos+robo_action_scaled[:3]
             self.frameInterpolator["target_pos"] += robo_action_scaled[:3]
-            self.frameInterpolator["eulers"] += robo_action_scaled[3:6]
+            self.frameInterpolator["eulers"] += robo_action_scaled[3:]
 
         #ensure ik target is in reach
-        #toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
-        #distToRoboRoot = np.linalg.norm(toRoboRoot)
-        # clamp interpolation target frame to reachability sphere...
-        #if (distToRoboRoot > (self.robotPathParams['p0_disk_rad']) * 1.5):
-        #    # print("clamping frame")
-        #    self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(
-        #    toRoboRoot / distToRoboRoot) * (self.robotPathParams['p0_disk_rad']) * 1.5
+        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
+        distToRoboRoot = np.linalg.norm(toRoboRoot)
 
-        toRoboEF = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
-        distToRoboEF = np.linalg.norm(toRoboEF)
-        # clamp interpolation target frame to distance from EF to prevent over commit
-        if (distToRoboEF > (self.frameInterpolator["distanceLimit"])):
-            # print("clamping frame")
-            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) + -(toRoboEF / distToRoboEF) * self.frameInterpolator["distanceLimit"]
+        #clamp interpolation target frame to reachability sphere...
+        if(distToRoboRoot > (self.robotPathParams['p0_disk_rad'])*1.5):
+            #print("clamping frame")
+            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*(self.robotPathParams['p0_disk_rad'])*1.5
 
         #interpolate the target frame at constant speed toward a goal location
         if self.frameInterpolator["active"]:
@@ -1396,40 +1349,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
             interpFrameEulerState = np.array(self.frameInterpolator["eulers"])
 
-            # TODO: interpolate orientation:
+            # interpolate orientation:
             if True:
-                #1: extract eulers from orientation
-                #currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), targetFrame.orientation)
-                #currentStateBaseSpace = np.dot(self.orientationBaseMatrix, targetFrame.orientation)
-                #currentStateBaseSpace = np.array(targetFrame.orientation)
-                #print(currentStateBaseSpace)
-                #currentState1 = pyutils.getEulerAngles3(currentStateBaseSpace)
-                #eulers2 = pyutils.getEulerAngles(currentStateBaseSpace)
-                #currentState2 = eulers2[0]
-                #currentState3 = pyutils.getEulerAngles3(targetFrame.orientation)
-                #orientationState = pyutils.getEulerAngles3(self.orientationTarget.orientation)
-                #computedInterpFrameEulerState1 = np.array([-currentState1[0], currentState1[2], -currentState1[1]])
-                #computedInterpFrameEulerState2 = np.array([-currentState2[0], currentState2[2], -currentState2[1]])
-                #computedInterpFrameEulerState3 = np.array([currentState3[0], currentState3[1], currentState3[2]])
-                #computedInterpOrientationEulerState3 = np.array([orientationState[0], orientationState[1], orientationState[2]])
-                #interpFrameEulerState = np.array([currentState[0], currentState[1], currentState[2]])
-
-                #2: add delta
-                #interpFrameEulerState += self.frameInterpolator["deltaEuler"]
-                #print("interpFrameEulerState:               " + str(interpFrameEulerState))
-                #print("computedInterpFrameEulerState:       " + str(computedInterpFrameEulerState3))
-                #print("computedInterpFrameOrientationState: " + str(computedInterpOrientationEulerState3))
-
-                #print("---")
-
-
-                #3: convert back to matrix
-                #targetFrame.orientation = np.array(self.orientationBaseMatrix)
-                #targetFrame.orientation = np.identity(3)
-                #targetFrame.applyRotationMatrix(pyutils.rotateZ(interpFrameEulerState[2]))
-                #targetFrame.applyRotationMatrix(pyutils.rotateY(interpFrameEulerState[1]))
-                #targetFrame.applyRotationMatrix(pyutils.rotateX(interpFrameEulerState[0]))
-                #self.frameInterpolator["target_frame"] = np.array(targetFrame.orientation)
 
                 #euler to matrix (Shoemake)
                 s = np.array([math.sin(interpFrameEulerState[0]), math.sin(interpFrameEulerState[1]), math.sin(interpFrameEulerState[2])])
@@ -1485,47 +1406,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
 
 
-        #targetDir = efdir + robo_action_scaled[3:]
-        #currentStateBaseSpace = np.dot(self.orientationTarget.orientation, np.transpose(self.orientationBaseMatrix))
-        #currentStateBaseSpace = np.dot(np.transpose(self.orientationBaseMatrix), self.orientationTarget.orientation)
-        #currentStateBaseSpace = np.array(self.orientationTarget.orientation)
-        #print("Current Euler State: " + str(currentStateBaseSpace))
-        #currentState = pyutils.getEulerAngles2(currentStateBaseSpace)
-        #print("Current Euler State (computed): " + str(currentState))
-        #print("Current Euler State (corrected): " + str(np.array([-currentState[0], currentState[2], -currentState[1]])))
-        #print("Current Euler State (true): " + str(self.orientationEulerState))
-        #self.robotEulerState = np.array([-currentState[0], currentState[2], -currentState[1]])
-        #roboState = pyutils.getEulerAngles3(targetFrame.orientation)
-        #if(not self.targetCentric):
-        #    self.frameEulerState = np.array(self.robotEulerState)
-        #print(robo_action_scaled[3:])
-        #if(not self.manualTargetControl):
-        #    self.frameEulerState += robo_action_scaled[3:]
-
         self.frameEulerState = np.clip(self.frameEulerState, self.orientationEulerStateLimits[0], self.orientationEulerStateLimits[1])
 
 
-        #simulate 0 action
-        #targetDir = np.array(efdir)
-        # self.ikTarget = np.array(efpos)
-
-        #targetDir /= np.linalg.norm(targetDir)
-
-        #if(not np.isfinite(targetDir) or not np.isfinite(self.ikTarget)):
-        #    print("INVALID TARGET SETTING STATE:")
-        #    print("targetDir: " + str(targetDir))
-        #    print("self.ikTarget: " + str(self.ikTarget))
-        #    return np.zeros(self.obs_size), -10000, True
-
         try:
-            #self.orientationTarget.setFromDirectionandUp(dir=np.array([0, -1.0, 0]),
-            #                                               up=targetDir,
-            #                                               org=self.ikTarget)
-            #self.orientationTarget.orientation = np.array(self.orientationBaseMatrix)
-            #self.orientationTarget.orientation = np.identity(3)
-            #self.orientationTarget.applyRotationMatrix(pyutils.rotateZ(self.frameEulerState[2]))
-            #self.orientationTarget.applyRotationMatrix(pyutils.rotateY(self.frameEulerState[1]))
-            #self.orientationTarget.applyRotationMatrix(pyutils.rotateX(self.frameEulerState[0]))
 
             # euler to matrix (Shoemake)
             s = np.array([math.sin(self.frameEulerState[0]), math.sin(self.frameEulerState[1]), math.sin(self.frameEulerState[2])])
@@ -1582,14 +1466,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             qpos[dof] = 0
             qvel[dof] = 0
         self.set_state(qpos, qvel)
-
-        #update capacitive sensor
-        if self.robotCapacitiveObs:
-            try:
-                self.capacitiveSensor.update()
-                self.capacitiveSensor.getReading()
-            except:
-                print("Capacitive sensor is not setup")
 
         startTime2 = time.time()
         reward = self.computeReward(tau=human_tau)
@@ -1674,13 +1550,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                 if (i % 2 == 1):  # every other step
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
-                    newOrg = hn.to_world(np.array([0, 0, 0.05]))
-                    if not np.isfinite(newOrg).all():
-                        print("Invalid robot pose in handle update...")
-                        self.iiwa_skel.set_positions(robot_pre_q)
-                        self.iiwa_skel.set_velocities(robot_pre_dq)
-                        return
-                    self.handleNode.org = np.array(newOrg)
+                    self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
                     # gripper_q = self.dart_world.skeletons[0].q
@@ -1772,9 +1642,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
     def _get_human_obs(self):
         f_size = 66
         '22x3 dofs, 22x3 sensors, 7x2 targets(toggle bit, cartesian, relative)'
-        theta = np.zeros(len(self.actuatedDofs))
-        dtheta = np.zeros(len(self.actuatedDofs))
-        for ix, dof in enumerate(self.actuatedDofs):
+        theta = np.zeros(len(self.human_actuatedDofs))
+        dtheta = np.zeros(len(self.human_actuatedDofs))
+        for ix, dof in enumerate(self.human_actuatedDofs):
             theta[ix] = self.robot_skeleton.q[dof]
             dtheta[ix] = self.robot_skeleton.dq[dof]
 
@@ -1896,9 +1766,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             normalized_elbow_rest = (self.elbow_rest-0.5)/2.35
             obs = np.concatenate([obs, np.array([normalized_elbow_rest])]).ravel()
 
+        if self.SPDTargetObs:
+            if self.humanSPDController is None:
+                obs = np.concatenate([obs, np.zeros(22)]).ravel()
+            else:
+                obs = np.concatenate([obs, self.humanSPDController.target]).ravel()
+
+
         return obs
 
-    def _get_obs(self):
+    def _get_robot_obs(self):
 
         #robot pose
         theta = np.array(self.iiwa_skel.q)
@@ -1974,25 +1851,102 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             #obs = np.concatenate([obs, self.ikTarget, self.frameEulerState])
             obs = np.concatenate([obs, self.frameInterpolator["target_pos"], self.frameInterpolator["eulers"]])
 
-        #capacitive sensor aggregate reading
-        if self.robotCapacitiveObs:
-            obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
-
-        if self.robotProgressObs:
-            if self.limbProgressPoint is None:
-                self.limbProgressPoint = np.zeros(3)
-                print("bad progress obs")
-            obs = np.concatenate([obs, np.array([max(0, self.limbProgress)]), self.limbProgressPoint])
-
-        if self.recurrency > 0:
-            obs = np.concatenate([obs, self.lastRecurrentAction])
 
         return obs
 
-    def additionalResets(self):
-        #set friction low to allow easier dressing?
-        #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
+    def _get_obs(self):
+        #this should return the active observation
+        if self.isHuman:
+            return self._get_human_obs()
+        else:
+            return self._get_robot_obs()
 
+    def reset_model(self):
+        self.rewardsData.reset()
+
+        seeds=[]
+        #seeds = [0, 2, 5, 8, 11, 20, 27, 35, 36, 47, 50, 51] #success seeds for stochastic policy
+        #seeds = [0, 1, 2, 3, 5, 8, 11, 12, 13, 14, 18, 19, 20, 23, 27, 35, 38, 50] #success seeds for mean policy
+        #difficultySeeds = [37, 39, 42]
+        #seeds = seeds+difficultySeeds
+        #seed = self.reset_number
+        seeds = []  # 4 variations  seeding
+        for j in range(4):
+            for i in range(10):  # number of seed trials
+                seeds.append(i + 40)
+        seeds = [40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+
+        seeds = [40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                 40, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+        #print(seeds)
+        if False:
+            try:
+                seed = seeds[self.reset_number]
+            except:
+                print("out of seeds, exiting")
+                exit()
+                seed = self.reset_number
+                #print("all given seeds simulated")
+
+            #seed = 8
+            #print("rollout: " + str(self.reset_number+1) +", seed: " + str(seed))
+            print("Seeding: " + str(seed))
+            random.seed(seed)
+            self.np_random.seed(seed)
+            np.random.seed(seed)
+            self.setSeed = seed
+
+        self.rewardTrajectory = []
+        startTime = time.time()
+        #try:
+        #print("reset")
+        self.cumulativeReward = 0
+        self.dart_world.reset()
+        self.clothScene.setSelfCollisionDistance(0.03)
+        self.clothScene.reset()
+        #self.clothScene.setFriction(0, 0.4)
+
+        self.additionalResets()
+
+        #update physx capsules
+        self.updateClothCollisionStructures(hapticSensors=True)
+        self.clothScene.clearInterpolation()
+
+        self.avgtimings = {}
+        self.reset_number += 1
+        self.numSteps = 0
+
+        #reload the policy file for "other"
+        #try:
+        if self.isHuman:
+            #print(self.robotPolicyFile)
+            self.otherPolicy = joblib.load(self.robotPolicyFile)
+            #self.otherPolicy = pickle.load(open(self.robotPolicyFile, "rb"))
+        else:
+            self.otherPolicy = joblib.load(self.humanPolicyFile)
+            #self.otherPolicy = pickle.load(open(self.humanPolicyFile, "rb"))
+        #except:
+        #    print("no policy file found...")
+
+        #if self.reset_number == 1:
+        #    self.reset()
+        #print("now entering rollout reset_number: " + str(self.reset_number))
+        #self.reset()
+        return self._get_obs()
+        #except:
+        #    print("Failed on reset " + str(self.reset_number))
+
+    def additionalResets(self):
         self.consecutiveInstabilities = 0
 
         if self.targetFrameTracking["active"]:
@@ -2003,7 +1957,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
 
         #vary the "weakness" of the character
         if self.actionScaleVarObs:
-            self.actionScaleVariation = self.np_random.uniform(low=0.4, high=1.0, size=len(self.action_scale))
+            self.actionScaleVariation = self.np_random.uniform(low=0.4, high=1.0, size=len(self.human_action_scale))
             #print("action scale variation: " + str(self.actionScaleVariation))
 
         if self.jointLimVarObs:
@@ -2021,7 +1975,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            #self.weaknessScale = 1.0
+            self.weaknessScale = 1.0
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2038,8 +1992,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         if self.elbowConVarObs:
             # sample a rest position
             self.elbow_rest = random.uniform(0.5, 2.85)
-            self.elbow_rest = random.uniform(0.5, 1.0) #easier variation set
-            #self.elbow_rest = 0.75 #spec (easy)
+            self.elbow_rest = 0.75 #spec (easy)
             #self.elbow_rest = 2.0 #spec hard
             # testing range:
             # TODO: elbow variation testing
@@ -2056,7 +2009,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.robot_skeleton.dofs[16].set_spring_stiffness(5.0)
             self.robot_skeleton.dofs[16].set_position(self.elbow_rest)
 
-
+        self.humanSPDController.target = np.array(self.robot_skeleton.q)
         #if(self.reset_number > 0):
         #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
         #self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
@@ -2257,25 +2210,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         depth = random.random()*depthRange + self.robotPathParams['p0_depth_offset']
         p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[1], depth])
 
-        #pick p0 with rejection sampling
-        p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0]* diskRad
-        good = False
-        r_pivot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3))
-        while(not good):
-            good = True
-            #xz0 = np.array([p0[0], p0[2]])
-
-            #cut off points too close or behind the robot in x
-            if p0[0] > (r_pivot[0] - self.robotPathParams['p0_depth_offset']):
-                good = False
-
-            # cut off points too close or behind the robot in z
-            if p0[2] > (r_pivot[2] - self.robotPathParams['p0_depth_offset']):
-                good = False
-
-            if not good:
-                p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0] * diskRad
-
         #p3 ellipsoid sampling about the shoulder region
         p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'], org=self.robotPathParams['p3_el_org'])
         p3 = p3_distribution.sample()[0]
@@ -2413,11 +2347,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.handleNode.recomputeOffsets()
             self.handleNode.updatePrevConstraintPositions()
 
-        try:
-            self.capacitiveSensor.update()
-        except:
-            print("Capacitive Sensor not yet setup")
-
         if self.simulateCloth:
             if self.sleeveLSeamFeature is not None:
                 # the normal should always point toward the origin in this task
@@ -2475,156 +2404,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
 
-        if self.robotProgressObs:
-            #draw the progress point
-            if self.limbProgressPoint is not None:
-                renderUtils.drawArrowAxis(org=self.limbProgressPoint, v0=np.array([1,0,0]), v1=np.array([0,1,0]), v2=np.array([0,0,1]))
-
-        #render arm target path info
-        if False:
-            armTargetPoints = []
-            closeTrunkPoints = []
-            jointPositions = []
-            root_pos = self.robot_skeleton.bodynodes[1].to_world(np.zeros(3))
-            spine_pos = self.robot_skeleton.bodynodes[2].to_world(np.zeros(3))
-            trunk_vec = spine_pos-root_pos
-            trunk_vec /= np.linalg.norm(trunk_vec)
-            for n in self.limbNodesL:
-                jpos = self.robot_skeleton.bodynodes[n].to_world(np.zeros(3))
-                trunkClose = pyutils.distToLineSegment(l0=root_pos, l1=spine_pos, p=jpos, segment=False)[1]
-                closeTrunkPoints.append(trunkClose)
-                jointPositions.append(jpos)
-
-            #end effector
-            efpos = self.robot_skeleton.bodynodes[self.limbNodesL[-1]].to_world(self.fingertip)
-            trunkCloseEF = pyutils.distToLineSegment(l0=root_pos, l1=spine_pos, p=efpos, segment=False)[1]
-            closeTrunkPoints.append(trunkCloseEF)
-            jointPositions.append(efpos)
-
-            for i in range(len(jointPositions)):
-                jpos = jointPositions[i]
-                trunkClose = closeTrunkPoints[i]
-
-                #compute a plane with basis 1  algined with trunk to joint
-                b1 = jpos - trunkClose
-                b1_mag = np.linalg.norm(b1)
-                b1 /= b1_mag
-                jt_plane = Plane(org=trunkClose, normal=np.cross(trunk_vec, b1), b1=b1)
-
-                #our point at angle is: p = trunkClose + b1*b1_mag + b1*dist*cos(theta) + b2*dist*sin(theta)
-                #                         = jpos + b1*dist*cos(theta) + b2*dist*sin(theta)
-                p = np.array(jpos)
-                p += jt_plane.basis2*self.armTargetPathInfo["target_dist"]*math.sin(self.armTargetPathInfo["target_angle"])
-                p += jt_plane.basis1*self.armTargetPathInfo["target_dist"]*math.cos(self.armTargetPathInfo["target_angle"])
-                armTargetPoints.append(p)
-
-                #no angle
-                #armTargetPoints.append(jpos + b1*self.armTargetPathInfo["target_dist"])
-
-
-            renderUtils.setColor(color=[0.1,0.1,0.8])
-            renderUtils.drawLineStrip(armTargetPoints)
-            lines = []
-            for i in range(len(armTargetPoints)):
-                lines.append([closeTrunkPoints[i], jointPositions[i]])
-                lines.append([jointPositions[i], armTargetPoints[i]])
-            renderUtils.setColor(color=[0.1, 0.1, 0.1])
-            renderUtils.drawLines(lines)
-
-        #render capacitive sensor readings
-        if self.robotCapacitiveObs:
-            self.capacitiveSensor.draw()
-            #TODO: better visualization?
-
-        #test capsule intersection
-        if False:
-            time_start = time.time()
-            ro = np.array([0.2, 0.1, 0.5])
-            robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
-            #rd = np.array([math.sin(self.numSteps/100.0), math.cos(self.numSteps/100.0), -1.0])
-            rd = robo_ef - ro
-            rd /= np.linalg.norm(rd)
-
-            solutions = []
-
-            backPlane = Plane(org=ro, normal=rd)
-            #backPlane.draw()
-
-            lines = []
-            origins = []
-            hits = []
-            sampleDim = 12
-            spacing = 0.0375
-            xy0 = -spacing*(sampleDim-1)/2
-            for x in range(sampleDim):
-                for y in range(sampleDim):
-                    cx = xy0+x*spacing
-                    cy = xy0+y*spacing
-                    origins.append(backPlane.get3D(p=[cx,cy]))
-                    lines.append([origins[-1], origins[-1]+rd*2])
-                    hits.append([])
-            #s0 = np.array([0.1, 0.23, -0.21])
-            #r0 = 0.2
-            #renderUtils.drawSphere(pos=s0, rad=r0)
-            #hit = pyutils.raySphereIntersect(ro,rd,s0,r0)
-            #if hit[0]:
-            #    solutions.append(hit[1])
-
-            for s0 in range(len(self.collisionCapsuleInfo)):
-                for s1 in range(len(self.collisionCapsuleInfo)):
-                    if self.collisionCapsuleInfo[s0][s1] == 1:
-                        c0 = self.collisionSphereInfo[s0 * 9:s0 * 9 + 3]
-                        r0 = self.collisionSphereInfo[s0 * 9 + 3]
-                        c1 = self.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
-                        r1 = self.collisionSphereInfo[s1 * 9 + 3]
-                        for ix,p in enumerate(origins):
-                            hit = pyutils.rayCapIntersect(p,rd,c0,c1,r0,r1)
-                            if hit[0]:
-                                hits[ix].append(hit[1])
-
-
-            print("raytrace took: " + str(time.time()-time_start))
-            for ix, p in enumerate(origins):
-                renderUtils.setColor(color=[0, 0, 0])
-                for t in hits[ix]:
-                    renderUtils.drawSphere(pos=origins[ix] + rd * t, rad=0.015)
-                if len(hits[ix]) > 0:
-                    renderUtils.setColor(color=[0, 1, 0])
-                renderUtils.drawLines(lines=[lines[ix]])
-
-        #draw capsule projection points of robot end effector
-        if False:
-            lines = []
-            robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
-            for s0 in range(len(self.collisionCapsuleInfo)):
-                for s1 in range(len(self.collisionCapsuleInfo)):
-                    if self.collisionCapsuleInfo[s0][s1] == 1:
-                        c0 = self.collisionSphereInfo[s0*9:s0*9 + 3]
-                        r0 = self.collisionSphereInfo[s0*9 + 3]
-                        c1 = self.collisionSphereInfo[s1 * 9:s1 * 9 + 3]
-                        r1 = self.collisionSphereInfo[s1 * 9 + 3]
-                        cp = pyutils.projectToCapsule(robo_ef, c0, c1, r0, r1)
-                        lines.append([robo_ef, cp[0]])
-                        #lines.append([robo_ef, c0])
-                        #lines.append([robo_ef, c1])
-
-                        #print(str(s0) + ", " + str(s1))
-                        print(str(r0) + ", " + str(r1))
-            renderUtils.drawLines(lines)
-
-
-        #draw target frame tracking
-        if self.targetFrameTracking["active"]:
-            points = []
-            renderFrame = pyutils.ShapeFrame()
-            for ix,T in enumerate(self.targetFrameTracking["history"]):
-                if(ix%self.targetFrameTracking["sampleRate"]==0):
-                    renderFrame.setTransform(T)
-                    renderFrame.drawFrame(size=0.1)
-                    points.append(renderFrame.org)
-            renderUtils.setColor(color=[0,0,0])
-            renderUtils.drawLineStrip(points)
-
         #draw shoulder plane
         if False:
             s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
@@ -2633,7 +2412,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             _snorm = snorm/np.linalg.norm(snorm)
             sb1 = np.cross(_snorm, np.array([0,1.0,0]))
             sb2 = np.cross(_snorm, sb1)
-            shoulderPlane = Plane(org=s1+_snorm*0.05, normal=_snorm, b1=sb1, b2=sb2)
+            shoulderPlane = Plane(org=s1, normal=_snorm, b1=sb1, b2=sb2)
             shoulderPlane.draw()
 
         #draw interpolation target frame
@@ -2642,14 +2421,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             renderFrame.setOrg(org=self.frameInterpolator["target_pos"])
             renderFrame.orientation = np.array(self.frameInterpolator["target_frame"])
             renderFrame.updateQuaternion()
-            #renderFrame.drawFrame(size=1.1)
-            v0 = renderFrame.toGlobal(p=[1,0,0]) - renderFrame.org
-            v1 = renderFrame.toGlobal(p=[0,1,0]) - renderFrame.org
-            v2 = renderFrame.toGlobal(p=[0,0,1]) - renderFrame.org
+            # renderFrame.drawFrame(size=1.1)
+            v0 = renderFrame.toGlobal(p=[1, 0, 0]) - renderFrame.org
+            v1 = renderFrame.toGlobal(p=[0, 1, 0]) - renderFrame.org
+            v2 = renderFrame.toGlobal(p=[0, 0, 1]) - renderFrame.org
             renderUtils.drawArrowAxis(org=self.frameInterpolator["target_pos"], v0=v0, v1=v1, v2=v2, scale=0.5)
             renderUtils.setColor(color=[0, 0, 0])
             renderUtils.drawLineStrip(points=[self.ikTarget, self.frameInterpolator["target_pos"]])
-            renderUtils.drawSphere(pos=renderFrame.org+renderFrame.org-renderFrame.toGlobal(p=self.frameInterpolator["localOffset"]), rad=0.02)
+            renderUtils.drawSphere(
+                pos=renderFrame.org + renderFrame.org - renderFrame.toGlobal(p=self.frameInterpolator["localOffset"]),
+                rad=0.02)
 
         renderUtils.setColor(color=[0.0, 0.0, 0])
         GL.glBegin(GL.GL_LINES)
@@ -2898,17 +2679,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             #still want time displayed
             self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
 
-        robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))
-        windowef = self.viewer.project(robo_ef)
-        #renderUtils.rect2D(topLeft=[windowef[0], windowef[1]], dimensions=[30,16], fill=True)
-        if self.robotCapacitiveObs:
-            sensorReading = self.capacitiveSensor.getAggregateSensorReading()
-            for s in range(self.capacitiveSensor.numSensorRayZones):
-
-                self.clothScene.drawText(x=windowef[0], y=windowef[1]+16*s,
-                                     text="Z["+str(s)+"]: %0.4f" % sensorReading[s],
-                                     color=(1.0, 0., 0.))
-
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
                                      text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed, self.weaknessScale),
@@ -3000,6 +2770,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self.iiwa_skel.render()
             self.iiwa_skel.set_positions(q)
             self.iiwa_skel.set_velocities(dq)
+
+        # render SPD target ghost
+        if self.renderSPDGhost:
+            q = np.array(self.robot_skeleton.q)
+            dq = np.array(self.robot_skeleton.dq)
+            self.robot_skeleton.set_positions(self.humanSPDController.target)
+            # self.viewer.scene.render(self.viewer.sim)
+            self.robot_skeleton.render_with_color(color=[0.6, 0.6, 0.6])
+            self.robot_skeleton.set_positions(q)
+            self.robot_skeleton.set_velocities(dq)
 
     def saveGripperState(self, filename=None):
         print("saving gripper state")
@@ -3185,6 +2965,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
                         self.handleNode.contactForce -= force
                         self.handleNode.contactTorque -= np.cross(c.point - self.handleNode.org, force)
 
+    def getViewer(self, sim, title=None, extraRenderFunc=None, inputFunc=None, resetFunc=None):
+        return DartClothEnv.getViewer(self, sim, title, self.extraRenderFunction, self.inputFunc, self.reset_model)
+
+    def inputFunc(self, repeat=False):
+        pyutils.inputGenie(domain=self, repeat=repeat)
+
     def viewer_setup(self):
         if self._get_viewer().scene is not None:
             #default setup (in front of person)
@@ -3194,13 +2980,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
             self._get_viewer().scene.tb._set_orientation(180,180)
 
             #recording angle rigid frame (side)
-            #self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
-            #rot = [-0.078705687066204968, 0.5423547110155762, 0.067527388204703831, 0.83372467524051252]
-            #pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
-
-            #recording angle from front of person with robot on left side...
-            self._get_viewer().scene.tb._trans = [0.34000000000000019, 0.020000000000000004, -2.0999999999999988]
-            rot = [-0.094887037321912837, -0.91548784322523225, -0.071299301298955647, 0.38444098206273875]
+            self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
+            rot = [-0.078705687066204968, 0.5423547110155762, 0.067527388204703831, 0.83372467524051252]
             pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
 
             #self._get_viewer().scene.tb._set_orientation(-8.274256683701712,2.4687256068775723)
@@ -3224,6 +3005,119 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3(DartClothUpperBodyDat
         for b in self.iiwa_skel.bodynodes:
             print(b.name)
             print(b.world_transform())
+
+    def updateClothCollisionStructures(self, capsules=False, hapticSensors=False):
+        a = 0
+        # collision spheres creation
+        fingertip = np.array([0.0, -0.06, 0.0])
+        z = np.array([0., 0, 0])
+        cs0 = self.robot_skeleton.bodynodes[1].to_world(z)
+        cs1 = self.robot_skeleton.bodynodes[2].to_world(z)
+        cs2 = self.robot_skeleton.bodynodes[14].to_world(z)
+        cs3 = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.175, 0]))
+        cs4 = self.robot_skeleton.bodynodes[4].to_world(z)
+        cs5 = self.robot_skeleton.bodynodes[5].to_world(z)
+        cs6 = self.robot_skeleton.bodynodes[6].to_world(z)
+        cs7 = self.robot_skeleton.bodynodes[7].to_world(z)
+        cs8 = self.robot_skeleton.bodynodes[7].to_world(fingertip)
+        cs9 = self.robot_skeleton.bodynodes[9].to_world(z)
+        cs10 = self.robot_skeleton.bodynodes[10].to_world(z)
+        cs11 = self.robot_skeleton.bodynodes[11].to_world(z)
+        cs12 = self.robot_skeleton.bodynodes[12].to_world(z)
+        cs13 = self.robot_skeleton.bodynodes[12].to_world(fingertip)
+        csVars0 = np.array([0.15, -1, -1, 0, 0, 0])
+        csVars1 = np.array([0.07, -1, -1, 0, 0, 0])
+        csVars2 = np.array([0.1, -1, -1, 0, 0, 0])
+        csVars3 = np.array([0.1, -1, -1, 0, 0, 0])
+        csVars4 = np.array([0.065, -1, -1, 0, 0, 0])
+        csVars5 = np.array([0.05, -1, -1, 0, 0, 0])
+        csVars6 = np.array([0.0365, -1, -1, 0, 0, 0])
+        csVars7 = np.array([0.04, -1, -1, 0, 0, 0])
+        csVars8 = np.array([0.046, -1, -1, 0, 0, 0])
+        csVars9 = np.array([0.065, -1, -1, 0, 0, 0])
+        csVars10 = np.array([0.05, -1, -1, 0, 0, 0])
+        csVars11 = np.array([0.0365, -1, -1, 0, 0, 0])
+        csVars12 = np.array([0.04, -1, -1, 0, 0, 0])
+        csVars13 = np.array([0.046, -1, -1, 0, 0, 0])
+        collisionSpheresInfo = np.concatenate(
+            [cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7,
+             csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13,
+             csVars13]).ravel()
+
+        # inflate collision objects
+        # for i in range(int(len(collisionSpheresInfo)/9)):
+        #    collisionSpheresInfo[i*9 + 3] *= 1.15
+
+        self.collisionSphereInfo = np.array(collisionSpheresInfo)
+        # collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1]).ravel()
+        if np.isnan(np.sum(
+                collisionSpheresInfo)):  # this will keep nans from propagating into PhysX resulting in segfault on reset()
+            return
+        self.clothScene.setCollisionSpheresInfo(collisionSpheresInfo)
+
+        if capsules is True:
+            # collision capsules creation
+            collisionCapsuleInfo = np.zeros((14, 14))
+            collisionCapsuleInfo[0, 1] = 1
+            collisionCapsuleInfo[1, 2] = 1
+            collisionCapsuleInfo[1, 4] = 1
+            collisionCapsuleInfo[1, 9] = 1
+            collisionCapsuleInfo[2, 3] = 1
+            collisionCapsuleInfo[4, 5] = 1
+            collisionCapsuleInfo[5, 6] = 1
+            collisionCapsuleInfo[6, 7] = 1
+            collisionCapsuleInfo[7, 8] = 1
+            collisionCapsuleInfo[9, 10] = 1
+            collisionCapsuleInfo[10, 11] = 1
+            collisionCapsuleInfo[11, 12] = 1
+            collisionCapsuleInfo[12, 13] = 1
+            collisionCapsuleBodynodes = -1 * np.ones((14, 14))
+            collisionCapsuleBodynodes[0, 1] = 1
+            collisionCapsuleBodynodes[1, 2] = 13
+            collisionCapsuleBodynodes[1, 4] = 3
+            collisionCapsuleBodynodes[1, 9] = 8
+            collisionCapsuleBodynodes[2, 3] = 14
+            collisionCapsuleBodynodes[4, 5] = 4
+            collisionCapsuleBodynodes[5, 6] = 5
+            collisionCapsuleBodynodes[6, 7] = 6
+            collisionCapsuleBodynodes[7, 8] = 7
+            collisionCapsuleBodynodes[9, 10] = 9
+            collisionCapsuleBodynodes[10, 11] = 10
+            collisionCapsuleBodynodes[11, 12] = 11
+            collisionCapsuleBodynodes[12, 13] = 12
+            self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
+            self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
+
+        if hapticSensors is True:
+            # hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
+            # hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])
+            hapticSensorLocations = np.concatenate(
+                [cs0, cs1, cs2, cs3, cs4, LERP(cs4, cs5, 0.33), LERP(cs4, cs5, 0.66), cs5, LERP(cs5, cs6, 0.33),
+                 LERP(cs5, cs6, 0.66), cs6, cs7, cs8, cs9, LERP(cs9, cs10, 0.33), LERP(cs9, cs10, 0.66), cs10,
+                 LERP(cs10, cs11, 0.33), LERP(cs10, cs11, 0.66), cs11, cs12, cs13])
+            hapticSensorRadii = np.array(
+                [csVars0[0], csVars1[0], csVars2[0], csVars3[0], csVars4[0], LERP(csVars4[0], csVars5[0], 0.33),
+                 LERP(csVars4[0], csVars5[0], 0.66), csVars5[0], LERP(csVars5[0], csVars6[0], 0.33),
+                 LERP(csVars5[0], csVars6[0], 0.66), csVars6[0], csVars7[0], csVars8[0], csVars9[0],
+                 LERP(csVars9[0], csVars10[0], 0.33), LERP(csVars9[0], csVars10[0], 0.66), csVars10[0],
+                 LERP(csVars10[0], csVars11[0], 0.33), LERP(csVars10[0], csVars11[0], 0.66), csVars11[0], csVars12[0],
+                 csVars13[0]])
+            self.clothScene.setHapticSensorLocations(hapticSensorLocations)
+            self.clothScene.setHapticSensorRadii(hapticSensorRadii)
+
+    def checkInvalidDynamics(self):
+        if not np.isfinite(self.robot_skeleton.q).all():
+            print("Infinite value detected...")# + str(self.robot_skeleton.q))
+            return True
+        elif np.amax(np.absolute(self.robot_skeleton.q)) > 5:
+            print("Detecting potential instability...")# + str(self.robot_skeleton.q))
+            return True
+        if not np.isfinite(self.dart_world.skeletons[0].q).all():
+            print("Infinite value detected (robot)...")# + str(self.dart_world.skeletons[0].q))
+            return True
+        elif np.amax(np.absolute(self.dart_world.skeletons[0].q)) > 5:
+            print("Detecting potential instability (robot)...")# + str(self.dart_world.skeletons[0].q))
+            return True
 
 def LERP(p0, p1, t):
     return p0 + (p1 - p0) * t

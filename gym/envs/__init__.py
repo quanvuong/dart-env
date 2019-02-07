@@ -686,6 +686,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Env v3(moved robot and SPD human with interpolated target...)
+register(
+    id='DartIiwaGown-v4',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnvV4',
+    #max_episode_steps=250,
+)
+
 #Iiwa Hanging Gown Assist Env
 register(
     id='DartIiwaGownAssist-v1',
@@ -718,6 +725,20 @@ register(
 register(
     id='DartIiwaGownAssistCoopt_h-v1',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptHelperEnv',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Assist Coopt Env V2 (SPD human)
+register(
+    id='DartIiwaGownAssistCoopt-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Assist Coopt HELPER Env v2 (SPD human) (duplicate of above with one flag set and name changed: HACK)
+register(
+    id='DartIiwaGownAssistCoopt_h-v2',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2HelperEnv',
     #max_episode_steps=250,
 )
 

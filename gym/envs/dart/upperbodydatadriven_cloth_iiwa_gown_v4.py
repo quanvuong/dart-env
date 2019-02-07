@@ -155,14 +155,14 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
-class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
-        self.renderSPDGhost = True
+        self.renderSPDGhost = False
 
         #dt = 0.002
         #cloth_dt = 0.002
@@ -184,8 +184,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
-        self.elbowConVarObs = True #if true, modify limits of the elbow joint
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.elbowConVarObs = False #if true, modify limits of the elbow joint
+        self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
 
         #reward flags
@@ -219,7 +220,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
 
         #other variables
         self.humanSPDController = None
-        self.humanSPDTarget = np.zeros(22)
+        #self.humanSPDTarget = np.zeros(22)
+        self.humanSPDIntperolationTarget = np.zeros(22) #interpolation b/t SPD target and pose
+        self.humanSPDInterpolationRate = 0.5
         self.previousAction = np.zeros(22) #TODO: increase if recurrent
         self.prevTau = None
         self.elbowFlairNode = 10
@@ -256,6 +259,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.elbow_constraint_range = 0.3 #joint limit symmetrical distance from rest
         self.elbow_rest = 0.2 #drawn at reset
         self.elbow_initial_limits = [0,0] #set later in init
+        self.elbow_upper_limit = 0 #set if using self.elbowLimitsVarObs, the upper limit for the elbow joint range
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -324,6 +328,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             observation_size += 1
         if self.elbowConVarObs:
+            observation_size += 1
+        if self.elbowLimitsVarObs:
             observation_size += 1
         if self.SPDTargetObs:
             observation_size += 22
@@ -499,6 +505,23 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
         self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=3.0, ckd=0.01)
 
+        #tune the SPD gains
+        for i in range(2):
+            self.humanSPDController.Kp[i][i] *= 20
+            self.humanSPDController.Kd[i][i] *= 20
+        '''
+        #for i in range(2,9):
+        #    self.humanSPDController.Kp[i][i] *= 2
+        #    self.humanSPDController.Kd[i][i] *= 2
+        #for i in range(11,17):
+        #    self.humanSPDController.Kp[i][i] *= 2
+        #    self.humanSPDController.Kd[i][i] *= 2
+        '''
+        for i in range(19,21):
+            self.humanSPDController.Kp[i][i] *= 3.5
+            self.humanSPDController.Kd[i][i] *= 6.5
+
+
         #disable character gravity
         if self.print_skel_details:
             print("!!Disabling character gravity (ie. auto gravity compensation")
@@ -531,7 +554,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             self.clothScene.renderClothWires = False
 
         for i in range(len(self.robot_skeleton.dofs)):
-            self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+            self.robot_skeleton.dofs[i].set_damping_coefficient(6.0)
+        self.robot_skeleton.dofs[0].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[1].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         #TODO: testing DOF springs
@@ -809,24 +836,40 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         #SPD addition for human
         if(self.humanSPDController is not None):
             #print(self.humanSPDController.target)
-            self.humanSPDController.target += a*0.1
+            self.humanSPDIntperolationTarget += a*0.1
             #clamp humanSPD target
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
-            q = np.array(self.robot_skeleton.q)
+            #q = np.array(self.robot_skeleton.q)
             maxDeviation = 0.15
             for d in range(self.robot_skeleton.ndofs):
-                t = self.humanSPDController.target[d]
-                self.humanSPDController.target[d] = min(t, pos_upper_lim[d])
-                self.humanSPDController.target[d] = max(t, pos_lower_lim[d])
+                t = self.humanSPDIntperolationTarget[d]
+                self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
+                self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
                 #limit close to current pose
                 qdof = self.robot_skeleton.q[d]
-                diff = qdof - self.humanSPDController.target[d]
+                diff = qdof - self.humanSPDIntperolationTarget[d]
                 if abs(diff) > maxDeviation:
                     if diff > 0:
-                        self.humanSPDController.target[d] = qdof - maxDeviation
+                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
                     else:
-                        self.humanSPDController.target[d] = qdof + maxDeviation
+                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
+            limit_diff = pos_upper_lim-pos_lower_lim
+            #print(target_diff)
+            maxChange = self.humanSPDInterpolationRate*self.dt
+            #self.humanSPDController.target
+
+            for d in range(len(target_diff)):
+                #self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
+                if math.isinf(limit_diff[d]): #shoulders
+                    limit_diff[d] = 1.5
+                if abs(target_diff[d]) > maxChange*limit_diff[d]:
+                    self.humanSPDController.target[d] += (target_diff[d]/abs(target_diff[d]))*maxChange
+                else:
+                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
+
+
             full_control = self.humanSPDController.query(None)
             #print(self.humanSPDController.query(None))
         #full_control = np.array(a)
@@ -1496,11 +1539,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             normalized_elbow_rest = (self.elbow_rest-0.5)/2.35
             obs = np.concatenate([obs, np.array([normalized_elbow_rest])]).ravel()
 
+        if self.elbowLimitsVarObs:
+            normalized_elbow_limit = (self.elbow_upper_limit - 0.5) / 2.35
+            obs = np.concatenate([obs, np.array([normalized_elbow_limit])]).ravel()
+
         if self.SPDTargetObs:
             if self.humanSPDController is None:
                 obs = np.concatenate([obs, np.zeros(22)]).ravel()
             else:
-                obs = np.concatenate([obs, self.humanSPDController.target]).ravel()
+                #obs = np.concatenate([obs, self.humanSPDController.target]).ravel()
+                obs = np.concatenate([obs, self.humanSPDIntperolationTarget]).ravel()
 
         return obs
 
@@ -1559,7 +1607,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             self.robot_skeleton.dofs[16].set_spring_stiffness(5.0)
             self.robot_skeleton.dofs[16].set_position(self.elbow_rest)
 
+        if self.elbowLimitsVarObs:
+            self.elbow_upper_limit = random.uniform(1.0, 2.85)
+            self.robot_skeleton.dofs[16].set_position_upper_limit(min(self.elbow_upper_limit, self.elbow_initial_limits[1]))
+
+
         self.humanSPDController.target = np.array(self.robot_skeleton.q)
+        self.humanSPDIntperolationTarget = np.array(self.humanSPDController.target)
 
         #if(self.reset_number > 0):
         #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
@@ -2245,6 +2299,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
                 # render elbow stiffness variation
                 self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80, text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
 
+        if self.elbowLimitsVarObs:
+                # render elbow stiffness variation
+                self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80, text="Elbow Limit Value = %0.2f" % ((self.elbow_upper_limit - 0.5) / 2.35), color=(0., 0, 0))
 
 
         if self.renderUI and not self.demoRendering:
@@ -2326,9 +2383,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         if self.renderSPDGhost:
             q = np.array(self.robot_skeleton.q)
             dq = np.array(self.robot_skeleton.dq)
+
             self.robot_skeleton.set_positions(self.humanSPDController.target)
-            # self.viewer.scene.render(self.viewer.sim)
-            self.robot_skeleton.render_with_color(color=[0.6,0.6,0.6])
+            self.robot_skeleton.render_with_color(color=[0.6,0.8,0.6])
+
+            #self.robot_skeleton.set_positions(self.humanSPDIntperolationTarget)
+            #self.robot_skeleton.render_with_color(color=[0.8, 0.6, 0.6])
+
             self.robot_skeleton.set_positions(q)
             self.robot_skeleton.set_velocities(dq)
 
