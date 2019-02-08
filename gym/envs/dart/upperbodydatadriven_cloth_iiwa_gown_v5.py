@@ -257,7 +257,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False #if true, modify limits of the elbow joint
         self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
@@ -1744,7 +1744,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            self.weaknessScale = 1.0
+            #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
