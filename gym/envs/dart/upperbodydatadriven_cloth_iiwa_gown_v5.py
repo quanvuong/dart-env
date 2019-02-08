@@ -257,7 +257,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False #if true, modify limits of the elbow joint
         self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
@@ -386,6 +386,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         if (self.restPoseErrorGraphing):
             self.restPoseErrorGraph = pyutils.LineGrapher(title="Rest Pose Error")
 
+
         self.handleNode = None
         self.updateHandleNodeFrom = 12  # left fingers
 
@@ -441,7 +442,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                                 'p3_el_dim': np.array([0.2, 0.1, 0.1]), 'p3_el_org': np.array([0.15, 0.075, 0]),
                                 'b_tan_dot_cone': 0.2, 'b_tan_len': 0.5,
                                 'orient_dot_cone': 0.8}
-        self.passiveIiwa = False
+
         self.root_adjustment = False
         self.passiveIiwa = False #if true, no SPD
         self.ikOrientation = True
@@ -451,7 +452,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         #setup robot base location
         self.dFromRoot = 0.75
-        #self.dFromRoot = 1.75
+        #self.dFromRoot = 2.75
+        #self.dFromRoot = 5.75
         #self.aFrom_invZ = 0.959931
         self.aFrom_invZ = 1.1
         self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, self.dFromRoot*math.sin(self.aFrom_invZ), -0.2, -self.dFromRoot*math.cos(self.aFrom_invZ)]) #values for the fixed 6 dof root transformation
@@ -471,10 +473,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         # SPD error graphing per dof
         self.graphSPDError = False
         self.SPDErrorGraph = None
-        if self.graphSPDError:
-            self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=7, legend=True)
-            for i in range(len(self.SPDErrorGraph.labels)):
-                self.SPDErrorGraph.labels[i] = str(i)
+        self.SPDTorqueGraph = None
+        self.previousTorque = np.zeros(22)
+        self.SPDErrorDofs = range(0,22)
+        #if self.graphSPDError:
+            #self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
+            #self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
+            #for i in range(len(self.SPDErrorGraph.labels)):
+            #    self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
+            #    self.SPDTorqueGraph.labels[i] = str(self.SPDErrorDofs[i])
 
         #setup pybullet
         if self.print_skel_details:
@@ -600,36 +607,42 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         # initialize the controller
         self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
-        self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=3.0, ckd=0.01)
+        self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=30.0, ckd=0.1)
 
         #tune the SPD gains
-        for i in range(2):
-            self.humanSPDController.Kp[i][i] *= 20
-            self.humanSPDController.Kd[i][i] *= 35
 
-        self.humanSPDController.Kp[2][2] *= 6
-        self.humanSPDController.Kd[2][2] *= 32
+        for i in range(2):
+            self.humanSPDController.Kp[i][i] = 10000
+            self.humanSPDController.Kd[i][i] = 400
+
+        self.humanSPDController.Kp[2][2] = 2000
+        self.humanSPDController.Kd[2][2] = 70
 
         clav_dofs = [3,4,11,12]
         for i in clav_dofs:
-            self.humanSPDController.Kp[i][i] *= 3.5
-            self.humanSPDController.Kd[i][i] *= 9.5
+            self.humanSPDController.Kp[i][i] = 2000
+            self.humanSPDController.Kd[i][i] = 100
 
         shoulder_dofs = [5,6,7,13,14,15]
         for i in shoulder_dofs:
-            self.humanSPDController.Kp[i][i] *= 1
-            self.humanSPDController.Kd[i][i] *= 3
-        '''
-        #for i in range(2,9):
-        #    self.humanSPDController.Kp[i][i] *= 2
-        #    self.humanSPDController.Kd[i][i] *= 2
-        #for i in range(11,17):
-        #    self.humanSPDController.Kp[i][i] *= 2
-        #    self.humanSPDController.Kd[i][i] *= 2
-        '''
+            self.humanSPDController.Kp[i][i] = 5000
+            self.humanSPDController.Kd[i][i] = 100
+
+        #elbows
+        elbow_dofs = [8,16]
+        for i in elbow_dofs:
+            self.humanSPDController.Kp[i][i] = 4000
+            self.humanSPDController.Kd[i][i] = 60
+
+        wrist_dofs = [9,10,17,18]
+        for i in wrist_dofs:
+            self.humanSPDController.Kp[i][i] = 500
+            self.humanSPDController.Kd[i][i] = 5
+
+        #neck
         for i in range(19,21):
-            self.humanSPDController.Kp[i][i] *= 3.5
-            self.humanSPDController.Kd[i][i] *= 6.5
+            self.humanSPDController.Kp[i][i] = 500
+            self.humanSPDController.Kd[i][i] = 30
 
 
         #disable character gravity
@@ -664,11 +677,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             self.clothScene.renderClothWires = False
 
         for i in range(len(self.robot_skeleton.dofs)):
-            self.robot_skeleton.dofs[i].set_damping_coefficient(6.0)
-        self.robot_skeleton.dofs[0].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[1].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
+            self.robot_skeleton.dofs[i].set_damping_coefficient(2.0)
+        self.robot_skeleton.dofs[0].set_damping_coefficient(4.0)
+        self.robot_skeleton.dofs[1].set_damping_coefficient(4.0)
+        #self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
+        #self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         #TODO: testing DOF springs
@@ -768,9 +781,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
 
         #compute gravity compenstation and set action scale for the state
+        self.action_scale = np.array(self.initialActionScale)
         if self.weaknessScaleVarObs:
             if self.simpleWeakness:
-                self.action_scale = np.array(self.initialActionScale)
                 for i in range(11,19):
                     self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
             else:
@@ -1090,30 +1103,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                 clamped_control[i] = -self.action_scale[i]
         #print("clamped_control = " + str(clamped_control))
 
-        if self.recordROMPoints:
-            violation = self.dart_world.getMaxConstraintViolation()
-            if violation > 0:
-                #print(violation)
-                minDist = None
-                for p in self.ROMPoints:
-                    dist = np.linalg.norm(self.robot_skeleton.q-p)
-                    if minDist is None:
-                        minDist = dist
-                    if dist < minDist:
-                        minDist = dist
-                        if minDist < self.ROMPointMinDistance:
-                            break
-                if minDist is not None:
-                    if minDist > self.ROMPointMinDistance:
-                        self.ROMPoints.append(np.array(self.robot_skeleton.q))
-                        print("Saved poses = " + str(len(self.ROMPoints)))
-                else: #auto-add when list is empty
-                    self.ROMPoints.append(np.array(self.robot_skeleton.q))
-
         tau = np.array(clamped_control)
-        if not self.SPDTorqueLimits:
-            tau = np.multiply(clamped_control, self.action_scale)
-            tau = np.multiply(tau, self.actionScaleVariation) #defaults to ones
+        self.previousTorque = np.array(tau)
+        #print(tau)
+        #if not self.SPDTorqueLimits:
+            #print("here")
+            #tau = np.multiply(clamped_control, self.action_scale)
+            #tau = np.multiply(tau, self.actionScaleVariation) #defaults to ones
 
         #apply action and simulate
         if len(tau) < len(self.robot_skeleton.q):
@@ -1563,9 +1559,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         #        if limbInsertionError > 0:
         #            return True, -500
 
-        pose_error = self.iiwa_skel.q[6:] - self.previousIKResult
+        #pose_error = self.iiwa_skel.q[6:] - self.previousIKResult
+        pose_error = self.robot_skeleton.q - self.humanSPDController.target
+
         if self.graphSPDError:
-            self.SPDErrorGraph.addToLinePlot(data=pose_error.tolist())
+            graphedError = []
+            graphedTorque = []
+            for i in self.SPDErrorDofs:
+                graphedError.append(pose_error[i])
+                graphedTorque.append(self.previousTorque[i])
+            self.SPDErrorGraph.addToLinePlot(data=graphedError)
+            self.SPDTorqueGraph.addToLinePlot(data=graphedTorque)
 
         #try:
         #    self.rigidClothFrame.setTransform(self.iiwa_skel.bodynodes[9].world_transform())
@@ -1815,7 +1819,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                     self.robot_skeleton.set_forces(np.zeros(self.robot_skeleton.ndofs))
                     counter += 1
                 print("found a valid pose in " + str(counter) + " tries.")
-                self.SPDTestSpline.insert(t=(i/(num_points-1))*total_time, p=np.array(self.humanSPDIntperolationTarget))
+                divisor = max((num_points-1), 1)
+                self.SPDTestSpline.insert(t=(i/divisor)*total_time, p=np.array(self.humanSPDIntperolationTarget))
             self.humanSPDIntperolationTarget = np.array(self.SPDTestSpline.pos(t=0))
 
         #if(self.reset_number > 0):
@@ -1940,10 +1945,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             self.restPoseErrorGraph.update()
 
         if self.graphSPDError:
-            self.SPDErrorGraph.close()
-            self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=7, legend=True)
+            if self.SPDErrorGraph is not None:
+                self.SPDErrorGraph.close()
+            self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
+            if self.SPDTorqueGraph is not None:
+                self.SPDTorqueGraph.close()
+            self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), legend=True)
             for i in range(len(self.SPDErrorGraph.labels)):
-                self.SPDErrorGraph.labels[i] = str(i)
+                self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
+                self.SPDTorqueGraph.labels[i] = str(self.SPDErrorDofs[i])
 
         #if self.reset_number > 0:
         #    self.task_data['trials'] += 1

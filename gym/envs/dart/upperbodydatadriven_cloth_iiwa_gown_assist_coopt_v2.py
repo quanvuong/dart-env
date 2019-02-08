@@ -1050,24 +1050,42 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         # SPD addition for human
         if (self.humanSPDController is not None):
             # print(self.humanSPDController.target)
-            self.humanSPDController.target += a * 0.1
-            # clamp humanSPD target
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
-            q = np.array(self.robot_skeleton.q)
-            maxDeviation = 0.15
+
+            self.humanSPDIntperolationTarget += a * 0.1
+            # clamp humanSPD target
+
+            # q = np.array(self.robot_skeleton.q)
+            maxDeviation = 0.55
             for d in range(self.robot_skeleton.ndofs):
-                t = self.humanSPDController.target[d]
-                self.humanSPDController.target[d] = min(t, pos_upper_lim[d])
-                self.humanSPDController.target[d] = max(t, pos_lower_lim[d])
+                t = self.humanSPDIntperolationTarget[d]
+                self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
+                self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
                 # limit close to current pose
                 qdof = self.robot_skeleton.q[d]
-                diff = qdof - self.humanSPDController.target[d]
+                diff = qdof - self.humanSPDIntperolationTarget[d]
                 if abs(diff) > maxDeviation:
                     if diff > 0:
-                        self.humanSPDController.target[d] = qdof - maxDeviation
+                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
                     else:
-                        self.humanSPDController.target[d] = qdof + maxDeviation
+                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+
+            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
+            limit_diff = pos_upper_lim - pos_lower_lim
+            # print(target_diff)
+            maxChange = self.humanSPDInterpolationRate * self.dt
+            # self.humanSPDController.target
+
+            for d in range(len(target_diff)):
+                # self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
+                if math.isinf(limit_diff[d]):  # shoulders
+                    limit_diff[d] = 1.5
+                if abs(target_diff[d]) > maxChange * limit_diff[d]:
+                    self.humanSPDController.target[d] += (target_diff[d] / abs(target_diff[d])) * maxChange
+                else:
+                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
+
             human_control = self.humanSPDController.query(None)
 
         human_clamped_control = np.array(human_control)
@@ -1107,16 +1125,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         if(not self.manualTargetControl):
             #self.ikTarget = efpos+robo_action_scaled[:3]
             self.frameInterpolator["target_pos"] += robo_action_scaled[:3]
-            self.frameInterpolator["eulers"] += robo_action_scaled[3:]
+            self.frameInterpolator["eulers"] += robo_action_scaled[3:6]
 
-        #ensure ik target is in reach
-        toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
-        distToRoboRoot = np.linalg.norm(toRoboRoot)
-
-        #clamp interpolation target frame to reachability sphere...
-        if(distToRoboRoot > (self.robotPathParams['p0_disk_rad'])*1.5):
-            #print("clamping frame")
-            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(toRoboRoot/distToRoboRoot)*(self.robotPathParams['p0_disk_rad'])*1.5
+        toRoboEF = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
+        distToRoboEF = np.linalg.norm(toRoboEF)
+        # clamp interpolation target frame to distance from EF to prevent over commit
+        if (distToRoboEF > (self.frameInterpolator["distanceLimit"])):
+            # print("clamping frame")
+            self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) + -(toRoboEF / distToRoboEF) * self.frameInterpolator["distanceLimit"]
 
         #interpolate the target frame at constant speed toward a goal location
         if self.frameInterpolator["active"]:
@@ -1129,25 +1145,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
             # interpolate orientation:
             if True:
-
-                #euler to matrix (Shoemake)
-                s = np.array([math.sin(interpFrameEulerState[0]), math.sin(interpFrameEulerState[1]), math.sin(interpFrameEulerState[2])])
-                c = np.array([math.cos(interpFrameEulerState[0]), math.cos(interpFrameEulerState[1]), math.cos(interpFrameEulerState[2])])
-                cc = c[0]*c[2]
-                cs = c[0]*s[2]
-                sc = s[0]*c[2]
-                ss = s[0]*s[2]
-
-                #self.frameInterpolator["target_frame"] = np.array([
-                #    [c[1], s[1]*s[0], s[1]*c[0]],
-                #    [s[1]*s[2], -c[1]*ss+cc, -c[1]*cs-sc],
-                #    [-s[1]*c[2], c[1]*sc+cs, c[1]*cc-ss],
-                #])
-                self.frameInterpolator["target_frame"] = np.array([
-                    [c[1] * c[2], s[1] * sc - cs, s[1] * cc + ss],
-                    [c[1] * s[2], s[1] * ss + cc, s[1] * cs - sc],
-                    [-s[1],       c[1] * s[0],    c[1] * c[0]],
-                ])
+                self.frameInterpolator["target_frame"] = pyutils.euler_to_matrix(interpFrameEulerState)
                 targetFrame.orientation = np.array(self.frameInterpolator["target_frame"])
                 #print("Matrix from Euler determinant: " + str(np.linalg.det(targetFrame.orientation)))
                 #print(interpFrameEulerState)
@@ -1188,25 +1186,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
 
         try:
-
-            # euler to matrix (Shoemake)
-            s = np.array([math.sin(self.frameEulerState[0]), math.sin(self.frameEulerState[1]), math.sin(self.frameEulerState[2])])
-            c = np.array([math.cos(self.frameEulerState[0]), math.cos(self.frameEulerState[1]), math.cos(self.frameEulerState[2])])
-            cc = c[0] * c[2]
-            cs = c[0] * s[2]
-            sc = s[0] * c[2]
-            ss = s[0] * s[2]
-            # first axis repeated format
-            #self.orientationTarget.orientation = np.array([
-            #    [c[1], s[1] * s[0], s[1] * c[0]],
-            #    [s[1] * s[2], -c[1] * ss + cc, -c[1] * cs - sc],
-            #    [-s[1] * c[2], c[1] * sc + cs, c[1] * cc - ss],
-            #])
-            self.orientationTarget.orientation = np.array([
-                    [c[1] * c[2], s[1] * sc - cs, s[1] * cc + ss],
-                    [c[1] * s[2], s[1] * ss + cc, s[1] * cs - sc],
-                    [-s[1],       c[1] * s[0],    c[1] * c[0]],
-                ])
+            self.orientationTarget.orientation = pyutils.euler_to_matrix(self.frameEulerState)
             self.orientationTarget.updateQuaternion()
 
             if self.targetFrameTracking["active"]:
