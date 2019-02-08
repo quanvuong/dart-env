@@ -52,9 +52,13 @@ if __name__ == '__main__':
     trial = None
 
     # --- Trial block with moved arm and SPD human
+    #trial = "experiment_2019_02_06_SPD_human_elbowlimits_weakness"
+    #trial = "experiment_2019_02_06_SPD_human_elbowlimits"
+    #trial = "experiment_2019_02_06_SPD_human_weakness"
+    #trial = "experiment_2019_02_06_SPD_human_capable"
     #trial = "experiment_2019_02_06_SPD_human_apen_lowexp"
     #trial = "experiment_2019_02_06_SPD_human_lowexp"
-    trial = "experiment_2019_02_05_SPD_human"
+    #trial = "experiment_2019_02_05_SPD_human"
     #trial = "experiment_2019_02_04_SPD_human"
     # ---
 
@@ -500,7 +504,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v1'
     #envName = 'DartIiwaGown-v2'
     #envName = 'DartIiwaGown-v3'
-    envName = 'DartIiwaGown-v4'
+    #envName = 'DartIiwaGown-v4'
+    envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
     env = gym.make(envName)
@@ -581,7 +586,7 @@ if __name__ == '__main__':
             #hidden_sizes=(128, 64),
             #init_std=0.2 #exploration scaling
             #init_std=0.15 #exploration scaling #human
-            init_std=0.05 #exploration scaling #SPD human
+            init_std=0.1 #exploration scaling #SPD human
             #init_std=0.1 #robot
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
@@ -619,6 +624,7 @@ if __name__ == '__main__':
         #time.sleep(0.5)
         rolloutHorizon = 10000
         rolloutHorizon = 600
+        #rolloutHorizon = 200
         #rolloutHorizon = 900
         #rolloutHorizon = 10000
         if paused is True:

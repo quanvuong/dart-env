@@ -256,6 +256,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.elbow_constraint_range = 0.3 #joint limit symmetrical distance from rest
         self.elbow_rest = 0.2 #drawn at reset
         self.elbow_initial_limits = [0,0] #set later in init
+        self.maxContactForce = 0
 
         #linear track variables
         self.trackInitialRange = [np.array([0.42, 0.2,-0.7]), np.array([-0.21, -0.3, -0.8])]
@@ -499,6 +500,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
         self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=3.0, ckd=0.01)
 
+        #TODO: adjust gains
+
         #disable character gravity
         if self.print_skel_details:
             print("!!Disabling character gravity (ie. auto gravity compensation")
@@ -530,8 +533,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+        #for i in range(len(self.robot_skeleton.dofs)):
+        #    self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
         for i in range(len(self.robot_skeleton.dofs)):
-            self.robot_skeleton.dofs[i].set_damping_coefficient(3.0)
+            self.robot_skeleton.dofs[i].set_damping_coefficient(6.0)
+        self.robot_skeleton.dofs[0].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[1].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
+        self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
+
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         #TODO: testing DOF springs
@@ -814,7 +824,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
             q = np.array(self.robot_skeleton.q)
-            maxDeviation = 0.15
+            maxDeviation = 0.55
             for d in range(self.robot_skeleton.ndofs):
                 t = self.humanSPDController.target[d]
                 self.humanSPDController.target[d] = min(t, pos_upper_lim[d])
@@ -1027,7 +1037,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
                     return
 
                 #TODO new handle updates testing
-                if(i%2 == 1):#every other step
+                if(i%2 == 1 and self.simulateCloth):#every other step
                     #print(i)
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
@@ -2241,6 +2251,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
         self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
         self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
         #self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
+        self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 95, text="Max Contact Force: (%0.2f)" % (self.maxContactForce), color=(0., 0, 0))
+
         if self.elbowConVarObs:
                 # render elbow stiffness variation
                 self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 80, text="Elbow Rest Value = %0.2f" % ((self.elbow_rest-0.5)/2.35), color=(0., 0, 0))
@@ -2473,11 +2485,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV3(DartClothUpperBodyDataDrive
                 best_hs = self.clothScene.getClosestNHapticSpheres(n=1, pos=c.point)[0]
                 vp = sensor_pos[3 * best_hs: best_hs*3 + 3] - c.point
                 vpn = vp / np.linalg.norm(vp)
-                fn = c.force / np.linalg.norm(c.force)
+                f_mag = np.linalg.norm(c.force)
+                fn = c.force / f_mag
                 if (vpn.dot(fn) > -vpn.dot(fn)):  # force pointing toward the sensor is correct
                     forces[best_hs] += -c.force
                 else:  # reverse a force pointing away from the sensor
                     forces[best_hs] += c.force
+                self.maxContactForce = max(f_mag, self.maxContactForce)
             else:
                 # the contact is between the human and itself
                 # find the two closest sensors to activate

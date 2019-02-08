@@ -94,6 +94,10 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         self.actionTrajectory = []
         self.SPDTorqueLimits = False
 
+        # skeleton capsule definitions
+        self.skelCapsulesDefined = False
+        self.skelCapsules = []  # list of capsule instances with two body nodes, two offset vector and two radii
+
         #rewards data tracking
         self.rewardsData = renderUtils.RewardsData([],[],[],[])
 
@@ -259,12 +263,14 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             print("control_bounds: " + str(self.control_bounds))
 
         #setup data-driven joint limits
+        self.dataDrivenConstraints = []
         if self.dataDrivenJointLimts:
             leftarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_left'), self.robot_skeleton.joint('elbowjL'), True)
             rightarmConstraint = pydart.constraints.HumanArmJointLimitConstraint(self.robot_skeleton.joint('j_bicep_right'), self.robot_skeleton.joint('elbowjR'), False)
+            self.dataDrivenConstraints.append(leftarmConstraint)
+            self.dataDrivenConstraints.append(rightarmConstraint)
             leftarmConstraint.add_to_world(self.dart_world)
             rightarmConstraint.add_to_world(self.dart_world)
-
         utils.EzPickle.__init__(self)
 
         if not self.gravity:
@@ -966,6 +972,9 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
         csVars13 = np.array([0.046, -1, -1, 0,0,0])
         collisionSpheresInfo = np.concatenate([cs0, csVars0, cs1, csVars1, cs2, csVars2, cs3, csVars3, cs4, csVars4, cs5, csVars5, cs6, csVars6, cs7, csVars7, cs8, csVars8, cs9, csVars9, cs10, csVars10, cs11, csVars11, cs12, csVars12, cs13, csVars13]).ravel()
 
+        sphereToBodynodeMapping = [1, 2, 14, 14, 4, 5, 6, 7, 7, 9, 10, 11, 12, 12]
+        offsetsToBodynodeMapping = {3: np.array([0, 0.175, 0]), 8: fingertip, 13: fingertip}
+
         #inflate collision objects
         #for i in range(int(len(collisionSpheresInfo)/9)):
         #    collisionSpheresInfo[i*9 + 3] *= 1.15
@@ -1008,7 +1017,27 @@ class DartClothUpperBodyDataDrivenClothBaseEnv(DartClothEnv, utils.EzPickle):
             collisionCapsuleBodynodes[12, 13] = 12
             self.clothScene.setCollisionCapsuleInfo(collisionCapsuleInfo, collisionCapsuleBodynodes)
             self.collisionCapsuleInfo = np.array(collisionCapsuleInfo)
-            
+
+        if not self.skelCapsulesDefined:
+            self.skelCapsulesDefined = True
+            for i in range(len(collisionCapsuleInfo)):
+                for j in range(len(collisionCapsuleInfo)):
+                    if collisionCapsuleInfo[i, j] == 1:
+                        offset_i = np.zeros(3)
+                        try:
+                            offset_i = np.array(offsetsToBodynodeMapping[i])
+                        except:
+                            pass
+                        offset_j = np.zeros(3)
+                        try:
+                            offset_j = np.array(offsetsToBodynodeMapping[j])
+                        except:
+                            pass
+
+                        self.skelCapsules.append([sphereToBodynodeMapping[i], collisionSpheresInfo[i*9 + 3], offset_i,
+                                                  sphereToBodynodeMapping[j], collisionSpheresInfo[j*9 + 3], offset_j]
+                                                 )  # bodynode1, radius1, offset1, bodynode2, radius2, offset2
+
         if hapticSensors is True:
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.33), LERP(cs0, cs1, 0.66), cs1, LERP(cs1, cs2, 0.33), LERP(cs1, cs2, 0.66), cs2, LERP(cs2, cs3, 0.33), LERP(cs2, cs3, 0.66), cs3])
             #hapticSensorLocations = np.concatenate([cs0, LERP(cs0, cs1, 0.25), LERP(cs0, cs1, 0.5), LERP(cs0, cs1, 0.75), cs1, LERP(cs1, cs2, 0.25), LERP(cs1, cs2, 0.5), LERP(cs1, cs2, 0.75), cs2, LERP(cs2, cs3, 0.25), LERP(cs2, cs3, 0.5), LERP(cs2, cs3, 0.75), cs3])

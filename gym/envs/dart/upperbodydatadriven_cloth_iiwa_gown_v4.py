@@ -158,11 +158,11 @@ class SPDController(Controller):
 class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
-        self.renderSPDGhost = False
+        self.renderSPDGhost = True
 
         #dt = 0.002
         #cloth_dt = 0.002
@@ -198,7 +198,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = True
-        self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
+        self.variationEntropyReward     = False  #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.actionMagnitudePenalty     = False  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
@@ -219,10 +219,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
 
         #other variables
+        self.SPDTestMode = False #if true, draw random target poses instead of allowing actions to control target
+        self.SPDTestSpline = pyutils.Spline()
         self.humanSPDController = None
         #self.humanSPDTarget = np.zeros(22)
         self.humanSPDIntperolationTarget = np.zeros(22) #interpolation b/t SPD target and pose
-        self.humanSPDInterpolationRate = 0.5
+        self.humanSPDInterpolationRate = 10.5
         self.previousAction = np.zeros(22) #TODO: increase if recurrent
         self.prevTau = None
         self.elbowFlairNode = 10
@@ -359,6 +361,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
 
         #setup robot base location
         self.dFromRoot = 0.75
+        #self.dFromRoot = 1.75
         self.aFrom_invZ = 0.959931
         self.iiwa_root_dofs = np.array([-1.2, -1.2, -1.2, self.dFromRoot*math.sin(self.aFrom_invZ), -0.2, -self.dFromRoot*math.cos(self.aFrom_invZ)]) #values for the fixed 6 dof root transformation
 
@@ -508,7 +511,20 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
         #tune the SPD gains
         for i in range(2):
             self.humanSPDController.Kp[i][i] *= 20
-            self.humanSPDController.Kd[i][i] *= 20
+            self.humanSPDController.Kd[i][i] *= 35
+
+        self.humanSPDController.Kp[2][2] *= 6
+        self.humanSPDController.Kd[2][2] *= 32
+
+        clav_dofs = [3,4,11,12]
+        for i in clav_dofs:
+            self.humanSPDController.Kp[i][i] *= 3.5
+            self.humanSPDController.Kd[i][i] *= 9.5
+
+        shoulder_dofs = [5,6,7,13,14,15]
+        for i in shoulder_dofs:
+            self.humanSPDController.Kp[i][i] *= 1
+            self.humanSPDController.Kd[i][i] *= 3
         '''
         #for i in range(2,9):
         #    self.humanSPDController.Kp[i][i] *= 2
@@ -615,6 +631,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
             #self.initialActionScale[0] *= 2
             #self.initialActionScale[1] *= 2
             #self.initialActionScale[2] *= 2
+            #for d in clav_dofs:
+            #    self.initialActionScale[d] += 10
+            self.initialActionScale[2] += 65
+
             print("initialActionScale: " + str(self.initialActionScale))
 
     def _getFile(self):
@@ -836,24 +856,28 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
         #SPD addition for human
         if(self.humanSPDController is not None):
             #print(self.humanSPDController.target)
-            self.humanSPDIntperolationTarget += a*0.1
-            #clamp humanSPD target
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
-            #q = np.array(self.robot_skeleton.q)
-            maxDeviation = 0.15
-            for d in range(self.robot_skeleton.ndofs):
-                t = self.humanSPDIntperolationTarget[d]
-                self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
-                self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
-                #limit close to current pose
-                qdof = self.robot_skeleton.q[d]
-                diff = qdof - self.humanSPDIntperolationTarget[d]
-                if abs(diff) > maxDeviation:
-                    if diff > 0:
-                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
-                    else:
-                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+            if not self.SPDTestMode:
+                self.humanSPDIntperolationTarget += a*0.1
+                #clamp humanSPD target
+
+                #q = np.array(self.robot_skeleton.q)
+                maxDeviation = 0.55
+                for d in range(self.robot_skeleton.ndofs):
+                    t = self.humanSPDIntperolationTarget[d]
+                    self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
+                    self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
+                    #limit close to current pose
+                    qdof = self.robot_skeleton.q[d]
+                    diff = qdof - self.humanSPDIntperolationTarget[d]
+                    if abs(diff) > maxDeviation:
+                        if diff > 0:
+                            self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
+                        else:
+                            self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+            else:
+                self.humanSPDIntperolationTarget = np.array(self.SPDTestSpline.pos(t=self.numSteps*self.dt))
             target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
             limit_diff = pos_upper_lim-pos_lower_lim
             #print(target_diff)
@@ -1062,6 +1086,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
                 self.add_external_step_forces() #empty by default
                 self.dart_world.step()
 
+                #TODO: test constraint querying
+                #constraintQuery = []
+                #for constraint in self.dataDrivenConstraints:
+                #    constraintQuery.append(constraint.query(self.dart_world, False))
+                #print("constraint query: " + str(constraintQuery))
+                #TODO
+
                 self.instabilityDetected = self.checkInvalidDynamics()
                 if self.instabilityDetected:
                     self.consecutiveInstabilities += 1
@@ -1070,7 +1101,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
                     return
 
                 #TODO new handle updates testing
-                if(i%2 == 1):#every other step
+                if(i%2 == 1 and self.simulateCloth):#every other step
                     #print(i)
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
@@ -1576,7 +1607,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
-            #self.weaknessScale = 1.0
+            self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
             if self.variationTesting:
@@ -1614,6 +1645,45 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
 
         self.humanSPDController.target = np.array(self.robot_skeleton.q)
         self.humanSPDIntperolationTarget = np.array(self.humanSPDController.target)
+
+        if self.SPDTestMode:
+            #draw a random in-limits pose
+            #self.humanSPDIntperolationTarget =
+            #TODO draw a random pose
+            upper = self.robot_skeleton.position_upper_limits()
+            lower = self.robot_skeleton.position_lower_limits()
+            for d in range(len(upper)):
+                if math.isinf(upper[d]):
+                    upper[d] = 2.0
+                if math.isinf(lower[d]):
+                    lower[d] = -2.0
+            self.SPDTestSpline = pyutils.Spline()
+            total_time = 2.0
+            num_points = 5
+            for i in range(num_points):
+                valid = False
+                counter = 0
+                while(not valid):
+                    self.humanSPDIntperolationTarget = np.random.uniform(lower, upper)
+                    init_q = np.array(self.robot_skeleton.q)
+                    init_dq = np.array(self.robot_skeleton.dq)
+                    self.robot_skeleton.set_positions(self.humanSPDIntperolationTarget)
+                    self.dart_world.step()
+                    #print("constraint indices" + str(self.dataDrivenConstraints))
+                    constraintQuery = []
+                    for constraint in self.dataDrivenConstraints:
+                        constraintQuery.append(constraint.query(self.dart_world, False))
+                    print("constraint query: " + str(constraintQuery))
+                    if(constraintQuery[0] > 0 and constraintQuery[1] > 0):
+                        valid = True
+                    self.dart_world.reset()
+                    self.robot_skeleton.set_positions(init_q)
+                    self.robot_skeleton.set_velocities(init_dq)
+                    self.robot_skeleton.set_forces(np.zeros(self.robot_skeleton.ndofs))
+                    counter += 1
+                print("found a valid pose in " + str(counter) + " tries.")
+                self.SPDTestSpline.insert(t=(i/(num_points-1))*total_time, p=np.array(self.humanSPDIntperolationTarget))
+            self.humanSPDIntperolationTarget = np.array(self.SPDTestSpline.pos(t=0))
 
         #if(self.reset_number > 0):
         #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
@@ -2380,6 +2450,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
             self.iiwa_skel.set_velocities(dq)
 
         #render SPD target ghost
+        if self.SPDTestMode:
+            for ix, p in enumerate(self.SPDTestSpline.points):
+                # self.robot_skeleton.set_positions(p.p)
+                additional_color = 0
+                if len(self.SPDTestSpline.points) > 1:
+                    additional_color = (ix / (len(self.SPDTestSpline.points) - 1))
+                renderUtils.setColor(color=np.ones(3) * additional_color)
+                renderUtils.drawLines(pyutils.getRobotLinks(self.robot_skeleton, p.p))
         if self.renderSPDGhost:
             q = np.array(self.robot_skeleton.q)
             dq = np.array(self.robot_skeleton.dq)
@@ -2387,8 +2465,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV4(DartClothUpperBodyDataDrive
             self.robot_skeleton.set_positions(self.humanSPDController.target)
             self.robot_skeleton.render_with_color(color=[0.6,0.8,0.6])
 
-            #self.robot_skeleton.set_positions(self.humanSPDIntperolationTarget)
-            #self.robot_skeleton.render_with_color(color=[0.8, 0.6, 0.6])
+            self.robot_skeleton.set_positions(self.humanSPDIntperolationTarget)
+            self.robot_skeleton.render_with_color(color=[0.8, 0.6, 0.6])
+
+            #self.robot_skeleton.render_with_color(color=[0.6, 0.6, 0.7+additional_color])
 
             self.robot_skeleton.set_positions(q)
             self.robot_skeleton.set_velocities(dq)

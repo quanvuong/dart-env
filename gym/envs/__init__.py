@@ -686,10 +686,17 @@ register(
     #max_episode_steps=250,
 )
 
-#Iiwa Hanging Gown Env v3(moved robot and SPD human with interpolated target...)
+#Iiwa Hanging Gown Env v4(moved robot and SPD human with interpolated target...)
 register(
     id='DartIiwaGown-v4',
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnvV4',
+    #max_episode_steps=250,
+)
+
+#Iiwa Hanging Gown Env v5(SPD human with adjusted gains, interpolation, and damping + multiple robot control modes )
+register(
+    id='DartIiwaGown-v5',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownEnvV5',
     #max_episode_steps=250,
 )
 
