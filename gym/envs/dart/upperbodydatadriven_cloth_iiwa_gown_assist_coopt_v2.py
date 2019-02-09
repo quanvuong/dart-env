@@ -175,7 +175,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         self.prefix = os.path.dirname(__file__)
         experiment_prefix = self.prefix+"/../../../../rllab/data/local/experiment/"
-        experiment_directory = "experiment_2019_02_08_coopt_test"
+        experiment_directory = "experiment_2019_02_09_coopt_warmhuman"
         self.humanPolicyFile = experiment_prefix + experiment_directory + "/policy.pkl"
         self.robotPolicyFile = experiment_prefix + experiment_directory + "2/policy.pkl"
         self.otherPolicy = None #load this
