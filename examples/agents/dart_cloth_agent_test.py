@@ -51,6 +51,12 @@ if __name__ == '__main__':
 
     trial = None
 
+    # --- tuned SPD human
+    #trial = "experiment_2019_02_08_coopt_test"
+    trial = "experiment_2019_02_08_SPD_human_hoverbot_weakness"
+    #trial = "experiment_2019_02_08_SPD_human_hoverbot"
+    # ---
+
     # --- Trial block with moved arm and SPD human
     #trial = "experiment_2019_02_06_SPD_human_elbowlimits_weakness"
     #trial = "experiment_2019_02_06_SPD_human_elbowlimits"
@@ -505,10 +511,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v2'
     #envName = 'DartIiwaGown-v3'
     #envName = 'DartIiwaGown-v4'
-    #envName = 'DartIiwaGown-v5'
+    envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssistCoopt-v2'
-    envName = 'DartIiwaGownAssistCoopt_h-v2'
+    #envName = 'DartIiwaGownAssistCoopt_h-v2'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -610,7 +616,7 @@ if __name__ == '__main__':
     env.render()
     #time.sleep(30.0) #window setup time for recording
     #o = env.reset()
-    useMeanPolicy = False
+    #useMeanPolicy = False
 
     for i in range(16):
         print("-----------------------------------")

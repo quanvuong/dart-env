@@ -755,9 +755,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2HelperEnv(DartClothE
         #disable character gravity
         if self.print_skel_details:
             print("!!Disabling character gravity (ie. auto gravity compensation")
-        if(not self.weaknessScaleVarObs):
-            for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
-                bodynode.set_gravity_mode(False)
+        #if(not self.weaknessScaleVarObs):
+        #    for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
+        #        bodynode.set_gravity_mode(False)
         self.dart_world.skeletons[0].bodynodes[0].set_gravity_mode(False)
 
         #initialize initial joint and torque limits

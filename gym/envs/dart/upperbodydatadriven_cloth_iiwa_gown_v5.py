@@ -165,6 +165,14 @@ class IiwaFrameController:
         #       control[5] = about green (roll)
         return np.zeros(3)
 
+    def reset(self):
+        #if any state is held, reset it
+        pass
+
+    def draw(self):
+        #any necessary visualizations for the controller
+        pass
+
 class IiwaRandomController(IiwaFrameController):
     def __init__(self, env, scale=1.0):
         IiwaFrameController.__init__(self, env)
@@ -192,8 +200,10 @@ class IiwaApproachThenHoverController(IiwaFrameController):
         t_disp = worldTarget-iiwa_frame_org
         t_dist = np.linalg.norm(t_disp)
         t_dir = t_disp/t_dist
-        if(abs(t_dist) > self.slack[0]):
-            control[:3] = t_dir*min((t_dist-self.distance), self.slack[0])
+        if t_dist > (self.slack[0] + self.distance):
+            control[:3] = t_dir * (t_dist - self.distance + self.slack[0])
+        elif t_dist < (self.distance - self.slack[0]):
+            control[:3] = t_dir * (t_dist - self.distance - self.slack[0])
 
         #angular control: orient toward the shoulder to within some error
         frame = pyutils.ShapeFrame()
@@ -228,6 +238,83 @@ class IiwaApproachThenHoverController(IiwaFrameController):
 
         return control + noiseAddition
 
+class IiwaApproachThenHoverThenProceedController(IiwaFrameController):
+    #This controller approaches the character and hovers at a reasonable range to allow the human to dress the sleeve
+    def __init__(self, env, target_node, node_offset, distance, noise=0.0, control_fraction=0.15, slack=(0.1, 0.075), hold_time=1.0):
+        IiwaFrameController.__init__(self, env)
+        self.target_node = target_node
+        self.distance = distance
+        self.noise = noise
+        self.control_fraction = control_fraction
+        self.slack = slack
+        self.hold_time = hold_time #time to wait after limb progress > 0 before continuing
+        self.time_held = 0.0
+        self.nodeOffset = node_offset
+
+    def query(self):
+        control = np.zeros(6)
+        noiseAddition = np.random.uniform(-self.env.robot_action_scale, self.env.robot_action_scale)*self.noise
+        worldTarget = self.env.robot_skeleton.bodynodes[self.target_node].to_world(self.nodeOffset)
+        iiwaEf = self.env.iiwa_skel.bodynodes[8].to_world(np.array([0, 0, 0.05]))
+        iiwa_frame_org = self.env.frameInterpolator["target_pos"]
+        t_disp = worldTarget-iiwa_frame_org
+        t_dist = np.linalg.norm(t_disp)
+        t_dir = t_disp/t_dist
+        if self.env.limbProgress < 0:
+            if t_dist > (self.slack[0]+self.distance):
+                control[:3] = t_dir*(t_dist-self.distance+self.slack[0])
+            elif t_dist < (self.distance-self.slack[0]):
+                control[:3] = t_dir*(t_dist-self.distance-self.slack[0])
+        else:
+            self.time_held += self.env.dt
+            if self.time_held > self.hold_time:
+                #now begin moving toward the arm again (still using the slack distance)
+                #TODO: better way to measure distance at the end?
+                control[:3] = t_dir * (t_dist - self.slack[0])
+
+        #angular control: orient toward the shoulder to within some error
+        frame = pyutils.ShapeFrame()
+        frame.setOrg(org=self.env.frameInterpolator["target_pos"])
+        frame.orientation = np.array(self.env.frameInterpolator["target_frame"])
+        frame.updateQuaternion()
+        v0 = frame.toGlobal(p=[1, 0, 0]) - frame.org
+        v1 = frame.toGlobal(p=[0, 1, 0]) - frame.org
+        v2 = frame.toGlobal(p=[0, 0, 1]) - frame.org
+        eulers_current = pyutils.getEulerAngles3(frame.orientation)
+
+        #toShoulder = self.env.robot_skeleton.bodynodes[9].to_world(np.zeros(3)) - renderFrame.org
+        R = pyutils.rotateTo(v1 / np.linalg.norm(v1), t_dir)
+        frame.applyRotationMatrix(R)
+        eulers_target = pyutils.getEulerAngles3(frame.orientation)
+        eulers_diff = eulers_target - eulers_current
+        control[3:] = eulers_diff
+        #print(eulers_diff)
+
+        Rdown = pyutils.rotateTo(v2 / np.linalg.norm(v2), np.array([0,-1,0]))
+        frame.applyRotationMatrix(Rdown)
+        eulers_target = pyutils.getEulerAngles3(frame.orientation)
+        eulers_diff_down = eulers_target - eulers_current
+        control[3] += eulers_diff_down[0]
+        #control[5] += 1
+
+        for i in range(3):
+            if abs(control[3+i]) < self.slack[1]:
+                control[3 + i] = 0
+
+        control = np.clip(control, -self.env.robot_action_scale, self.env.robot_action_scale)*self.control_fraction
+
+        return control + noiseAddition
+
+    def reset(self):
+        self.time_held = 0
+
+    def draw(self):
+        worldTarget = self.env.robot_skeleton.bodynodes[self.target_node].to_world(self.nodeOffset)
+        iiwa_frame_org = self.env.frameInterpolator["target_pos"]
+        renderUtils.drawLines(lines=[[worldTarget, iiwa_frame_org]])
+        renderUtils.drawSphere(pos=worldTarget)
+
+
 class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
@@ -257,7 +344,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False #if true, modify limits of the elbow joint
         self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
@@ -337,9 +424,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.manualTargetControl = False #if true, actions are not considered
         self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.iiwaFrameControllers = [IiwaRandomController(self,scale=0.3),
-                                     IiwaApproachThenHoverController(self,9,0.4)
+                                     IiwaApproachThenHoverController(self,9,0.4),
+                                     IiwaApproachThenHoverThenProceedController(self,8,np.array([0.21, 0.1, 0]),0.4)
                                      ]
-        self.currentFrameController = 1
+        self.currentFrameController = 2
 
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3 #joint limit symmetrical distance from rest
@@ -648,9 +736,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         #disable character gravity
         if self.print_skel_details:
             print("!!Disabling character gravity (ie. auto gravity compensation")
-        if(not self.weaknessScaleVarObs):
-            for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
-                bodynode.set_gravity_mode(False)
+        #if(not self.weaknessScaleVarObs):
+        #    for ix, bodynode in enumerate(self.robot_skeleton.bodynodes):
+        #        bodynode.set_gravity_mode(False)
         self.dart_world.skeletons[0].bodynodes[0].set_gravity_mode(False) #target box
 
         #initialize initial joint and torque limits
@@ -1721,6 +1809,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
     def additionalResets(self):
         self.consecutiveInstabilities = 0
 
+        #reset any robot controller states
+        for iiwa_controller in self.iiwaFrameControllers:
+            iiwa_controller.reset()
+
         if self.collisionResult is None:
             self.collisionResult = CollisionResult.CollisionResult(self.dart_world)
 
@@ -1744,6 +1836,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.05,1.0)
+            #self.weaknessScale = 0.05
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2248,6 +2341,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         #self._get_viewer().scene.tb.trans[0] = self.rigidClothFrame.getCenter()[0]
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
+
+        #draw iiwa control stuff
+        self.iiwaFrameControllers[self.currentFrameController].draw()
 
         #draw interpolation target frame
         if self.frameInterpolator["active"]:
