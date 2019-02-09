@@ -370,7 +370,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.restPoseReward             = True
         self.variationEntropyReward     = False  #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.actionMagnitudePenalty     = False  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
-        self.contactPenalty             = False  # if true, penalize contact between robot and human
+        self.contactPenalty             = True  # if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 2
