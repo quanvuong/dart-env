@@ -240,7 +240,7 @@ class IiwaApproachThenHoverController(IiwaFrameController):
 
 class IiwaApproachThenHoverThenProceedController(IiwaFrameController):
     #This controller approaches the character and hovers at a reasonable range to allow the human to dress the sleeve
-    def __init__(self, env, target_node, node_offset, distance, noise=0.0, control_fraction=0.05, slack=(0.1, 0.075), hold_time=1.0):
+    def __init__(self, env, target_node, node_offset, distance, noise=0.0, control_fraction=0.3, slack=(0.1, 0.075), hold_time=1.0):
         IiwaFrameController.__init__(self, env)
         self.target_node = target_node
         self.target_position = np.zeros(3)
@@ -367,10 +367,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
-        self.restPoseReward             = False
+        self.restPoseReward             = True
         self.variationEntropyReward     = False  #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.actionMagnitudePenalty     = False  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
-        self.contactPenalty             = True  # if true, penalize contact between robot and human
+        self.contactPenalty             = False  # if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 2
@@ -575,6 +575,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         # SPD error graphing per dof
         self.graphSPDError = False
+        self.graphSPDTorque = False
         self.SPDErrorGraph = None
         self.SPDTorqueGraph = None
         self.normalizedSPDTorqueGraphing = True
@@ -623,8 +624,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         #print("loading URDFs")
         self.initialActionScale = np.array(self.action_scale)
         self.robot_action_scale = np.ones(6)
-        self.robot_action_scale[:3] = np.ones(3) * 0.1  # position
-        self.robot_action_scale[3:6] = np.ones(3) * 0.2  # orientation
+        self.robot_action_scale[:3] = np.ones(3) * 0.01  # position
+        self.robot_action_scale[3:6] = np.ones(3) * 0.02  # orientation
         self.iiwa_torque_limits = np.array([176,176,110,110,110,40,40])
         iiwaFilename = ""
         if self.renderIiwaCollidable:
@@ -839,18 +840,23 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
+
         if self.simpleWeakness:
             print("simple weakness active...")
-            self.initialActionScale *= 5
+            #self.initialActionScale *= 5
             #self.initialActionScale *= 2.5
             #self.initialActionScale[0] *= 2
             #self.initialActionScale[1] *= 2
             #self.initialActionScale[2] *= 2
             #for d in clav_dofs:
             #    self.initialActionScale[d] += 10
-            self.initialActionScale[2] += 65
-
+            self.initialActionScale[2] += 13
+            #self.initialActionScale /= 5.0
+            self.initialActionScale[2]/1.5
             print("initialActionScale: " + str(self.initialActionScale))
+
+        self.action_scale_range = [self.initialActionScale*0.15, self.initialActionScale]
+        print(self.action_scale_range)
 
     def _getFile(self):
         return __file__
@@ -893,7 +899,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         if self.weaknessScaleVarObs:
             if self.simpleWeakness:
                 for i in range(11,19):
-                    self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+                    #self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+                    self.action_scale[i] = LERP(self.action_scale_range[0][i], self.action_scale_range[1][i], self.weaknessScale)
             else:
                 grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
                 #self.additionalAction = np.array(grav_comp)
@@ -1156,9 +1163,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                 #q = np.array(self.robot_skeleton.q)
                 maxDeviation = 0.55
                 for d in range(self.robot_skeleton.ndofs):
-                    t = self.humanSPDIntperolationTarget[d]
-                    self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
-                    self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
                     #limit close to current pose
                     qdof = self.robot_skeleton.q[d]
                     diff = qdof - self.humanSPDIntperolationTarget[d]
@@ -1167,6 +1171,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                             self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
                         else:
                             self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+
+                    #joint limiting
+                    self.humanSPDIntperolationTarget[d] = min(self.humanSPDIntperolationTarget[d], pos_upper_lim[d])
+                    self.humanSPDIntperolationTarget[d] = max(self.humanSPDIntperolationTarget[d], pos_lower_lim[d])
+
             else:
                 self.humanSPDIntperolationTarget = np.array(self.SPDTestSpline.pos(t=self.numSteps*self.dt))
             target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
@@ -1178,12 +1187,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             for d in range(len(target_diff)):
                 #self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
                 if math.isinf(limit_diff[d]): #shoulders
-                    limit_diff[d] = 1.5
+                    limit_diff[d] = 2.5
                 if abs(target_diff[d]) > maxChange*limit_diff[d]:
-                    self.humanSPDController.target[d] += (target_diff[d]/abs(target_diff[d]))*maxChange
+                    self.humanSPDController.target[d] += (target_diff[d]/abs(target_diff[d]))*maxChange*limit_diff[d]
                 else:
                     self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
-
 
             full_control = self.humanSPDController.query(None)
             #print(self.humanSPDController.query(None))
@@ -1683,14 +1691,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         if self.graphSPDError:
             graphedError = []
-            graphedTorque = []
             for i in self.SPDErrorDofs:
                 graphedError.append(pose_error[i])
+            self.SPDErrorGraph.addToLinePlot(data=graphedError)
+
+
+        if self.graphSPDTorque:
+            graphedTorque = []
+            for i in self.SPDErrorDofs:
                 if self.normalizedSPDTorqueGraphing:
                     graphedTorque.append(self.previousTorque[i]/self.action_scale[i])
                 else:
                     graphedTorque.append(self.previousTorque[i])
-            self.SPDErrorGraph.addToLinePlot(data=graphedError)
             self.SPDTorqueGraph.addToLinePlot(data=graphedTorque)
 
         if self.graphMaxContact:
@@ -1872,8 +1884,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            self.weaknessScale = random.uniform(0.05,1.0)
-            #self.weaknessScale = 0.05
+            self.weaknessScale = random.uniform(0.0,1.0)
+            #self.weaknessScale = 0.5
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2078,14 +2090,19 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             if self.SPDErrorGraph is not None:
                 self.SPDErrorGraph.close()
             self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
+            for i in range(len(self.SPDErrorGraph.labels)):
+                self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
+
+        if self.graphSPDTorque:
             if self.SPDTorqueGraph is not None:
                 self.SPDTorqueGraph.close()
             if self.normalizedSPDTorqueGraphing:
-                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), ylims=[-1,1], legend=True)
+                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs),
+                                                          ylims=[-1, 1], legend=True)
             else:
-                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), legend=True)
-            for i in range(len(self.SPDErrorGraph.labels)):
-                self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
+                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs),
+                                                          legend=True)
+            for i in range(len(self.SPDTorqueGraph.labels)):
                 self.SPDTorqueGraph.labels[i] = str(self.SPDErrorDofs[i])
 
         if self.graphMaxContact:
