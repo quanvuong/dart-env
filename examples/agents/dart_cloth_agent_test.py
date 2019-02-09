@@ -505,9 +505,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v2'
     #envName = 'DartIiwaGown-v3'
     #envName = 'DartIiwaGown-v4'
-    envName = 'DartIiwaGown-v5'
+    #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    #envName = 'DartIiwaGownAssistCoopt_h-v2'
+    #envName = 'DartIiwaGownAssistCoopt-v2'
+    envName = 'DartIiwaGownAssistCoopt_h-v2'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -586,13 +587,13 @@ if __name__ == '__main__':
             #hidden_sizes=(128, 64),
             #init_std=0.2 #exploration scaling
             #init_std=0.15 #exploration scaling #human
-            init_std=0.1 #exploration scaling #SPD human
-            #init_std=0.1 #robot
+            #init_std=0.1 #exploration scaling #SPD human
+            init_std=0.1 #robot
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         #output bias scaling
-        all_param_values[4] *= 0.01 #human
-        #all_param_values[4] *= 0.002 #robot
+        #all_param_values[4] *= 0.01 #human
+        all_param_values[4] *= 0.002 #robot
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

@@ -164,7 +164,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
     def __init__(self):
         #feature flags
         self.isHuman = True #otherwise robot
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -175,7 +175,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         self.prefix = os.path.dirname(__file__)
         experiment_prefix = self.prefix+"/../../../../rllab/data/local/experiment/"
-        experiment_directory = "experiment_2019_01_29_coopt_test"
+        experiment_directory = "experiment_2019_02_08_coopt_test"
         self.humanPolicyFile = experiment_prefix + experiment_directory + "/policy.pkl"
         self.robotPolicyFile = experiment_prefix + experiment_directory + "2/policy.pkl"
         self.otherPolicy = None #load this
@@ -193,8 +193,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
-        self.elbowConVarObs = True  # if true, modify limits of the elbow joint
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.elbowConVarObs = False  # if true, modify limits of the elbow joint
         self.SPDTargetObs = True  # need this to control this
 
         #reward flags (robot default)
@@ -277,7 +277,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
         self.manualTargetControl = False #if true, actions are not considered
-        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3)}
+        self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.consecutiveInstabilities = 0
         self.elbow_constraint_range = 0.3  # joint limit symmetrical distance from rest
         self.elbow_rest = 0.2  # drawn at reset
@@ -714,38 +714,42 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.iiwa_skel.set_adjacent_body_check(False)
 
         # initialize the controller
-        #self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
-        self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip*dt)
-        self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=3.0, ckd=0.01)
+        self.SPDController = SPDController(self, self.iiwa_skel, timestep=frameskip * dt)
+        self.humanSPDController = SPDController(self, self.robot_skeleton, timestep=frameskip * dt, startDof=0, ckp=30.0, ckd=0.1)
 
         #tune the SPD gains
         for i in range(2):
-            self.humanSPDController.Kp[i][i] *= 20
-            self.humanSPDController.Kd[i][i] *= 35
+            self.humanSPDController.Kp[i][i] = 10000
+            self.humanSPDController.Kd[i][i] = 400
 
-        self.humanSPDController.Kp[2][2] *= 6
-        self.humanSPDController.Kd[2][2] *= 32
+        self.humanSPDController.Kp[2][2] = 2000
+        self.humanSPDController.Kd[2][2] = 70
 
         clav_dofs = [3,4,11,12]
         for i in clav_dofs:
-            self.humanSPDController.Kp[i][i] *= 3.5
-            self.humanSPDController.Kd[i][i] *= 9.5
+            self.humanSPDController.Kp[i][i] = 2000
+            self.humanSPDController.Kd[i][i] = 100
 
         shoulder_dofs = [5,6,7,13,14,15]
         for i in shoulder_dofs:
-            self.humanSPDController.Kp[i][i] *= 1
-            self.humanSPDController.Kd[i][i] *= 3
-        '''
-        #for i in range(2,9):
-        #    self.humanSPDController.Kp[i][i] *= 2
-        #    self.humanSPDController.Kd[i][i] *= 2
-        #for i in range(11,17):
-        #    self.humanSPDController.Kp[i][i] *= 2
-        #    self.humanSPDController.Kd[i][i] *= 2
-        '''
+            self.humanSPDController.Kp[i][i] = 5000
+            self.humanSPDController.Kd[i][i] = 100
+
+        #elbows
+        elbow_dofs = [8,16]
+        for i in elbow_dofs:
+            self.humanSPDController.Kp[i][i] = 4000
+            self.humanSPDController.Kd[i][i] = 60
+
+        wrist_dofs = [9,10,17,18]
+        for i in wrist_dofs:
+            self.humanSPDController.Kp[i][i] = 500
+            self.humanSPDController.Kd[i][i] = 5
+
+        #neck
         for i in range(19,21):
-            self.humanSPDController.Kp[i][i] *= 3.5
-            self.humanSPDController.Kd[i][i] *= 6.5
+            self.humanSPDController.Kp[i][i] = 500
+            self.humanSPDController.Kd[i][i] = 30
 
 
         #disable character gravity
@@ -780,11 +784,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.clothScene.renderClothWires = False
 
         for i in range(len(self.robot_skeleton.dofs)):
-            self.robot_skeleton.dofs[i].set_damping_coefficient(6.0)
-        self.robot_skeleton.dofs[0].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[1].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
-        self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
+            self.robot_skeleton.dofs[i].set_damping_coefficient(2.0)
+        self.robot_skeleton.dofs[0].set_damping_coefficient(4.0)
+        self.robot_skeleton.dofs[1].set_damping_coefficient(4.0)
+        #self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
+        #self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         # load rewards into the RewardsData structure
@@ -870,10 +874,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         wLFingertip1 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
         self.localLeftEfShoulder1 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip1)  # right fingertip in right shoulder local frame
 
+        self.human_action_scale = np.array(self.initialActionScale)
         #compute gravity compenstation and set action scale for the state
         if self.weaknessScaleVarObs:
             if self.simpleWeakness:
-                self.human_action_scale = np.array(self.initialActionScale)
                 for i in range(11,19):
                     self.human_action_scale[i] = self.weaknessScale * self.initialActionScale[i]
             else:
@@ -1053,7 +1057,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
 
-            self.humanSPDIntperolationTarget += a * 0.1
+            self.humanSPDIntperolationTarget += human_a * 0.1
             # clamp humanSPD target
 
             # q = np.array(self.robot_skeleton.q)
@@ -1304,11 +1308,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                     self.iiwa_skel.set_velocities(robot_pre_dq)
                     return
 
-                # TODO new handle updates testing
-                if (i % 2 == 1):  # every other step
+                #TODO new handle updates testing
+                if(i%2 == 1 and self.simulateCloth):#every other step
+                    #print(i)
                     hn = self.iiwa_skel.bodynodes[8]  # hand node
                     self.handleNode.updatePrevConstraintPositions()
-                    self.handleNode.org = hn.to_world(np.array([0, 0, 0.05]))
+                    newOrg = hn.to_world(np.array([0, 0, 0.05]))
+                    if not np.isfinite(newOrg).all():
+                        print("Invalid robot pose in handle update...")
+                        self.iiwa_skel.set_positions(robot_pre_q)
+                        self.iiwa_skel.set_velocities(robot_pre_dq)
+                        return
+                    self.handleNode.org = np.array(newOrg)
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
                     # gripper_q = self.dart_world.skeletons[0].q
@@ -1608,8 +1619,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         # compute ef_accuracy here (after simulation step)
         # self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
         if False:
-            ef_accuracy = np.linalg.norm(self.iiwa_skel.bodynodes[8].to_world(np.zeros(3)) - self.ikTarget)
-            if (self.numSteps == 0):
+            ef_accuracy = np.linalg.norm(self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) - self.ikTarget)
+            if(self.numSteps == 0):
                 self.ef_accuracy_info['best'] = ef_accuracy
                 self.ef_accuracy_info['worst'] = ef_accuracy
                 self.ef_accuracy_info['total'] = ef_accuracy
@@ -2037,6 +2048,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.robot_skeleton.dofs[16].set_position(self.elbow_rest)
 
         self.humanSPDController.target = np.array(self.robot_skeleton.q)
+        self.humanSPDIntperolationTarget = np.array(self.humanSPDController.target)
         #if(self.reset_number > 0):
         #    print("ef_accuracy_info: " + str(self.ef_accuracy_info))
         #self.ef_accuracy_info = {'best': 0, 'worst': 0, 'total': 0, 'average': 0}
@@ -2236,6 +2248,25 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             diskPoint = np.array([(random.random() * 2 - 1) * diskRad, (random.random() * 2 - 1) * diskRad])
         depth = random.random()*depthRange + self.robotPathParams['p0_depth_offset']
         p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + np.array([diskPoint[0], diskPoint[1], depth])
+
+        #pick p0 with rejection sampling
+        p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0]* diskRad
+        good = False
+        r_pivot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3))
+        while(not good):
+            good = True
+            #xz0 = np.array([p0[0], p0[2]])
+
+            #cut off points too close or behind the robot in x
+            if p0[0] > (r_pivot[0] - self.robotPathParams['p0_depth_offset']):
+                good = False
+
+            # cut off points too close or behind the robot in z
+            if p0[2] > (r_pivot[2] - self.robotPathParams['p0_depth_offset']):
+                good = False
+
+            if not good:
+                p0 = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + pyutils.sampleDirections(num=1)[0] * diskRad
 
         #p3 ellipsoid sampling about the shoulder region
         p3_distribution = pyutils.EllipsoidFrame(dim=self.robotPathParams['p3_el_dim'], org=self.robotPathParams['p3_el_org'])
@@ -2803,8 +2834,21 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             q = np.array(self.robot_skeleton.q)
             dq = np.array(self.robot_skeleton.dq)
             self.robot_skeleton.set_positions(self.humanSPDController.target)
-            # self.viewer.scene.render(self.viewer.sim)
-            self.robot_skeleton.render_with_color(color=[0.6, 0.6, 0.6])
+            #self.robot_skeleton.render_with_color(color=[0.6,0.8,0.6])
+
+            self.robot_skeleton.set_positions(self.humanSPDIntperolationTarget)
+            #self.robot_skeleton.render_with_color(color=[0.8, 0.6, 0.6])
+
+            if self.skelCapsulesDefined:
+                renderUtils.setColor(color=[0.8, 0.6, 0.6])
+                #print(self.skelCapsules)
+                for capsule in self.skelCapsules:
+                    p0 = self.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+                    p1 = self.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+                    renderUtils.drawCapsule(p0=p0, p1=p1, r0=capsule[1], r1=capsule[4])
+
+            #self.robot_skeleton.render_with_color(color=[0.6, 0.6, 0.7+additional_color])
+
             self.robot_skeleton.set_positions(q)
             self.robot_skeleton.set_velocities(dq)
 
