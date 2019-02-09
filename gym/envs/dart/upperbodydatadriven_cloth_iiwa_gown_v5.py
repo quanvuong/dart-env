@@ -240,27 +240,31 @@ class IiwaApproachThenHoverController(IiwaFrameController):
 
 class IiwaApproachThenHoverThenProceedController(IiwaFrameController):
     #This controller approaches the character and hovers at a reasonable range to allow the human to dress the sleeve
-    def __init__(self, env, target_node, node_offset, distance, noise=0.0, control_fraction=0.15, slack=(0.1, 0.075), hold_time=1.0):
+    def __init__(self, env, target_node, node_offset, distance, noise=0.0, control_fraction=0.05, slack=(0.1, 0.075), hold_time=1.0):
         IiwaFrameController.__init__(self, env)
         self.target_node = target_node
+        self.target_position = np.zeros(3)
         self.distance = distance
         self.noise = noise
         self.control_fraction = control_fraction
         self.slack = slack
         self.hold_time = hold_time #time to wait after limb progress > 0 before continuing
         self.time_held = 0.0
+        self.proceeding = False
         self.nodeOffset = node_offset
 
     def query(self):
         control = np.zeros(6)
         noiseAddition = np.random.uniform(-self.env.robot_action_scale, self.env.robot_action_scale)*self.noise
         worldTarget = self.env.robot_skeleton.bodynodes[self.target_node].to_world(self.nodeOffset)
+        if self.proceeding:
+            worldTarget = np.array(self.target_position)
         iiwaEf = self.env.iiwa_skel.bodynodes[8].to_world(np.array([0, 0, 0.05]))
         iiwa_frame_org = self.env.frameInterpolator["target_pos"]
         t_disp = worldTarget-iiwa_frame_org
         t_dist = np.linalg.norm(t_disp)
         t_dir = t_disp/t_dist
-        if self.env.limbProgress < 0:
+        if self.env.limbProgress < 0 and not self.proceeding:
             if t_dist > (self.slack[0]+self.distance):
                 control[:3] = t_dir*(t_dist-self.distance+self.slack[0])
             elif t_dist < (self.distance-self.slack[0]):
@@ -268,6 +272,9 @@ class IiwaApproachThenHoverThenProceedController(IiwaFrameController):
         else:
             self.time_held += self.env.dt
             if self.time_held > self.hold_time:
+                if not self.proceeding:
+                    self.proceeding = True
+                    self.target_position = np.array(worldTarget)
                 #now begin moving toward the arm again (still using the slack distance)
                 #TODO: better way to measure distance at the end?
                 control[:3] = t_dir * (t_dist - self.slack[0])
@@ -307,9 +314,12 @@ class IiwaApproachThenHoverThenProceedController(IiwaFrameController):
 
     def reset(self):
         self.time_held = 0
+        self.proceeding = False
 
     def draw(self):
         worldTarget = self.env.robot_skeleton.bodynodes[self.target_node].to_world(self.nodeOffset)
+        if self.proceeding:
+            worldTarget = np.array(self.target_position)
         iiwa_frame_org = self.env.frameInterpolator["target_pos"]
         renderUtils.drawLines(lines=[[worldTarget, iiwa_frame_org]])
         renderUtils.drawSphere(pos=worldTarget)
@@ -360,6 +370,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.restPoseReward             = True
         self.variationEntropyReward     = False  #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.actionMagnitudePenalty     = False  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
+        self.contactPenalty             = False  # if true, penalize contact between robot and human
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 2
@@ -371,6 +382,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.restPoseRewardWeight             = 2
         self.variationEntropyRewardWeight     = 1
         self.actionMagnitudePenaltyWeight     = 1
+        self.contactPenaltyWeight             = 1
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
@@ -418,6 +430,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.rigid_f_history_avg = np.zeros(66)
         self.cloth_f_history = []
         self.cloth_f_history_avg = np.zeros(66)
+        self.maxContactForce = 0 #mganitude of maximum contact force between robot and human this rollout
+        self.stepMaxContactForce = 0 #mganitude of maximum contact force between robot and human this rollout
 
         # iiwa frame interpolator controls
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
@@ -425,7 +439,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.frameInterpolator = {"active":True, "target_pos":np.zeros(3), "target_frame":np.identity(3), "speed":0.75, "aSpeed":5, "localOffset":np.array([0,0,0]), "eulers":np.zeros(3), "distanceLimit":0.15}
         self.iiwaFrameControllers = [IiwaRandomController(self,scale=0.3),
                                      IiwaApproachThenHoverController(self,9,0.4),
-                                     IiwaApproachThenHoverThenProceedController(self,8,np.array([0.21, 0.1, 0]),0.4)
+                                     IiwaApproachThenHoverThenProceedController(self,8,np.array([0.21, 0.15, 0]),0.4)
                                      ]
         self.currentFrameController = 2
 
@@ -473,6 +487,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.restPoseErrorGraph = None
         if (self.restPoseErrorGraphing):
             self.restPoseErrorGraph = pyutils.LineGrapher(title="Rest Pose Error")
+
 
 
         self.handleNode = None
@@ -562,14 +577,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.graphSPDError = False
         self.SPDErrorGraph = None
         self.SPDTorqueGraph = None
+        self.normalizedSPDTorqueGraphing = True
         self.previousTorque = np.zeros(22)
         self.SPDErrorDofs = range(0,22)
-        #if self.graphSPDError:
-            #self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
-            #self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
-            #for i in range(len(self.SPDErrorGraph.labels)):
-            #    self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
-            #    self.SPDTorqueGraph.labels[i] = str(self.SPDErrorDofs[i])
+
+        self.graphMaxContact = False
+        self.maxContactGraph = None
+
 
         #setup pybullet
         if self.print_skel_details:
@@ -611,6 +625,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.robot_action_scale = np.ones(6)
         self.robot_action_scale[:3] = np.ones(3) * 0.1  # position
         self.robot_action_scale[3:6] = np.ones(3) * 0.2  # orientation
+        self.iiwa_torque_limits = np.array([176,176,110,110,110,40,40])
         iiwaFilename = ""
         if self.renderIiwaCollidable:
             iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision_complete.urdf')
@@ -658,6 +673,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             if self.print_skel_details:
                 print("     "+str(ix)+" : " + dof.name)
                 print("         llim: " + str(dof.position_lower_limit()) + ", ulim: " + str(dof.position_upper_limit()))
+                #print("         torque: " + str(dof.))
             # print("         damping: " + str(dof.damping_coefficient()))
             dof.set_damping_coefficient(2.0)
             #reduce damoing on hoop if added
@@ -816,6 +832,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         if self.actionMagnitudePenalty:
             self.rewardsData.addReward(label="action magnitude", rmin=-1.0, rmax=0, rval=0,
                                        rweight=self.actionMagnitudePenaltyWeight)
+
+        if self.contactPenalty:
+            self.rewardsData.addReward(label="contact", rmin=-1.0, rmax=0, rval=0,
+                                       rweight=self.contactPenaltyWeight)
 
         #self.loadCharacterState(filename="characterState_1starmin")
 
@@ -1304,7 +1324,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
             if not self.kinematic:
                 self.robot_skeleton.set_forces(tau)
-                self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), self.SPDController.query(obs=None)]))
+                #iiwa torque limiting
+                iiwa_control = self.SPDController.query(obs=None)
+                iiwa_control = np.clip(iiwa_control, -self.iiwa_torque_limits, self.iiwa_torque_limits)
+                self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), iiwa_control]))
 
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
@@ -1553,6 +1576,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             reward_actionMagnitude = -np.linalg.norm(self.previousAction)
             reward_record.append(reward_actionMagnitude)
 
+        reward_contactPenalty = 0
+        if self.contactPenalty:
+            if self.humanRobotCollision:
+                reward_contactPenalty = -1.0
+            reward_record.append(reward_contactPenalty)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -1575,6 +1604,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             if self.numSteps % 5 == 0:
                 self.restPoseErrorGraph.update()
 
+
         self.reward = reward_ctrl * 0 \
                       + reward_upright * self.uprightRewardWeight\
                       + reward_stableHead * self.stableHeadRewardWeight \
@@ -1584,7 +1614,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                       + reward_oracleDisplacement * self.oracleDisplacementRewardWeight \
                       + reward_elbow_flair * self.elbowFlairRewardWeight \
                       + reward_restPose * self.restPoseRewardWeight \
-                      + reward_actionMagnitude * self.actionMagnitudePenaltyWeight
+                      + reward_actionMagnitude * self.actionMagnitudePenaltyWeight \
+                      + reward_contactPenalty * self.contactPenaltyWeight
 
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
@@ -1655,10 +1686,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             graphedTorque = []
             for i in self.SPDErrorDofs:
                 graphedError.append(pose_error[i])
-                graphedTorque.append(self.previousTorque[i])
+                if self.normalizedSPDTorqueGraphing:
+                    graphedTorque.append(self.previousTorque[i]/self.action_scale[i])
+                else:
+                    graphedTorque.append(self.previousTorque[i])
             self.SPDErrorGraph.addToLinePlot(data=graphedError)
             self.SPDTorqueGraph.addToLinePlot(data=graphedTorque)
 
+        if self.graphMaxContact:
+            self.maxContactGraph.addToLinePlot(data=[self.stepMaxContactForce])
         #try:
         #    self.rigidClothFrame.setTransform(self.iiwa_skel.bodynodes[9].world_transform())
         #except:
@@ -1808,6 +1844,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
 
     def additionalResets(self):
         self.consecutiveInstabilities = 0
+        self.maxContactForce = 0
 
         #reset any robot controller states
         for iiwa_controller in self.iiwaFrameControllers:
@@ -2043,10 +2080,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             self.SPDErrorGraph = pyutils.LineGrapher(title="SPD Error Violation", numPlots=len(self.SPDErrorDofs), legend=True)
             if self.SPDTorqueGraph is not None:
                 self.SPDTorqueGraph.close()
-            self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), legend=True)
+            if self.normalizedSPDTorqueGraphing:
+                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), ylims=[-1,1], legend=True)
+            else:
+                self.SPDTorqueGraph = pyutils.LineGrapher(title="SPD Torques", numPlots=len(self.SPDErrorDofs), legend=True)
             for i in range(len(self.SPDErrorGraph.labels)):
                 self.SPDErrorGraph.labels[i] = str(self.SPDErrorDofs[i])
                 self.SPDTorqueGraph.labels[i] = str(self.SPDErrorDofs[i])
+
+        if self.graphMaxContact:
+            if self.maxContactGraph is not None:
+                self.maxContactGraph.close()
+            self.maxContactGraph = pyutils.LineGrapher(title="Max Contact Force", numPlots=1, legend=False)
 
         #if self.reset_number > 0:
         #    self.task_data['trials'] += 1
@@ -2548,6 +2593,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         #if self.variationTesting:
         self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
         self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+        self.clothScene.drawText(x=15., y=self.viewer.viewport[3] - 80, text="Max Contact Force = " + str(self.maxContactForce), color=(0., 0, 0))
+
         #self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
         if self.elbowConVarObs:
                 # render elbow stiffness variation
@@ -2803,6 +2850,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         return result
 
     def updateHandleContactForceTorques(self, maxClamp=10.0):
+        self.stepMaxContactForce = 0
         if self.handleNode is not None:
             self.handleNode.contactForce = np.zeros(3)
             self.handleNode.contactTorque = np.zeros(3)
@@ -2811,6 +2859,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                 # add a contact if the human skeleton is involved with the robot EF (FT sensor)
                 if (c.skel_id1 == self.iiwa_skel.id and c.skel_id2 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if(c.bodynode_id1 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -2821,6 +2871,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
                         self.handleNode.contactTorque += np.cross(c.point-self.handleNode.org, force)
                 if (c.skel_id2 == self.iiwa_skel.id and c.skel_id1 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if (c.bodynode_id2 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)

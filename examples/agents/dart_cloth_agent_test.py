@@ -53,8 +53,8 @@ if __name__ == '__main__':
 
     # --- tuned SPD human
     #trial = "experiment_2019_02_08_coopt_test"
-    trial = "experiment_2019_02_08_SPD_human_hoverbot_weakness"
-    #trial = "experiment_2019_02_08_SPD_human_hoverbot"
+    #trial = "experiment_2019_02_08_SPD_human_hoverbot_weakness"
+    trial = "experiment_2019_02_08_SPD_human_hoverbot"
     # ---
 
     # --- Trial block with moved arm and SPD human
