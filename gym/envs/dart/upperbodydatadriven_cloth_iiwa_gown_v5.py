@@ -354,7 +354,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False #if true, modify limits of the elbow joint
         self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
@@ -367,7 +367,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = True  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
-        self.restPoseReward             = True
+        self.restPoseReward             = False
         self.variationEntropyReward     = False  #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.actionMagnitudePenalty     = False  #if true, should damp oscillations by reducing the eagerness of the controller to over-shoot
         self.contactPenalty             = True  # if true, penalize contact between robot and human
