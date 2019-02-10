@@ -477,7 +477,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False #if true, modify limits of the elbow joint
         self.elbowLimitsVarObs = False #if true, modify limits of the elbow joint
         self.SPDTargetObs   = True #need this to control this
@@ -965,7 +965,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrive
             #self.initialActionScale[2]/1.5
             print("initialActionScale: " + str(self.initialActionScale))
 
-        self.action_scale_range = [self.initialActionScale*0.15, self.initialActionScale]
+        self.action_scale_range = [self.initialActionScale*0.1, self.initialActionScale*0.65]
         print(self.action_scale_range)
 
     def _getFile(self):

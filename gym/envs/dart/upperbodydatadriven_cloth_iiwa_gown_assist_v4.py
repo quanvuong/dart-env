@@ -342,10 +342,126 @@ class CapacitiveSensor:
                             self.sensorRayReadings[ix] = min(self.sensorRayReadings[ix], hit[1])
         #print(time.time()-starttime)
 
+class ContinuousCapacitiveSensor:
+    def __init__(self, env, bodynode=None, offset=np.zeros(3), R=np.identity(3)):
+        self.env = env
+        self.bodynode = bodynode
+        self.offset = offset
+        self.R = R
+        self.frame = pyutils.ShapeFrame()
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+        self.numSensorRayZones = 1
+
+    def update(self):
+        try:
+            self.frame.setOrg(org=self.bodynode.to_world(self.offset))
+            self.frame.orientation = np.dot(self.bodynode.T[:3,:3], self.R)
+            self.frame.updateQuaternion()
+        except:
+            print("update failed")
+            pass
+
+        # update sensor ray global info
+        self.sensorGlobals = []
+        for off in self.sensorOffsets:
+            pos = self.frame.toGlobal(p=off)
+            self.sensorGlobals.append(pos)
+
+    def getReading(self):
+        self.sensorReadings = []
+
+        #first truncate all capsules to the frame half plane
+        norm = self.frame.toGlobal(np.array([0,0,1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        frame_plane = Plane(org=self.frame.org, normal=norm)
+        capsules = []
+        #for c in self.env.skelCapsules:
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            #print("rs: " + str(r0) + " " + str(r1))
+            c_axis = p1-p0
+            c_len = np.linalg.norm(c_axis)
+            v0o = p0 - frame_plane.org
+            v1o = p1 - frame_plane.org
+            side0 = v0o.dot(norm) > 0
+            side1 = v1o.dot(norm) > 0
+            if side0 and side1: #capsule is entirely on the correct side of the plane
+                #add it to the list unedited
+                capsules.append([p0,p1,r0,r1])
+            elif side0: #slice p1 down as necessary
+                slice_dist = frame_plane.lineIntersect(p0, p1)[1]
+                p1 = p0 + c_axis*slice_dist
+                r1 = LERP(r0,r1,slice_dist/c_len)
+                capsules.append([p0, p1, r0, r1])
+            elif side1: #clise p0 down as necessary
+                slice_dist = frame_plane.lineIntersect(p1, p0)[1]
+                p0 = p1 - c_axis * slice_dist
+                r0 = LERP(r1, r0, slice_dist / c_len)
+                capsules.append([p0, p1, r0, r1])
+            #else: don't add anything
+        #print("completed phase 1 getSensorReading")
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+        #print("finished getSensorReading")
+
+    def draw(self):
+        norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        lines = [[self.frame.org, self.frame.org+norm]]
+        for ix,p in enumerate(self.sensorGlobals):
+            renderUtils.drawSphere(pos=p)
+            if self.sensorReadings[ix][0] < self.sensorRanges[ix]:
+                lines.append([p,self.sensorReadings[ix][1]])
+        renderUtils.drawLines(lines)
+
+    def default2x3setup(self, spacing = 0.07):
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+
+        for ix in range(3):
+            for iy in range(2):
+                local = np.array([ix*spacing - spacing, iy*spacing - spacing/2.0, 0.065])
+                self.sensorOffsets.append(local)
+                self.sensorRanges.append(0.15)
+                self.sensorReadings.append([0.15,None])
+        self.update()
+        self.numSensorRayZones = 6
+
+    def getAggregateSensorReading(self):
+        sensorReadings = []
+        for reading in self.sensorReadings:
+            sensorReadings.append(reading[0])
+        return sensorReadings
+
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -410,7 +526,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
-        self.useHumanControlNoise = True
+        self.useHumanControlNoise = False #apply noise at NN control layer for human
+        self.useHumanTargetNoise = True #apply noise at SPD target layer for human
 
         #other variables
         self.humanSPDController = None
@@ -419,6 +536,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.humanSPDInterpolationRate = 10.5
         self.humanControlNoiseRange = [0.0,0.2] #a uniform random sample of this range used for human control policy stochasticity (simulate parkinsons like effect)
         self.currentControlNoise = 0.0
+        self.humanTargetNoiseRange = [0.0,0.2] #a uniform random sample of this range used for human SPD noise (simulate parkinsons like effect)
+        self.currentTargetNoise = 0.0
         self.prevTau = None
         self.elbowFlairNode = 10
         self.maxDeformation = 30.0
@@ -543,7 +662,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             human_observation_size += 22
 
         #setup robot obs:
-        self.robotCapacitiveObs = False #need this flag for rendering and reading updates
+        self.robotCapacitiveObs = True #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
         self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
         self.lastRecurrentAction = np.zeros(self.recurrentSize)
@@ -558,7 +677,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             bot_observation_size += 6 #target frame position and orientation
         if self.robotCapacitiveObs:
             #bot_observation_size += 1
-            bot_observation_size += 6 #NOTE: need to reset this for expected setup
+            #bot_observation_size += 6 #NOTE: need to reset this for expected setup
             pass
         if self.robotProgressObs:
             bot_observation_size += 4 #position and total progress up the arm
@@ -771,10 +890,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             self.humanSPDController.Kd[i][i] = 30
 
         #initialzie capacitive sensor
-        self.capacitiveSensor = CapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
+        #self.capacitiveSensor = CapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
         #self.capacitiveSensor.defaultCircle5Center1Setup()
-        self.capacitiveSensor.defaultCir5Cen1Rad_nxm()
-        self.capacitiveSensor.update()
+        #self.capacitiveSensor.defaultCir5Cen1Rad_nxm()
+        #self.capacitiveSensor.update()
+
+        self.capacitiveSensor = ContinuousCapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8])
+        self.capacitiveSensor.default2x3setup()
 
         #disable character gravity
         if self.print_skel_details:
@@ -1151,7 +1273,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                 else:
                     self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
 
+            cleanTarget = np.array(self.humanSPDController.target)
+            if self.useHumanTargetNoise:
+                noiseRange = -np.ones(len(self.humanSPDController.target))*self.currentTargetNoise
+                self.humanSPDController.target += np.random.uniform(-noiseRange, noiseRange)
+
             full_control = self.humanSPDController.query(None)
+            self.humanSPDController.target = np.array(cleanTarget)
 
         human_clamped_control = np.array(full_control)
         for i in range(len(human_clamped_control)):
@@ -1993,7 +2121,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         #capacitive sensor aggregate reading
         if self.robotCapacitiveObs:
-            obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
+            #obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
+            pass
 
         if self.robotProgressObs:
             if self.limbProgressPoint is None:
@@ -2011,6 +2140,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #self.clothScene.setFriction(0, 0.1)  # reset this anytime as desired
 
         self.currentControlNoise = random.uniform(self.humanControlNoiseRange[0], self.humanControlNoiseRange[1])
+        self.currentTargetNoise = random.uniform(self.humanTargetNoiseRange[0], self.humanTargetNoiseRange[1])
 
         self.consecutiveInstabilities = 0
 
@@ -2921,6 +3051,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         if self.useHumanControlNoise:
             self.clothScene.drawText(x=15., y=45, text="currentControlNoise = %0.2f" % (self.currentControlNoise), color=(0., 0, 0))
+
+        if self.useHumanTargetNoise:
+            self.clothScene.drawText(x=15., y=45, text="currentTargetNoise = %0.2f" % (self.currentTargetNoise), color=(0., 0, 0))
 
 
         robo_ef = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3))

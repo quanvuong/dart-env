@@ -51,7 +51,15 @@ if __name__ == '__main__':
 
     trial = None
 
-    # --- tuned SPD human (buggy)
+    # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_10_SPD_human_hoverproceedavoidbot_weak_conpen_norest"
+    #trial = "experiment_2019_02_10_SPD_human_hoverproceedavoidbot_conpen_norest"
+    trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest"
+    #trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest_noisyhuman"
+    #trial = "experiment_2019_02_09_coopt_warmhuman_noconpen"
+    # ---
+
+    # --- tuned SPD human (fixed)
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen"
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_weak_conpen"
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
