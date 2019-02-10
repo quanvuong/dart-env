@@ -56,7 +56,7 @@ if __name__ == '__main__':
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_weak_conpen"
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
     #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot"
-    trial = "experiment_2019_02_09_coopt_warmhuman"
+    #trial = "experiment_2019_02_09_coopt_warmhuman"
     # --- tuned SPD human (buggy)
     #trial = "experiment_2019_02_08_coopt_test"
     #trial = "experiment_2019_02_08_SPD_human_hoverbot_weakness"
@@ -519,7 +519,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    envName = 'DartIiwaGownAssistCoopt-v2'
+    envName = 'DartIiwaGownAssist-v4'
+    #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
     env = gym.make(envName)
 
@@ -600,7 +601,7 @@ if __name__ == '__main__':
             #init_std=0.2 #exploration scaling
             #init_std=0.15 #exploration scaling #human
             #init_std=0.1 #exploration scaling #SPD human
-            init_std=0.1 #robot
+            init_std=0.15 #robot
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         #output bias scaling

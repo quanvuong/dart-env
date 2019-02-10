@@ -720,6 +720,12 @@ register(
     entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV3',
     #max_episode_steps=250,
 )
+#Iiwa Hanging Gown Assist Env 4: updated to synchronize with gown env V5
+register(
+    id='DartIiwaGownAssist-v4',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4',
+    #max_episode_steps=250,
+)
 
 #Iiwa Hanging Gown Assist Coopt Env
 register(
