@@ -51,10 +51,16 @@ if __name__ == '__main__':
 
     trial = None
 
-    # --- tuned SPD human
+    # --- tuned SPD human (buggy)
+    #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen"
+    #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_weak_conpen"
+    #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
+    #trial = "experiment_2019_02_09_SPD_human_hoverproceedbot"
+    trial = "experiment_2019_02_09_coopt_warmhuman"
+    # --- tuned SPD human (buggy)
     #trial = "experiment_2019_02_08_coopt_test"
     #trial = "experiment_2019_02_08_SPD_human_hoverbot_weakness"
-    trial = "experiment_2019_02_08_SPD_human_hoverbot"
+    #trial = "experiment_2019_02_08_SPD_human_hoverbot"
     # ---
 
     # --- Trial block with moved arm and SPD human
@@ -511,9 +517,9 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v2'
     #envName = 'DartIiwaGown-v3'
     #envName = 'DartIiwaGown-v4'
-    envName = 'DartIiwaGown-v5'
+    #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    #envName = 'DartIiwaGownAssistCoopt-v2'
+    envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
     env = gym.make(envName)
 
@@ -623,8 +629,8 @@ if __name__ == '__main__':
         print("  Starting rollout " + str(i))
         print("-----------------------------------")
         o = env.reset()
-        if i == 7:
-            env.renderSPDGhost = False
+        #if i == 7:
+        #    env.renderSPDGhost = False
         #envFilename = env.getFile()
         #print(envFilename)
         env.render()

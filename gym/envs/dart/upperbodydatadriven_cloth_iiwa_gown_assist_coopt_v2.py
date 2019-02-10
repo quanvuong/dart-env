@@ -175,7 +175,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         self.prefix = os.path.dirname(__file__)
         experiment_prefix = self.prefix+"/../../../../rllab/data/local/experiment/"
-        experiment_directory = "experiment_2019_02_09_coopt_warmhuman"
+        experiment_directory = "experiment_2019_02_09_coopt_warmhuman_noconpen"
         self.humanPolicyFile = experiment_prefix + experiment_directory + "/policy.pkl"
         self.robotPolicyFile = experiment_prefix + experiment_directory + "2/policy.pkl"
         self.otherPolicy = None #load this
@@ -201,14 +201,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.uprightReward              = False  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadReward           = False  # if True, rewarded for - head/torso angle
         self.elbowFlairReward           = False
-        self.limbProgressReward         = True  # if true, the (-inf, 1] plimb progress metric is included in reward
+        self.limbProgressReward         = True  # if true, the (-inf, 1] limb progress metric is included in reward
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
         self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
-        self.contactPenalty             = True #if true, penalize contact between robot and human
+        self.contactPenalty             = False #if true, penalize contact between robot and human
 
         if self.isHuman:
             self.uprightReward = True
