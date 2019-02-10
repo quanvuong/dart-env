@@ -527,7 +527,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
         self.useHumanControlNoise = False #apply noise at NN control layer for human
-        self.useHumanTargetNoise = False #apply noise at SPD target layer for human
+        self.useHumanTargetNoise = True #apply noise at SPD target layer for human
 
         #other variables
         self.humanSPDController = None

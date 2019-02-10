@@ -46,7 +46,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/1"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/0"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
-        self.capturing = True
+        self.capturing = False
         self.key_down = []
         for i in range(256):
             self.key_down.append(False)
