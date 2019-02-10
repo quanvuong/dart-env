@@ -78,7 +78,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.randomize_obstacle = True
         self.randomize_gyro_bias = True
         self.gyro_bias = [0.0, 0.0]
-        self.joint_vel_limit = 2.0
+        self.joint_vel_limit = 200000.0
         self.stride_limit = 0.2
         self.control_interval = 0.03
         self.use_settled_initial_states = False
@@ -115,7 +115,10 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.permitted_contact_ids = [-1, -2, -7, -8]
         self.init_root_pert = np.array([0.0, 0.16, 0.0, 0.0, 0.0, 0.0])
 
-        self.no_target_vel = False
+        self.no_target_vel = True
+        self.exp_target_vel_rew = False
+        self.transition_input = True # whether to input transition bit
+        self.linear_target_vel_reward = True
         self.target_vel = 0.0
         self.init_tv = 0.0
         self.final_tv = 0.25
@@ -125,12 +128,12 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.target_vel_cache = []
 
         self.assist_timeout = 10.0
-        self.assist_schedule = [[0.0, [2000, 2000]], [3.0, [1500, 1500]], [6.0, [1125.0, 1125.0]]]
+        self.assist_schedule = [[0.0, [2000, 1000]], [3.0, [1500, 500]], [6.0, [1125.0, 250.0]]]
 
         self.alive_bonus = 4.5
         self.energy_weight = 0.05
-        self.work_weight = 0.005
-        self.vel_reward_weight = 5.0
+        self.work_weight = 0.01
+        self.vel_reward_weight = 20.0
         self.pose_weight = 0.5
         self.contact_weight = 0.0
 
@@ -142,6 +145,11 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         self.target = np.zeros(26, )
         self.tau = np.zeros(26, )
         self.avg_tau = np.zeros(26, )
+
+        if not self.no_target_vel:
+            obs_dim += 1
+        if self.transition_input:
+            obs_dim += 1
 
         self.include_obs_history = 1
         self.include_act_history = 0
@@ -173,6 +181,12 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if self.fallstate_input:
             beginid = len(obs_perm_base)
             obs_perm_base = np.concatenate([obs_perm_base, [-beginid, beginid + 1]])
+        if not self.no_target_vel:
+            beginid = len(obs_perm_base)
+            obs_perm_base = np.concatenate([obs_perm_base, [beginid]])
+        if self.transition_input:
+            beginid = len(obs_perm_base)
+            obs_perm_base = np.concatenate([obs_perm_base, [beginid]])
         if self.train_UP:
             obs_perm_base = np.concatenate([obs_perm_base, np.arange(len(obs_perm_base), len(obs_perm_base) + len(self.param_manager.activated_param))])
 
@@ -256,15 +270,15 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
                           1.85632551e-02, 1.21496602e-05, 3.80372848e-01, 6.69136279e-01,
                           1.74107278e-02, 6.26648504e-01, 3.75747411e-01, 8.17102077e-03,
                           2.98731311e-01, 1.57159749e-01, 9.98434262e-01, 5.25150954e-01,
-                          2.08939569e-01, 6.14854563e-03, 2.56508710e-01]))
+                          5.08939569e-01, 6.14854563e-03, 2.56508710e-01]))
             self.param_manager.controllable_param.remove(self.param_manager.NEURAL_MOTOR)
             self.param_manager.set_bounds(np.array([0.71099107, 1., 0.55410035, 0.77357795, 0.83696563,
                                                     1., 0.38911438, 0.5927594, 0.83600142, 0.72893607,
-                                                    0.40426799, 1., 1., 0.32188582, 0.18053612,
+                                                    0.40426799, 1., 1., 0.75, 0.18053612,
                                                     0.44325208]),
                                           np.array([0.2068642, 0.56468929, 0.18749667, 0.10976041, 0.21355759,
                                                     0.75460303, 0., 0.28108675, 0.00990469, 0.29266951,
-                                                    0.02848982, 0.65100205, 0.32835961, 0., 0.,
+                                                    0.02848982, 0.65100205, 0.32835961, 0.25, 0.,
                                                     0.05508174]))
         self.default_kp_ratios = np.copy(self.kp_ratios)
         self.default_kd_ratios = np.copy(self.kd_ratios)
@@ -557,8 +571,14 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.no_target_vel:
             vel_rew = vel * self.vel_reward_weight
+            if self.linear_target_vel_reward:
+                if vel > self.final_tv:
+                    vel_rew = np.max([0, (2*self.final_tv - vel)]) * self.vel_reward_weight
         else:
-            vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+            if not self.exp_target_vel_rew:
+                vel_rew = -self.vel_reward_weight * np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache))
+            else:
+                vel_rew = self.vel_reward_weight * np.exp(-25*np.abs(np.mean(self.target_vel_cache) - np.mean(self.vel_cache)))
         if self.t < self.tv_endtime:
             vel_rew *= 0.5
 
@@ -692,6 +712,15 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
         if self.accum_imu_input:
             state = np.concatenate([state, self.accumulated_imu_info])
 
+        if not self.no_target_vel:
+            state = np.concatenate([state, [self.target_vel]])
+
+        if self.transition_input:
+            if self.t < self.tv_endtime:
+                state = np.concatenate([state, [0]])
+            else:
+                state = np.concatenate([state, [1]])
+
         if self.train_UP:
             UP = self.param_manager.get_simulator_parameters()
             state = np.concatenate([state, UP])
@@ -744,7 +773,7 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
             self.current_param = self.param_manager.get_simulator_parameters()
 
         if self.randomize_timestep:
-            new_control_dt = self.control_interval + np.random.uniform(-0.005, 0.005)
+            new_control_dt = self.control_interval + np.random.uniform(-0.005, 0.01)
             default_fs = int(self.control_interval / 0.002)
             self.frame_skip = np.random.randint(-5, 5) + default_fs
             self.dart_world.dt = new_control_dt / self.frame_skip
@@ -773,14 +802,14 @@ class DartDarwinEnv(dart_env.DartEnv, utils.EzPickle):
 
         if self.randomize_obstacle:
             horizontal_range = [0.6, 0.7]
-            vertical_range = [-1.368, -1.363]
+            vertical_range = [-1.368, -1.36]
             sampled_v = np.random.uniform(vertical_range[0], vertical_range[1])
             sampled_h = np.random.uniform(horizontal_range[0], horizontal_range[1])
             self.dart_world.skeletons[0].bodynodes[1].shapenodes[0].set_offset([sampled_h, 0, sampled_v])
             self.dart_world.skeletons[0].bodynodes[1].shapenodes[1].set_offset([sampled_h, 0, sampled_v])
 
         if self.randomize_gyro_bias:
-            self.gyro_bias = np.random.uniform(-0.05, 0.05, 2)
+            self.gyro_bias = np.random.uniform(-0.3, 0.3, 2)
 
         return self._get_obs()
 
