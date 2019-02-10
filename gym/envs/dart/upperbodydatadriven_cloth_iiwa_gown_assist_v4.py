@@ -385,7 +385,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.limbProgressExponential    = False  # if true, positive limb progress is d^2
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = False
+        self.deformationPenalty         = True
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
