@@ -410,7 +410,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.collarTermination  = False  #if true, rollout terminates when collar is off the head/neck
         self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
-        self.useHumanControlNoise = False
+        self.useHumanControlNoise = True
 
         #other variables
         self.humanSPDController = None
