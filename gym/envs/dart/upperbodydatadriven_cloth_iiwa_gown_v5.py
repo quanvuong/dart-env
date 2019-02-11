@@ -451,7 +451,7 @@ class IiwaApproachHoverProceedAvoidController(IiwaFrameController):
 class DartClothUpperBodyDataDrivenClothIiwaGownEnvV5(DartClothUpperBodyDataDrivenClothBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
