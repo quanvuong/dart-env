@@ -274,6 +274,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.rigid_f_history_avg = np.zeros(66)
         self.cloth_f_history = []
         self.cloth_f_history_avg = np.zeros(66)
+        self.maxContactForce = 0  # mganitude of maximum contact force between robot and human this rollout
+        self.stepMaxContactForce = 0  # mganitude of maximum contact force between robot and human this rollout
+
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
         self.manualTargetControl = False #if true, actions are not considered
@@ -647,9 +650,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         #print("loading URDFs")
         self.initialActionScale = np.array(self.human_action_scale)
         self.robot_action_scale = np.ones(6)
-        self.robot_action_scale[:3] = np.ones(3)*0.1 #position
-        self.robot_action_scale[3:] = np.ones(3)*0.2 #orientation
-        #self.robot_action_scale = np.zeros(6)
+        self.robot_action_scale[:3] = np.ones(3) * 0.01  # position
+        self.robot_action_scale[3:6] = np.ones(3) * 0.02  # orientation
+        self.iiwa_torque_limits = np.array([176,176,110,110,110,40,40])
         iiwaFilename = ""
         if self.renderIiwaCollidable:
             iiwaFilename = os.path.join(os.path.dirname(__file__), "assets", 'iiwa_description/urdf/iiwa7_simplified_collision.urdf')
@@ -838,9 +841,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         if self.simpleWeakness:
             print("simple weakness active...")
-            self.initialActionScale *= 5
-            self.initialActionScale[2] += 65
+            #self.initialActionScale *= 5
+            #self.initialActionScale[2] += 65
+            self.initialActionScale[2] += 13
             print("initialActionScale: " + str(self.initialActionScale))
+        self.action_scale_range = [self.initialActionScale * 0.1, self.initialActionScale * 0.65]
+        print(self.action_scale_range)
 
     def _getFile(self):
         return __file__
@@ -879,7 +885,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         if self.weaknessScaleVarObs:
             if self.simpleWeakness:
                 for i in range(11,19):
-                    self.human_action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+                    #self.action_scale[i] = self.weaknessScale * self.initialActionScale[i]
+                    self.human_action_scale[i] = LERP(self.action_scale_range[0][i], self.action_scale_range[1][i], self.weaknessScale)
             else:
                 grav_comp = self.robot_skeleton.coriolis_and_gravity_forces()
                 #self.additionalAction = np.array(grav_comp)
@@ -1049,66 +1056,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                 print("human policy not setup, defaulting zero action")
                 human_a = np.zeros(len(self.human_action_scale))
 
-        human_control = np.zeros(self.robot_skeleton.ndofs)
-
-        # SPD addition for human
-        if (self.humanSPDController is not None):
-            # print(self.humanSPDController.target)
-            pos_upper_lim = self.robot_skeleton.position_upper_limits()
-            pos_lower_lim = self.robot_skeleton.position_lower_limits()
-
-            self.humanSPDIntperolationTarget += human_a * 0.1
-            # clamp humanSPD target
-
-            # q = np.array(self.robot_skeleton.q)
-            maxDeviation = 0.55
-            for d in range(self.robot_skeleton.ndofs):
-                t = self.humanSPDIntperolationTarget[d]
-                self.humanSPDIntperolationTarget[d] = min(t, pos_upper_lim[d])
-                self.humanSPDIntperolationTarget[d] = max(t, pos_lower_lim[d])
-                # limit close to current pose
-                qdof = self.robot_skeleton.q[d]
-                diff = qdof - self.humanSPDIntperolationTarget[d]
-                if abs(diff) > maxDeviation:
-                    if diff > 0:
-                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
-                    else:
-                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
-
-            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
-            limit_diff = pos_upper_lim - pos_lower_lim
-            # print(target_diff)
-            maxChange = self.humanSPDInterpolationRate * self.dt
-            # self.humanSPDController.target
-
-            for d in range(len(target_diff)):
-                # self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
-                if math.isinf(limit_diff[d]):  # shoulders
-                    limit_diff[d] = 1.5
-                if abs(target_diff[d]) > maxChange * limit_diff[d]:
-                    self.humanSPDController.target[d] += (target_diff[d] / abs(target_diff[d])) * maxChange
-                else:
-                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
-
-            human_control = self.humanSPDController.query(None)
-
-        human_clamped_control = np.array(human_control)
-
-        #for i in range(len(human_clamped_control)):
-        #    if human_clamped_control[i] > self.human_control_bounds[0][i]:
-        #        human_clamped_control[i] = self.human_control_bounds[0][i]
-        #    if human_clamped_control[i] < self.human_control_bounds[1][i]:
-        #        human_clamped_control[i] = self.human_control_bounds[1][i]
-
-        for i in range(len(human_clamped_control)):
-            if human_clamped_control[i] > self.human_action_scale[i]:
-                human_clamped_control[i] = self.human_action_scale[i]
-            if human_clamped_control[i] < -self.human_action_scale[i]:
-                human_clamped_control[i] = -self.human_action_scale[i]
-
-        human_tau = np.array(human_clamped_control)
-        #human_tau = np.multiply(human_clamped_control, self.human_action_scale)
-        #human_tau = np.multiply(human_clamped_control, self.actionScaleVariation)
 
         #compute robot IK targets
         #robo_action_clamped = np.array(a)
@@ -1211,6 +1158,59 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         except:
             self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
+        human_control = np.zeros(self.robot_skeleton.ndofs)
+
+        # SPD addition for human
+        if (self.humanSPDController is not None):
+            # print(self.humanSPDController.target)
+            pos_upper_lim = self.robot_skeleton.position_upper_limits()
+            pos_lower_lim = self.robot_skeleton.position_lower_limits()
+
+            self.humanSPDIntperolationTarget += a*0.1
+            #clamp humanSPD target
+
+            #q = np.array(self.robot_skeleton.q)
+            maxDeviation = 0.55
+            for d in range(self.robot_skeleton.ndofs):
+                #limit close to current pose
+                qdof = self.robot_skeleton.q[d]
+                diff = qdof - self.humanSPDIntperolationTarget[d]
+                if abs(diff) > maxDeviation:
+                    if diff > 0:
+                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
+                    else:
+                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+
+                #joint limiting
+                self.humanSPDIntperolationTarget[d] = min(self.humanSPDIntperolationTarget[d], pos_upper_lim[d])
+                self.humanSPDIntperolationTarget[d] = max(self.humanSPDIntperolationTarget[d], pos_lower_lim[d])
+
+            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
+            limit_diff = pos_upper_lim - pos_lower_lim
+            # print(target_diff)
+            maxChange = self.humanSPDInterpolationRate * self.dt
+            # self.humanSPDController.target
+
+            for d in range(len(target_diff)):
+                # self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
+                if math.isinf(limit_diff[d]):  # shoulders
+                    limit_diff[d] = 1.5
+                if abs(target_diff[d]) > maxChange * limit_diff[d]:
+                    self.humanSPDController.target[d] += (target_diff[d] / abs(target_diff[d])) * maxChange
+                else:
+                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
+
+            human_control = self.humanSPDController.query(None)
+
+        human_clamped_control = np.array(human_control)
+
+        for i in range(len(human_clamped_control)):
+            if human_clamped_control[i] > self.human_action_scale[i]:
+                human_clamped_control[i] = self.human_action_scale[i]
+            if human_clamped_control[i] < -self.human_action_scale[i]:
+                human_clamped_control[i] = -self.human_action_scale[i]
+
+        human_tau = np.array(human_clamped_control)
 
         startTime2 = time.time()
 
@@ -1222,8 +1222,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.avgtimings["do_simulation"] = time.time() - startTime2
 
         #set position and 0 velocity of locked dofs
-        qpos = self.robot_skeleton.q
-        qvel = self.robot_skeleton.dq
+        qpos = np.array(self.robot_skeleton.q)
+        qvel = np.array(self.robot_skeleton.dq)
         for dof in self.lockedDofs:
             qpos[dof] = 0
             qvel[dof] = 0
@@ -1296,7 +1296,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
             if not self.kinematic:
                 self.robot_skeleton.set_forces(human_tau)
-                self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), self.SPDController.query(obs=None)]))
+                #iiwa torque limiting
+                iiwa_control = self.SPDController.query(obs=None)
+                iiwa_control = np.clip(iiwa_control, -self.iiwa_torque_limits, self.iiwa_torque_limits)
+                self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), iiwa_control]))
 
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
@@ -1322,9 +1325,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                     self.handleNode.org = np.array(newOrg)
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
-                    # gripper_q = self.dart_world.skeletons[0].q
-                    # gripper_q[3:] = self.handleNode.org
-                    # self.dart_world.skeletons[0].set_positions(gripper_q)
 
                     self.updateClothCollisionStructures(hapticSensors=True)
                     self.clothScene.step()
@@ -1339,7 +1339,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                             del self.cloth_f_history[0]
                         self.rigid_f_history.append(self.getCumulativeHapticForcesFromRigidContacts())
                         self.cloth_f_history.append(self.clothScene.getHapticSensorObs())
-
                     else:
                         self.handleNode.prev_avg_force += np.array(self.handleNode.prev_force)
                         self.handleNode.prev_avg_torque += np.array(self.handleNode.prev_torque)
@@ -1413,8 +1412,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         # compute and return reward at the current state
         wRFingertip2 = self.robot_skeleton.bodynodes[7].to_world(self.fingertip)
         wLFingertip2 = self.robot_skeleton.bodynodes[12].to_world(self.fingertip)
-        localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(
-            wLFingertip2)  # right fingertip in right shoulder local frame
+        localLeftEfShoulder2 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2)  # right fingertip in right shoulder local frame
 
         self.prevTau = tau
         reward_record = []
@@ -1477,8 +1475,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             if np.linalg.norm(self.prevOracle) > 0 and self.localLeftEfShoulder1 is not None:
                 # world_ef_displacement = wRFingertip2 - wRFingertip1
                 relative_displacement = localLeftEfShoulder2 - self.localLeftEfShoulder1
-                oracle0 = self.robot_skeleton.bodynodes[8].to_local(
-                    wLFingertip2 + self.prevOracle) - localLeftEfShoulder2
+                oracle0 = self.robot_skeleton.bodynodes[8].to_local(wLFingertip2 + self.prevOracle) - localLeftEfShoulder2
                 # oracle0 = oracle0/np.linalg.norm(oracle0)
                 reward_oracleDisplacement += relative_displacement.dot(oracle0)
             reward_record.append(reward_oracleDisplacement)
@@ -1986,6 +1983,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
     def additionalResets(self):
         self.consecutiveInstabilities = 0
+        self.maxContactForce = 0
 
         if self.targetFrameTracking["active"]:
             self.targetFrameTracking["history"] = []
@@ -2012,8 +2010,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            self.weaknessScale = random.uniform(0.05,1.0)
-            #self.weaknessScale = 1.0
+            self.weaknessScale = random.uniform(0.0,1.0)
+            #self.weaknessScale = 0.5
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
 
@@ -2444,17 +2442,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             if self.limbProgressReward:
                 self.limbProgress = pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL, offset=self.fingertip), feature=self.sleeveLSeamFeature)
 
-            #initial ik accuracy testing
-            #if self.reset_number > 100:
-            #    exit()
-            #else:
-            #    if(self.reset_number == 0):
-            #        self.ef_accuracy_info["best"] = ef_accuracy
-            #    self.ef_accuracy_info["total"] += ef_accuracy
-            #    self.ef_accuracy_info["best"] = min(self.ef_accuracy_info["best"], ef_accuracy)
-            #    self.ef_accuracy_info["worst"] = max(self.ef_accuracy_info["worst"], ef_accuracy)
-            #    self.ef_accuracy_info["average"] = self.ef_accuracy_info["total"]/(self.reset_number+1)
-            #    print(self.ef_accuracy_info)
         a=0
 
     def extraRenderFunction(self):
@@ -2727,15 +2714,19 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         m_viewport = self.viewer.viewport
         # print(m_viewport)
 
+        self.clothScene.drawText(x=15., y=self.viewer.viewport[3] - 80, text="Max Contact Force = " + str(self.maxContactForce), color=(0., 0, 0))
+        self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+
+
         if self.variationTesting:
             #print(self.setSeed)
             #print(self.weaknessScale)
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="(Seed, Variation): (%i, %0.2f)" % (self.setSeed,self.weaknessScale), color=(0., 0, 0))
-            self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+            #self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
             self.clothScene.drawText(x=15., y=30, text="Steps = " + str(self.numSteps) + ", dt = " + str(self.dt) + ", frameskip = " + str(self.frame_skip), color=(0., 0, 0))
-        elif self.demoRendering:
-            #still want time displayed
-            self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+        #elif self.demoRendering:
+        #    #still want time displayed
+        #    self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,
@@ -3009,6 +3000,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         return relevant_forces, relevant_points
 
     def updateHandleContactForceTorques(self, maxClamp=10.0):
+        self.stepMaxContactForce = 0
         if self.handleNode is not None:
             self.handleNode.contactForce = np.zeros(3)
             self.handleNode.contactTorque = np.zeros(3)
@@ -3017,6 +3009,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                 # add a contact if the human skeleton is involved with the robot EF (FT sensor)
                 if (c.skel_id1 == self.iiwa_skel.id and c.skel_id2 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if(c.bodynode_id1 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -3027,6 +3021,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
                         self.handleNode.contactTorque += np.cross(c.point-self.handleNode.org, force)
                 if (c.skel_id2 == self.iiwa_skel.id and c.skel_id1 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if (c.bodynode_id2 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -3051,8 +3047,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self._get_viewer().scene.tb._set_orientation(180,180)
 
             #recording angle rigid frame (side)
-            self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
-            rot = [-0.078705687066204968, 0.5423547110155762, 0.067527388204703831, 0.83372467524051252]
+            #self._get_viewer().scene.tb._trans = [-0.40000000000000019, 0.0, -2.0999999999999988]
+            #rot = [-0.078705687066204968, 0.5423547110155762, 0.067527388204703831, 0.83372467524051252]
+            #pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
+
+            # recording angle from front of person with robot on left side...
+            self._get_viewer().scene.tb._trans = [0.34000000000000019, 0.020000000000000004, -2.0999999999999988]
+            rot = [-0.094887037321912837, -0.91548784322523225, -0.071299301298955647, 0.38444098206273875]
             pyutils.setTrackballOrientation(self.viewer.scene.tb, rot)
 
             #self._get_viewer().scene.tb._set_orientation(-8.274256683701712,2.4687256068775723)

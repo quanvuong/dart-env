@@ -475,7 +475,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #humanPolicyFile = "experiment_2018_10_18_weakgown"
         #humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
         #humanPolicyFile = "experiment_2018_11_27_weakness_and_elbow_universal_cont"
-        humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
+        #humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
+        humanPolicyFile = "experiment_2019_02_10_SPD_human_norest_weaker"
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
@@ -489,7 +490,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False  # if true, modify limits of the elbow joint
         self.SPDTargetObs   = True  # need this to control this
 
@@ -527,7 +528,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.sleeveEndTerm      = False  #if true, terminate the rollout if the arm enters the end of sleeve feature before the beginning (backwards dressing)
         self.elbowFirstTerm     = False #if true, terminate when any limb enters the feature before the hand
         self.useHumanControlNoise = False #apply noise at NN control layer for human
-        self.useHumanTargetNoise = True #apply noise at SPD target layer for human
+        self.useHumanTargetNoise = False #apply noise at SPD target layer for human
 
         #other variables
         self.humanSPDController = None
@@ -573,6 +574,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.cloth_f_history = []
         self.cloth_f_history_avg = np.zeros(66)
         self.redundantHumanJoints = [] #any joints which we don't want robot to observe
+        self.maxContactForce = 0  # mganitude of maximum contact force between robot and human this rollout
+        self.stepMaxContactForce = 0  # mganitude of maximum contact force between robot and human this rollout
 
         #iiwa frame interpolator controls
         self.targetCentric = True #if true, robot policy operates on the target, not the current pose
@@ -1000,7 +1003,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             #self.initialActionScale[2]/1.5
             print("initialActionScale: " + str(self.initialActionScale))
 
-        self.action_scale_range = [self.initialActionScale*0.15, self.initialActionScale]
+        self.action_scale_range = [self.initialActionScale*0.1, self.initialActionScale*0.65]
         print(self.action_scale_range)
 
     def _getFile(self):
@@ -1230,80 +1233,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             human_a = rnd * np.exp(log_std) + human_a
 
 
-
-        full_control = np.zeros(self.robot_skeleton.ndofs)
-        # SPD addition for human
-        if (self.humanSPDController is not None):
-            # print(self.humanSPDController.target)
-            pos_upper_lim = self.robot_skeleton.position_upper_limits()
-            pos_lower_lim = self.robot_skeleton.position_lower_limits()
-
-            self.humanSPDIntperolationTarget += human_a * 0.1
-            # clamp humanSPD target
-
-            # q = np.array(self.robot_skeleton.q)
-            maxDeviation = 0.55
-            for d in range(self.robot_skeleton.ndofs):
-                # limit close to current pose
-                qdof = self.robot_skeleton.q[d]
-                diff = qdof - self.humanSPDIntperolationTarget[d]
-                if abs(diff) > maxDeviation:
-                    if diff > 0:
-                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
-                    else:
-                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
-
-                # joint limiting
-                self.humanSPDIntperolationTarget[d] = min(self.humanSPDIntperolationTarget[d], pos_upper_lim[d])
-                self.humanSPDIntperolationTarget[d] = max(self.humanSPDIntperolationTarget[d], pos_lower_lim[d])
-
-            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
-            limit_diff = pos_upper_lim - pos_lower_lim
-            # print(target_diff)
-            maxChange = self.humanSPDInterpolationRate * self.dt
-            # self.humanSPDController.target
-
-            for d in range(len(target_diff)):
-                # self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
-                if math.isinf(limit_diff[d]):  # shoulders
-                    limit_diff[d] = 2.5
-                if abs(target_diff[d]) > maxChange * limit_diff[d]:
-                    self.humanSPDController.target[d] += (target_diff[d] / abs(target_diff[d])) * maxChange * \
-                                                         limit_diff[d]
-                else:
-                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
-
-            cleanTarget = np.array(self.humanSPDController.target)
-            if self.useHumanTargetNoise:
-                noiseRange = -np.ones(len(self.humanSPDController.target))*self.currentTargetNoise
-                self.humanSPDController.target += np.random.uniform(-noiseRange, noiseRange)
-
-            full_control = self.humanSPDController.query(None)
-            self.humanSPDController.target = np.array(cleanTarget)
-
-        human_clamped_control = np.array(full_control)
-        for i in range(len(human_clamped_control)):
-            if human_clamped_control[i] > self.action_scale[i]:
-                human_clamped_control[i] = self.action_scale[i]
-            if human_clamped_control[i] < -self.action_scale[i]:
-                human_clamped_control[i] = -self.action_scale[i]
-
-        human_tau = np.array(human_clamped_control)
-        #human_tau = np.multiply(human_clamped_control, self.actionScaleVariation)
-
         #compute robot IK targets
-        #robo_action_clamped = np.array(a)
         robo_action_clamped = np.clip(a, -np.ones(len(a)), np.ones(len(a)))
-        #for i in range(len(robo_action_clamped)):
-        #    if robo_action_clamped[i] > 1:
-        #        robo_action_clamped[i] = 1
-        #    if robo_action_clamped[i] < -1:
-        #        robo_action_clamped[i] = -1
+
         robo_action_scaled = np.multiply(robo_action_clamped, self.robot_action_scale)
-        #print("action: " + str(a))
-        #print("clamped action: " + str(robo_action_clamped))
-        #print("action scale: " + str(self.robot_action_scale))
-        #print("scaled action: " + str(robo_action_scaled))
 
         # record the recurrency if necessary
         if self.recurrency > 0:
@@ -1323,15 +1256,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             #self.ikTarget = efpos+robo_action_scaled[:3]
             self.frameInterpolator["target_pos"] += robo_action_scaled[:3]
             self.frameInterpolator["eulers"] += robo_action_scaled[3:6]
-
-        #ensure ik target is in reach
-        #toRoboRoot = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
-        #distToRoboRoot = np.linalg.norm(toRoboRoot)
-        # clamp interpolation target frame to reachability sphere...
-        #if (distToRoboRoot > (self.robotPathParams['p0_disk_rad']) * 1.5):
-        #    # print("clamping frame")
-        #    self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[3].to_world(np.zeros(3)) + -(
-        #    toRoboRoot / distToRoboRoot) * (self.robotPathParams['p0_disk_rad']) * 1.5
 
         toRoboEF = self.iiwa_skel.bodynodes[9].to_world(np.zeros(3)) - self.frameInterpolator["target_pos"]
         distToRoboEF = np.linalg.norm(toRoboEF)
@@ -1402,6 +1326,64 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         except:
             self.avgtimings["updateBeforeSimulation"] = time.time() - startTime2
 
+        full_control = np.zeros(self.robot_skeleton.ndofs)
+
+        # SPD addition for human
+        if (self.humanSPDController is not None):
+            # print(self.humanSPDController.target)
+            pos_upper_lim = self.robot_skeleton.position_upper_limits()
+            pos_lower_lim = self.robot_skeleton.position_lower_limits()
+
+            self.humanSPDIntperolationTarget += human_a * 0.1
+            # clamp humanSPD target
+
+            # q = np.array(self.robot_skeleton.q)
+            maxDeviation = 0.55
+            for d in range(self.robot_skeleton.ndofs):
+                # limit close to current pose
+                qdof = self.robot_skeleton.q[d]
+                diff = qdof - self.humanSPDIntperolationTarget[d]
+                if abs(diff) > maxDeviation:
+                    if diff > 0:
+                        self.humanSPDIntperolationTarget[d] = qdof - maxDeviation
+                    else:
+                        self.humanSPDIntperolationTarget[d] = qdof + maxDeviation
+
+                # joint limiting
+                self.humanSPDIntperolationTarget[d] = min(self.humanSPDIntperolationTarget[d], pos_upper_lim[d])
+                self.humanSPDIntperolationTarget[d] = max(self.humanSPDIntperolationTarget[d], pos_lower_lim[d])
+
+            target_diff = self.humanSPDIntperolationTarget - self.humanSPDController.target
+            limit_diff = pos_upper_lim - pos_lower_lim
+            # print(target_diff)
+            maxChange = self.humanSPDInterpolationRate * self.dt
+            # self.humanSPDController.target
+
+            for d in range(len(target_diff)):
+                # self.humanSPDController.target[d] = min(maxChange, abs(target_diff[d])) * (target_diff[d]/abs(target_diff[d]))
+                if math.isinf(limit_diff[d]):  # shoulders
+                    limit_diff[d] = 2.5
+                if abs(target_diff[d]) > maxChange * limit_diff[d]:
+                    self.humanSPDController.target[d] += (target_diff[d] / abs(target_diff[d])) * maxChange * limit_diff[d]
+                else:
+                    self.humanSPDController.target[d] = self.humanSPDIntperolationTarget[d]
+
+            cleanTarget = np.array(self.humanSPDController.target)
+            if self.useHumanTargetNoise:
+                noiseRange = -np.ones(len(self.humanSPDController.target))*self.currentTargetNoise
+                self.humanSPDController.target += np.random.uniform(-noiseRange, noiseRange)
+
+            full_control = self.humanSPDController.query(None)
+            self.humanSPDController.target = np.array(cleanTarget)
+
+        human_clamped_control = np.array(full_control)
+        for i in range(len(human_clamped_control)):
+            if human_clamped_control[i] > self.action_scale[i]:
+                human_clamped_control[i] = self.action_scale[i]
+            if human_clamped_control[i] < -self.action_scale[i]:
+                human_clamped_control[i] = -self.action_scale[i]
+
+        human_tau = np.array(human_clamped_control)
 
         startTime2 = time.time()
 
@@ -1524,9 +1506,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                     self.handleNode.org = np.array(newOrg)
                     self.handleNode.setOrientation(R=hn.T[:3, :3])
 
-                    # gripper_q = self.dart_world.skeletons[0].q
-                    # gripper_q[3:] = self.handleNode.org
-                    # self.dart_world.skeletons[0].set_positions(gripper_q)
 
                     self.updateClothCollisionStructures(hapticSensors=True)
                     self.clothScene.step()
@@ -1954,7 +1933,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                                                                                      clothscene=self.clothScene,
                                                                                      meshgraph=self.separatedMesh,
                                                                                      returnOnlyGeo=False)
-
                 if minGeoVix is not None:
                     vixSide = 0
                     if _side:
@@ -2143,6 +2121,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.currentTargetNoise = random.uniform(self.humanTargetNoiseRange[0], self.humanTargetNoiseRange[1])
 
         self.consecutiveInstabilities = 0
+        self.maxContactForce = 0
 
         if self.targetFrameTracking["active"]:
             self.targetFrameTracking["history"] = []
@@ -3039,6 +3018,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         m_viewport = self.viewer.viewport
         # print(m_viewport)
 
+        self.clothScene.drawText(x=15., y=self.viewer.viewport[3] - 80,
+                                 text="Max Contact Force = " + str(self.maxContactForce), color=(0., 0, 0))
+
         if self.variationTesting:
             #print(self.setSeed)
             #print(self.weaknessScale)
@@ -3127,7 +3109,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             #render unilateral weakness variation
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60, text="Weakness Scale Value = %0.2f" % self.weaknessScale, color=(0., 0, 0))
 
-
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 12], h=16, w=60, progress=self.limbProgress, color=[0.0, 3.0, 0])
             renderUtils.drawProgressBar(topLeft=[600, self.viewer.viewport[3] - 30], h=16, w=60, progress=-self.previousDeformationReward, color=[1.0, 0.0, 0])
 
@@ -3162,7 +3143,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         if self.renderSPDGhost:
             q = np.array(self.robot_skeleton.q)
             dq = np.array(self.robot_skeleton.dq)
-
             self.robot_skeleton.set_positions(self.humanSPDController.target)
             #self.robot_skeleton.render_with_color(color=[0.6,0.8,0.6])
 
@@ -3339,6 +3319,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         return relevant_forces, relevant_points
 
     def updateHandleContactForceTorques(self, maxClamp=10.0):
+        self.stepMaxContactForce = 0
         if self.handleNode is not None:
             self.handleNode.contactForce = np.zeros(3)
             self.handleNode.contactTorque = np.zeros(3)
@@ -3347,6 +3328,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                 # add a contact if the human skeleton is involved with the robot EF (FT sensor)
                 if (c.skel_id1 == self.iiwa_skel.id and c.skel_id2 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if(c.bodynode_id1 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
@@ -3357,6 +3340,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                         self.handleNode.contactTorque += np.cross(c.point-self.handleNode.org, force)
                 if (c.skel_id2 == self.iiwa_skel.id and c.skel_id1 == self.robot_skeleton.id):
                     self.humanRobotCollision = True
+                    self.maxContactForce = max(self.maxContactForce, np.linalg.norm(c.force))
+                    self.stepMaxContactForce = max(self.stepMaxContactForce, np.linalg.norm(c.force))
                     if (c.bodynode_id2 == self.iiwa_skel.bodynodes[9].id):
                         force = np.array(c.force)
                         mag = np.linalg.norm(force)
