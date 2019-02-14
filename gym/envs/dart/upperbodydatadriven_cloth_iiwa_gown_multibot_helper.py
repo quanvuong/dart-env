@@ -529,7 +529,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotHelperEnv(DartClothEnv, u
             self.human_observation_size += 22
 
         self.robot_observation_size = ((13 - 6) * 3)*self.numRobots #robot dofs
-        self.robot_observation_size += 45 #human joint posistions
+        self.robot_observation_size += 45 #human joint positions
         self.robot_observation_size += 27*self.numRobots #robot joint posistions
         self.robot_observation_size += 6 #human end effectors
         self.robot_observation_size += 6*self.numRobots #hoop joint resultant forces/torques
@@ -1943,7 +1943,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotHelperEnv(DartClothEnv, u
             #robot pose
             theta = np.array(iiwa.q)
             dtheta = np.array(iiwa.dq)
-            obs = np.concatenate([np.cos(theta[6:]), np.sin(theta[6:]), dtheta[6:]]).ravel()
+            obs = np.concatenate([obs, np.cos(theta[6:]), np.sin(theta[6:]), dtheta[6:]]).ravel()
 
             #robot joint positions
             rlocs = np.zeros(0)
@@ -1973,7 +1973,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotHelperEnv(DartClothEnv, u
             obs = np.concatenate([obs, normalizedResultantFT]).ravel()
         except:
             print("failed obs FT")
-            obs = np.concatenate([obs, np.zeros(6)]).ravel()
+            obs = np.concatenate([obs, np.zeros(6*self.numRobots)]).ravel()
 
         return obs
 
