@@ -663,7 +663,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
         #robot dofs and action/control bounds
         self.robot_actuatedDofs = np.arange(6)
-        self.robot_action_scale = np.ones(6) * 2.0
+        self.robot_action_scale = np.ones(6*2)
         self.robot_control_bounds = np.array(
             [np.ones(len(self.robot_action_scale)), np.ones(len(self.robot_action_scale)) * -1])
 

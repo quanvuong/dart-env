@@ -2150,9 +2150,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
-            self.weaknessScale = random.uniform(0.0,1.0)
-            self.weaknessScale = random.uniform(0.0,0.5)
-            self.weaknessScale = random.uniform(0.0,0.25)
+            #self.weaknessScale = random.uniform(0.0,1.0)
+            #self.weaknessScale = random.uniform(0.0,0.5)
+            self.weaknessScale = random.uniform(0.0,0.2)
+            numlessthan10th = 0
+            for r in range(100):
+                randomNum = random.uniform(0.0,0.2)
+                print(randomNum)
+                if randomNum <= 0.1:
+                    numlessthan10th += 1
+
+            print("There were " + str(numlessthan10th) + " samples in bottom half")
+
             #self.weaknessScale = 0.5
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
