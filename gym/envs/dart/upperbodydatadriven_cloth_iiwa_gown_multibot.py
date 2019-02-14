@@ -2049,16 +2049,17 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.numSteps = 0
 
         #reload the policy file for "other"
-        #try:
-        if self.isHuman:
-            #print(self.robotPolicyFile)
-            self.otherPolicy = joblib.load(self.robotPolicyFile)
-            #self.otherPolicy = pickle.load(open(self.robotPolicyFile, "rb"))
-        else:
-            self.otherPolicy = joblib.load(self.humanPolicyFile)
-            #self.otherPolicy = pickle.load(open(self.humanPolicyFile, "rb"))
-        #except:
+        try:
+            if self.isHuman:
+                #print(self.robotPolicyFile)
+                self.otherPolicy = joblib.load(self.robotPolicyFile)
+                #self.otherPolicy = pickle.load(open(self.robotPolicyFile, "rb"))
+            else:
+                self.otherPolicy = joblib.load(self.humanPolicyFile)
+                #self.otherPolicy = pickle.load(open(self.humanPolicyFile, "rb"))
+        except:
         #    print("no policy file found...")
+            pass
 
         #if self.reset_number == 1:
         #    self.reset()
@@ -2384,9 +2385,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
             self.robotEulerStates[iiwa_ix] = pyutils.getEulerAngles3(current_state_frame.orientation)
             self.frameEulerStates[iiwa_ix] = pyutils.getEulerAngles3(self.iiwa_ik_targets[iiwa_ix].orientation)
-            print("Iiwa " + str(iiwa_ix) + " euler states:")
-            print(" robot: " + str(self.robotEulerStates[iiwa_ix]))
-            print(" frame: " + str(self.frameEulerStates[iiwa_ix]))
+            #print("Iiwa " + str(iiwa_ix) + " euler states:")
+            #print(" robot: " + str(self.robotEulerStates[iiwa_ix]))
+            #print(" frame: " + str(self.frameEulerStates[iiwa_ix]))
 
             #self.frameInterpolator["target_pos"] = self.iiwa_skel.bodynodes[8].to_world(np.zeros(3))
             self.frameInterpolator[iiwa_ix]["target_pos"] = np.array(self.iiwa_ik_targets[iiwa_ix].org)
