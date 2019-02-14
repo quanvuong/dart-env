@@ -42,7 +42,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
         self.captureIndex = 0 #increments when captureToFile is called
-        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/10_robo_newcapsensor"
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/11_SPD_human_var_restpose"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/1"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/0"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"
@@ -707,7 +707,7 @@ class VertexSelectInteractor(BaseInteractor):
         #place any extra rendering for this context here
         if self.v_down is True:
             GL.glColor3d(1,0,0)
-        self.viewer.drawSphere(p=self.viewer.prevWorldMouse, r=0.01, solid=True)
+        self.viewer.drawSphere(p=self.viewer.prevWorldMouse, r=0.001, solid=True)
 
         if self.handleNode is not None:
             self.handleNode.updateHandles()
@@ -719,13 +719,13 @@ class VertexSelectInteractor(BaseInteractor):
         for v in self.selectedVertices:
             #print("v = " + str(v))
             vx = self.viewer.clothScene.getVertexPos(vid=v)
-            self.viewer.drawSphere(p=vx, r=0.009, solid=True)
+            self.viewer.drawSphere(p=vx, r=0.003, solid=True)
 
         selectedVertexText = "None"
         if self.selectedVertex is not None:
             vx = self.viewer.clothScene.getVertexPos(vid=self.selectedVertex)
             GL.glColor3d(1, 1, 0)
-            self.viewer.drawSphere(p=vx, r=0.01, solid=True)
+            self.viewer.drawSphere(p=vx, r=0.002, solid=True)
             selectedVertexText = str(self.selectedVertex)
         self.viewer.clothScene.drawText(x=self.viewer.viewport[2] / 2, y=self.viewer.viewport[3] - 45, text="Selected Vertex = " + str(selectedVertexText), color=(0., 0, 0))
         a=0

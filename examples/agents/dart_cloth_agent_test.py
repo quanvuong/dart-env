@@ -52,13 +52,16 @@ if __name__ == '__main__':
     trial = None
 
     # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_noisytarget_newcapsensor"
-    trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
+    #trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest"
     #trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest_noisyhuman"
     # ---
 
     # --- tuned SPD human (fixed)
+    #trial = "experiment_2019_02_11_SPD_human_weak_restpose" #restpose of one arm is randomized and included as input
+    #trial = "experiment_2019_02_11_SPD_human_restpose" #restpose of one arm is randomized and included as input
     #trial = "experiment_2019_02_10_SPD_human_norest_weaker"
     #trial = "experiment_2019_02_10_SPD_human_hoverproceedavoidbot_weak_conpen_norest"
     #trial = "experiment_2019_02_10_SPD_human_hoverproceedavoidbot_conpen_norest"
@@ -530,9 +533,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    envName = 'DartIiwaGownAssist-v4'
+    #envName = 'DartIiwaGownAssist-v4'
     #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
+    envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -636,7 +640,7 @@ if __name__ == '__main__':
     #o = env.reset()
     #useMeanPolicy = False
 
-    for i in range(16):
+    for i in range(160):
         print("-----------------------------------")
         print("  Starting rollout " + str(i))
         print("-----------------------------------")
