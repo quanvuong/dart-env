@@ -57,10 +57,10 @@ if __name__ == '__main__':
     # ---
 
     # --- Robot trained on tuned SPD human
-    trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
+    #trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
     #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_noisytarget_newcapsensor"
-    #trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
+    trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest"
     #trial = "experiment_2019_02_10_robo_SPD_human_hoverproceed_norest_noisyhuman"
     # ---

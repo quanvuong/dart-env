@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -475,8 +475,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #humanPolicyFile = "experiment_2018_10_18_weakgown"
         #humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
         #humanPolicyFile = "experiment_2018_11_27_weakness_and_elbow_universal_cont"
-        #humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
-        humanPolicyFile = "experiment_2019_02_10_SPD_human_norest_weaker"
+        humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
+        #humanPolicyFile = "experiment_2019_02_10_SPD_human_norest_weaker"
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
@@ -490,7 +490,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False  # if true, modify limits of the elbow joint
         self.SPDTargetObs   = True  # need this to control this
 
@@ -789,6 +789,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.robot_action_scale[:3] = np.ones(3)*0.01 #position
         self.robot_action_scale[3:6] = np.ones(3)*0.02 #orientation
         self.iiwa_torque_limits = np.array([176, 176, 110, 110, 110, 40, 40])
+
         #self.robot_action_scale = np.zeros(6)
         iiwaFilename = ""
         if self.renderIiwaCollidable:
@@ -932,12 +933,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             self.clothScene.renderClothBoundary = False
             self.clothScene.renderClothWires = False
 
+
         for i in range(len(self.robot_skeleton.dofs)):
             self.robot_skeleton.dofs[i].set_damping_coefficient(2.0)
         self.robot_skeleton.dofs[0].set_damping_coefficient(4.0)
         self.robot_skeleton.dofs[1].set_damping_coefficient(4.0)
-        #self.robot_skeleton.dofs[19].set_damping_coefficient(10.0)
-        #self.robot_skeleton.dofs[20].set_damping_coefficient(10.0)
+
         self.elbow_initial_limits = [self.robot_skeleton.dofs[16].position_lower_limit(), self.robot_skeleton.dofs[16].position_upper_limit()]
 
         # load rewards into the RewardsData structure
@@ -1227,6 +1228,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         human_obs = self._get_human_obs()
         human_a, human_a_info = self.humanPolicy.get_action(human_obs)
         human_a = human_a_info['mean'] #instead, set the stochasticity of the polciy to 0 if necessary
+        #print(human_a)
+        #print("max human policy output: " + str(np.amax(human_a)))
 
         #noisy action space
         if self.useHumanControlNoise:
@@ -1483,6 +1486,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                 iiwa_control = self.SPDController.query(obs=None)
                 iiwa_control = np.clip(iiwa_control, -self.iiwa_torque_limits, self.iiwa_torque_limits)
                 self.iiwa_skel.set_forces(np.concatenate([np.zeros(6), iiwa_control]))
+                #self.iiwa_skel.set_forces(np.zeros(self.iiwa_skel.ndofs))
 
                 self.dart_world.step()
                 self.instabilityDetected = self.checkInvalidDynamics()
@@ -2492,7 +2496,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                                                   upperLimits=self.iiwa_dof_ulim.tolist(),
                                                   jointRanges=self.iiwa_dof_jr.tolist(),
                                                   restPoses=self.iiwa_skel.q[6:].tolist(),
-                                                  maxNumIterations=30 #gain falls off after 30
+                                                  maxNumIterations=300 #gain falls off after 30
                                                   )
         else:
             result = p.calculateInverseKinematics(bodyUniqueId=self.pyBulletIiwa,

@@ -1247,7 +1247,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
 
-            self.humanSPDIntperolationTarget += a*0.1
+            self.humanSPDIntperolationTarget += human_a*0.1
             #clamp humanSPD target
 
             #q = np.array(self.robot_skeleton.q)
