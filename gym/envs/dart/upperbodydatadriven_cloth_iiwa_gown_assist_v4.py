@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -2153,14 +2153,14 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             #self.weaknessScale = random.uniform(0.0,1.0)
             #self.weaknessScale = random.uniform(0.0,0.5)
             self.weaknessScale = random.uniform(0.0,0.2)
-            numlessthan10th = 0
-            for r in range(100):
-                randomNum = random.uniform(0.0,0.2)
-                print(randomNum)
-                if randomNum <= 0.1:
-                    numlessthan10th += 1
+            #numlessthan10th = 0
+            #for r in range(100):
+            #    randomNum = random.uniform(0.0,0.2)
+            #    print(randomNum)
+            #    if randomNum <= 0.1:
+            #        numlessthan10th += 1
 
-            print("There were " + str(numlessthan10th) + " samples in bottom half")
+            #print("There were " + str(numlessthan10th) + " samples in bottom half")
 
             #self.weaknessScale = 0.5
             #self.weaknessScale = 1.0

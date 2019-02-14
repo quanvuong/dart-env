@@ -53,11 +53,11 @@ if __name__ == '__main__':
 
     # --- Multibot trials
     #trial = "experiment_2019_02_13_human_multibot_weak"
-    trial = "experiment_2019_02_13_human_multibot"
+    #trial = "experiment_2019_02_13_human_multibot"
     # ---
 
     # --- Robot trained on tuned SPD human
-    #trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
+    trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
     #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_noisytarget_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
@@ -539,10 +539,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    #envName = 'DartIiwaGownAssist-v4'
+    envName = 'DartIiwaGownAssist-v4'
     #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
-    envName = 'DartIiwaGownMultibot-v1'
+    #envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
