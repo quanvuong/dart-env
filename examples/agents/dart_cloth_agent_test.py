@@ -51,7 +51,13 @@ if __name__ == '__main__':
 
     trial = None
 
+    # --- Multibot trials
+    #trial = "experiment_2019_02_13_human_multibot_weak"
+    trial = "experiment_2019_02_13_human_multibot"
+    # ---
+
     # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
     #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_noisytarget_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_norest_newcapsensor"
@@ -640,7 +646,7 @@ if __name__ == '__main__':
     #o = env.reset()
     #useMeanPolicy = False
 
-    for i in range(160):
+    for i in range(16):
         print("-----------------------------------")
         print("  Starting rollout " + str(i))
         print("-----------------------------------")

@@ -762,6 +762,13 @@ register(
     #max_episode_steps=250,
 )
 
+#Iiwa Hanging Gown Multibot Coopt HELPER Env V1 (SPD human)
+register(
+    id='DartIiwaGownMultibot_h-v1',
+    entry_point='gym.envs.dart:DartClothUpperBodyDataDrivenClothIiwaGownMultibotHelperEnv',
+    #max_episode_steps=250,
+)
+
 # Mujoco
 # ----------------------------------------
 

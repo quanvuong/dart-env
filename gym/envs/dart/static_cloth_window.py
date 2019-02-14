@@ -42,7 +42,7 @@ class StaticClothGLUTWindow(StaticGLUTWindow):
         #self.interactors.append(VertexSelectInteractor(self))
         self.lastContextSwitch = 0 #holds the frame of the last context switch (for label rendering)
         self.captureIndex = 0 #increments when captureToFile is called
-        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/11_SPD_human_var_restpose"
+        self.captureDirectory = "/home/alexander/Documents/frame_capture_output/demos/13_robo_SPD_human_weakrange"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/1"
         #self.captureDirectory = "/home/alexander/Documents/frame_capture_output/variations/elbow_data/0"
         #self.captureDirectory = "/home/alexander/Documents/dev/saved_render_states/siggraph_asia_finals/tshirt_failures/frames"

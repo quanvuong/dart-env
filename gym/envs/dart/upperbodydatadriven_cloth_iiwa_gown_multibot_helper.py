@@ -327,10 +327,10 @@ class DressingTarget:
         return pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.skel, nodes=self.limb_sequence, offset=self.distal_offset), feature=self.feature)
 
 
-class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.EzPickle):
+class DartClothUpperBodyDataDrivenClothIiwaGownMultibotHelperEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
 
-        self.isHuman = True #otherwise robot
+        self.isHuman = False #otherwise robot
         rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
