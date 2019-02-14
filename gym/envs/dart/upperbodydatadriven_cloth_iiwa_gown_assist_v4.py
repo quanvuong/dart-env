@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -1004,6 +1004,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             print("initialActionScale: " + str(self.initialActionScale))
 
         self.action_scale_range = [self.initialActionScale*0.1, self.initialActionScale*0.65]
+        #print("!!!WEAK RANGE!!!")
+        #self.action_scale_range = [self.initialActionScale*0.1, self.initialActionScale*0.375]
         print(self.action_scale_range)
 
     def _getFile(self):
@@ -2149,6 +2151,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         if self.weaknessScaleVarObs:
             #self.weaknessScale = random.random()
             self.weaknessScale = random.uniform(0.0,1.0)
+            self.weaknessScale = random.uniform(0.0,0.5)
             #self.weaknessScale = 0.5
             #self.weaknessScale = 1.0
             #print("weaknessScale = " + str(self.weaknessScale))
