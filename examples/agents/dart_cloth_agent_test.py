@@ -540,10 +540,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    #envName = 'DartIiwaGownAssist-v4'
+    envName = 'DartIiwaGownAssist-v4'
     #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
-    envName = 'DartIiwaGownMultibot-v1'
+    #envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
