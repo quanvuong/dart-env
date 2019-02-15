@@ -326,6 +326,122 @@ class DressingTarget:
     def getLimbProgress(self):
         return pyutils.limbFeatureProgress(limb=pyutils.limbFromNodeSequence(self.skel, nodes=self.limb_sequence, offset=self.distal_offset), feature=self.feature)
 
+class ContinuousCapacitiveSensor:
+    def __init__(self, env, bodynode=None, offset=np.zeros(3), R=np.identity(3)):
+        self.env = env
+        self.bodynode = bodynode
+        self.offset = offset
+        self.R = R
+        self.frame = pyutils.ShapeFrame()
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+        self.numSensorRayZones = 1
+
+    def update(self):
+        try:
+            self.frame.setOrg(org=self.bodynode.to_world(self.offset))
+            self.frame.orientation = np.dot(self.bodynode.T[:3,:3], self.R)
+            self.frame.updateQuaternion()
+        except:
+            print("update failed")
+            pass
+
+        # update sensor ray global info
+        self.sensorGlobals = []
+        for off in self.sensorOffsets:
+            pos = self.frame.toGlobal(p=off)
+            self.sensorGlobals.append(pos)
+
+    def getReading(self):
+        self.sensorReadings = []
+
+        #first truncate all capsules to the frame half plane
+        norm = self.frame.toGlobal(np.array([0,0,1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        frame_plane = Plane(org=self.frame.org, normal=norm)
+        capsules = []
+        #for c in self.env.skelCapsules:
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            #print("rs: " + str(r0) + " " + str(r1))
+            c_axis = p1-p0
+            c_len = np.linalg.norm(c_axis)
+            v0o = p0 - frame_plane.org
+            v1o = p1 - frame_plane.org
+            side0 = v0o.dot(norm) > 0
+            side1 = v1o.dot(norm) > 0
+            if side0 and side1: #capsule is entirely on the correct side of the plane
+                #add it to the list unedited
+                capsules.append([p0,p1,r0,r1])
+            elif side0: #slice p1 down as necessary
+                slice_dist = frame_plane.lineIntersect(p0, p1)[1]
+                p1 = p0 + c_axis*slice_dist
+                r1 = LERP(r0,r1,slice_dist/c_len)
+                capsules.append([p0, p1, r0, r1])
+            elif side1: #clise p0 down as necessary
+                slice_dist = frame_plane.lineIntersect(p1, p0)[1]
+                p0 = p1 - c_axis * slice_dist
+                r0 = LERP(r1, r0, slice_dist / c_len)
+                capsules.append([p0, p1, r0, r1])
+            #else: don't add anything
+        #print("completed phase 1 getSensorReading")
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+        #print("finished getSensorReading")
+
+    def draw(self):
+        norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        lines = [[self.frame.org, self.frame.org+norm]]
+        for ix,p in enumerate(self.sensorGlobals):
+            renderUtils.drawSphere(pos=p)
+            if self.sensorReadings[ix][0] < self.sensorRanges[ix]:
+                lines.append([p,self.sensorReadings[ix][1]])
+        renderUtils.drawLines(lines)
+
+    def default2x3setup(self, spacing = 0.07):
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+
+        for ix in range(3):
+            for iy in range(2):
+                local = np.array([ix*spacing - spacing, iy*spacing - spacing/2.0, 0.065])
+                self.sensorOffsets.append(local)
+                self.sensorRanges.append(0.15)
+                self.sensorReadings.append([0.15,None])
+        self.update()
+        self.numSensorRayZones = 6
+
+    def getAggregateSensorReading(self):
+        sensorReadings = np.zeros(0)
+        for reading in self.sensorReadings:
+            sensorReadings = np.concatenate([sensorReadings, np.array([reading[0]])])
+        return sensorReadings
+
 
 class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
@@ -529,6 +645,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         if self.SPDTargetObs:
             self.human_observation_size += 22
 
+        # setup robot obs:
+        self.robotCapacitiveObs = True  # need this flag for rendering and reading updates
+
         self.robot_observation_size = ((13 - 6) * 3)*self.numRobots #robot dofs
         self.robot_observation_size += 45 #human joint positions
         self.robot_observation_size += 27*self.numRobots #robot joint posistions
@@ -537,6 +656,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.robot_observation_size += 6*self.numRobots #end effector position and orientation
         if self.targetCentric:
             self.robot_observation_size += 6*self.numRobots #target frame position and orientation
+        if self.robotCapacitiveObs:
+            self.robot_observation_size += 6 * self.numRobots
 
         # initialize the Iiwa variables
         self.SPDController = None #resuse this for all robots
@@ -906,6 +1027,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
             self.humanSPDController.Kp[i][i] = 500
             self.humanSPDController.Kd[i][i] = 30
 
+        self.capacitiveSensors = []
+        self.capacitiveSensors.append(ContinuousCapacitiveSensor(env=self, bodynode=self.iiwa_skels[0].bodynodes[8]))
+        self.capacitiveSensors.append(ContinuousCapacitiveSensor(env=self, bodynode=self.iiwa_skels[1].bodynodes[8]))
+        for capsen in self.capacitiveSensors:
+            capsen.default2x3setup()
 
         #disable character gravity
         if self.print_skel_details:
@@ -1310,6 +1436,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
             qpos[dof] = 0
             qvel[dof] = 0
         self.set_state(qpos, qvel)
+
+        #update capacitive sensor
+        if self.robotCapacitiveObs:
+            try:
+                for capsens in self.capacitiveSensors:
+                    capsens.update()
+                    capsens.getReading()
+            except:
+                print("Capacitive sensors not setup")
 
         startTime2 = time.time()
         reward = self.computeReward(tau=human_tau)
@@ -1976,6 +2111,12 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
             print("failed obs FT")
             obs = np.concatenate([obs, np.zeros(6*self.numRobots)]).ravel()
 
+        # capacitive sensor aggregate reading
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                obs = np.concatenate([obs, capsens.getAggregateSensorReading() / 0.15])
+            pass
+
         return obs
 
     def _get_obs(self):
@@ -2494,6 +2635,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
     def extraRenderFunction(self):
 
+        # render capacitive sensor readings
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                capsens.draw()
+
         #draw shoulder plane
         if False:
             s0 = self.robot_skeleton.bodynodes[8].to_world(np.zeros(3))
@@ -2670,6 +2816,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         #elif self.demoRendering:
         #    #still want time displayed
         #    self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                robo_ef = capsens.bodynode.to_world(np.zeros(3))
+                windowef = self.viewer.project(robo_ef)
+                sensorReading = capsens.getAggregateSensorReading()
+                for s in range(capsens.numSensorRayZones):
+                    self.clothScene.drawText(x=windowef[0], y=windowef[1]+16*s,
+                                         text="Z["+str(s)+"]: %0.4f" % sensorReading[s],
+                                         color=(1.0, 0., 0.))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,

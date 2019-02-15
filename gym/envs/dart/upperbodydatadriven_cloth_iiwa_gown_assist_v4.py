@@ -453,9 +453,9 @@ class ContinuousCapacitiveSensor:
         self.numSensorRayZones = 6
 
     def getAggregateSensorReading(self):
-        sensorReadings = []
+        sensorReadings = np.zeros(0)
         for reading in self.sensorReadings:
-            sensorReadings.append(reading[0])
+            sensorReadings = np.concatenate([sensorReadings, np.array([reading[0]])])
         return sensorReadings
 
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
@@ -681,7 +681,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             bot_observation_size += 6 #target frame position and orientation
         if self.robotCapacitiveObs:
             #bot_observation_size += 1
-            #bot_observation_size += 6 #NOTE: need to reset this for expected setup
+            bot_observation_size += 6 #NOTE: need to reset this for expected setup
             pass
         if self.robotProgressObs:
             bot_observation_size += 4 #position and total progress up the arm
@@ -2108,7 +2108,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         #capacitive sensor aggregate reading
         if self.robotCapacitiveObs:
-            #obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
+            obs = np.concatenate([obs, self.capacitiveSensor.getAggregateSensorReading()/0.15])
             pass
 
         if self.robotProgressObs:
