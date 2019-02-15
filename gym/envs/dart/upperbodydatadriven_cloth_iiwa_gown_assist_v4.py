@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -475,8 +475,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #humanPolicyFile = "experiment_2018_10_18_weakgown"
         #humanPolicyFile = "experiment_2018_11_13_elbow_constraint"
         #humanPolicyFile = "experiment_2018_11_27_weakness_and_elbow_universal_cont"
-        humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
-        #humanPolicyFile = "experiment_2019_02_10_SPD_human_norest_weaker"
+        #humanPolicyFile = "experiment_2019_02_09_SPD_human_hoverproceedbot_conpen_norest"
+        humanPolicyFile = "experiment_2019_02_10_SPD_human_norest_weaker"
 
         #observation terms
         self.featureInObs   = False  # if true, feature centroid location and displacement from ef are observed
@@ -490,7 +490,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.hoopNormalObs  = False #if true, obs includes the normal vector of the hoop
         self.jointLimVarObs = False #if true, constraints are varied in reset and given as NN input
         self.actionScaleVarObs = False #if true, action scales are varied in reset and given as NN input
-        self.weaknessScaleVarObs = False #if true, scale torque limits on one whole side with a single value to model unilateral weakness
+        self.weaknessScaleVarObs = True #if true, scale torque limits on one whole side with a single value to model unilateral weakness
         self.elbowConVarObs = False  # if true, modify limits of the elbow joint
         self.SPDTargetObs   = True  # need this to control this
 
@@ -667,6 +667,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #setup robot obs:
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
+        self.robotWeaknessObs   = True #if true and weaknessObs is true, the robot also gets this
         self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
         self.lastRecurrentAction = np.zeros(self.recurrentSize)
 
@@ -684,6 +685,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             pass
         if self.robotProgressObs:
             bot_observation_size += 4 #position and total progress up the arm
+        if self.robotWeaknessObs and self.weaknessScaleVarObs:
+            bot_observation_size += 1
         bot_observation_size += self.recurrentSize
 
         # initialize the Iiwa variables
@@ -2116,6 +2119,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         if self.recurrency > 0:
             obs = np.concatenate([obs, self.lastRecurrentAction])
+
+        if self.robotWeaknessObs and self.weaknessScaleVarObs:
+            obs = np.concatenate([obs, np.array([self.weaknessScale])]).ravel()
 
         return obs
 
