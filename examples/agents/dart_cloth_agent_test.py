@@ -57,6 +57,7 @@ if __name__ == '__main__':
     # ---
 
     # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_14_robo_SPD_human_norest_weakerrange"
     #trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
     #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
     #trial = "experiment_2019_02_10_robo_SPD_human_noisytarget_newcapsensor"
@@ -539,10 +540,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    envName = 'DartIiwaGownAssist-v4'
+    #envName = 'DartIiwaGownAssist-v4'
     #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
-    #envName = 'DartIiwaGownMultibot-v1'
+    envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -626,8 +627,8 @@ if __name__ == '__main__':
         )
         all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
         #output bias scaling
-        #all_param_values[4] *= 0.01 #human
-        all_param_values[4] *= 0.002 #robot
+        all_param_values[4] *= 0.01 #human
+        #all_param_values[4] *= 0.002 #robot
         L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization

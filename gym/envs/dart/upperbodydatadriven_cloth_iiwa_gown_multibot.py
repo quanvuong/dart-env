@@ -330,7 +330,7 @@ class DressingTarget:
 class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
 
-        self.isHuman = True #otherwise robot
+        self.isHuman = False #otherwise robot
         rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
@@ -343,7 +343,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
         self.prefix = os.path.dirname(__file__)
         experiment_prefix = self.prefix+"/../../../../rllab/data/local/experiment/"
-        experiment_directory = "experiment_2019_02_14_coopt_multibot"
+        #experiment_directory = "experiment_2019_02_14_coopt_multibot"
+        experiment_directory = "experiment_2019_02_13_human_multibot"
         self.humanPolicyFile = experiment_prefix + experiment_directory + "/policy.pkl"
         self.robotPolicyFile = experiment_prefix + experiment_directory + "2/policy.pkl"
         self.otherPolicy = None #load this
@@ -376,7 +377,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
-        self.contactPenalty             = False #if true, penalize contact between robot and human
+        self.contactPenalty             = True #if true, penalize contact between robot and human
 
         if self.isHuman:
             self.uprightReward = True

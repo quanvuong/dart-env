@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -667,7 +667,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #setup robot obs:
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
-        self.robotWeaknessObs   = True #if true and weaknessObs is true, the robot also gets this
+        self.robotWeaknessObs   = False #if true and weaknessObs is true, the robot also gets this
         self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
         self.lastRecurrentAction = np.zeros(self.recurrentSize)
 
