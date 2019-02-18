@@ -12,6 +12,7 @@ import os
 
 from rllab import spaces
 from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from SplitGMLP import SplitGaussianMLPPolicy
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.normalized_env import normalize
 import lasagne.layers as L
@@ -52,11 +53,20 @@ if __name__ == '__main__':
     trial = None
 
     # --- Multibot trials
+
+    #trial = "experiment_2019_02_15_robo_multibot_cap"
+    #trial = "experiment_2019_02_15_robo_multibot"
+    #trial = "experiment_2019_02_14_coopt_multibot_cont2" #Not optimized correctly (each fixed at previous end...)
+    #trial = "experiment_2019_02_14_coopt_multibot_cont" #Not optimized correctly (each fixed at previous end...)
+    #trial = "experiment_2019_02_14_coopt_multibot" #TODO #NOTE: not complete...
     #trial = "experiment_2019_02_13_human_multibot_weak"
     #trial = "experiment_2019_02_13_human_multibot"
     # ---
 
     # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_cap_weakobs"
+    #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_obs"
+    #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_cap"
     #trial = "experiment_2019_02_14_robo_SPD_human_norest_weakerrange"
     #trial = "experiment_2019_02_13_robo_SPD_human_norest_weakrange"
     #trial = "experiment_2019_02_11_robo_SPD_human_weaker_newcapsensor"
@@ -540,10 +550,10 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    envName = 'DartIiwaGownAssist-v4'
+    #envName = 'DartIiwaGownAssist-v4'
     #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
-    #envName = 'DartIiwaGownMultibot-v1'
+    envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -615,21 +625,40 @@ if __name__ == '__main__':
     if True and policy is None:
         env2 = normalize(GymEnv(envName, record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
-        policy = GaussianMLPPolicy(
-            env_spec=env2.spec,
-            # The neural network policy should have two hidden layers, each with 32 hidden units.
-            hidden_sizes=(64, 64),
-            #hidden_sizes=(128, 64),
-            #init_std=0.2 #exploration scaling
-            #init_std=0.15 #exploration scaling #human
-            #init_std=0.1 #exploration scaling #SPD human
-            init_std=0.15 #robot
-        )
-        all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
-        #output bias scaling
-        all_param_values[4] *= 0.01 #human
-        #all_param_values[4] *= 0.002 #robot
-        L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
+        if True:
+            policy = SplitGaussianMLPPolicy(
+                env_spec=env2.spec,
+                # The neural network policy should have two hidden layers, each with 32 hidden units.
+                hidden_sizes=(64, 64),
+                split_index=281,
+                merge_index=22,
+                #hidden_sizes=(128, 64),
+                #init_std=0.2 #exploration scaling
+                #init_std=0.15 #exploration scaling #human
+                #init_std=0.1 #exploration scaling #SPD human
+                init_std=0.15 #robot
+            )
+            for out_layer in policy._mean_network.split_output_layers:
+                all_param_values = L.get_all_param_values(out_layer)
+                all_param_values[4] *= 0.01
+                L.set_all_param_values(out_layer, all_param_values)
+
+        else:
+            policy = GaussianMLPPolicy(
+                env_spec=env2.spec,
+                # The neural network policy should have two hidden layers, each with 32 hidden units.
+                hidden_sizes=(64, 64),
+                #hidden_sizes=(128, 64),
+                #init_std=0.2 #exploration scaling
+                #init_std=0.15 #exploration scaling #human
+                #init_std=0.1 #exploration scaling #SPD human
+                init_std=0.15 #robot
+            )
+            all_param_values = L.get_all_param_values(policy._mean_network.output_layer)
+            #output bias scaling
+            all_param_values[4] *= 0.01 #human
+            #all_param_values[4] *= 0.002 #robot
+            L.set_all_param_values(policy._mean_network.output_layer, all_param_values)
         env2._wrapped_env.env._render(close=True)
         useMeanPolicy = False #don't use the mean when we want to test a fresh policy initialization
     #print(policy.output_layer)

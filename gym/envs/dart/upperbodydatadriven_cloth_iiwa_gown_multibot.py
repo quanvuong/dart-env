@@ -446,6 +446,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.EzPickle):
     def __init__(self):
 
+        self.dualPolicy = True #if true, both human and robot share a (possibly split) policy
         self.isHuman = False #otherwise robot
         rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
@@ -792,6 +793,22 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.reset_number = 0
         self.numSteps = 0
 
+        # DartClothEnv setup
+        skelFile = 'UpperBodyCapsules_datadriven.skel'
+        obs_size = self.robot_observation_size
+        act_bounds = self.robot_control_bounds
+        if self.dualPolicy:
+            #print("dual policy")
+            # concatenate all obs_size and act_bounds
+            obs_size = self.robot_observation_size + self.human_observation_size
+            print("obs split: " + str(self.human_observation_size))
+            act_bounds = np.array([np.ones(len(self.robot_action_scale) + len(self.human_actuatedDofs)),
+                                   np.ones(len(self.robot_action_scale) + len(self.human_actuatedDofs)) * -1])
+            #print(act_bounds)
+        elif self.isHuman:
+            obs_size = self.human_observation_size
+            act_bounds = self.human_control_bounds
+
 
         #clothScene creation (and geodesic/separated mesh)
         clothMeshFile = "fullgown1.obj"
@@ -816,13 +833,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.cumulativeReward = 0
         self.deformation = 0
 
-        #DartClothEnv setup
-        skelFile = 'UpperBodyCapsules_datadriven.skel'
-        obs_size = self.robot_observation_size
-        act_bounds = self.robot_control_bounds
-        if self.isHuman:
-            obs_size = self.human_observation_size
-            act_bounds = self.human_control_bounds
         # intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
@@ -838,7 +848,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         print("action_space: " + str(self.action_space))
         #print("action_scale: " + str(self.action_scale))
         #print("control_bounds: " + str(self.control_bounds))
-
 
         #dataDrivenJointLimts
         if self.dataDrivenJointLimts:
@@ -1231,7 +1240,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
-            if self.isHuman:
+            if self.dualPolicy:
+                return np.zeros(self.human_observation_size+self.robot_observation_size), 0, False, {}
+            elif self.isHuman:
                 return np.zeros(self.human_observation_size), 0, False, {}
             else:
                 return np.zeros(self.robot_observation_size), 0, False, {}
@@ -1243,7 +1254,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         robo_action_scaled = None
 
         #query the "other" policy and set actions
-        if self.isHuman:
+        if self.dualPolicy:
+            human_a = a[:len(self.human_action_scale)]
+            robot_a = a[len(self.human_action_scale):]
+        elif self.isHuman:
             human_a = a
 
             #query the robot policy
@@ -2121,7 +2135,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
     def _get_obs(self):
         #this should return the active observation
-        if self.isHuman:
+        if self.dualPolicy:
+            return np.concatenate([self._get_human_obs(), self._get_robot_obs()])
+        elif self.isHuman:
             return self._get_human_obs()
         else:
             return self._get_robot_obs()
@@ -2196,17 +2212,18 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.numSteps = 0
 
         #reload the policy file for "other"
-        try:
-            if self.isHuman:
-                #print(self.robotPolicyFile)
-                self.otherPolicy = joblib.load(self.robotPolicyFile)
-                #self.otherPolicy = pickle.load(open(self.robotPolicyFile, "rb"))
-            else:
-                self.otherPolicy = joblib.load(self.humanPolicyFile)
-                #self.otherPolicy = pickle.load(open(self.humanPolicyFile, "rb"))
-        except:
-        #    print("no policy file found...")
-            pass
+        if not self.dualPolicy:
+            try:
+                if self.isHuman:
+                    #print(self.robotPolicyFile)
+                    self.otherPolicy = joblib.load(self.robotPolicyFile)
+                    #self.otherPolicy = pickle.load(open(self.robotPolicyFile, "rb"))
+                else:
+                    self.otherPolicy = joblib.load(self.humanPolicyFile)
+                    #self.otherPolicy = pickle.load(open(self.humanPolicyFile, "rb"))
+            except:
+            #    print("no policy file found...")
+                pass
 
         #if self.reset_number == 1:
         #    self.reset()

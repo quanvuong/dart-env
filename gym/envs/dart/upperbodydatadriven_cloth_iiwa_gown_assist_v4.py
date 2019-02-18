@@ -461,7 +461,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -508,6 +508,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
         self.contactPenalty             = True #if true, penalize contact between robot and human
         self.towardArmReward            = False #if true, reward robot ef toward the arm
+        self.continuousContactPenalty   = False #penalty on magitude of contact force (sigmoid)
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
         self.stableHeadRewardWeight           = 1
@@ -521,6 +522,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.shoulderPlaneRewardWeight        = 3
         self.contactPenaltyWeight             = 1
         self.towardArmRewardWeight            = 0.5
+        self.continuousContactPenaltyWeight   = 1 #TODO
 
         #other flags
         self.hapticsAware       = True  # if false, 0's for haptic input
