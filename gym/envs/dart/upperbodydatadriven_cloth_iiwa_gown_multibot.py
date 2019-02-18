@@ -411,6 +411,36 @@ class ContinuousCapacitiveSensor:
                 self.sensorReadings.append([self.sensorRanges[ix], None])
         #print("finished getSensorReading")
 
+    def getReadingSpherical(self):
+        self.sensorReadings = []
+
+        capsules = []
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            capsules.append([p0, p1, r0, r1])
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+
     def draw(self):
         norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
         norm /= np.linalg.norm(norm)
@@ -1456,7 +1486,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
             try:
                 for capsens in self.capacitiveSensors:
                     capsens.update()
-                    capsens.getReading()
+                    capsens.getReadingSpherical()
             except:
                 print("Capacitive sensors not setup")
 
