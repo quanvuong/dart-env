@@ -551,8 +551,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    #envName = 'DartIiwaGownAssist-v4'
-    envName = 'DartIiwaGownAssistCoopt-v2'
+    envName = 'DartIiwaGownAssist-v4'
+    #envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
     #envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
@@ -626,7 +626,7 @@ if __name__ == '__main__':
     if True and policy is None:
         env2 = normalize(GymEnv(envName, record_log=False, record_video=False))
         #env2 = normalize(GymEnv('DartSawyerRigidAssist-v1', record_log=False, record_video=False))
-        if True:
+        if False:
             policy = SplitGaussianMLPPolicy(
                 env_spec=env2.spec,
                 # The neural network policy should have two hidden layers, each with 32 hidden units.

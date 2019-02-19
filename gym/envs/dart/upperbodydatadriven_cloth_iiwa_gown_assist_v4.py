@@ -427,6 +427,36 @@ class ContinuousCapacitiveSensor:
                 self.sensorReadings.append([self.sensorRanges[ix], None])
         #print("finished getSensorReading")
 
+    def getReadingSpherical(self):
+        self.sensorReadings = []
+
+        capsules = []
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            capsules.append([p0, p1, r0, r1])
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+
     def draw(self):
         norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
         norm /= np.linalg.norm(norm)
@@ -461,7 +491,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDataDrivenClothAssistBaseEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -506,7 +536,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
-        self.contactPenalty             = True #if true, penalize contact between robot and human
+        self.contactPenalty             = False #if true, penalize contact between robot and human
         self.towardArmReward            = False #if true, reward robot ef toward the arm
         self.continuousContactPenalty   = False #penalty on magitude of contact force (sigmoid)
 
@@ -670,6 +700,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         self.robotCapacitiveObs = True #need this flag for rendering and reading updates
         self.robotProgressObs   = False #cheat to get progress of limb
         self.robotWeaknessObs   = False #if true and weaknessObs is true, the robot also gets this
+        self.robotTargetObs     = True #if true, a target position is given the robot for the frame (a reward term accompanies)
+        self.robotTargetRewardWeight = 2.0
+        self.robotTarget = np.zeros(3) #fill this in update (attach to a bodynode and offset)
+        self.robotTargetInfo = {"node":8, "offset":np.array([0.21, 0.15, 0])}
         self.recurrentSize = 0  # if > 0: this many slots of recurrency in action/obs space
         self.lastRecurrentAction = np.zeros(self.recurrentSize)
 
@@ -689,6 +723,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             bot_observation_size += 4 #position and total progress up the arm
         if self.robotWeaknessObs and self.weaknessScaleVarObs:
             bot_observation_size += 1
+        if self.robotTargetObs:
+            bot_observation_size += 3
         bot_observation_size += self.recurrentSize
 
         # initialize the Iiwa variables
@@ -993,6 +1029,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
             self.rewardsData.addReward(label="toward arm", rmin=-1.0, rmax=1.0, rval=0,
                                        rweight=self.towardArmRewardWeight)
 
+        if self.robotTargetObs:
+            self.rewardsData.addReward(label="robo target", rmin=-2.0, rmax=0.0, rval=0,
+                                       rweight=self.robotTargetRewardWeight)
+
         #self.loadCharacterState(filename="characterState_1starmin")
 
         if self.simpleWeakness:
@@ -1026,6 +1066,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #    self.sleeveLEndFeature.fitPlane()
         #if self.sleeveLMidFeature is not None:
         #    self.sleeveLMidFeature.fitPlane()
+
+        #update robot target
+        if self.robotTargetObs:
+            self.robotTarget = self.robot_skeleton.bodynodes[self.robotTargetInfo["node"]].to_world(self.robotTargetInfo["offset"])
 
         #update handle nodes
         if self.handleNode is not None and False:
@@ -1416,7 +1460,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         if self.robotCapacitiveObs:
             try:
                 self.capacitiveSensor.update()
-                self.capacitiveSensor.getReading()
+                #self.capacitiveSensor.getReading()
+                self.capacitiveSensor.getReadingSpherical()
             except:
                 print("Capacitive sensor is not setup")
 
@@ -1761,6 +1806,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
             reward_record.append(reward_towardArm)
 
+        reward_robot_target = 0
+        if self.robotTargetObs:
+            reward_robot_target = -np.linalg.norm(self.robotTarget - self.frameInterpolator["target_pos"])
+            reward_record.append(reward_robot_target)
+
         # update the reward data storage
         self.rewardsData.update(rewards=reward_record)
 
@@ -1792,7 +1842,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
                       + reward_restPose * self.restPoseRewardWeight \
                       + reward_shoulderPlane * self.shoulderPlaneRewardWeight \
                       + reward_contactPenalty * self.contactPenaltyWeight \
-                      + reward_towardArm * self.towardArmRewardWeight
+                      + reward_towardArm * self.towardArmRewardWeight \
+                      + reward_robot_target * self.robotTargetRewardWeight
         if(not math.isfinite(self.reward) ):
             print("Not finite reward...")
             return -500
@@ -2124,6 +2175,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
 
         if self.robotWeaknessObs and self.weaknessScaleVarObs:
             obs = np.concatenate([obs, np.array([self.weaknessScale])]).ravel()
+
+        if self.robotTargetObs:
+            obs = np.concatenate([obs, self.robotTarget])
 
         return obs
 
@@ -2629,6 +2683,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistEnvV4(DartClothUpperBodyDat
         #self._get_viewer().scene.tb.trans[0] = self.rigidClothFrame.getCenter()[0]
         #self._get_viewer().scene.tb.trans[1] = 2.0
         #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
+
+        if self.robotTargetObs:
+            renderUtils.drawSphere(pos=self.robotTarget)
 
         if self.robotProgressObs:
             #draw the progress point
