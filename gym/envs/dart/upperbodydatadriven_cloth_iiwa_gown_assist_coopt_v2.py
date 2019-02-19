@@ -312,7 +312,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         #feature flags
         self.dualPolicy = True
         self.isHuman = True #otherwise robot
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -506,6 +506,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.human_observation_size += 1
         if self.SPDTargetObs:
             self.human_observation_size += 22
+
+        print("self.human_observation_size " + str(self.human_observation_size))
 
         # setup robot obs:
         self.robotCapacitiveObs = True  # need this flag for rendering and reading updates

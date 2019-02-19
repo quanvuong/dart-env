@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     # --- Multibot trials
 
-    trial = "experiment_2019_02_18_split_architecture_coopt_multibot" #dual network
+    #trial = "experiment_2019_02_18_split_architecture_coopt_multibot" #dual network
     #trial = "experiment_2019_02_15_robo_multibot_cap"
     #trial = "experiment_2019_02_15_robo_multibot"
     #trial = "experiment_2019_02_14_coopt_multibot_cont2" #Not optimized correctly (each fixed at previous end...)
@@ -552,9 +552,9 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
     #envName = 'DartIiwaGownAssist-v4'
-    #envName = 'DartIiwaGownAssistCoopt-v2'
+    envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
-    envName = 'DartIiwaGownMultibot-v1'
+    #envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
 
     reloaderTest = False
@@ -631,7 +631,8 @@ if __name__ == '__main__':
                 env_spec=env2.spec,
                 # The neural network policy should have two hidden layers, each with 32 hidden units.
                 hidden_sizes=(64, 64),
-                split_index=281,
+                #split_index=281, #multibot
+                split_index=251, #single arm coopt
                 merge_index=22,
                 #hidden_sizes=(128, 64),
                 #init_std=0.2 #exploration scaling
