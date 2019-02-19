@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
     # --- Multibot trials
 
+    trial = "experiment_2019_02_18_split_architecture_coopt_multibot" #dual network
     #trial = "experiment_2019_02_15_robo_multibot_cap"
     #trial = "experiment_2019_02_15_robo_multibot"
     #trial = "experiment_2019_02_14_coopt_multibot_cont2" #Not optimized correctly (each fixed at previous end...)

@@ -441,12 +441,13 @@ class ContinuousCapacitiveSensor:
             else:
                 self.sensorReadings.append([self.sensorRanges[ix], None])
 
-    def draw(self):
+    def draw(self, ranges=True):
         norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
         norm /= np.linalg.norm(norm)
         lines = [[self.frame.org, self.frame.org+norm]]
         for ix,p in enumerate(self.sensorGlobals):
             renderUtils.drawSphere(pos=p)
+            renderUtils.drawSphere(pos=p, rad=self.sensorRanges[ix], solid=False)
             if self.sensorReadings[ix][0] < self.sensorRanges[ix]:
                 lines.append([p,self.sensorReadings[ix][1]])
         renderUtils.drawLines(lines)
@@ -524,7 +525,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
-        self.contactPenalty             = True #if true, penalize contact between robot and human
+        self.contactPenalty             = False #if true, penalize contact between robot and human
 
         if self.isHuman:
             self.uprightReward = True

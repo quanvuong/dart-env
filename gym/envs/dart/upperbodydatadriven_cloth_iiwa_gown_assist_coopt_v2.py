@@ -160,6 +160,153 @@ class SPDController(Controller):
         tau = p + d - self.Kd.dot(x) * self.h
         return tau
 
+class ContinuousCapacitiveSensor:
+    def __init__(self, env, bodynode=None, offset=np.zeros(3), R=np.identity(3)):
+        self.env = env
+        self.bodynode = bodynode
+        self.offset = offset
+        self.R = R
+        self.frame = pyutils.ShapeFrame()
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+        self.numSensorRayZones = 1
+
+    def update(self):
+        try:
+            self.frame.setOrg(org=self.bodynode.to_world(self.offset))
+            self.frame.orientation = np.dot(self.bodynode.T[:3,:3], self.R)
+            self.frame.updateQuaternion()
+        except:
+            print("update failed")
+            pass
+
+        # update sensor ray global info
+        self.sensorGlobals = []
+        for off in self.sensorOffsets:
+            pos = self.frame.toGlobal(p=off)
+            self.sensorGlobals.append(pos)
+
+    def getReading(self):
+        self.sensorReadings = []
+
+        #first truncate all capsules to the frame half plane
+        norm = self.frame.toGlobal(np.array([0,0,1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        frame_plane = Plane(org=self.frame.org, normal=norm)
+        capsules = []
+        #for c in self.env.skelCapsules:
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            #print("rs: " + str(r0) + " " + str(r1))
+            c_axis = p1-p0
+            c_len = np.linalg.norm(c_axis)
+            v0o = p0 - frame_plane.org
+            v1o = p1 - frame_plane.org
+            side0 = v0o.dot(norm) > 0
+            side1 = v1o.dot(norm) > 0
+            if side0 and side1: #capsule is entirely on the correct side of the plane
+                #add it to the list unedited
+                capsules.append([p0,p1,r0,r1])
+            elif side0: #slice p1 down as necessary
+                slice_dist = frame_plane.lineIntersect(p0, p1)[1]
+                p1 = p0 + c_axis*slice_dist
+                r1 = LERP(r0,r1,slice_dist/c_len)
+                capsules.append([p0, p1, r0, r1])
+            elif side1: #clise p0 down as necessary
+                slice_dist = frame_plane.lineIntersect(p1, p0)[1]
+                p0 = p1 - c_axis * slice_dist
+                r0 = LERP(r1, r0, slice_dist / c_len)
+                capsules.append([p0, p1, r0, r1])
+            #else: don't add anything
+        #print("completed phase 1 getSensorReading")
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+        #print("finished getSensorReading")
+
+    def getReadingSpherical(self):
+        self.sensorReadings = []
+
+        capsules = []
+        for capsule in self.env.skelCapsules:
+            p0 = self.env.robot_skeleton.bodynodes[capsule[0]].to_world(capsule[2])
+            p1 = self.env.robot_skeleton.bodynodes[capsule[3]].to_world(capsule[5])
+            r0 = capsule[1]
+            r1 = capsule[4]
+            capsules.append([p0, p1, r0, r1])
+
+        #then for each sensor location, find the closest capsule projection
+        for ix,point in enumerate(self.sensorGlobals):
+            dist_to_closest_point = -1
+            closest_point = None
+            for cap in capsules:
+                #print(cap)
+                closest_cap_point,dist_to_cap_point = pyutils.projectToCapsule(p=point,c0=cap[0],c1=cap[1],r0=cap[2],r1=cap[3])
+                #print(dist_to_cap_point)
+                #disp_to_cap_point = closest_cap_point - point
+                #dist_to_cap_point = disp_to_cap_point / np.linalg.norm(disp_to_cap_point)
+                if dist_to_closest_point < 0 or dist_to_closest_point > dist_to_cap_point:
+                    dist_to_closest_point = dist_to_cap_point
+                    closest_point = np.array(closest_cap_point)
+
+            if dist_to_closest_point < self.sensorRanges[ix] and dist_to_closest_point>0:
+                self.sensorReadings.append([dist_to_closest_point, closest_point])
+            else:
+                self.sensorReadings.append([self.sensorRanges[ix], None])
+
+    def draw(self, ranges=True):
+        norm = self.frame.toGlobal(np.array([0, 0, 1])) - self.frame.toGlobal(np.zeros(3))
+        norm /= np.linalg.norm(norm)
+        lines = [[self.frame.org, self.frame.org+norm]]
+        for ix,p in enumerate(self.sensorGlobals):
+            renderUtils.drawSphere(pos=p)
+            renderUtils.drawSphere(pos=p, rad=self.sensorRanges[ix], solid=False)
+            if self.sensorReadings[ix][0] < self.sensorRanges[ix]:
+                lines.append([p,self.sensorReadings[ix][1]])
+        renderUtils.drawLines(lines)
+
+    def default2x3setup(self, spacing = 0.07):
+        self.sensorOffsets = []
+        self.sensorGlobals = []
+        self.sensorReadings = []
+        self.sensorRanges = []
+
+        for ix in range(3):
+            for iy in range(2):
+                local = np.array([ix*spacing - spacing, iy*spacing - spacing/2.0, 0.065])
+                self.sensorOffsets.append(local)
+                self.sensorRanges.append(0.15)
+                self.sensorReadings.append([0.15,None])
+        self.update()
+        self.numSensorRayZones = 6
+
+    def getAggregateSensorReading(self):
+        sensorReadings = np.zeros(0)
+        for reading in self.sensorReadings:
+            sensorReadings = np.concatenate([sensorReadings, np.array([reading[0]])])
+        return sensorReadings
+
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
