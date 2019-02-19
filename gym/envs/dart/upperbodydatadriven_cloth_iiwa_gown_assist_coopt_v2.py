@@ -310,6 +310,7 @@ class ContinuousCapacitiveSensor:
 class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, utils.EzPickle):
     def __init__(self):
         #feature flags
+        self.dualPolicy = True
         self.isHuman = True #otherwise robot
         rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
@@ -361,11 +362,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.uprightReward = True
             self.stableHeadReward = True
             self.contactGeoReward = True
-            self.restPoseReward = True
+            self.restPoseReward = False
 
 
         self.uprightRewardWeight              = 10  #if true, rewarded for 0 torso angle from vertical
-        self.stableHeadRewardWeight           = 1
+        self.stableHeadRewardWeight           = 2
         self.elbowFlairRewardWeight           = 1
         self.limbProgressRewardWeight         = 10  # if true, the (-inf, 1] plimb progress metric is included in reward
         self.oracleDisplacementRewardWeight   = 50  # if true, reward ef displacement in the oracle vector direction
@@ -506,6 +507,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         if self.SPDTargetObs:
             self.human_observation_size += 22
 
+        # setup robot obs:
+        self.robotCapacitiveObs = True  # need this flag for rendering and reading updates
+
         self.robot_observation_size = (13 - 6) * 3 #robot dofs
         self.robot_observation_size += 45 #human joint posistions
         self.robot_observation_size += 27 #robot joint posistions
@@ -514,6 +518,8 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.robot_observation_size += 6 #end effector position and orientation
         if self.targetCentric:
             self.robot_observation_size += 6 #target frame position and orientation
+        if self.robotCapacitiveObs:
+            self.robot_observation_size += 6
 
         # initialize the Iiwa variables
         self.SPDController = None
@@ -659,12 +665,28 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         #robot dofs and action/control bounds
         self.robot_actuatedDofs = np.arange(6)
-        self.robot_action_scale = np.ones(6) * 2.0
+        self.robot_action_scale = np.ones(6)
         self.robot_control_bounds = np.array(
             [np.ones(len(self.robot_action_scale)), np.ones(len(self.robot_action_scale)) * -1])
 
         self.reset_number = 0
         self.numSteps = 0
+
+        # DartClothEnv setup
+        skelFile = 'UpperBodyCapsules_datadriven.skel'
+        obs_size = self.robot_observation_size
+        act_bounds = self.robot_control_bounds
+        if self.dualPolicy:
+            #print("dual policy")
+            # concatenate all obs_size and act_bounds
+            obs_size = self.robot_observation_size + self.human_observation_size
+            print("obs split: " + str(self.human_observation_size))
+            act_bounds = np.array([np.ones(len(self.robot_action_scale) + len(self.human_actuatedDofs)),
+                                   np.ones(len(self.robot_action_scale) + len(self.human_actuatedDofs)) * -1])
+            #print(act_bounds)
+        elif self.isHuman:
+            obs_size = self.human_observation_size
+            act_bounds = self.human_control_bounds
 
 
         #clothScene creation (and geodesic/separated mesh)
@@ -693,13 +715,6 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.cumulativeReward = 0
         self.deformation = 0
 
-        #DartClothEnv setup
-        skelFile = 'UpperBodyCapsules_datadriven.skel'
-        obs_size = self.robot_observation_size
-        act_bounds = self.robot_control_bounds
-        if self.isHuman:
-            obs_size = self.human_observation_size
-            act_bounds = self.human_control_bounds
         # intialize the parent env
         if self.useOpenGL is True:
             DartClothEnv.__init__(self, cloth_scene=clothScene, model_paths=skelFile, frame_skip=frameskip, dt=dt,
@@ -901,6 +916,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             self.humanSPDController.Kp[i][i] = 500
             self.humanSPDController.Kd[i][i] = 30
 
+        self.capacitiveSensors = []
+        self.capacitiveSensors.append(ContinuousCapacitiveSensor(env=self, bodynode=self.iiwa_skel.bodynodes[8]))
+        #self.capacitiveSensors.append(ContinuousCapacitiveSensor(env=self, bodynode=self.iiwa_skels[1].bodynodes[8]))
+        for capsen in self.capacitiveSensors:
+            capsen.default2x3setup()
 
         #disable character gravity
         if self.print_skel_details:
@@ -1167,7 +1187,9 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         #print("a: " + str(a))
         startTime = time.time()
         if self.reset_number < 1 or not self.simulating:
-            if self.isHuman:
+            if self.dualPolicy:
+                return np.zeros(self.human_observation_size+self.robot_observation_size), 0, False, {}
+            elif self.isHuman:
                 return np.zeros(self.human_observation_size), 0, False, {}
             else:
                 return np.zeros(self.robot_observation_size), 0, False, {}
@@ -1179,7 +1201,10 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         robot_a = None
 
         #query the "other" policy and set actions
-        if self.isHuman:
+        if self.dualPolicy:
+            human_a = a[:len(self.human_action_scale)]
+            robot_a = a[len(self.human_action_scale):]
+        elif self.isHuman:
             human_a = a
 
             #query the robot policy
@@ -1313,7 +1338,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             pos_upper_lim = self.robot_skeleton.position_upper_limits()
             pos_lower_lim = self.robot_skeleton.position_lower_limits()
 
-            self.humanSPDIntperolationTarget += a*0.1
+            self.humanSPDIntperolationTarget += human_a*0.1
             #clamp humanSPD target
 
             #q = np.array(self.robot_skeleton.q)
@@ -1375,6 +1400,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             qpos[dof] = 0
             qvel[dof] = 0
         self.set_state(qpos, qvel)
+
+        #update capacitive sensor
+        if self.robotCapacitiveObs:
+            try:
+                for capsens in self.capacitiveSensors:
+                    capsens.update()
+                    capsens.getReadingSpherical()
+            except:
+                print("Capacitive sensors not setup")
 
         startTime2 = time.time()
         reward = self.computeReward(tau=human_tau)
@@ -2033,12 +2067,19 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
             #obs = np.concatenate([obs, self.ikTarget, self.frameEulerState])
             obs = np.concatenate([obs, self.frameInterpolator["target_pos"], self.frameInterpolator["eulers"]])
 
+        # capacitive sensor aggregate reading
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                obs = np.concatenate([obs, capsens.getAggregateSensorReading() / 0.15])
+            pass
 
         return obs
 
     def _get_obs(self):
         #this should return the active observation
-        if self.isHuman:
+        if self.dualPolicy:
+            return np.concatenate([self._get_human_obs(), self._get_robot_obs()])
+        elif self.isHuman:
             return self._get_human_obs()
         else:
             return self._get_robot_obs()
@@ -2592,9 +2633,11 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         a=0
 
     def extraRenderFunction(self):
-        #self._get_viewer().scene.tb.trans[0] = self.rigidClothFrame.getCenter()[0]
-        #self._get_viewer().scene.tb.trans[1] = 2.0
-        #self._get_viewer().scene.tb.trans[2] = self.rigidClothFrame.getCenter()[2]
+
+        # render capacitive sensor readings
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                capsens.draw()
 
         #draw shoulder plane
         if False:
@@ -2874,6 +2917,16 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         #elif self.demoRendering:
         #    #still want time displayed
         #    self.clothScene.drawText(x=15., y=15, text="Time = " + str(self.numSteps * self.dt), color=(0., 0, 0))
+
+        if self.robotCapacitiveObs:
+            for capsens in self.capacitiveSensors:
+                robo_ef = capsens.bodynode.to_world(np.zeros(3))
+                windowef = self.viewer.project(robo_ef)
+                sensorReading = capsens.getAggregateSensorReading()
+                for s in range(capsens.numSensorRayZones):
+                    self.clothScene.drawText(x=windowef[0], y=windowef[1]+16*s,
+                                         text="Z["+str(s)+"]: %0.4f" % sensorReading[s],
+                                         color=(1.0, 0., 0.))
 
         if self.weaknessScaleVarObs:
             self.clothScene.drawText(x=360., y=self.viewer.viewport[3] - 60,

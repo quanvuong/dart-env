@@ -447,7 +447,7 @@ class ContinuousCapacitiveSensor:
         lines = [[self.frame.org, self.frame.org+norm]]
         for ix,p in enumerate(self.sensorGlobals):
             renderUtils.drawSphere(pos=p)
-            renderUtils.drawSphere(pos=p, rad=self.sensorRanges[ix], solid=False)
+            #renderUtils.drawSphere(pos=p, rad=self.sensorRanges[ix], solid=False)
             if self.sensorReadings[ix][0] < self.sensorRanges[ix]:
                 lines.append([p,self.sensorReadings[ix][1]])
         renderUtils.drawLines(lines)
@@ -478,7 +478,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
     def __init__(self):
 
         self.dualPolicy = True #if true, both human and robot share a (possibly split) policy
-        self.isHuman = False #otherwise robot
+        self.isHuman = True #otherwise robot (also turns on some reward terms)
         rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
