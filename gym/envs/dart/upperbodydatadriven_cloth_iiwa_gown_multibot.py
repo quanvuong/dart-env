@@ -479,7 +479,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
         self.dualPolicy = True #if true, both human and robot share a (possibly split) policy
         self.isHuman = True #otherwise robot (also turns on some reward terms)
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -1905,7 +1905,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
         if self.consecutiveInstabilities > 5:
             print("too many consecutive instabilities: " + str(self.consecutiveInstabilities) + "/5")
-            return True, -5000
+            return True, -10000
 
         # check the termination conditions and return: done,reward
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
@@ -1914,15 +1914,15 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -5000
+            return True, -10000
         elif not np.isfinite(s).all():
             print("Infinite value detected in s..." + str(s))
-            return True, -5000
+            return True, -10000
         else:
             for iiwa_ix,iiwa in enumerate(self.iiwa_skels):
                 if not np.isfinite(iiwa.q).all():
                     print("Infinite value detected in iiwa "+str(iiwa_ix)+" state..." + str(s))
-                    return True, -5000
+                    return True, -10000
         # elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
         #    limbInsertionError = pyutils.limbFeatureProgress(
         #        limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,

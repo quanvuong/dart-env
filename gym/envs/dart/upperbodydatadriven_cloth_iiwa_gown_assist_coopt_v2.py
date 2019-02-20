@@ -312,7 +312,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         #feature flags
         self.dualPolicy = True
         self.isHuman = True #otherwise robot
-        rendering = True
+        rendering = False
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True
@@ -352,7 +352,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         self.limbProgressReward         = True  # if true, the (-inf, 1] limb progress metric is included in reward
         self.oracleDisplacementReward   = False  # if true, reward ef displacement in the oracle vector direction
         self.contactGeoReward           = False  # if true, [0,1] reward for ef contact geo (0 if no contact, 1 if limbProgress > 0).
-        self.deformationPenalty         = True
+        self.deformationPenalty         = False
         self.restPoseReward             = False
         self.variationEntropyReward     = False #if true (and variations exist) reward variation in action linearly w.r.t. distance in variation space (via sampling)
         self.shoulderPlaneReward        = False #if true, penalize robot for being "inside" the shoulder plan wrt human
@@ -1813,7 +1813,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
 
         if self.consecutiveInstabilities > 5:
             print("too many consecutive instabilities: " + str(self.consecutiveInstabilities) + "/5")
-            return True, -5000
+            return True, -10000
 
         # check the termination conditions and return: done,reward
         topHead = self.robot_skeleton.bodynodes[14].to_world(np.array([0, 0.25, 0]))
@@ -1822,13 +1822,13 @@ class DartClothUpperBodyDataDrivenClothIiwaGownAssistCooptV2Env(DartClothEnv, ut
         if np.amax(np.absolute(s[:len(self.robot_skeleton.q)])) > 10:
             print("Detecting potential instability")
             print(s)
-            return True, -5000
+            return True, -10000
         elif not np.isfinite(s).all():
             print("Infinite value detected in s..." + str(s))
-            return True, -5000
+            return True, -10000
         elif not np.isfinite(self.iiwa_skel.q).all():
             print("Infinite value detected in iiwa state..." + str(s))
-            return True, -5000
+            return True, -10000
         # elif self.sleeveEndTerm and self.limbProgress <= 0 and self.simulateCloth:
         #    limbInsertionError = pyutils.limbFeatureProgress(
         #        limb=pyutils.limbFromNodeSequence(self.robot_skeleton, nodes=self.limbNodesL,
