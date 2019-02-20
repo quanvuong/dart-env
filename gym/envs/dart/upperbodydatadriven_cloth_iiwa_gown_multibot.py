@@ -479,7 +479,7 @@ class DartClothUpperBodyDataDrivenClothIiwaGownMultibotEnv(DartClothEnv, utils.E
 
         self.dualPolicy = True #if true, both human and robot share a (possibly split) policy
         self.isHuman = True #otherwise robot (also turns on some reward terms)
-        rendering = False
+        rendering = True
         self.demoRendering = True #when true, reduce the debugging display significantly
         clothSimulation = True
         self.renderCloth = True

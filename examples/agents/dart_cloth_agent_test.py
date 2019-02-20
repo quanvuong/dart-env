@@ -52,8 +52,13 @@ if __name__ == '__main__':
 
     trial = None
 
-    # --- Multibot trials
+    # --- Split Network: one arm
+    trial = "experiment_2019_02_19_split_architecture_coopt_noconpen_humreward"
+    # ---
 
+    # --- Multibot trials
+    #trial = "experiment_2019_02_19_split_architecture_coopt_multibot_noconpen_humreward" #dual network, human reward
+    #trial = "experiment_2019_02_19_split_architecture_coopt_multibot_noconpen" #dual network, no contact penalty
     #trial = "experiment_2019_02_18_split_architecture_coopt_multibot" #dual network
     #trial = "experiment_2019_02_15_robo_multibot_cap"
     #trial = "experiment_2019_02_15_robo_multibot"
@@ -65,6 +70,7 @@ if __name__ == '__main__':
     # ---
 
     # --- Robot trained on tuned SPD human
+    #trial = "experiment_2019_02_19_robo_weakerrange_noconpen_cap_weakobs_tar"
     #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_cap_weakobs"
     #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_obs"
     #trial = "experiment_2019_02_15_robo_SPD_human_norest_weakerrange_cap"
@@ -551,8 +557,8 @@ if __name__ == '__main__':
     #envName = 'DartIiwaGown-v4'
     #envName = 'DartIiwaGown-v5'
     #envName = 'DartIiwaGownAssist-v3'
-    envName = 'DartIiwaGownAssist-v4'
-    #envName = 'DartIiwaGownAssistCoopt-v2'
+    #envName = 'DartIiwaGownAssist-v4'
+    envName = 'DartIiwaGownAssistCoopt-v2'
     #envName = 'DartIiwaGownAssistCoopt_h-v2'
     #envName = 'DartIiwaGownMultibot-v1'
     env = gym.make(envName)
