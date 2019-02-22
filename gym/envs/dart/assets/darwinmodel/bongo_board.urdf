@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot name="bongo_board_skeleton">
+    <link name="world" />
+
+    <link name="board">
+        <inertial>
+            <mass value="0.5" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="0.005108333333333333" ixy="0" ixz="0" iyy="0.0010708333333333334" iyz="0" izz="0.006170833333333332" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.16 0.35 0.01" />
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.16 0.35 0.01" />
+            </geometry>
+        </collision>
+    </link>
+
+    <link name="support">
+        <inertial>
+            <mass value="0.25" />
+            <origin xyz="0 0 -0.03" rpy="0 1.57 0" />
+            <inertia ixx="0.01851666666666666" ixy="0" ixz="0" iyy="0.01851666666666666" iyz="0" izz="0.037024999999999995" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 -0.03" rpy="0 1.57 0" />
+            <geometry>
+                <cylinder length="0.15" radius="0.025"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 -0.03" rpy="0 1.57 0" />
+            <geometry>
+                <cylinder length="0.15" radius="0.025"/>
+            </geometry>
+        </collision>
+    </link>
+
+
+    <joint name="jt1" type="floating">
+        <parent link="world"/>
+        <child link="support"/>
+        <origin rpy="0 0 0" xyz="0 0 -0.28"/>
+    </joint>
+
+    <joint name="jt2" type="fixed">
+        <parent link="support"/>
+        <child link="board"/>
+    </joint>
+
+</robot>

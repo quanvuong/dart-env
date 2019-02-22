@@ -35,19 +35,6 @@
       <material name="grey"/>
     </visual>
 
-    <collision>
-      <origin rpy="0 0 0" xyz="-0.1 0 0"/>
-      <geometry>
-        <box scale="1 1 1" size="0.05 0.025 0.005"/>
-      </geometry>
-    </collision>
-
-    <visual>
-      <origin rpy="0 0 0" xyz="-0.1 0 0"/>
-      <geometry>
-        <box scale="1 1 1" size="0.05 0.025 0.005"/>
-      </geometry>
-    </visual>
   </link>
   <joint name="base_link_to_body" type="fixed">
     <parent link="base_link"/>
@@ -114,8 +101,8 @@
   <link name="MP_ARM_LOW_L">
     <inertial>
       <origin rpy="0 0 0" xyz="0.0 0 0"/>
-      <mass value="0.01"/>
-      <inertia ixx="8.74166666667e-07" ixy="0.0" ixz="0.0" iyy="1.70666666667e-06" iyz="0.0" izz="8.74166666667e-07"/>
+      <mass value="0.025"/>
+      <inertia ixx="3.11116537913e-06" ixy="0.0" ixz="0.0" iyy="1.11116537913e-06" iyz="0.0" izz="3.01185713493e-06"/>
     </inertial>
     <collision>
       <origin rpy="0 0 0" xyz="0.016 0.016 0"/>
@@ -135,8 +122,8 @@
   <link name="l_hand" >
     <inertial>
       <origin xyz="0 0 0"/>
-      <mass value="0.1"/>
-      <inertia ixx="0.00012202839"  ixy="-0.0000020812626"  ixz="-0.00000088143449" iyx="-0.0000020812626" iyy="0.000038088441" iyz="0.0000018251448" izx="-0.00000088143449" izy="0.0000018251448" izz="0.00011340830" />
+      <mass value="0.07"/>
+      <inertia ixx="0.000012202839"  ixy="0.0"  ixz="0.0" iyx="-0.0" iyy="0.000038088441" iyz="0.0" izx="-0.0" izy="0.0" izz="0.000011340830" />
     </inertial>
     <visual>
       <origin xyz="-0.05 -0.08 0.0" rpy="0 0 1.57" />
@@ -218,8 +205,8 @@
   <link name="MP_ARM_LOW_R">
     <inertial>
       <origin xyz="0.000000 0.000000 0.000000"/>
-      <mass value="0.059288504"/>
-      <inertia ixx="1.11116537913e-05" ixy="0.0" ixz="0.0" iyy="1.11116537913e-05" iyz="0.0" izz="1.01185713493e-05"/>
+      <mass value="0.025"/>
+      <inertia ixx="3.11116537913e-06" ixy="0.0" ixz="0.0" iyy="1.11116537913e-06" iyz="0.0" izz="3.01185713493e-06"/>
     </inertial>
     <collision>
       <origin rpy="0 0 0" xyz="0.016 -0.016 0"/>
@@ -238,8 +225,8 @@
   <link name="r_hand" >
     <inertial>
       <origin xyz="0.045838 -0.013490 0.006666"/>
-      <mass value="0.10"/>
-      <inertia ixx="0.00012202839"  ixy="-0.0000020812626"  ixz="-0.00000088143449" iyx="-0.0000020812626" iyy="0.000038088441" iyz="0.0000018251448" izx="-0.00000088143449" izy="0.0000018251448" izz="0.00011340830" />
+      <mass value="0.07"/>
+      <inertia ixx="0.000012202839"  ixy="0.0"  ixz="0.0" iyx="-0.0" iyy="0.000038088441" iyz="0.0" izx="-0.0" izy="0.0" izz="0.000011340830" />
     </inertial>
     <visual>
       <origin xyz="-0.05 -0.08 -0.0" rpy="0 0 1.57" />
