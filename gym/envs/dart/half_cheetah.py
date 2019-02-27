@@ -18,7 +18,8 @@ class DartHalfCheetahEnv(dart_env.DartEnv, utils.EzPickle):
 
         self.initial_local_coms = [np.copy(bn.local_com()) for bn in self.robot_skeleton.bodynodes]
 
-        self.dart_world.set_collision_detector(3)
+        # 2 means we use Bullet collision detector
+        self.dart_world.set_collision_detector(2)
 
         self.robot_skeleton=self.dart_world.skeletons[-1]
 
