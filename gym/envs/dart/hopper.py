@@ -11,9 +11,6 @@ class DartHopperEnv(dart_env.DartEnv, utils.EzPickle):
 
         dart_env.DartEnv.__init__(self, 'hopper_capsule.skel', 4, obs_dim, self.control_bounds, disableViewer=True)
 
-        # 2 means we use Bullet collision detector
-        self.dart_world.set_collision_detector(2)
-
         utils.EzPickle.__init__(self)
 
 
